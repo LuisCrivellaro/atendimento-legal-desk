@@ -29,6 +29,13 @@
       "when": 1792447201431,
       "tag": "0003_material_approval_gates",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792447330587,
+      "tag": "0004_harden_approval_insert_gates",
+      "breakpoints": true
     }
   ]
 }
