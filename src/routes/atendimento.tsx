@@ -65,7 +65,7 @@ function Atendimento() {
   return (
     <div className="grid h-[calc(100svh-4rem)] grid-cols-[300px_1fr_360px] overflow-hidden">
       {/* Esquerda */}
-      <aside className="flex flex-col border-r bg-card">
+      <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r bg-card">
         <div className="space-y-3 border-b p-3">
           <h1 className="text-xl font-semibold">Conversas</h1>
           <div className="relative">
@@ -78,7 +78,7 @@ function Atendimento() {
             ))}
           </div>
         </div>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1">
           {visiveis.map((c) => {
             const ult = c.mensagens[c.mensagens.length - 1];
             return (
@@ -137,7 +137,7 @@ function Chat({ c, addMsg, update }: { c: Conversa; addMsg: (t: string, e?: Part
   ];
 
   return (
-    <section className="flex min-w-0 flex-col bg-chat-bg">
+    <section className="flex min-h-0 min-w-0 flex-col bg-chat-bg">
       <div className="flex items-center gap-3 border-b bg-card px-4 py-2.5">
         <div className="flex size-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">{iniciais(c.nome)}</div>
         <div className="min-w-0 flex-1">
@@ -150,7 +150,7 @@ function Chat({ c, addMsg, update }: { c: Conversa; addMsg: (t: string, e?: Part
 
       <Pipeline c={c} />
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-2 p-4">
           {c.mensagens.map((m) => (
             <div key={m.id} className={cn("flex", m.de === "escritorio" ? "justify-end" : "justify-start")}>
@@ -281,7 +281,7 @@ function Pipeline({ c }: { c: Conversa }) {
 function PainelProJuris({ c }: { c: Conversa }) {
   const recebidos = c.documentos.filter((d) => d.recebido).length;
   return (
-    <aside className="flex flex-col overflow-hidden border-l bg-card">
+    <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden border-l bg-card">
       <div className="border-b p-3"><h2 className="section-title text-lg">ProJuris</h2></div>
       <Tabs defaultValue="cliente" className="flex min-h-0 flex-1 flex-col">
         <TabsList className="mx-3 mt-2 grid grid-cols-4">
@@ -290,7 +290,7 @@ function PainelProJuris({ c }: { c: Conversa }) {
           <TabsTrigger value="consulta">Consulta</TabsTrigger>
           <TabsTrigger value="tempo">Histórico</TabsTrigger>
         </TabsList>
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1">
           <TabsContent value="cliente" className="space-y-4 p-3">
             <dl className="grid grid-cols-[110px_1fr] gap-y-1.5 text-sm">
               <dt className="text-muted-foreground">Nome</dt><dd className="font-medium">{c.nome}</dd>
