@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { listarCasos, salvarCaso } from "@/lib/casos";
 import { toast } from "sonner";
 import {
   Search, Paperclip, Mic, Image as ImageIcon, Send, Video, CalendarClock, FileStack, FileSignature,
@@ -14,11 +16,11 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { conversas as inicial, etapaLabel, naoPodeDizer, sugestoesIA, PIPELINE, type Conversa, type Etapa, type Mensagem } from "@/lib/mock-data";
+import { etapaLabel, naoPodeDizer, sugestoesIA, PIPELINE, type Conversa, type Etapa, type Mensagem } from "@/lib/mock-data";
 import { n8n } from "@/services/n8n";
 import { AnaliseDocumento } from "@/components/analise-documento";
 
-export const Route = createFileRoute("/atendimento")({
+export const Route = createFileRoute("/_authenticated/atendimento")({
   head: () => ({
     meta: [
       { title: "Atendimento — Manager ADV" },
@@ -51,13 +53,28 @@ async function executar(label: string, fn: () => Promise<unknown>, onOk?: () => 
 }
 
 function Atendimento() {
+  const { data, isLoading, error } = useQuery({ queryKey: ["casos"], queryFn: listarCasos });
+  if (isLoading) return <div className="flex h-[60vh] items-center justify-center text-muted-foreground"><Loader2 className="mr-2 animate-spin" />Carregando casos…</div>;
+  if (error) return <div className="p-8 text-destructive">Não foi possível carregar os casos.</div>;
+  if (!data?.length) return <div className="p-8 text-muted-foreground">Nenhum caso cadastrado para você ainda.</div>;
+  return <AtendimentoTela inicial={data} />;
+}
+
+function AtendimentoTela({ inicial }: { inicial: Conversa[] }) {
   const [lista, setLista] = useState<Conversa[]>(inicial);
-  const [selId, setSelId] = useState("c1");
+  const [selId, setSelId] = useState(inicial[0]!.id);
+  useEffect(() => { setLista(inicial); }, [inicial]);
   const [filtro, setFiltro] = useState<"inicial" | "documentos" | "ativo" | "todos">("todos");
   const [busca, setBusca] = useState("");
-  const sel = lista.find((c) => c.id === selId)!;
+  const sel = lista.find((c) => c.id === selId) ?? lista[0]!;
 
-  const update = (id: string, fn: (c: Conversa) => Conversa) => setLista((l) => l.map((c) => (c.id === id ? fn(c) : c)));
+  const update = (id: string, fn: (c: Conversa) => Conversa) => {
+    const antes = lista.find((c) => c.id === id);
+    if (!antes) return;
+    const depois = fn(antes);
+    setLista((l) => l.map((c) => (c.id === id ? depois : c)));
+    salvarCaso(antes, depois).catch(() => toast.error("Não foi possível salvar a alteração."));
+  };
   const addMsg = (texto: string, extra: Partial<Mensagem> = {}) =>
     update(sel.id, (c) => ({ ...c, mensagens: [...c.mensagens, { id: crypto.randomUUID(), de: "escritorio", texto, hora: agora(), ...extra }] }));
 
@@ -83,7 +100,7 @@ function Atendimento() {
           {visiveis.map((c) => {
             const ult = c.mensagens[c.mensagens.length - 1];
             return (
-              <button key={c.id} onClick={() => { setSelId(c.id); update(c.id, (x) => ({ ...x, naoLidas: 0 })); }}
+              <button key={c.id} onClick={() => setSelId(c.id)}
                 className={cn("flex w-full gap-3 border-b px-3 py-3 text-left transition hover:bg-accent", c.id === selId && "bg-accent")}>
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground">{iniciais(c.nome)}</div>
                 <div className="min-w-0 flex-1">

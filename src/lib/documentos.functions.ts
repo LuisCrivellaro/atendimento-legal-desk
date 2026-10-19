@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { createOpenAI } from "@ai-sdk/openai";
 import { streamText, Output, NoObjectGeneratedError } from "ai";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const resultadoSchema = z.object({
   tipoDocumento: z.string(),
@@ -18,6 +19,7 @@ export type ResultadoAnalise = z.infer<typeof resultadoSchema>;
 type Entrada = { filename: string; mimeType: string; base64: string; checklist: string[] };
 
 export const analisarDocumento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: Entrada) => {
     if (!d.base64) throw new Error("Arquivo vazio");
     if (d.mimeType !== "application/pdf" && !d.mimeType.startsWith("image/")) throw new Error("Envie PDF ou imagem (JPG/PNG)");
