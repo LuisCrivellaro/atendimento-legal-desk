@@ -27,7 +27,7 @@ export function DashboardPage(){
  const today=localDay();const cases=query.data?.cases??[];
  const visible=cases.filter(c=>(`${c.nome} ${c.atendimento}`.toLowerCase().includes(search.toLowerCase()))&&(status==='all'||String(c.pipeline)===status)&&(owner==='all'||c.responsavel===owner)&&(filter==='all'||(filter==='pending'?c.pendencias.length>0:c.prazos.some(p=>p.data<=today))));
   const due=cases.flatMap(c=>c.prazos.map(p=>({...p,nome:c.nome}))).sort((a,b)=>a.data.localeCompare(b.data));
-  const checklistApprovedCount=cases.filter(c=>approvals[c.id]?.checklist).length;
+  const checklistApprovedCount=cases.filter(c=>c.checklistApproved).length;
   const pipelineData=PIPELINE.map((label,i)=>({label,casos:cases.filter(c=>c.pipeline===i).length})).filter(d=>d.casos>0);
   const checklistData=[{name:'aprovadas',value:checklistApprovedCount,fill:CHART_COLORS.success},{name:'pendentes',value:cases.length-checklistApprovedCount,fill:CHART_COLORS.pending}];
   const prazosData=[{name:'vencidos',value:due.filter(p=>p.data<=today).length,fill:CHART_COLORS.destructive},{name:'aVencer',value:due.filter(p=>p.data>today).length,fill:CHART_COLORS.primary}];
