@@ -1,5 +1,7 @@
 # Construção dos módulos Manager ADV
 
+- [ ] Criar fila de aprovações de minutas por advogado, com prazo salvo, status da versão atual e atualização automática.
+- [ ] Verificar a fila autenticada, os filtros e a persistência de responsável/prazo sem alterar permissões de aprovação.
 - [x] Exigir aprovação jurídica separada de checklist e minutas, com bloqueio de avanço e invalidação por alteração.
 - [x] Verificar regras de autorização e bloqueio no atendimento, produção, auditoria e protocolo: testes de regras e tentativa real de avanço negada à atendente.
 - [x] Criar painel geral de casos com status, prazos e pendências, atualização automática a cada 15 segundos e acesso conforme perfil.
