@@ -22,6 +22,8 @@ export const Route = createFileRoute("/auth")({
       { name: "description", content: "Acesso da equipe CS Lawyers ao Manager ADV." },
       { property: "og:title", content: "Entrar — Manager ADV" },
       { property: "og:description", content: "Acesso da equipe CS Lawyers ao Manager ADV." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: AuthPage,
