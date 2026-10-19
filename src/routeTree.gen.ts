@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AndamentosRouteImport } from './routes/andamentos'
+import { Route as AtendimentoRouteImport } from './routes/atendimento'
 import { Route as AuditoriaRouteImport } from './routes/auditoria'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as ProducaoRouteImport } from './routes/producao'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const AndamentosRoute = AndamentosRouteImport.update({
   id: '/andamentos',
   path: '/andamentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AtendimentoRoute = AtendimentoRouteImport.update({
+  id: '/atendimento',
+  path: '/atendimento',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuditoriaRoute = AuditoriaRouteImport.update({
@@ -56,6 +62,7 @@ const TreinamentoRoute = TreinamentoRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/andamentos': typeof AndamentosRoute
+  '/atendimento': typeof AtendimentoRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/producao': typeof ProducaoRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/andamentos': typeof AndamentosRoute
+  '/atendimento': typeof AtendimentoRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/producao': typeof ProducaoRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/andamentos': typeof AndamentosRoute
+  '/atendimento': typeof AtendimentoRoute
   '/auditoria': typeof AuditoriaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/producao': typeof ProducaoRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/andamentos'
+    | '/atendimento'
     | '/auditoria'
     | '/configuracoes'
     | '/producao'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/andamentos'
+    | '/atendimento'
     | '/auditoria'
     | '/configuracoes'
     | '/producao'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/andamentos'
+    | '/atendimento'
     | '/auditoria'
     | '/configuracoes'
     | '/producao'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AndamentosRoute: typeof AndamentosRoute
+  AtendimentoRoute: typeof AtendimentoRoute
   AuditoriaRoute: typeof AuditoriaRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   ProducaoRoute: typeof ProducaoRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/andamentos'
       fullPath: '/andamentos'
       preLoaderRoute: typeof AndamentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/atendimento': {
+      id: '/atendimento'
+      path: '/atendimento'
+      fullPath: '/atendimento'
+      preLoaderRoute: typeof AtendimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auditoria': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AndamentosRoute: AndamentosRoute,
+  AtendimentoRoute: AtendimentoRoute,
   AuditoriaRoute: AuditoriaRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   ProducaoRoute: ProducaoRoute,
