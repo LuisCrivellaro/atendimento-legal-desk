@@ -102,6 +102,7 @@ export type Database = {
       }
       legal_approvals: {
         Row: {
+          approved_by: string | null
           caso_id: string
           created_at: string
           id: string
@@ -110,6 +111,7 @@ export type Database = {
           revision: string
         }
         Insert: {
+          approved_by?: string | null
           caso_id: string
           created_at?: string
           id?: string
@@ -118,6 +120,7 @@ export type Database = {
           revision: string
         }
         Update: {
+          approved_by?: string | null
           caso_id?: string
           created_at?: string
           id?: string
@@ -197,6 +200,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_material: {
+        Args: { p_case: string; p_kind: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -204,6 +211,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      material_approved: {
+        Args: { p_case: string; p_kind: string; p_owner: string }
+        Returns: boolean
+      }
+      material_revision: {
+        Args: { p_case: string; p_kind: string; p_owner: string }
+        Returns: string
+      }
+      material_status: { Args: { p_case: string }; Returns: Json }
     }
     Enums: {
       app_role:

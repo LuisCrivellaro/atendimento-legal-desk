@@ -22,6 +22,13 @@
       "when": 1792445927793,
       "tag": "0002_legal_approvals",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792447201431,
+      "tag": "0003_material_approval_gates",
+      "breakpoints": true
     }
   ]
 }
