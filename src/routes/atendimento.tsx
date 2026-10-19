@@ -63,7 +63,7 @@ function Atendimento() {
   const visiveis = lista.filter((c) => (filtro === "todos" || c.etapa === filtro) && c.nome.toLowerCase().includes(busca.toLowerCase()));
 
   return (
-    <div className="grid h-[calc(100svh-4rem)] grid-cols-[300px_1fr_360px] overflow-hidden">
+    <div className="grid h-[calc(100svh-4rem)] grid-cols-[300px_1fr_360px] grid-rows-[minmax(0,1fr)] overflow-hidden">
       {/* Esquerda */}
       <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r bg-card">
         <div className="space-y-3 border-b p-3">
