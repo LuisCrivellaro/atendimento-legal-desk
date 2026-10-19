@@ -14,16 +14,151 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      casos: {
+        Row: {
+          created_at: string
+          dados: Json
+          etapa: string
+          id: string
+          nome: string
+          ordem: number
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dados?: Json
+          etapa?: string
+          id?: string
+          nome: string
+          ordem?: number
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dados?: Json
+          etapa?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      casos_modelo: {
+        Row: {
+          dados: Json
+          ordem: number
+        }
+        Insert: {
+          dados: Json
+          ordem: number
+        }
+        Update: {
+          dados?: Json
+          ordem?: number
+        }
+        Relationships: []
+      }
+      checklist_itens: {
+        Row: {
+          caso_id: string
+          id: string
+          nome: string
+          ordem: number
+          owner_id: string
+          recebido: boolean
+          updated_at: string
+        }
+        Insert: {
+          caso_id: string
+          id?: string
+          nome: string
+          ordem?: number
+          owner_id: string
+          recebido?: boolean
+          updated_at?: string
+        }
+        Update: {
+          caso_id?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          owner_id?: string
+          recebido?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_itens_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          cargo: string
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          cargo?: string
+          created_at?: string
+          id: string
+          nome?: string
+        }
+        Update: {
+          cargo?: string
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role:
+        | "advogada_senior"
+        | "advogado_junior"
+        | "atendente"
+        | "operacoes"
+        | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +285,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: [
+        "advogada_senior",
+        "advogado_junior",
+        "atendente",
+        "operacoes",
+        "admin",
+      ],
+    },
   },
 } as const
