@@ -1,7 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { EmBreve } from "@/components/em-breve";
-
-export const Route = createFileRoute("/_authenticated/protocolo")({
-  head: () => ({ meta: [{ title: "Protocolo — Manager ADV" }, { name: "description", content: "Autuação no tribunal e vínculo do processo no ProJuris." }, { property: "og:title", content: "Protocolo — Manager ADV" }, { property: "og:description", content: "Autuação no tribunal e vínculo do processo no ProJuris." }] }),
-  component: () => <EmBreve titulo="Protocolo" descricao="Autuação no tribunal e vínculo do processo no ProJuris." />,
+import { createFileRoute } from '@tanstack/react-router';
+import { ProtocolPage } from '@/components/office/protocol';
+export const Route = createFileRoute('/_authenticated/protocolo')({
+ head: () => ({meta: [{title: 'Protocolo — Manager ADV'},{name:'description',content:'Conferência final e registro de protocolo do escritório CS Lawyers.'},{property:'og:title',content:'Protocolo — Manager ADV'},{property:'og:description',content:'Conferência final e registro de protocolo do escritório CS Lawyers.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary_large_image'}]}),
+ component: ProtocolPage,
 });

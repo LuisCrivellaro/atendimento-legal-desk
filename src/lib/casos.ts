@@ -26,7 +26,8 @@ export async function salvarCaso(antes: Conversa, depois: Conversa) {
   if (error) throw error;
   const mudados = documentos.filter((d) => d.id && antes.documentos.find((a) => a.id === d.id)?.recebido !== d.recebido);
   for (const d of mudados) {
-    const r = await supabase.from("checklist_itens").update({ recebido: d.recebido, updated_at: new Date().toISOString() }).eq("id", d.id!);
+    if (!d.id) continue;
+    const r = await supabase.from("checklist_itens").update({ recebido: d.recebido, updated_at: new Date().toISOString() }).eq("id", d.id);
     if (r.error) throw r.error;
   }
 }

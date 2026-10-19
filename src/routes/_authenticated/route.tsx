@@ -49,10 +49,10 @@ function Layout() {
       <header className="fixed inset-x-0 top-0 z-30 h-16 border-b-2 border-primary bg-card">
         <div className="flex h-full items-center gap-4 px-4">
           <SidebarTrigger />
-          <span className="font-sans text-lg font-bold tracking-wide text-foreground">CS LAWYERS | ADVOCACIA</span>
+          <span className="min-w-0 font-sans text-sm font-bold text-foreground sm:text-lg">CS LAWYERS <span className="hidden sm:inline">| ADVOCACIA</span></span>
           <span className="hidden text-xs font-semibold tracking-[0.2em] text-primary [font-variant:small-caps] sm:inline">Brasil • Dubai • Portugal</span>
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <div className="text-right leading-tight">
+            <div className="hidden text-right leading-tight sm:block">
               <p className="font-medium">{perfil?.nome}</p>
               <p className="text-xs text-muted-foreground">{perfil?.roles.join(", ")}</p>
             </div>

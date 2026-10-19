@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { EmBreve } from "@/components/em-breve";
 
 export const Route = createFileRoute("/_authenticated/")({
-  head: () => ({ meta: [{ title: "Assessor de prazos — Manager ADV" }, { name: "description", content: "Painel de prazos e pendências do escritório CS Lawyers." }, { property: "og:title", content: "Assessor de prazos — Manager ADV" }, { property: "og:description", content: "Painel de prazos e pendências do escritório CS Lawyers." }] }),
+  head: () => ({ meta: [{ title: "Assessor de prazos — Manager ADV" }, { name: "description", content: "Painel de prazos e pendências do escritório CS Lawyers." }, { property: "og:title", content: "Assessor de prazos — Manager ADV" }, { property: "og:description", content: "Painel de prazos e pendências do escritório CS Lawyers." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: () => (
     <div>
       <EmBreve titulo="Assessor" descricao="Painel de prazos, pendências e próximos passos de cada caso." />
