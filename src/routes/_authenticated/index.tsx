@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { EmBreve } from "@/components/em-breve";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({ meta: [{ title: "Assessor de prazos — Manager ADV" }, { name: "description", content: "Painel de prazos e pendências do escritório CS Lawyers." }, { property: "og:title", content: "Assessor de prazos — Manager ADV" }, { property: "og:description", content: "Painel de prazos e pendências do escritório CS Lawyers." }] }),
   component: () => (
     <div>

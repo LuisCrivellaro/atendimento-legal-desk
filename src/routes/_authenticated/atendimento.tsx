@@ -18,7 +18,7 @@ import { conversas as inicial, etapaLabel, naoPodeDizer, sugestoesIA, PIPELINE, 
 import { n8n } from "@/services/n8n";
 import { AnaliseDocumento } from "@/components/analise-documento";
 
-export const Route = createFileRoute("/atendimento")({
+export const Route = createFileRoute("/_authenticated/atendimento")({
   head: () => ({
     meta: [
       { title: "Atendimento — Manager ADV" },
