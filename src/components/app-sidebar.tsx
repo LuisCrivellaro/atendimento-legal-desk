@@ -1,11 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Compass, MessageCircle, FileText, ShieldCheck, Landmark, Activity, Brain, Settings } from "lucide-react";
+import { Compass, MessageCircle, FileText, ShieldCheck, Landmark, Activity, Brain, Settings, ClipboardCheck } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuBadge } from "@/components/ui/sidebar";
 
 const items = [
   { title: "Assessor", url: "/", icon: Compass, badge: 3 },
   { title: "Atendimento", url: "/atendimento", icon: MessageCircle, badge: 3 },
   { title: "Produção", url: "/producao", icon: FileText, badge: 4 },
+  { title: "Aprovações", url: "/aprovacoes", icon: ClipboardCheck, badge: 0 },
   { title: "Auditoria", url: "/auditoria", icon: ShieldCheck, badge: 2 },
   { title: "Protocolo", url: "/protocolo", icon: Landmark, badge: 1 },
   { title: "Andamentos", url: "/andamentos", icon: Activity, badge: 5 },

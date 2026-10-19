@@ -36,6 +36,13 @@
       "when": 1792447330587,
       "tag": "0004_harden_approval_insert_gates",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792449838770,
+      "tag": "0005_draft_approval_queue",
+      "breakpoints": true
     }
   ]
 }
