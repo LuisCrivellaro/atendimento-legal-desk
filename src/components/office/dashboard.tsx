@@ -3,14 +3,22 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useServerFn } from '@tanstack/react-start';
 import { RefreshCw, Search, BriefcaseBusiness, CalendarClock, CircleAlert, ArrowUpRight, Loader2 } from 'lucide-react';
+import { Bar, BarChart, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { officeDashboard } from '@/lib/office.functions';
 import { deadlineState, localDay } from '@/lib/dashboard';
 import { PIPELINE } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
 import { PageHeader } from './shared';
 import { Route as AuthRoute } from '@/routes/_authenticated/route';
+
+const CHART_COLORS = { primary: 'hsl(var(--primary))', success: 'hsl(var(--success))', destructive: 'hsl(var(--destructive))', pending: 'hsl(var(--pending))', muted: 'hsl(var(--muted-foreground))' };
+const pipelineConfig = { casos: { label: 'Casos', color: CHART_COLORS.primary } } satisfies ChartConfig;
+const checklistConfig = { aprovadas: { label: 'Checklists aprovadas', color: CHART_COLORS.success }, pendentes: { label: 'Aguardando aprovação', color: CHART_COLORS.pending } } satisfies ChartConfig;
+const prazosConfig = { vencidos: { label: 'Vencidos / hoje', color: CHART_COLORS.destructive }, aVencer: { label: 'A vencer', color: CHART_COLORS.primary } } satisfies ChartConfig;
+const pendenciasConfig = { total: { label: 'Pendências', color: CHART_COLORS.pending } } satisfies ChartConfig;
 
 export function DashboardPage(){
  const {user}=AuthRoute.useRouteContext();const read=useServerFn(officeDashboard);
