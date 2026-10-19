@@ -10,33 +10,115 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AndamentosRouteImport } from './routes/andamentos'
+import { Route as AuditoriaRouteImport } from './routes/auditoria'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
+import { Route as ProducaoRouteImport } from './routes/producao'
+import { Route as ProtocoloRouteImport } from './routes/protocolo'
+import { Route as TreinamentoRouteImport } from './routes/treinamento'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AndamentosRoute = AndamentosRouteImport.update({
+  id: '/andamentos',
+  path: '/andamentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditoriaRoute = AuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProducaoRoute = ProducaoRouteImport.update({
+  id: '/producao',
+  path: '/producao',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProtocoloRoute = ProtocoloRouteImport.update({
+  id: '/protocolo',
+  path: '/protocolo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TreinamentoRoute = TreinamentoRouteImport.update({
+  id: '/treinamento',
+  path: '/treinamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/andamentos': typeof AndamentosRoute
+  '/auditoria': typeof AuditoriaRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/producao': typeof ProducaoRoute
+  '/protocolo': typeof ProtocoloRoute
+  '/treinamento': typeof TreinamentoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/andamentos': typeof AndamentosRoute
+  '/auditoria': typeof AuditoriaRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/producao': typeof ProducaoRoute
+  '/protocolo': typeof ProtocoloRoute
+  '/treinamento': typeof TreinamentoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/andamentos': typeof AndamentosRoute
+  '/auditoria': typeof AuditoriaRoute
+  '/configuracoes': typeof ConfiguracoesRoute
+  '/producao': typeof ProducaoRoute
+  '/protocolo': typeof ProtocoloRoute
+  '/treinamento': typeof TreinamentoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/andamentos'
+    | '/auditoria'
+    | '/configuracoes'
+    | '/producao'
+    | '/protocolo'
+    | '/treinamento'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/andamentos'
+    | '/auditoria'
+    | '/configuracoes'
+    | '/producao'
+    | '/protocolo'
+    | '/treinamento'
+  id:
+    | '__root__'
+    | '/'
+    | '/andamentos'
+    | '/auditoria'
+    | '/configuracoes'
+    | '/producao'
+    | '/protocolo'
+    | '/treinamento'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AndamentosRoute: typeof AndamentosRoute
+  AuditoriaRoute: typeof AuditoriaRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRoute
+  ProducaoRoute: typeof ProducaoRoute
+  ProtocoloRoute: typeof ProtocoloRoute
+  TreinamentoRoute: typeof TreinamentoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +130,59 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/andamentos': {
+      id: '/andamentos'
+      path: '/andamentos'
+      fullPath: '/andamentos'
+      preLoaderRoute: typeof AndamentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auditoria': {
+      id: '/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof AuditoriaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/producao': {
+      id: '/producao'
+      path: '/producao'
+      fullPath: '/producao'
+      preLoaderRoute: typeof ProducaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/protocolo': {
+      id: '/protocolo'
+      path: '/protocolo'
+      fullPath: '/protocolo'
+      preLoaderRoute: typeof ProtocoloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/treinamento': {
+      id: '/treinamento'
+      path: '/treinamento'
+      fullPath: '/treinamento'
+      preLoaderRoute: typeof TreinamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AndamentosRoute: AndamentosRoute,
+  AuditoriaRoute: AuditoriaRoute,
+  ConfiguracoesRoute: ConfiguracoesRoute,
+  ProducaoRoute: ProducaoRoute,
+  ProtocoloRoute: ProtocoloRoute,
+  TreinamentoRoute: TreinamentoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
