@@ -100,6 +100,35 @@ export type Database = {
           },
         ]
       }
+      draft_review_assignments: {
+        Row: {
+          caso_id: string
+          due_date: string | null
+          lawyer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          caso_id: string
+          due_date?: string | null
+          lawyer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          caso_id?: string
+          due_date?: string | null
+          lawyer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "draft_review_assignments_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: true
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       legal_approvals: {
         Row: {
           approved_by: string | null
@@ -204,6 +233,7 @@ export type Database = {
         Args: { p_case: string; p_kind: string }
         Returns: undefined
       }
+      draft_approval_queue: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -220,6 +250,10 @@ export type Database = {
         Returns: string
       }
       material_status: { Args: { p_case: string }; Returns: Json }
+      schedule_draft_review: {
+        Args: { p_case: string; p_due?: string; p_lawyer?: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
