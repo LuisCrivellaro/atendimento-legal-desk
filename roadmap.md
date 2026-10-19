@@ -25,3 +25,9 @@
 - As aprovações estão protegidas por perfil, mas não foram exercidas com conta júnior/sênior; a conta disponível é atendente.
 - Painel integral disponível à sênior e administração; demais perfis veem casos próprios. Leitura integral e aprovação positiva aguardam uma sessão desses perfis para verificação ponta a ponta; não houve alteração de cargos de usuários.
 - Exportação DOCX tem cabeçalho/rodapé e margens; a reprodução integral dos modelos visuais e validação de paginação continuam fora desta etapa.
+## Integração real ProJuris (aguardando credenciais)
+
+- [ ] Cadastrar clientes/casos no ProJuris a partir do atendimento — bloqueado: credenciais de API.
+- [ ] Vincular processo (CNJ) ao caso no ProJuris — bloqueado: credenciais de API.
+- [ ] Enviar pacote final aprovado ao ProJuris — bloqueado: credenciais de API.
+- [ ] Receber andamentos/prazos do ProJuris (webhook) em Andamentos — bloqueado: credenciais de API.
