@@ -200,7 +200,7 @@ function Chat({ c, addMsg, update }: { c: Conversa; addMsg: (t: string, e?: Part
         onConfirm={(h) => executar("Enviar horários", () => n8n.enviarHorarios({ conversaId: c.id, horarios: h }), () =>
           addMsg(`Olá! Sou a assessora da Dra. Carolina Santos. Temos os seguintes horários disponíveis para sua consulta (30 min):\n${h.map((x) => `• ${x}`).join("\n")}\nQual fica melhor para você?`))} />
       <HorariosDialog open={retornoOpen} onOpenChange={setRetornoOpen} sextas
-        onConfirm={(h) => executar("Agendar retorno", () => n8n.agendarRetorno({ clienteId: c.id, horario: h[0] }), () => addMsg(`Seu retorno com a Dra. Carolina está agendado para ${h[0]} (15 a 20 min).`))} />
+        onConfirm={(h) => executar("Agendar retorno", () => n8n.agendarRetorno({ clienteId: c.id, horario: h[0] ?? "" }), () => addMsg(`Seu retorno com a Dra. Carolina está agendado para ${h[0]} (15 a 20 min).`))} />
 
       <Dialog open={videoOpen} onOpenChange={setVideoOpen}>
         <DialogContent>
@@ -355,7 +355,7 @@ function PainelProJuris({ c }: { c: Conversa }) {
                 </li>
               ))}
             </ol>
-            <Button variant="ghost" size="sm" onClick={() => executar("Sincronizar ProJuris", () => n8n.sincronizarEtapaProjuris({ casoId: c.id, etapa: PIPELINE[c.etapaPipeline] }))}><RefreshCw />Sincronizar com ProJuris</Button>
+            <Button variant="ghost" size="sm" onClick={() => executar("Sincronizar ProJuris", () => n8n.sincronizarEtapaProjuris({ casoId: c.id, etapa: PIPELINE[c.etapaPipeline] ?? "" }))}><RefreshCw />Sincronizar com ProJuris</Button>
           </TabsContent>
         </ScrollArea>
       </Tabs>
