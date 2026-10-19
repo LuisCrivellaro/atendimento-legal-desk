@@ -12,8 +12,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
+import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -117,26 +116,21 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      router.invalidate();
+      if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+    });
+    return () => data.subscription.unsubscribe();
+  }, [router, queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <header className="fixed inset-x-0 top-0 z-30 h-16 border-b-2 border-primary bg-card">
-          <div className="flex h-full items-center gap-4 px-4">
-            <SidebarTrigger />
-            <span className="font-sans text-lg font-bold tracking-wide text-foreground">CS LAWYERS | ADVOCACIA</span>
-            <span className="hidden text-xs font-semibold tracking-[0.2em] text-primary [font-variant:small-caps] sm:inline">Brasil • Dubai • Portugal</span>
-            <span className="ml-auto text-sm text-muted-foreground">Manager ADV · Dra. Carolina Santos</span>
-          </div>
-        </header>
-        <div className="flex min-h-screen w-full pt-16">
-          <AppSidebar />
-          <main className="min-w-0 flex-1">
-            <Outlet />
-          </main>
-        </div>
-        <Toaster richColors position="top-right" />
-      </SidebarProvider>
+      <Outlet />
+      <Toaster richColors position="top-right" />
     </QueryClientProvider>
   );
 }
