@@ -2,6 +2,7 @@
 
 - [ ] Exigir aprovação jurídica separada de checklist e minutas, com bloqueio de avanço e invalidação por alteração.
 - [ ] Verificar regras de autorização e bloqueio no atendimento, produção, auditoria e protocolo.
+- [ ] Criar painel geral de casos com status, prazos e pendências, atualização automática e acesso conforme perfil.
 
 - [x] Consolidar os três prompts anexados e preservar suas regras de segurança documental.
 - [x] Construir Produção: checklist, arquivos privados, análise de conteúdo, cópias finais, minuta IA e exportação DOCX/memorial PDF.
