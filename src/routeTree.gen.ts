@@ -9,91 +9,93 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AndamentosRouteImport } from './routes/andamentos'
-import { Route as AtendimentoRouteImport } from './routes/atendimento'
-import { Route as AuditoriaRouteImport } from './routes/auditoria'
-import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
-import { Route as ProducaoRouteImport } from './routes/producao'
-import { Route as ProtocoloRouteImport } from './routes/protocolo'
-import { Route as TreinamentoRouteImport } from './routes/treinamento'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedAndamentosRouteImport } from './routes/_authenticated/andamentos'
+import { Route as AuthenticatedAtendimentoRouteImport } from './routes/_authenticated/atendimento'
+import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
+import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
+import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticated/producao'
+import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authenticated/protocolo'
+import { Route as AuthenticatedTreinamentoRouteImport } from './routes/_authenticated/treinamento'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AndamentosRoute = AndamentosRouteImport.update({
-  id: '/andamentos',
+const AuthenticatedAndamentosRoute = AuthenticatedAndamentosRouteImport.update({
+  id: '/_authenticated/andamentos',
   path: '/andamentos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AtendimentoRoute = AtendimentoRouteImport.update({
-  id: '/atendimento',
-  path: '/atendimento',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuditoriaRoute = AuditoriaRouteImport.update({
-  id: '/auditoria',
+const AuthenticatedAtendimentoRoute =
+  AuthenticatedAtendimentoRouteImport.update({
+    id: '/_authenticated/atendimento',
+    path: '/atendimento',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
+  id: '/_authenticated/auditoria',
   path: '/auditoria',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProducaoRoute = ProducaoRouteImport.update({
-  id: '/producao',
+const AuthenticatedConfiguracoesRoute =
+  AuthenticatedConfiguracoesRouteImport.update({
+    id: '/_authenticated/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedProducaoRoute = AuthenticatedProducaoRouteImport.update({
+  id: '/_authenticated/producao',
   path: '/producao',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProtocoloRoute = ProtocoloRouteImport.update({
-  id: '/protocolo',
+const AuthenticatedProtocoloRoute = AuthenticatedProtocoloRouteImport.update({
+  id: '/_authenticated/protocolo',
   path: '/protocolo',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TreinamentoRoute = TreinamentoRouteImport.update({
-  id: '/treinamento',
-  path: '/treinamento',
-  getParentRoute: () => rootRouteImport,
-} as any)
+const AuthenticatedTreinamentoRoute =
+  AuthenticatedTreinamentoRouteImport.update({
+    id: '/_authenticated/treinamento',
+    path: '/treinamento',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/andamentos': typeof AndamentosRoute
-  '/atendimento': typeof AtendimentoRoute
-  '/auditoria': typeof AuditoriaRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/producao': typeof ProducaoRoute
-  '/protocolo': typeof ProtocoloRoute
-  '/treinamento': typeof TreinamentoRoute
+  '/andamentos': typeof AuthenticatedAndamentosRoute
+  '/atendimento': typeof AuthenticatedAtendimentoRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/producao': typeof AuthenticatedProducaoRoute
+  '/protocolo': typeof AuthenticatedProtocoloRoute
+  '/treinamento': typeof AuthenticatedTreinamentoRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/andamentos': typeof AndamentosRoute
-  '/atendimento': typeof AtendimentoRoute
-  '/auditoria': typeof AuditoriaRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/producao': typeof ProducaoRoute
-  '/protocolo': typeof ProtocoloRoute
-  '/treinamento': typeof TreinamentoRoute
+  '/andamentos': typeof AuthenticatedAndamentosRoute
+  '/atendimento': typeof AuthenticatedAtendimentoRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
+  '/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/producao': typeof AuthenticatedProducaoRoute
+  '/protocolo': typeof AuthenticatedProtocoloRoute
+  '/treinamento': typeof AuthenticatedTreinamentoRoute
+  '/': typeof AuthenticatedIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/andamentos': typeof AndamentosRoute
-  '/atendimento': typeof AtendimentoRoute
-  '/auditoria': typeof AuditoriaRoute
-  '/configuracoes': typeof ConfiguracoesRoute
-  '/producao': typeof ProducaoRoute
-  '/protocolo': typeof ProtocoloRoute
-  '/treinamento': typeof TreinamentoRoute
+  '/_authenticated/andamentos': typeof AuthenticatedAndamentosRoute
+  '/_authenticated/atendimento': typeof AuthenticatedAtendimentoRoute
+  '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
+  '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
+  '/_authenticated/producao': typeof AuthenticatedProducaoRoute
+  '/_authenticated/protocolo': typeof AuthenticatedProtocoloRoute
+  '/_authenticated/treinamento': typeof AuthenticatedTreinamentoRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/andamentos'
     | '/atendimento'
     | '/auditoria'
@@ -101,9 +103,9 @@ export interface FileRouteTypes {
     | '/producao'
     | '/protocolo'
     | '/treinamento'
+    | '/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/andamentos'
     | '/atendimento'
     | '/auditoria'
@@ -111,99 +113,100 @@ export interface FileRouteTypes {
     | '/producao'
     | '/protocolo'
     | '/treinamento'
+    | '/'
   id:
     | '__root__'
-    | '/'
-    | '/andamentos'
-    | '/atendimento'
-    | '/auditoria'
-    | '/configuracoes'
-    | '/producao'
-    | '/protocolo'
-    | '/treinamento'
+    | '/_authenticated/andamentos'
+    | '/_authenticated/atendimento'
+    | '/_authenticated/auditoria'
+    | '/_authenticated/configuracoes'
+    | '/_authenticated/producao'
+    | '/_authenticated/protocolo'
+    | '/_authenticated/treinamento'
+    | '/_authenticated/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AndamentosRoute: typeof AndamentosRoute
-  AtendimentoRoute: typeof AtendimentoRoute
-  AuditoriaRoute: typeof AuditoriaRoute
-  ConfiguracoesRoute: typeof ConfiguracoesRoute
-  ProducaoRoute: typeof ProducaoRoute
-  ProtocoloRoute: typeof ProtocoloRoute
-  TreinamentoRoute: typeof TreinamentoRoute
+  AuthenticatedAndamentosRoute: typeof AuthenticatedAndamentosRoute
+  AuthenticatedAtendimentoRoute: typeof AuthenticatedAtendimentoRoute
+  AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
+  AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
+  AuthenticatedProducaoRoute: typeof AuthenticatedProducaoRoute
+  AuthenticatedProtocoloRoute: typeof AuthenticatedProtocoloRoute
+  AuthenticatedTreinamentoRoute: typeof AuthenticatedTreinamentoRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/andamentos': {
-      id: '/andamentos'
+    '/_authenticated/andamentos': {
+      id: '/_authenticated/andamentos'
       path: '/andamentos'
       fullPath: '/andamentos'
-      preLoaderRoute: typeof AndamentosRouteImport
+      preLoaderRoute: typeof AuthenticatedAndamentosRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/atendimento': {
-      id: '/atendimento'
+    '/_authenticated/atendimento': {
+      id: '/_authenticated/atendimento'
       path: '/atendimento'
       fullPath: '/atendimento'
-      preLoaderRoute: typeof AtendimentoRouteImport
+      preLoaderRoute: typeof AuthenticatedAtendimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auditoria': {
-      id: '/auditoria'
+    '/_authenticated/auditoria': {
+      id: '/_authenticated/auditoria'
       path: '/auditoria'
       fullPath: '/auditoria'
-      preLoaderRoute: typeof AuditoriaRouteImport
+      preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/configuracoes': {
-      id: '/configuracoes'
+    '/_authenticated/configuracoes': {
+      id: '/_authenticated/configuracoes'
       path: '/configuracoes'
       fullPath: '/configuracoes'
-      preLoaderRoute: typeof ConfiguracoesRouteImport
+      preLoaderRoute: typeof AuthenticatedConfiguracoesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/producao': {
-      id: '/producao'
+    '/_authenticated/producao': {
+      id: '/_authenticated/producao'
       path: '/producao'
       fullPath: '/producao'
-      preLoaderRoute: typeof ProducaoRouteImport
+      preLoaderRoute: typeof AuthenticatedProducaoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/protocolo': {
-      id: '/protocolo'
+    '/_authenticated/protocolo': {
+      id: '/_authenticated/protocolo'
       path: '/protocolo'
       fullPath: '/protocolo'
-      preLoaderRoute: typeof ProtocoloRouteImport
+      preLoaderRoute: typeof AuthenticatedProtocoloRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/treinamento': {
-      id: '/treinamento'
+    '/_authenticated/treinamento': {
+      id: '/_authenticated/treinamento'
       path: '/treinamento'
       fullPath: '/treinamento'
-      preLoaderRoute: typeof TreinamentoRouteImport
+      preLoaderRoute: typeof AuthenticatedTreinamentoRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AndamentosRoute: AndamentosRoute,
-  AtendimentoRoute: AtendimentoRoute,
-  AuditoriaRoute: AuditoriaRoute,
-  ConfiguracoesRoute: ConfiguracoesRoute,
-  ProducaoRoute: ProducaoRoute,
-  ProtocoloRoute: ProtocoloRoute,
-  TreinamentoRoute: TreinamentoRoute,
+  AuthenticatedAndamentosRoute: AuthenticatedAndamentosRoute,
+  AuthenticatedAtendimentoRoute: AuthenticatedAtendimentoRoute,
+  AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
+  AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
+  AuthenticatedProducaoRoute: AuthenticatedProducaoRoute,
+  AuthenticatedProtocoloRoute: AuthenticatedProtocoloRoute,
+  AuthenticatedTreinamentoRoute: AuthenticatedTreinamentoRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
