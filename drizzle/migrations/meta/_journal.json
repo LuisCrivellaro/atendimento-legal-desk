@@ -43,6 +43,13 @@
       "when": 1792449838770,
       "tag": "0005_draft_approval_queue",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792451784922,
+      "tag": "0006_master_and_senior_full_access",
+      "breakpoints": true
     }
   ]
 }

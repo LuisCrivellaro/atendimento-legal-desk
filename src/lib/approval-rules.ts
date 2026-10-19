@@ -1,5 +1,5 @@
 export function canApproveMaterial(roles: string[]) {
-  return roles.some(role => role === 'advogada_senior' || role === 'advogado_junior');
+  return roles.some(role => role === 'advogada_senior' || role === 'advogado_junior' || role === 'admin');
 }
 export function canViewOffice(roles: string[]) {
   return roles.some(role => role === 'advogada_senior' || role === 'admin');
