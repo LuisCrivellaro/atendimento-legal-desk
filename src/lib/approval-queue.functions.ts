@@ -14,7 +14,9 @@ export const scheduleDraftReview = createServerFn({ method: 'POST' })
   .inputValidator(z.object({ caseId: z.string().uuid(), lawyerId: z.string().uuid().nullable(), dueDate: z.iso.date().nullable() }))
   .handler(async ({ data, context }) => {
     const result = await context.supabase.rpc('schedule_draft_review', {
-      p_case: data.caseId, p_lawyer: data.lawyerId ?? undefined, p_due: data.dueDate ?? undefined,
+      p_case: data.caseId,
+      ...(data.lawyerId ? { p_lawyer: data.lawyerId } : {}),
+      ...(data.dueDate ? { p_due: data.dueDate } : {}),
     });
     if (result.error) throw new Error(result.error.message);
     return { ok: true };
