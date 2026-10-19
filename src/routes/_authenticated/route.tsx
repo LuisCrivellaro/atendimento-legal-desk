@@ -41,7 +41,7 @@ function Layout() {
     qc.clear();
     await supabase.auth.signOut();
     await router.invalidate();
-    navigate({ to: "/auth", replace: true });
+    navigate({ to: "/auth", search: { redirect: undefined }, replace: true });
   };
 
   return (

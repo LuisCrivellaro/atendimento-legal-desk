@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -15,7 +15,7 @@ const destinoSeguro = (r?: string) => {
 };
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>) => ({ redirect: typeof s.redirect === "string" ? s.redirect : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({ redirect: typeof s["redirect"] === "string" ? s["redirect"] : undefined }),
   head: () => ({
     meta: [
       { title: "Entrar — Manager ADV" },
@@ -29,7 +29,8 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const { redirect } = Route.useSearch();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const ir = () => router.history.replace(destinoSeguro(redirect));
   const [modo, setModo] = useState<"entrar" | "cadastrar">("entrar");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -38,10 +39,10 @@ function AuthPage() {
   const [confirmar, setConfirmar] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if (data.user) navigate({ to: destinoSeguro(redirect), replace: true }); });
-    const { data: sub } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") navigate({ to: destinoSeguro(redirect), replace: true }); });
+    supabase.auth.getUser().then(({ data }) => { if (data.user) ir(); });
+    const { data: sub } = supabase.auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") ir(); });
     return () => sub.subscription.unsubscribe();
-  }, [navigate, redirect]);
+  }, [router, redirect]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
