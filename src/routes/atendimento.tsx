@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { conversas as inicial, etapaLabel, naoPodeDizer, sugestoesIA, PIPELINE, type Conversa, type Etapa, type Mensagem } from "@/lib/mock-data";
 import { n8n } from "@/services/n8n";
+import { AnaliseDocumento } from "@/components/analise-documento";
 
 export const Route = createFileRoute("/atendimento")({
   head: () => ({
@@ -103,7 +104,7 @@ function Atendimento() {
       </aside>
 
       <Chat key={sel.id} c={sel} addMsg={addMsg} update={(fn) => update(sel.id, fn)} />
-      <PainelProJuris c={sel} />
+      <PainelProJuris c={sel} update={(fn) => update(sel.id, fn)} />
     </div>
   );
 }
@@ -278,7 +279,7 @@ function Pipeline({ c }: { c: Conversa }) {
   );
 }
 
-function PainelProJuris({ c }: { c: Conversa }) {
+function PainelProJuris({ c, update }: { c: Conversa; update: (fn: (c: Conversa) => Conversa) => void }) {
   const recebidos = c.documentos.filter((d) => d.recebido).length;
   return (
     <aside className="flex min-h-0 min-w-0 flex-col overflow-hidden border-l bg-card">
@@ -326,6 +327,7 @@ function PainelProJuris({ c }: { c: Conversa }) {
                 </li>
               ))}
             </ul>
+            <AnaliseDocumento key={c.id} c={c} update={update} />
           </TabsContent>
           <TabsContent value="consulta" className="space-y-3 p-3">
             {c.consulta ? (
