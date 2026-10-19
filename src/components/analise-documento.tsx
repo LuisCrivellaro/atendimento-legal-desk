@@ -24,7 +24,7 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
   const [analises, setAnalises] = useState<Analise[]>([]);
 
   const processar = async (f: File) => {
-    if (f.size > 10 * 1024 * 1024) return toast.error("Arquivo muito grande (máx. 10 MB)");
+    if (f.size > 10 * 1024 * 1024) { toast.error("Arquivo muito grande (máx. 10 MB)"); return; }
     setCarregando(f.name);
     try {
       const base64 = await toBase64(f);
