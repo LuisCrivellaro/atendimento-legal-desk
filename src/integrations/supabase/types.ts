@@ -100,6 +100,41 @@ export type Database = {
           },
         ]
       }
+      legal_approvals: {
+        Row: {
+          caso_id: string
+          created_at: string
+          id: string
+          kind: string
+          owner_id: string
+          revision: string
+        }
+        Insert: {
+          caso_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          owner_id: string
+          revision: string
+        }
+        Update: {
+          caso_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          owner_id?: string
+          revision?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_approvals_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       office_workspace: {
         Row: {
           dados: Json
