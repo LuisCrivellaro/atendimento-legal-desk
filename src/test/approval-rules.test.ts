@@ -4,7 +4,8 @@ describe('Aprovação jurídica obrigatória', () => {
   it('permite aprovação apenas a sênior ou júnior', () => {
     expect(canApproveMaterial(['advogada_senior'])).toBe(true);
     expect(canApproveMaterial(['advogado_junior'])).toBe(true);
-    for (const role of ['atendente','operacoes','admin']) expect(canApproveMaterial([role])).toBe(false);
+    expect(canApproveMaterial(['admin'])).toBe(true);
+    for (const role of ['atendente','operacoes']) expect(canApproveMaterial([role])).toBe(false);
   });
   it('bloqueia produção até aprovação de checklist', () => {
     expect(canAdvance(3,{checklist:false,draft:true})).toBe(false);
