@@ -100,6 +100,59 @@ export type Database = {
           },
         ]
       }
+      legal_approvals: {
+        Row: {
+          caso_id: string
+          created_at: string
+          id: string
+          kind: string
+          owner_id: string
+          revision: string
+        }
+        Insert: {
+          caso_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          owner_id: string
+          revision: string
+        }
+        Update: {
+          caso_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          owner_id?: string
+          revision?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_approvals_caso_id_fkey"
+            columns: ["caso_id"]
+            isOneToOne: false
+            referencedRelation: "casos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      office_workspace: {
+        Row: {
+          dados: Json
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          dados?: Json
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          dados?: Json
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cargo: string
