@@ -1,5 +1,8 @@
 # Construção dos módulos Manager ADV
 
+- [ ] Exigir aprovação jurídica separada de checklist e minutas, com bloqueio de avanço e invalidação por alteração.
+- [ ] Verificar regras de autorização e bloqueio no atendimento, produção, auditoria e protocolo.
+
 - [x] Consolidar os três prompts anexados e preservar suas regras de segurança documental.
 - [x] Construir Produção: checklist, arquivos privados, análise de conteúdo, cópias finais, minuta IA e exportação DOCX/memorial PDF.
 - [x] Construir Auditoria: 16 categorias, relatório IA com leitura dos anexos, pendências e validação humana protegida.
