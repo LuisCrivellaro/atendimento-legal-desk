@@ -100,6 +100,24 @@ export type Database = {
           },
         ]
       }
+      office_workspace: {
+        Row: {
+          dados: Json
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          dados?: Json
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          dados?: Json
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cargo: string

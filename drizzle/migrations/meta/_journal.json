@@ -8,6 +8,13 @@
       "when": 1792444738847,
       "tag": "0000_auth_profiles_casos",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792445889497,
+      "tag": "0001_office_workspace",
+      "breakpoints": true
     }
   ]
 }
