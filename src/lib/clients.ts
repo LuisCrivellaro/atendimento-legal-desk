@@ -2,7 +2,7 @@ import type { Conversa } from '@/lib/mock-data';
 import type { OfficeCase } from '@/lib/office';
 
 export interface ClientCase {
-  id: string; owner: string; responsible: string; mine: boolean; name: string;
+  pipeline?:number; syncs?: import('./mock-data').Sync[]; id: string; owner: string; responsible: string; mine: boolean; name: string;
   cpf: string; rg: string; phone: string; stage: string; attendance: string;
   petitionNumber: string; work: OfficeCase; processes: Conversa['processos'];
   checklist: Conversa['documentos']; history?: { data: string; evento: string }[]; real?: boolean; email?: string; address?: string; caseTitle?: string;

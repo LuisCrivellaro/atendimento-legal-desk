@@ -3,20 +3,20 @@ import { Compass, MessageCircle, FileText, ShieldCheck, Landmark, Activity, Brai
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuBadge } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Assessor", url: "/", icon: Compass, badge: 3 },
-  { title: "Atendimento", url: "/atendimento", icon: MessageCircle, badge: 3 },
-  { title: "Clientes", url: "/clientes", icon: Users, badge: 0 },
-  { title: "Produção", url: "/producao", icon: FileText, badge: 4 },
-  { title: "Aprovações", url: "/aprovacoes", icon: ClipboardCheck, badge: 0 },
-  { title: "Auditoria", url: "/auditoria", icon: ShieldCheck, badge: 2 },
-  { title: "Protocolo", url: "/protocolo", icon: Landmark, badge: 1 },
-  { title: "Andamentos", url: "/andamentos", icon: Activity, badge: 5 },
-  { title: "Treinamento de IA", url: "/treinamento", icon: Brain, badge: 0 },
-  { title: "Configurações", url: "/configuracoes", icon: Settings, badge: 0 },
-  { title: "Integrações", url: "/integracoes", icon: Plug, badge: 0 },
+  { title: "Assessor", url: "/", icon: Compass },
+  { title: "Atendimento", url: "/atendimento", icon: MessageCircle },
+  { title: "Clientes", url: "/clientes", icon: Users },
+  { title: "Produção", url: "/producao", icon: FileText },
+  { title: "Aprovações", url: "/aprovacoes", icon: ClipboardCheck },
+  { title: "Auditoria", url: "/auditoria", icon: ShieldCheck },
+  { title: "Protocolo", url: "/protocolo", icon: Landmark },
+  { title: "Andamentos", url: "/andamentos", icon: Activity },
+  { title: "Treinamento de IA", url: "/treinamento", icon: Brain },
+  { title: "Configurações", url: "/configuracoes", icon: Settings },
+  { title: "Integrações", url: "/integracoes", icon: Plug },
 ] as const;
 
-export function AppSidebar() {
+export function AppSidebar({badges={}}:{badges?:Record<string,number>}) {
   const path = useRouterState({ select: (r) => r.location.pathname });
   return (
     <Sidebar collapsible="icon" className="top-16 h-[calc(100svh-4rem)]">
@@ -29,7 +29,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={path === i.url} tooltip={i.title}>
                     <Link to={i.url}><i.icon /><span>{i.title}</span></Link>
                   </SidebarMenuButton>
-                  {i.badge > 0 && <SidebarMenuBadge className="bg-pending text-pending-foreground">{i.badge}</SidebarMenuBadge>}
+                  {(badges[i.url]??0) > 0 && <SidebarMenuBadge className={i.url==="/"?"bg-destructive text-destructive-foreground":"bg-pending text-pending-foreground"}>{badges[i.url]}</SidebarMenuBadge>}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

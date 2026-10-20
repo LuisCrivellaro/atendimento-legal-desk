@@ -23,7 +23,7 @@ export const readClients = createServerFn({ method: 'GET' }).middleware([require
     const d = c.dados as unknown as Partial<Conversa> & { rg?: string; numeroPeticao?: string; origem?: string; email?: string; endereco?: string; tituloCaso?: string };
     const workspace = workspaces.data.find(w => w.owner_id === c.owner_id)?.dados as unknown as OfficeState | undefined;
     const saved = workspace?.casos?.[c.id] ?? {};
-    return { id: c.id, owner: c.owner_id, responsible: profiles.data.find(p => p.id === c.owner_id)?.nome || 'Equipe', mine: c.owner_id === context.userId,
+    return { pipeline:d.etapaPipeline??0,syncs:d.syncs??[],id: c.id, owner: c.owner_id, responsible: profiles.data.find(p => p.id === c.owner_id)?.nome || 'Equipe', mine: c.owner_id === context.userId,
       name: c.nome, cpf: d.cpf ?? '', rg: d.rg ?? '', phone: d.telefone ?? '', stage: c.etapa, attendance: d.atendimento ?? '', petitionNumber: d.numeroPeticao ?? '',
       processes: d.processos ?? [], checklist: checklist.data.filter(i => i.caso_id === c.id).map(i => ({ nome: i.nome, recebido: i.recebido })),
       history: [...(d.timeline ?? []), ...(saved.historico ?? [])], real: d.origem === 'cadastro', email: d.email ?? '', address: d.endereco ?? '', caseTitle: d.tituloCaso ?? '',
