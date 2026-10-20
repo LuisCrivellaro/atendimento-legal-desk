@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## ProJuris no painel da conversa
+- [x] Mostrar processos, andamentos, prazos, tribunal, classe, protocolo e arquivos locais do cliente selecionado em uma aba ProJuris, indicando que não houve importação real.
+- [x] Verificar sessão autenticada: processos de Helena, ausência deles em Rogério, menu ProJuris, atualização e apresentação em 1424×661 e 855×661; 23 testes aprovados e compilação sem erros, sem alterar dados ou ativar integrações.
+- Atualizar o ZIP somente quando os créditos estiverem no final, conforme solicitado.
+
 ## Apresentação minimalista do Atendimento
 - [x] Reorganizar fila, cabeçalho, pipeline, próximo passo, mensagens e rodapé mantendo os handlers, permissões e integrações existentes.
 - [x] Agrupar ações/respostas e detalhes nas três abas recolhíveis; simplificar perfis no topo e lembrar a escolha do painel localmente.

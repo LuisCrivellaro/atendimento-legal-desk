@@ -28,3 +28,4 @@
 - Demo reminders run only while the conversation is open and use persisted message markers; why: no unattended external scheduler or duplicate AI dispatch is silently activated.
 - Optional operational case fields can invalidate draft approval under the unchanged database revision function; why: preserving the existing legal gate takes priority over bypassing reapproval without a migration.
 - Attendance presentation components contain only menus, tooltips and detail tabs; existing attendance handlers remain in the route, and panel preference is local browser state; why: visual refactors must not alter legal data or integration behavior.
+- Attendance ProJuris details project only the selected case and its owner-scoped workspace; local records and simulated sync markers never imply a provider import; why: prevents cross-client mixing and misleading integration claims.
