@@ -16,6 +16,7 @@ import { Route as AuthenticatedAndamentosRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAprovacoesRouteImport } from './routes/_authenticated/aprovacoes'
 import { Route as AuthenticatedAtendimentoRouteImport } from './routes/_authenticated/atendimento'
 import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
+import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedConfiguracoesRouteImport } from './routes/_authenticated/configuracoes'
 import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticated/producao'
 import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authenticated/protocolo'
@@ -56,6 +57,11 @@ const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
   path: '/auditoria',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedConfiguracoesRoute =
   AuthenticatedConfiguracoesRouteImport.update({
     id: '/configuracoes',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/atendimento': typeof AuthenticatedAtendimentoRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
+  '/clientes': typeof AuthenticatedClientesRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/producao': typeof AuthenticatedProducaoRoute
   '/protocolo': typeof AuthenticatedProtocoloRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/atendimento': typeof AuthenticatedAtendimentoRoute
   '/auditoria': typeof AuthenticatedAuditoriaRoute
+  '/clientes': typeof AuthenticatedClientesRoute
   '/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/producao': typeof AuthenticatedProducaoRoute
   '/protocolo': typeof AuthenticatedProtocoloRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/_authenticated/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/_authenticated/atendimento': typeof AuthenticatedAtendimentoRoute
   '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
+  '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/configuracoes': typeof AuthenticatedConfiguracoesRoute
   '/_authenticated/producao': typeof AuthenticatedProducaoRoute
   '/_authenticated/protocolo': typeof AuthenticatedProtocoloRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/aprovacoes'
     | '/atendimento'
     | '/auditoria'
+    | '/clientes'
     | '/configuracoes'
     | '/producao'
     | '/protocolo'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/aprovacoes'
     | '/atendimento'
     | '/auditoria'
+    | '/clientes'
     | '/configuracoes'
     | '/producao'
     | '/protocolo'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/_authenticated/aprovacoes'
     | '/_authenticated/atendimento'
     | '/_authenticated/auditoria'
+    | '/_authenticated/clientes'
     | '/_authenticated/configuracoes'
     | '/_authenticated/producao'
     | '/_authenticated/protocolo'
@@ -213,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clientes': {
+      id: '/_authenticated/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof AuthenticatedClientesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/configuracoes': {
       id: '/_authenticated/configuracoes'
       path: '/configuracoes'
@@ -249,6 +268,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAprovacoesRoute: typeof AuthenticatedAprovacoesRoute
   AuthenticatedAtendimentoRoute: typeof AuthenticatedAtendimentoRoute
   AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
+  AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedConfiguracoesRoute: typeof AuthenticatedConfiguracoesRoute
   AuthenticatedProducaoRoute: typeof AuthenticatedProducaoRoute
   AuthenticatedProtocoloRoute: typeof AuthenticatedProtocoloRoute
@@ -261,6 +281,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAprovacoesRoute: AuthenticatedAprovacoesRoute,
   AuthenticatedAtendimentoRoute: AuthenticatedAtendimentoRoute,
   AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
+  AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedConfiguracoesRoute: AuthenticatedConfiguracoesRoute,
   AuthenticatedProducaoRoute: AuthenticatedProducaoRoute,
   AuthenticatedProtocoloRoute: AuthenticatedProtocoloRoute,

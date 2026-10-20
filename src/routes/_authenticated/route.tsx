@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
+import { QuickSearch } from '@/components/quick-search';
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -47,12 +48,12 @@ function Layout() {
   return (
     <SidebarProvider>
       <header className="fixed inset-x-0 top-0 z-30 h-16 border-b-2 border-primary bg-card">
-        <div className="flex h-full items-center gap-4 px-4">
+        <div className="flex h-full items-center gap-2 px-3 lg:gap-4 lg:px-4">
           <SidebarTrigger />
-          <span className="min-w-0 font-sans text-sm font-bold text-foreground sm:text-lg">CS LAWYERS <span className="hidden sm:inline">| ADVOCACIA</span></span>
-          <span className="hidden text-xs font-semibold tracking-[0.2em] text-primary [font-variant:small-caps] sm:inline">Brasil • Dubai • Portugal</span>
+          <span className="shrink-0 font-sans text-sm font-bold text-foreground sm:text-lg">CS LAWYERS <span className="hidden xl:inline">| ADVOCACIA</span></span>
+          <QuickSearch />
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <div className="hidden text-right leading-tight sm:block">
+            <div className="hidden max-w-56 text-right leading-tight lg:block">
               <p className="font-medium">{perfil?.nome}</p>
               <p className="text-xs text-muted-foreground">{perfil?.roles.join(", ")}</p>
             </div>
