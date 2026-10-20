@@ -5,6 +5,10 @@ import { Loader2, Sparkles, Upload, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { analisarDocumento, type ResultadoAnalise } from "@/lib/documentos.functions";
 import type { Conversa } from "@/lib/mock-data";
+import { supabase } from "@/integrations/supabase/client";
+import { newMessage } from "@/lib/atendimento";
+import { saveFile } from "@/lib/office-store";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 const toBase64 = (f: File) =>
@@ -23,10 +27,14 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
   const [carregando, setCarregando] = useState<string | null>(null);
   const [analises, setAnalises] = useState<Analise[]>([]);
 
+  const [pendingFile,setPendingFile]=useState<File>();
+  const checkApproval=async(f:File)=>{const status=await supabase.rpc("material_status",{p_case:c.id});if(status.error){toast.error("Não foi possível verificar a aprovação.");return;}if((status.data as {checklist?:boolean}|null)?.checklist)setPendingFile(f);else await processar(f);};
   const processar = async (f: File) => {
     if (f.size > 10 * 1024 * 1024) { toast.error("Arquivo muito grande (máx. 10 MB)"); return; }
     setCarregando(f.name);
     try {
+      const {data:userData}=await supabase.auth.getUser();if(!userData.user)throw new Error("Entre novamente para guardar o documento.");
+      const saved=await saveFile(userData.user.id,c.id,f);
       const base64 = await toBase64(f);
       const r = await analisar({ data: { filename: f.name, mimeType: f.type, base64, checklist: c.documentos.map((d) => d.nome) } });
       if (!r.ok) { toast.error(r.erro); return; }
@@ -35,7 +43,8 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
       const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
       update((x) => ({
         ...x,
-        documentos: x.documentos.map((d) => (d.nome === res.itemChecklist ? { ...d, recebido: true } : d)),
+        documentos: x.documentos.map((d) => (res.confianca === "alta" && d.nome === res.itemChecklist ? { ...d, recebido: true } : d)),
+        mensagens:[...x.mensagens,newMessage("",{de:"cliente",tipo:f.type.startsWith("image/")?"imagem":"documento",arquivo:f.name,path:saved.path,salvoStart:true,tipoIdentificado:res.tipoDocumento,confirmarTipo:res.confianca!=="alta"})],
         timeline: [...x.timeline, { data: hoje, evento: `IA identificou: ${res.tipoDocumento} (${f.name})` }],
       }));
       toast.success(res.itemChecklist ? `Checklist atualizado: ${res.itemChecklist}` : `Identificado: ${res.tipoDocumento} (fora do checklist)`);
@@ -51,7 +60,7 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
     <div className="mt-4 space-y-3 border-t pt-3">
       <h3 className="section-title text-sm">Análise de documentos com IA</h3>
       <input ref={input} type="file" accept="application/pdf,image/png,image/jpeg,image/webp" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) processar(f); }} />
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) void checkApproval(f); }} />
       <Button variant="outline" className="w-full" disabled={!!carregando} onClick={() => input.current?.click()}>
         {carregando ? <><Loader2 className="animate-spin" />Analisando {carregando}…</> : <><Upload />Enviar documento do cliente</>}
       </Button>
@@ -72,6 +81,7 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
           {a.resultado.observacoes && <p className="mt-1 rounded bg-pending px-1.5 py-0.5 text-xs text-pending-foreground">{a.resultado.observacoes}</p>}
         </div>
       ))}
+      <Dialog open={!!pendingFile} onOpenChange={v=>{if(!v)setPendingFile(undefined);}}><DialogContent><DialogHeader><DialogTitle>Checklist já aprovado</DialogTitle></DialogHeader><p>A análise pode alterar o checklist e invalidar a aprovação jurídica. Será necessária nova aprovação para avançar.</p><DialogFooter><Button variant="outline" onClick={()=>setPendingFile(undefined)}>Cancelar</Button><Button onClick={()=>{const f=pendingFile;setPendingFile(undefined);if(f)void processar(f);}}>Confirmar análise</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }

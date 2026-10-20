@@ -24,6 +24,7 @@ import { Route as AuthRoute } from './route';
 import { supabase } from '@/integrations/supabase/client';
 import { AttendanceActions, actionLabels, type AttendanceAction } from '@/components/office/attendance-actions';
 import { Automations } from '@/components/office/automations';
+import { ChecklistCorrection } from '@/components/office/checklist-correction';
 import { PipelineSync } from '@/components/office/pipeline-sync';
 import { saveFile, fileBase64 } from '@/lib/office-store';
 import { analisarDocumento } from '@/lib/documentos.functions';
@@ -93,14 +94,7 @@ function PainelProJuris({ c, update }: { c: Conversa; update: (fn: (c: Conversa)
           <TabsContent value="docs" className="p-3">
             <p className="mb-2 text-sm text-muted-foreground">{recebidos} de {c.documentos.length} recebidos</p>
             <div className="mb-3 h-2 rounded bg-muted"><div className="h-2 rounded bg-primary" style={{ width: `${(recebidos / c.documentos.length) * 100}%` }} /></div>
-            <ul className="space-y-1.5">
-              {c.documentos.map((d) => (
-                <li key={d.nome} className="flex items-center gap-2 text-sm">
-                  {d.recebido ? <CheckCircle2 className="size-4 text-success" /> : <Circle className="size-4 text-destructive" />}
-                  <span className={cn(!d.recebido && "rounded bg-pending px-1 text-pending-foreground")}>{d.nome}</span>
-                </li>
-              ))}
-            </ul>
+            <ChecklistCorrection c={c} update={update}/>
             <AnaliseDocumento key={c.id} c={c} update={update} />
           </TabsContent>
           <TabsContent value="consulta" className="space-y-3 p-3">
