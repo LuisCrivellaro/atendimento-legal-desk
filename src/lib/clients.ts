@@ -5,7 +5,7 @@ export interface ClientCase {
   id: string; owner: string; responsible: string; mine: boolean; name: string;
   cpf: string; rg: string; phone: string; stage: string; attendance: string;
   petitionNumber: string; work: OfficeCase; processes: Conversa['processos'];
-  checklist: Conversa['documentos'];
+  checklist: Conversa['documentos']; history?: { data: string; evento: string }[]; real?: boolean; email?: string; address?: string; caseTitle?: string;
 }
 export interface ClientRecord { id: string; name: string; cpf: string; rg: string; phone: string; active: boolean; cases: ClientCase[] }
 export function normalizeSearch(value: string) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }

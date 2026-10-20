@@ -5,6 +5,7 @@ import { groupClients, type ClientCase } from '@/lib/clients';
 import type { OfficeState } from '@/lib/office';
 import type { Conversa } from '@/lib/mock-data';
 import { z } from 'zod';
+import type { Json } from '@/integrations/supabase/types';
 
 export const readClients = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const roles = await context.supabase.from('user_roles').select('role').eq('user_id', context.userId);
@@ -19,16 +20,36 @@ export const readClients = createServerFn({ method: 'GET' }).middleware([require
   ]);
   if (cases.error || workspaces.error || profiles.error || checklist.error) throw new Error('Não foi possível carregar os clientes.');
   const records = cases.data.map<ClientCase>(c => {
-    const d = c.dados as unknown as Partial<Conversa> & { rg?: string; numeroPeticao?: string };
+    const d = c.dados as unknown as Partial<Conversa> & { rg?: string; numeroPeticao?: string; origem?: string; email?: string; endereco?: string; tituloCaso?: string };
     const workspace = workspaces.data.find(w => w.owner_id === c.owner_id)?.dados as unknown as OfficeState | undefined;
     const saved = workspace?.casos?.[c.id] ?? {};
     return { id: c.id, owner: c.owner_id, responsible: profiles.data.find(p => p.id === c.owner_id)?.nome || 'Equipe', mine: c.owner_id === context.userId,
       name: c.nome, cpf: d.cpf ?? '', rg: d.rg ?? '', phone: d.telefone ?? '', stage: c.etapa, attendance: d.atendimento ?? '', petitionNumber: d.numeroPeticao ?? '',
       processes: d.processos ?? [], checklist: checklist.data.filter(i => i.caso_id === c.id).map(i => ({ nome: i.nome, recebido: i.recebido })),
+      history: [...(d.timeline ?? []), ...(saved.historico ?? [])], real: d.origem === 'cadastro', email: d.email ?? '', address: d.endereco ?? '', caseTitle: d.tituloCaso ?? '',
       work: { area: saved.area, fase: saved.fase, cnj: saved.cnj, recibo: saved.recibo, protocoloData: saved.protocoloData, tribunal: saved.tribunal, vara: saved.vara, classe: saved.classe, arquivos: (saved.arquivos ?? []).map(f => ({ ...f, analise: undefined })), movements: saved.movements, pendencias: saved.pendencias },
     };
   });
   return { clients: groupClients(records), entireOffice, updatedAt: new Date().toISOString(), projurisConnected: false };
+});
+
+export const createClientCase = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator(z.object({
+  name: z.string().trim().min(3).max(160), cpf: z.string().max(20), rg: z.string().max(30), phone: z.string().trim().min(8).max(30), email: z.union([z.string().email(), z.literal('')]), address: z.string().max(500), caseTitle: z.string().trim().min(3).max(200), petitionNumber: z.string().max(100), stage: z.enum(['inicial','documentos','ativo']),
+})).handler(async ({ context, data }) => {
+  const id = crypto.randomUUID(); const now = new Date();
+  const saved = { nome: data.name, cpf: data.cpf, rg: data.rg, telefone: data.phone, email: data.email, endereco: data.address, tituloCaso: data.caseTitle, numeroPeticao: data.petitionNumber, origem: 'cadastro', atendimento: `AT-${now.getUTCFullYear()}-${id.slice(0,8).toUpperCase()}`, etapa: data.stage, etapaPipeline: 0, syncs: [], processos: [], documentos: [], mensagens: [], timeline: [{ data: now.toISOString(), evento: `Cadastro de cliente e abertura do caso: ${data.caseTitle}` }] };
+  const result = await context.supabase.from('casos').insert({ id, owner_id: context.userId, nome: data.name, etapa: data.stage, dados: saved as unknown as Json });
+  if (result.error) throw new Error('Não foi possível salvar o cadastro.');
+  return { id };
+});
+
+export const addClientHistory = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator(z.object({ caseId: z.string().uuid(), note: z.string().trim().min(3).max(4000) })).handler(async ({ context, data }) => {
+  const c = await context.supabase.from('casos').select('dados,updated_at').eq('id', data.caseId).single();
+  if (c.error) throw new Error('Somente o responsável pode registrar o histórico deste caso.');
+  const saved = c.data.dados as unknown as Partial<Conversa>;
+  const result = await context.supabase.from('casos').update({ dados: { ...saved, timeline: [...(saved.timeline ?? []), { data: new Date().toISOString(), evento: data.note }] } as unknown as Json, updated_at: new Date().toISOString() }).eq('id', data.caseId).eq('updated_at', c.data.updated_at).select('id');
+  if (result.error || !result.data?.length) throw new Error('O caso foi atualizado por outra pessoa. Atualize e tente novamente.');
+  return { ok: true };
 });
 
 export const openClientDocument = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).inputValidator(z.object({ caseId: z.string().uuid(), fileId: z.string().uuid() })).handler(async ({ context, data }) => {
