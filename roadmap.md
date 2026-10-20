@@ -9,7 +9,7 @@
 - [x] Conferir regras visuais dos prompts e aplicar pré-visualização de peça na Produção e estilos DOCX, mantendo revisão jurídica.
 - [ ] Verificar conexão ProJuris — bloqueado: autenticação e endpoint do escritório não confirmados.
 - [ ] Verificar conexão UltraMsg — bloqueado: documentação exige token na URL; confirmar alternativa segura antes de usar credenciais.
-- [ ] Verificar busca e ficha com sessão autenticada e executar testes relevantes.
+- [x] Verificar cadastro e histórico após recarga, busca por RG, atualização do painel e Visual Law com conta master; 28 testes aprovados, Word gerado validado, tela de 390 px sem transbordamento.
 
 ## Preparação das integrações
 - [x] Preparar contrato de integração Claude sem substituir a IA atual; modelo confirmado no catálogo, sem chamada de inferência nesta preparação.
