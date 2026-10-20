@@ -1,5 +1,16 @@
 # Construção dos módulos Manager ADV
 
+## Busca, clientes e Visual Law
+- [x] Incluir cadastro real de cliente vinculado a caso, histórico e atualização do painel.
+- [x] Criar tela de status das integrações com botões usando credenciais salvas; ZapSign e Mercado Pago verificam acesso, sem operações externas automáticas.
+- [x] Criar busca rápida no cabeçalho por cliente, CPF, RG, celular, petição/processo e protocolo, respeitando acesso.
+- [x] Criar Clientes com filtros e ficha de informações, processos e documentos disponíveis.
+- [ ] Importar clientes, processos e documentos reais do ProJuris — bloqueado: credenciais e endereço da API do escritório.
+- [x] Conferir regras visuais dos prompts e aplicar pré-visualização de peça na Produção e estilos DOCX, mantendo revisão jurídica.
+- [ ] Verificar conexão ProJuris — bloqueado: autenticação e endpoint do escritório não confirmados.
+- [ ] Verificar conexão UltraMsg — bloqueado: documentação exige token na URL; confirmar alternativa segura antes de usar credenciais.
+- [x] Verificar cadastro e histórico após recarga, busca por RG, atualização do painel e Visual Law com conta master; 28 testes aprovados, Word gerado validado, tela de 390 px sem transbordamento.
+
 ## Preparação das integrações
 - [x] Preparar contrato de integração Claude sem substituir a IA atual; modelo confirmado no catálogo, sem chamada de inferência nesta preparação.
 - [x] Preparar contratos ZapSign com base em https://docs.zapsign.com.br, Mercado Pago e UltraMsg; operações reais continuam bloqueadas.
