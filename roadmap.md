@@ -1,9 +1,11 @@
 # Construção dos módulos Manager ADV
 
 ## Preparação das integrações
-- [ ] Preparar Claude sem substituir a IA atual, com teste separado.
-- [ ] Preparar ZapSign com base em https://docs.zapsign.com.br, Mercado Pago e UltraMsg; manter operações reais bloqueadas até ativação.
-- [ ] Exibir configuração e pendências em Configurações e verificar testes.
+- [x] Preparar contrato de integração Claude sem substituir a IA atual; modelo confirmado no catálogo, sem chamada de inferência nesta preparação.
+- [x] Preparar contratos ZapSign com base em https://docs.zapsign.com.br, Mercado Pago e UltraMsg; operações reais continuam bloqueadas.
+- [x] Exibir presença de credenciais e pendências em Configurações; conferir com conta master e 7 testes aprovados.
+- [ ] Ativar ZapSign, Mercado Pago e UltraMsg — bloqueado: credenciais privadas e confirmação do fluxo de ativação.
+- [ ] Ativar e testar inferência Claude separadamente — aguardando autorização para ativação; IA atual permanece inalterada.
 
 - [x] Criar fila de aprovações de minutas por advogado, com prazo salvo, status da versão atual e atualização automática.
 - [x] Verificar a fila autenticada, busca, prazo persistido após recarga, visualização da minuta e tela pequena sem alterar permissões de aprovação.
