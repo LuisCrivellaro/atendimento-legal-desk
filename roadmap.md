@@ -6,7 +6,7 @@
 - [x] Quadro de Produção e sincronização por etapa em Atendimento, Produção e Clientes.
 - [x] Andamentos: eventos destacados e aviso revisável em linguagem simples.
 - [x] Configurações: conexão n8n e log da sessão com identidade real; menu calculado e cabeçalho timbrado.
-- [x] 48 testes aprovados; sessão master: resposta IA, resumo IA, simplificação de andamento, mensagem salva após recarga, cobrança validada, horários livres, quadro, Assessor e ausência de transbordamento em 702 px.
+- [x] 50 testes aprovados; sessão master: resposta IA, resumo IA com checklist real, simplificação de andamento, mensagem salva após recarga, cobrança validada, horários livres, quadro, Assessor e ausência de transbordamento em 702 px; compilação sem erros.
 - Limites: mensagens antigas sem ISO permanecem sem data (não inventar); lembretes simulados dependem da conversa aberta; URL n8n não conecta serviços; log é da sessão; vendedor e fora do horário estão configuráveis, mas sem fluxo externo ativado. Novos campos opcionais podem invalidar minuta pelo hash existente; nenhuma aprovação/banco foi alterada.
 
 ## Busca, clientes e Visual Law
