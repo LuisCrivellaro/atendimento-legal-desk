@@ -1,7 +1,7 @@
 import { needsReply } from './atendimento';
 import type { Mensagem } from './mock-data';
 import type { Movement } from './office';
-export interface AssessorCase {id:string;nome:string;pipeline:number;mine:boolean;prazos:{data:string;texto:string;fatal?:boolean}[];mensagens?:Mensagem[];movements?:Movement[];consultaAgendada?:string;retornoAgendado?:string}
+export interface AssessorCase {id:string;nome:string;pipeline:number;mine:boolean;prazos:{data:string;texto:string;fatal?:boolean}[];mensagens?:Mensagem[];movements?:Movement[];consultaAgendada?:string|undefined;retornoAgendado?:string|undefined}
 export function daysUntil(date:string,today:string){return Math.round((Date.parse(date.slice(0,10)+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000);}
 export function buildAssessor(cases:AssessorCase[],today:string){
  const deadlines=cases.flatMap(c=>c.prazos.filter(p=>p.fatal).map(p=>({...p,caseId:c.id,client:c.nome,days:daysUntil(p.data,today)}))).sort((a,b)=>a.data.localeCompare(b.data));
