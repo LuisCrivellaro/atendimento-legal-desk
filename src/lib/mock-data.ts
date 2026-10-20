@@ -7,16 +7,20 @@ export type Sync = "sincronizado" | "pendente" | "erro";
 
 export interface Mensagem {
   id: string; de: "cliente" | "escritorio" | "sistema"; texto: string; hora: string;
-  tipo?: "texto" | "documento" | "audio" | "imagem"; arquivo?: string; salvoStart?: boolean;
+  iaProcessada?: boolean; automacaoKey?: string; dataHora?: string | undefined; autor?: string | undefined; tipoIdentificado?: string | undefined; confirmarTipo?: boolean | undefined; path?: string | undefined;
+  tipo?: "texto" | "documento" | "audio" | "imagem"; arquivo?: string | undefined; salvoStart?: boolean | undefined;
 }
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }
-export interface DocItem { id?: string; nome: string; recebido: boolean }
+export interface DocItem { id?: string | undefined; nome: string; recebido: boolean }
 export interface Conversa {
   id: string; nome: string; cpf: string; telefone: string; atendimento: string; etapa: Etapa;
   naoLidas: number; etapaPipeline: number; syncs: Sync[]; processos: Processo[];
   documentos: DocItem[]; mensagens: Mensagem[]; contrato?: "gerado" | "enviado" | "visualizado" | "assinado";
   consulta?: { duracao: string; resumo: string; transcricao: string };
   timeline: { data: string; evento: string }[];
+  lidoAte?: string | undefined; modoIA?: import('./atendimento').AIMode | undefined; iaRetida?: string | undefined; horariosOfertados?: string[];
+  consultaAgendada?: string | undefined; retornoAgendado?: string | undefined; retornoDuracao?: number | undefined; contratoLink?: string | undefined; contratoEnviadoEm?: string | undefined;
+  ultimoPedidoDocumentos?: string | undefined; videoLink?: string | undefined; automacoesExecutadas?: string[]; tituloCaso?: string | undefined;
 }
 
 const docsBase = (r: boolean[]): DocItem[] =>

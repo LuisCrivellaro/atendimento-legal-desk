@@ -18,9 +18,9 @@ export const officeDashboard = createServerFn({method:'GET'}).middleware([requir
   const statuses=await Promise.all((cases.data??[]).map(c=>client.rpc('material_status',{p_case:c.id})));
   return {entireOffice,updatedAt:new Date().toISOString(),cases:(cases.data??[]).map((c,i)=>{
    const ws=workspaces.data?.find(w=>w.owner_id===c.owner_id);const work=(ws?.dados as unknown as OfficeState)?.casos?.[c.id]??{};
-   const data=c.dados as {etapaPipeline?:number;atendimento?:string};
+   const data=c.dados as unknown as import('./mock-data').Conversa;
    const status=statuses[i]?.data as {checklist?:boolean}|null;
-   return {id:c.id,nome:c.nome,responsavel:profiles.data?.find(p=>p.id===c.owner_id)?.nome||'Equipe',mine:c.owner_id===context.userId,etapa:c.etapa,pipeline:data.etapaPipeline??0,fase:work.fase??'',area:work.area??'',atendimento:data.atendimento??'',checklistApproved:Boolean(status?.checklist),pendencias:[...(work.pendencias??[]),...(checklist.data??[]).filter(i=>i.caso_id===c.id&&!i.recebido).map(i=>`Documento: ${i.nome}`)],prazos:(work.movements??[]).filter(m=>!m.concluido&&m.prazo).map(m=>({data:m.prazo??'',texto:m.texto})),updatedAt:ws&&ws.updated_at>c.updated_at?ws.updated_at:c.updated_at};
+   return {mensagens:data.mensagens??[],movements:work.movements??[],consultaAgendada:data.consultaAgendada,retornoAgendado:data.retornoAgendado,id:c.id,nome:c.nome,responsavel:profiles.data?.find(p=>p.id===c.owner_id)?.nome||'Equipe',mine:c.owner_id===context.userId,etapa:c.etapa,pipeline:data.etapaPipeline??0,fase:work.fase??'',area:work.area??'',atendimento:data.atendimento??'',checklistApproved:Boolean(status?.checklist),pendencias:[...(work.pendencias??[]),...(checklist.data??[]).filter(i=>i.caso_id===c.id&&!i.recebido).map(i=>`Documento: ${i.nome}`)],prazos:(work.movements??[]).filter(m=>!m.concluido&&m.prazo).map(m=>({data:m.prazo??'',texto:m.texto,fatal:m.fatal??false})),updatedAt:ws&&ws.updated_at>c.updated_at?ws.updated_at:c.updated_at};
   })};
 });
 export const runLegalAI=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator(z.object({casoId:z.string().uuid(),kind:z.enum(['petition','audit','training']),question:z.string().max(8000).optional()})).handler(async({data,context})=>{

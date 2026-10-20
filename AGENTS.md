@@ -23,3 +23,7 @@
 - Client directory and quick search project saved cases into CPF-grouped client records, with authenticated role-scoped reads and owner-scoped case creation/history; why: keeps dashboard and client records consistent without duplicating case ownership or bypassing legal gates.
 - Integration connection checks are authenticated senior/admin read-only provider probes; credential presence never activates sending, signing, payment or import workflows; why: prevents silent legal-data transfer and financial actions.
 - Visual Law preview and DOCX share explicit block classification and document-layout roles; why: preserves source text and consistent formatting without importing area-specific legal claims.
+- Attendance and assessor rules are pure modules with tests; optional attendance fields stay in case JSON and automation settings stay at workspace root, without schema changes; why: preserves existing storage and legal gates.
+- Attendance AI reads the live checklist table and workspace training server-side through legalAI; why: checklist is not stored in case JSON and legal data must remain authoritative.
+- Demo reminders run only while the conversation is open and use persisted message markers; why: no unattended external scheduler or duplicate AI dispatch is silently activated.
+- Optional operational case fields can invalidate draft approval under the unchanged database revision function; why: preserving the existing legal gate takes priority over bypassing reapproval without a migration.
