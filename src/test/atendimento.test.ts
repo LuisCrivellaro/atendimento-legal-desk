@@ -1,6 +1,6 @@
 import { describe,it,expect } from 'vitest';
 import { conversas } from '@/lib/mock-data';
-import { needsReply,unread,replyQueue,waitTone,validOffer,validReturn,nextStep,forbiddenTopics,programmed,defaultAutomations } from '@/lib/atendimento';
+import { validCharge,chosenSlot,needsReply,unread,replyQueue,waitTone,validOffer,validReturn,nextStep,forbiddenTopics,programmed,defaultAutomations } from '@/lib/atendimento';
 const base=conversas[0];if(!base)throw new Error('Fixture absent');
 describe('Atendimento',()=>{
  it('excludes only short confirmations, not questions',()=>{for(const text of ['ok','obrigado','recebi','beleza','certo','perfeito','combinado'])expect(needsReply({mensagens:[{id:'1',de:'cliente',texto:text,hora:''}]})).toBe(false);expect(needsReply({mensagens:[{id:'1',de:'cliente',texto:'Obrigado! Posso levar acompanhante?',hora:''}]})).toBe(true);});
@@ -12,3 +12,6 @@ describe('Atendimento',()=>{
  it('holds forbidden topics and prioritizes retained AI',()=>{expect(forbiddenTopics('Honorários', ['honorários'])).toEqual(['honorários']);expect(nextStep({...base,iaRetida:'revisar'}).action).toBe('revisar');});
  it('programs reminders at 24 hours, 48 hours and 1 hour before consultation',()=>{const jobs=programmed({...base,contrato:'enviado',contratoEnviadoEm:'2026-10-20T10:00:00Z',ultimoPedidoDocumentos:'2026-10-20T10:00:00Z',consultaAgendada:'2026-10-23T14:00:00Z'},defaultAutomations);expect(jobs.find(j=>j.key==='contrato')?.when).toBe('2026-10-21T10:00:00.000Z');expect(jobs.find(j=>j.key==='faltantes')?.when).toBe('2026-10-22T10:00:00.000Z');expect(jobs.find(j=>j.key==='consulta')?.when).toBe('2026-10-23T13:00:00.000Z');});
 });
+
+it('requires charge amount description and due date, without a fixed price',()=>{expect(validCharge('125.50','Serviço','2026-10-25')).toBe(true);expect(validCharge('','Serviço','2026-10-25')).toBe(false);expect(validCharge('0','Serviço','2026-10-25')).toBe(false);expect(validCharge('125.50','','2026-10-25')).toBe(false);expect(validCharge('125.50','Serviço','')).toBe(false);});
+it('recognizes an offered date and time without requiring ISO input',()=>expect(chosenSlot(['2026-10-23T17:20:00Z'],'Escolho 23/10 às 14:20')).toBe('2026-10-23T17:20:00Z'));
