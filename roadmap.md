@@ -1,5 +1,12 @@
 # Construção dos módulos Manager ADV
 
+## Busca, clientes e Visual Law
+- [ ] Criar busca rápida no cabeçalho por cliente, CPF, RG, celular, petição/processo e protocolo, respeitando acesso.
+- [ ] Criar Clientes com filtros e ficha de informações, processos e documentos disponíveis.
+- [ ] Importar clientes, processos e documentos reais do ProJuris — bloqueado: credenciais e endereço da API do escritório.
+- [ ] Conferir regras visuais dos prompts e aplicar pré-visualização de peça na Produção, mantendo revisão jurídica.
+- [ ] Verificar busca e ficha com sessão autenticada e executar testes relevantes.
+
 ## Preparação das integrações
 - [x] Preparar contrato de integração Claude sem substituir a IA atual; modelo confirmado no catálogo, sem chamada de inferência nesta preparação.
 - [x] Preparar contratos ZapSign com base em https://docs.zapsign.com.br, Mercado Pago e UltraMsg; operações reais continuam bloqueadas.
