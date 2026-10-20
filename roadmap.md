@@ -1,12 +1,13 @@
 # Construção dos módulos Manager ADV
 
 ## Evolução solicitada em 20/10/2026
-- [ ] Atendimento 1–8: fila, mensagens datadas, próximo passo, ações com prévia, respostas rápidas, IA por conversa, anexos e automações.
-- [ ] Assessor acima do painel atual, com prioridades e agenda no escopo existente.
-- [ ] Quadro de Produção e sincronização por etapa em Atendimento, Produção e Clientes.
-- [ ] Andamentos: eventos destacados e aviso revisável em linguagem simples.
-- [ ] Configurações: conexão n8n e log com identidade real; menu calculado e cabeçalho timbrado.
-- [ ] Testar regras puras, regressões e fluxos autenticados sem alterar banco ou aprovações.
+- [x] Atendimento: fila, novas mensagens datadas, próximo passo, ações com prévia, respostas rápidas, IA por conversa, anexos e configurações de automação.
+- [x] Assessor acima do painel atual, com prioridades e agenda no escopo existente.
+- [x] Quadro de Produção e sincronização por etapa em Atendimento, Produção e Clientes.
+- [x] Andamentos: eventos destacados e aviso revisável em linguagem simples.
+- [x] Configurações: conexão n8n e log da sessão com identidade real; menu calculado e cabeçalho timbrado.
+- [x] 48 testes aprovados; sessão master: resposta IA, resumo IA, simplificação de andamento, mensagem salva após recarga, cobrança validada, horários livres, quadro, Assessor e ausência de transbordamento em 702 px.
+- Limites: mensagens antigas sem ISO permanecem sem data (não inventar); lembretes simulados dependem da conversa aberta; URL n8n não conecta serviços; log é da sessão; vendedor e fora do horário estão configuráveis, mas sem fluxo externo ativado. Novos campos opcionais podem invalidar minuta pelo hash existente; nenhuma aprovação/banco foi alterada.
 
 ## Busca, clientes e Visual Law
 - [x] Incluir cadastro real de cliente vinculado a caso, histórico e atualização do painel.
