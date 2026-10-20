@@ -1,0 +1,7 @@
+import { useState } from 'react';
+import { Cloud, Loader2, Circle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { PIPELINE, type Sync } from '@/lib/mock-data';
+import { n8n } from '@/services/n8n';
+import { executar } from '@/lib/executar';
+export function PipelineSync({caseId,stage,syncs,onSync,disabled=false}:{caseId:string;stage:number;syncs:Sync[];onSync?:(i:number,s:Sync)=>Promise<void>;disabled?:boolean}){const [busy,setBusy]=useState(-1);return <div className="flex flex-wrap gap-2 border-y bg-card px-3 py-2">{PIPELINE.map((p,i)=><div key={p} className="flex items-center gap-1 text-[10px]"><span className={i===stage?'font-semibold text-primary':'text-muted-foreground'}>{i<stage?<Cloud className="mr-1 inline size-3"/>:<Circle className="mr-1 inline size-3"/>}{p}</span>{i<stage&&(syncs[i]==='sincronizado'?<span className="text-success">sincronizado</span>:<Button size="sm" variant="ghost" className={`h-6 px-1 text-[10px] ${syncs[i]==='erro'?'text-destructive':'text-pending-foreground'}`} disabled={disabled||!onSync||busy>=0} title={disabled?'Seu perfil não permite esta ação':undefined} onClick={async()=>{setBusy(i);await executar('Sincronizar etapa',async()=>{try{await n8n.sincronizarEtapaProjuris({casoId:caseId,etapa:p});await onSync?.(i,'sincronizado');}catch(e){await onSync?.(i,'erro');throw e;}});setBusy(-1);}}>{busy===i?<Loader2 className="size-3 animate-spin"/>:syncs[i]??'pendente'}</Button>)}</div>)}</div>;}
