@@ -6,7 +6,7 @@ export function attendanceProcesses(c: Conversa, work: OfficeCase) {
   const processes = new Map<string, Partial<Processo> & { cnj: string }>();
   for (const p of c.processos) if (p.cnj.trim()) processes.set(p.cnj.trim(), { ...p, cnj: p.cnj.trim() });
   const cnj = work.cnj?.trim();
-  if (cnj && !processes.has(cnj)) processes.set(cnj, { cnj, vara: work.vara });
+  if (cnj && !processes.has(cnj)) processes.set(cnj, { cnj, ...(work.vara ? { vara: work.vara } : {}) });
   for (const m of work.movements ?? []) {
     const number = m.cnj.trim();
     if (number && !processes.has(number)) processes.set(number, { cnj: number });

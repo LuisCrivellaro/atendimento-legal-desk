@@ -12,7 +12,7 @@ describe('selected conversation process records', () => {
     expect(processes.flatMap(p => p.movements)).toEqual([]);
   });
   it('deduplicates saved CNJ and keeps movements attached to their exact process', () => {
-    const work: OfficeCase = { cnj: c.processos[0]?.cnj, movements: [
+    const work: OfficeCase = { cnj: '5004821-37.2026.4.03.6183', movements: [
       { id: '1', cnj: '5004821-37.2026.4.03.6183', data: '2026-10-19', texto: 'Perícia', concluido: false },
       { id: '2', cnj: '1012334-08.2025.8.26.0100', data: '2026-10-18', texto: 'Pagamento', concluido: true },
     ] };
