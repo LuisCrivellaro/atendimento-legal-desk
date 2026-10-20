@@ -199,3 +199,22 @@
 .legal-copy table { width:100%; font-size:9.5pt; margin:12pt 0; border-collapse:collapse; }
 .legal-copy th { background:var(--document-aqua); color:var(--document-paper); text-transform:uppercase; text-align:left; padding:6pt; }
 .legal-copy td { padding:6pt; border-bottom:0.5pt solid var(--document-rule); }
+
+.attendance-workspace { display:grid; grid-template-columns:260px minmax(0,1fr); height:calc(100svh - 4rem); overflow:hidden; }
+.attendance-conversation { display:grid; grid-template-columns:minmax(0,1fr); }
+.attendance-with-panel { grid-template-columns:minmax(0,1fr) 300px; }
+@media (min-width:1440px) { .attendance-with-panel { grid-template-columns:minmax(0,1fr) 320px; } }
+@media (max-width:1199px) { .attendance-workspace { grid-template-columns:240px minmax(0,1fr); } }
+@media (min-width:768px) and (max-width:1050px) {
+  .attendance-workspace { grid-template-columns:220px minmax(0,1fr); }
+  .attendance-chat-header { height:auto; min-height:56px; display:grid; grid-template-columns:32px minmax(0,1fr); padding-top:6px; padding-bottom:6px; }
+  .attendance-chat-tools { grid-column:1 / -1; justify-content:flex-end; }
+}
+@media (max-width:767px) {
+  .attendance-workspace { grid-template-columns:minmax(0,1fr); grid-template-rows:180px minmax(0,1fr); }
+  .attendance-list { border-bottom:1px solid var(--border); }
+  .attendance-list > div:first-child { padding:6px 12px; }
+  .attendance-list h1 { display:none; }
+  .attendance-list > div:first-child { display:flex; align-items:center; gap:8px; }
+  .attendance-list > div:first-child > div { flex:1; min-width:0; }
+}

@@ -27,3 +27,4 @@
 - Attendance AI reads the live checklist table and workspace training server-side through legalAI; why: checklist is not stored in case JSON and legal data must remain authoritative.
 - Demo reminders run only while the conversation is open and use persisted message markers; why: no unattended external scheduler or duplicate AI dispatch is silently activated.
 - Optional operational case fields can invalidate draft approval under the unchanged database revision function; why: preserving the existing legal gate takes priority over bypassing reapproval without a migration.
+- Attendance presentation components contain only menus, tooltips and detail tabs; existing attendance handlers remain in the route, and panel preference is local browser state; why: visual refactors must not alter legal data or integration behavior.
