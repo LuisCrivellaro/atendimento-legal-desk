@@ -7,7 +7,7 @@ export type Sync = "sincronizado" | "pendente" | "erro";
 
 export interface Mensagem {
   id: string; de: "cliente" | "escritorio" | "sistema"; texto: string; hora: string;
-  dataHora?: string | undefined; autor?: string | undefined; tipoIdentificado?: string | undefined; confirmarTipo?: boolean | undefined; path?: string | undefined;
+  iaProcessada?: boolean; automacaoKey?: string; dataHora?: string | undefined; autor?: string | undefined; tipoIdentificado?: string | undefined; confirmarTipo?: boolean | undefined; path?: string | undefined;
   tipo?: "texto" | "documento" | "audio" | "imagem"; arquivo?: string | undefined; salvoStart?: boolean | undefined;
 }
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }
