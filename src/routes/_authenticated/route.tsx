@@ -8,12 +8,13 @@ import { localDay } from "@/lib/dashboard";
 import { loadOffice } from "@/lib/office-store";
 import { setAuditUser, setModoDemonstracao } from "@/services/n8n";
 import { useOfficeNotifications } from "@/hooks/use-office-notifications";
-import { LogOut } from "lucide-react";
+import { LogOut, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { QuickSearch } from '@/components/quick-search';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -69,11 +70,7 @@ function Layout() {
           <div className="min-w-0 font-serif"><p className="text-sm font-bold text-foreground sm:text-lg">CS LAWYERS | ADVOCACIA</p><p className="text-[10px] font-semibold text-primary lg:text-xs">BRASIL • DUBAI • PORTUGAL</p></div>
           <QuickSearch />
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <div className="max-w-40 text-right leading-tight sm:max-w-56">
-              {(workspace.data?.demo??true)&&<span className="hidden text-[10px] text-primary sm:block">Modo demonstração</span>}
-              <p className="truncate text-xs font-medium">{perfil?.nome}</p>
-              <p className="hidden text-[10px] text-muted-foreground sm:block">{perfil?.roles.join(", ")}</p>
-            </div>
+            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-auto min-w-0 gap-1 px-1 text-right"><span className="max-w-28 leading-tight sm:max-w-48"><span className="block truncate text-xs font-medium">{perfil?.nome}</span><span className="hidden truncate text-[10px] text-muted-foreground sm:block">{perfil?.roles[0]}</span></span><ChevronDown className="size-3 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Perfis de acesso</DropdownMenuLabel><DropdownMenuSeparator/>{perfil?.roles.map(r=><DropdownMenuLabel key={r} className="text-xs font-normal">{r}</DropdownMenuLabel>)}{(workspace.data?.demo??true)&&<><DropdownMenuSeparator/><DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Modo demonstração</DropdownMenuLabel></>}</DropdownMenuContent></DropdownMenu>
             <Button variant="ghost" size="sm" onClick={sair}><LogOut />Sair</Button>
           </div>
         </div>
