@@ -1,8 +1,8 @@
 # Construção dos módulos Manager ADV
 
 ## ProJuris no painel da conversa
-- [ ] Mostrar processos, andamentos, prazos e informações disponíveis do cliente selecionado em uma aba ProJuris, distinguindo registros locais de dados importados.
-- [ ] Verificar troca de conversa, menu de acesso e apresentação sem alterar dados ou ativar integrações.
+- [x] Mostrar processos, andamentos, prazos, tribunal, classe, protocolo e arquivos locais do cliente selecionado em uma aba ProJuris, indicando que não houve importação real.
+- [x] Verificar sessão autenticada: processos de Helena, ausência deles em Rogério, menu ProJuris, atualização e apresentação em 1424×661 e 855×661; 23 testes aprovados e compilação sem erros, sem alterar dados ou ativar integrações.
 - Atualizar o ZIP somente quando os créditos estiverem no final, conforme solicitado.
 
 ## Apresentação minimalista do Atendimento
