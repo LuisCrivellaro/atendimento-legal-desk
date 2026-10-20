@@ -7,6 +7,7 @@ export type Sync = "sincronizado" | "pendente" | "erro";
 
 export interface Mensagem {
   id: string; de: "cliente" | "escritorio" | "sistema"; texto: string; hora: string;
+  dataHora?: string; autor?: string; tipoIdentificado?: string; confirmarTipo?: boolean; path?: string;
   tipo?: "texto" | "documento" | "audio" | "imagem"; arquivo?: string; salvoStart?: boolean;
 }
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }
@@ -17,6 +18,9 @@ export interface Conversa {
   documentos: DocItem[]; mensagens: Mensagem[]; contrato?: "gerado" | "enviado" | "visualizado" | "assinado";
   consulta?: { duracao: string; resumo: string; transcricao: string };
   timeline: { data: string; evento: string }[];
+  lidoAte?: string; modoIA?: import('./atendimento').AIMode; iaRetida?: string; horariosOfertados?: string[];
+  consultaAgendada?: string; retornoAgendado?: string; retornoDuracao?: number; contratoLink?: string; contratoEnviadoEm?: string;
+  ultimoPedidoDocumentos?: string; videoLink?: string; automacoesExecutadas?: string[]; tituloCaso?: string;
 }
 
 const docsBase = (r: boolean[]): DocItem[] =>
