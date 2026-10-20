@@ -1,5 +1,13 @@
 # Construção dos módulos Manager ADV
 
+## Evolução solicitada em 20/10/2026
+- [ ] Atendimento 1–8: fila, mensagens datadas, próximo passo, ações com prévia, respostas rápidas, IA por conversa, anexos e automações.
+- [ ] Assessor acima do painel atual, com prioridades e agenda no escopo existente.
+- [ ] Quadro de Produção e sincronização por etapa em Atendimento, Produção e Clientes.
+- [ ] Andamentos: eventos destacados e aviso revisável em linguagem simples.
+- [ ] Configurações: conexão n8n e log com identidade real; menu calculado e cabeçalho timbrado.
+- [ ] Testar regras puras, regressões e fluxos autenticados sem alterar banco ou aprovações.
+
 ## Busca, clientes e Visual Law
 - [x] Incluir cadastro real de cliente vinculado a caso, histórico e atualização do painel.
 - [x] Criar tela de status das integrações com botões usando credenciais salvas; ZapSign e Mercado Pago verificam acesso, sem operações externas automáticas.
