@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Apresentação minimalista do Atendimento
+- [ ] Reorganizar fila, cabeçalho, pipeline, próximo passo, mensagens e rodapé sem alterar operações.
+- [ ] Agrupar ações/respostas e detalhes nas três abas recolhíveis; simplificar perfis no topo.
+- [ ] Verificar 1440×900, largura atual, funções acessíveis e todos os testes existentes.
+
 ## Evolução solicitada em 20/10/2026
 - [x] Atendimento: fila, novas mensagens datadas, próximo passo, ações com prévia, respostas rápidas, IA por conversa, anexos e configurações de automação.
 - [x] Assessor acima do painel atual, com prioridades e agenda no escopo existente.
