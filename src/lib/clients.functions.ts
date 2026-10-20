@@ -27,7 +27,7 @@ export const readClients = createServerFn({ method: 'GET' }).middleware([require
       name: c.nome, cpf: d.cpf ?? '', rg: d.rg ?? '', phone: d.telefone ?? '', stage: c.etapa, attendance: d.atendimento ?? '', petitionNumber: d.numeroPeticao ?? '',
       processes: d.processos ?? [], checklist: checklist.data.filter(i => i.caso_id === c.id).map(i => ({ nome: i.nome, recebido: i.recebido })),
       history: [...(d.timeline ?? []), ...(saved.historico ?? [])], real: d.origem === 'cadastro', email: d.email ?? '', address: d.endereco ?? '', caseTitle: d.tituloCaso ?? '',
-      work: { area: saved.area, fase: saved.fase, cnj: saved.cnj, recibo: saved.recibo, protocoloData: saved.protocoloData, tribunal: saved.tribunal, vara: saved.vara, classe: saved.classe, arquivos: (saved.arquivos ?? []).map(f => ({ ...f, analise: undefined })), movements: saved.movements, pendencias: saved.pendencias },
+      work: { ...saved, peticao: '', memorial: '', fatos: '', fontes: '', versoes: [], arquivos: (saved.arquivos ?? []).map(f => { const { analise: _analysis, ...safe } = f; return safe; }) },
     };
   });
   return { clients: groupClients(records), entireOffice, updatedAt: new Date().toISOString(), projurisConnected: false };
