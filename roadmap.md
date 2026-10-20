@@ -1,6 +1,8 @@
 # Construção dos módulos Manager ADV
 
 ## Busca, clientes e Visual Law
+- [ ] Incluir cadastro real de cliente vinculado a caso, histórico e atualização do painel.
+- [ ] Criar tela de status das integrações com verificação de conexão usando credenciais salvas, sem operações externas automáticas.
 - [ ] Criar busca rápida no cabeçalho por cliente, CPF, RG, celular, petição/processo e protocolo, respeitando acesso.
 - [ ] Criar Clientes com filtros e ficha de informações, processos e documentos disponíveis.
 - [ ] Importar clientes, processos e documentos reais do ProJuris — bloqueado: credenciais e endereço da API do escritório.
