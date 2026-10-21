@@ -3,7 +3,8 @@
 ## Agente Ana pelo Telegram — 21/10/2026
 - [x] Aplicar identidade enviada e regras de modos, aprovação, identificação e encaminhamento humano.
 - [x] Processar mensagens do contato de teste liberado no servidor e persistir respostas/rascunhos sem depender da conversa aberta.
-- [x] Ativar e verificar duas respostas reais, retenção jurídica e deduplicação; integrações ProJuris/Agenda/Drive seguem indisponíveis. Código novo precisa publicação para produção; webhook de teste usa versão de prévia.
+- [x] Ativar e verificar duas respostas reais localmente, retenção jurídica e deduplicação; integrações ProJuris/Agenda/Drive seguem indisponíveis.
+- [ ] Efetivar Ana no Telegram publicado — bloqueado: publicação da atualização; a prévia pública ainda usa o webhook anterior. Webhook mantido no site publicado, sem trocar o recebimento existente.
 
 ## Atendimento por canal (Telegram) — 21/10/2026
 - [x] Camada de canais (tipos, telegram, simulador, ultramsg stub) e funções puras de telefone com testes.
