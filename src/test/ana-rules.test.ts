@@ -1,5 +1,5 @@
 import { describe,it,expect } from 'vitest';
-import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, mensagemBreveAna, respostaAgendaTeste, type AnaResult } from '@/lib/atendimento/ana-rules';
+import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, mensagemBreveAna, respostaAgendaTeste, horariosTesteAna, type AnaResult } from '@/lib/atendimento/ana-rules';
 const response:AnaResult={acao:'enviar',mensagem:'Sou Ana, assistente virtual. Como posso ajudar?',motivo_aprovacao:'',intencao:'duvida_geral',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''};
 describe('limites Ana',()=>{
  it('nova mensagem descarta a geração anterior',()=>{expect(aceitarRespostaAna('1','2',undefined)).toBe(false);expect(aceitarRespostaAna('2','2',undefined)).toBe(true);});
@@ -15,6 +15,7 @@ describe('limites Ana',()=>{
  it('mantém uma pergunta e mensagem breve',()=>{const r=mensagemBreveAna('Qual seu nome? Qual seu CPF? '+ 'Frase longa. '.repeat(100));expect((r.match(/\?/g)??[])).toHaveLength(1);expect(r.length).toBeLessThanOrEqual(420);});
  it('agenda fictícia só sai automaticamente em teste autorizado',()=>{const r={...response,intencao:'agendamento' as const};expect(aplicarRegrasAna(r,'Automática','Quero agendar',[],{teste:true}).acao).toBe('enviar');expect(aplicarRegrasAna(r,'Automática','Quero agendar',[],{teste:false}).acao).toBe('rascunho');});
  it('confirma horário de teste sem declarar reserva real',()=>{const slots=['2026-10-22T12:00:00Z','2026-10-23T12:00:00Z'];const r=respostaAgendaTeste('22/10 às 9h',slots);expect(r.selected).toBe(slots[0]);expect(r.mensagem).toContain('não há reserva real');});
+ it('agenda de teste respeita Brasília independentemente do servidor',()=>expect(horariosTesteAna(new Date('2026-10-23T20:00:00Z'))).toEqual(['2026-10-26T12:00:00.000Z','2026-10-26T13:30:00.000Z','2026-10-27T12:00:00.000Z','2026-10-27T13:30:00.000Z']));
  it('pedido humano encaminha sem insistir',()=>expect(aplicarRegrasAna(response,'Automática','Quero falar com uma pessoa',[]).encaminhar_humano).toBe(true));
  it('citação e risco pessoal são urgentes',()=>{expect(aplicarRegrasAna(response,'Automática','Chegou um oficial de justiça',[]).urgente).toBe(true);expect(aplicarRegrasAna(response,'Automática','Estou em perigo',[]).urgente).toBe(true);});
  it('perigo imediato informa o 190 mesmo se omitido pela IA',()=>expect(aplicarRegrasAna(response,'Automática','Estou em perigo',[]).mensagem).toContain('ligue 190'));

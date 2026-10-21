@@ -26,7 +26,7 @@
 - Attendance and assessor rules are pure modules with tests; optional attendance fields stay in case JSON and automation settings stay at workspace root, without schema changes; why: preserves existing storage and legal gates.
 - Attendance formatting, slot matching, contract links and message safety use pure rules; shared safe-area height keeps display consistent.
 - Attendance AI reads the live checklist table and workspace training server-side through legalAI; why: checklist is not stored in case JSON and legal data must remain authoritative.
-- Demo reminders stay browser-only and off on Telegram; Ana awaits server generation with owner training, test-contact history and CAS claims/drafts/handoff; why: no duplicates or case disclosure. No ProJuris/Drive/Agenda tools.
+- Demo reminders stay browser-only and off on Telegram; Ana uses owner training, test-contact history and CAS claims/drafts/handoff; why: no duplicates or case disclosure. Test slots remain separate from real appointments; concise/nonrepetition and sensitive-topic acknowledgments use pure rules, never legal advice. No ProJuris/Drive/Agenda tools.
 - Optional operational case fields can invalidate draft approval under the unchanged database revision function; why: preserving the existing legal gate takes priority over bypassing reapproval without a migration.
 - Attendance handlers stay in the route; details auto-open inline at ≥1024px or in a right drawer below, without collapse; why: presentation preserves behavior.
 - Attendance ProJuris details project only the selected case and its owner-scoped workspace; local records and simulated sync markers never imply a provider import; why: prevents cross-client mixing and misleading integration claims.

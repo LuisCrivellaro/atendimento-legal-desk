@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { AIMode } from '../atendimento';
-import { forbiddenTopics, normalized, freeSlots, chosenSlot, formatarHorarioCliente } from '../atendimento';
+import { forbiddenTopics, normalized, chosenSlot, formatarHorarioCliente } from '../atendimento';
 import { validarTextoEnvio } from './canal-envio';
 
 export const anaSchema = z.object({
@@ -16,7 +16,18 @@ export interface AnaState {
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
   horariosTeste?: string[]; consultaTeste?: string;
 }
-export function horariosTesteAna(now=new Date()){return freeSlots(now).filter(s=>!s.ocupado).slice(0,4).map(s=>s.iso);}
+export function horariosTesteAna(now=new Date()){
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+ const value=(key:string)=>parts.find(p=>p.type===key)?.value??'';
+ const day=new Date(`${value('year')}-${value('month')}-${value('day')}T12:00:00Z`);
+ const slots:string[]=[];
+ while(slots.length<4){
+  day.setUTCDate(day.getUTCDate()+1);
+  if([0,6].includes(day.getUTCDay()))continue;
+  for(const time of ['09:00','10:30'])slots.push(new Date(`${day.toISOString().slice(0,10)}T${time}:00-03:00`).toISOString());
+ }
+ return slots;
+}
 export function respostaAgendaTeste(texto:string,offered:string[],now=new Date()){
  const selected=chosenSlot(offered,texto);
  const slots=offered.length?offered:horariosTesteAna(now);
