@@ -3,7 +3,7 @@ import type { Database, Json } from '@/integrations/supabase/types';
 import type { Conversa } from '../mock-data';
 import { defaultState, type OfficeState } from '../office';
 import { defaultAutomations, newMessage } from '../atendimento';
-import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna } from './ana-rules';
+import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste } from './ana-rules';
 type Db=SupabaseClient<Database>;
 
 /** CAS: não substitui mensagens ou edições recebidas durante a geração. */
@@ -43,13 +43,16 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
     const history=c.mensagens.filter(m=>m.canal==='telegram').slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
     const raw=await gerarRespostaAna(request,{data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:'Não informado: consultar equipe.',temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
-    const r=aplicarRegrasAna(raw,mode,m.texto,state.training.proibidos);
+    const teste=config.data.modo_teste===true;
+    const previous=c.mensagens.filter(m=>m.canal==='telegram'&&m.de==='escritorio').at(-1)?.texto??'';
+    const r=aplicarRegrasAna(raw,mode,m.texto,state.training.proibidos,{teste,horarios:c.agenteAna?.horariosTeste??[],ultimaResposta:previous});
+    const agenda=teste&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,c.agenteAna?.horariosTeste??[]):undefined;
     let accepted=false;
     await atualizarConversa(db,id,current=>{
       accepted=false;
       if(!aceitarRespostaAna(messageId,current.mensagens.at(-1)?.id,current.agenteAna))return current;
       accepted=true;
-      return {...current,agenteAna:{...current.agenteAna,resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida};
+      return {...current,agenteAna:{...current.agenteAna,...(agenda?{horariosTeste:agenda.slots,...(agenda.selected?{consultaTeste:agenda.selected}:{})}:{}),resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida};
     });
     if(!accepted)return;
     if(r.acao==='enviar'&&r.mensagem.trim()) {
