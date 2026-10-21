@@ -11,7 +11,7 @@
  * classes (e.g. --color-primary -> bg-primary, text-primary).
  *
  * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
+ * Colors use oklch except explicit brand tokens.
  *
  * To add a new semantic color:
  * 1. Add the variable to :root (light value) and .dark (dark value)
@@ -74,6 +74,7 @@
 }
 
 :root {
+  --header-h: calc(4rem + env(safe-area-inset-top, 0px));
   --document-aqua: #00ACA7;
   --document-pale: #E9F7F6;
   --document-rule: #CFE9E7;
@@ -99,8 +100,8 @@
   --destructive-foreground: oklch(1 0 0);
   --success: oklch(0.53 0.13 145);
   --success-foreground: oklch(1 0 0);
-  --pending: oklch(0.92 0.19 105);
-  --pending-foreground: oklch(0.15 0 0);
+  --pending: #FFE600;
+  --pending-foreground: #0D0D0D;
   --bubble-out: oklch(0.94 0.04 189);
   --bubble-in: oklch(1 0 0);
   --chat-bg: oklch(0.965 0.008 190);
@@ -124,6 +125,8 @@
 }
 
 .dark {
+  --pending: #FFE600;
+  --pending-foreground: #0D0D0D;
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
   --card: oklch(0.208 0.042 265.755);
@@ -200,7 +203,9 @@
 .legal-copy th { background:var(--document-aqua); color:var(--document-paper); text-transform:uppercase; text-align:left; padding:6pt; }
 .legal-copy td { padding:6pt; border-bottom:0.5pt solid var(--document-rule); }
 
-.attendance-workspace { display:grid; grid-template-columns:260px minmax(0,1fr); height:calc(100svh - 4rem); overflow:hidden; }
+.office-header { height:var(--header-h); padding-top:env(safe-area-inset-top, 0px); }
+.office-content { padding-top:var(--header-h); }
+.attendance-workspace { display:grid; grid-template-columns:260px minmax(0,1fr); height:calc(100svh - var(--header-h)); overflow:hidden; }
 .attendance-conversation { display:grid; grid-template-columns:minmax(0,1fr); }
 .attendance-with-panel { grid-template-columns:minmax(0,1fr) 300px; }
 @media (min-width:1440px) { .attendance-with-panel { grid-template-columns:minmax(0,1fr) 320px; } }
@@ -215,6 +220,7 @@
   .attendance-list { border-bottom:1px solid var(--border); }
   .attendance-list > div:first-child { padding:6px 12px; }
   .attendance-list h1 { display:none; }
-  .attendance-list > div:first-child { display:flex; align-items:center; gap:8px; }
+  .attendance-list > div:first-child { display:flex; flex-direction:column; align-items:stretch; gap:6px; }
+  .attendance-list > div:first-child > div { width:100%; }
   .attendance-list > div:first-child > div { flex:1; min-width:0; }
 }

@@ -64,18 +64,18 @@ function Layout() {
 
   return (
     <SidebarProvider>
-      <header className="fixed inset-x-0 top-0 z-30 h-16 border-b border-primary bg-card">
+      <header className="fixed inset-x-0 top-0 z-30 office-header border-b border-primary bg-card">
         <div className="flex h-full items-center gap-2 px-3 lg:gap-4 lg:px-4">
           <SidebarTrigger />
-          <div className="min-w-0 font-serif"><p className="text-sm font-bold text-foreground sm:text-lg">CS LAWYERS | ADVOCACIA</p><p className="text-[10px] font-semibold text-primary lg:text-xs">BRASIL • DUBAI • PORTUGAL</p></div>
+          <div className="min-w-0 font-serif"><p className="text-sm font-bold text-foreground sm:text-lg">CS LAWYERS<span className="hidden md:inline"> | ADVOCACIA</span></p><p className="hidden text-[10px] font-semibold text-primary md:block lg:text-xs">BRASIL • DUBAI • PORTUGAL</p></div>
           <QuickSearch />
-          <div className="ml-auto flex items-center gap-3 text-sm">
-            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-auto min-w-0 gap-1 px-1 text-right"><span className="max-w-28 leading-tight sm:max-w-48"><span className="block truncate text-xs font-medium">{perfil?.nome}</span><span className="hidden truncate text-[10px] text-muted-foreground sm:block">{roleLabel[['advogada_senior','advogado_junior','admin','atendente','operacoes'].find(r=>perfil?.roleIds.includes(r as typeof perfil.roleIds[number]))??'']}</span></span><ChevronDown className="size-3 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Perfis de acesso</DropdownMenuLabel><DropdownMenuSeparator/>{perfil?.roles.map(r=><DropdownMenuLabel key={r} className="text-xs font-normal">{r}</DropdownMenuLabel>)}{(workspace.data?.demo??true)&&<><DropdownMenuSeparator/><DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Modo demonstração</DropdownMenuLabel></>}</DropdownMenuContent></DropdownMenu>
-            <Button variant="ghost" size="sm" onClick={sair}><LogOut />Sair</Button>
+          <div className="ml-auto flex min-w-0 items-center gap-1 text-sm md:gap-3">
+            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-auto min-w-0 gap-1 px-1 text-right"><span className="block max-w-20 leading-tight md:max-w-48"><span className="block truncate text-xs font-medium">{perfil?.nome}</span><span className="hidden truncate text-[10px] text-muted-foreground sm:block">{roleLabel[['advogada_senior','advogado_junior','admin','atendente','operacoes'].find(r=>perfil?.roleIds.includes(r as typeof perfil.roleIds[number]))??'']}</span></span><ChevronDown className="size-3 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Perfis de acesso</DropdownMenuLabel><DropdownMenuSeparator/>{perfil?.roles.map(r=><DropdownMenuLabel key={r} className="text-xs font-normal">{r}</DropdownMenuLabel>)}{(workspace.data?.demo??true)&&<><DropdownMenuSeparator/><DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Modo demonstração</DropdownMenuLabel></>}</DropdownMenuContent></DropdownMenu>
+            <Button variant="ghost" size="sm" className="shrink-0 px-2" aria-label="Sair" onClick={sair}><LogOut /><span className="hidden md:inline">Sair</span></Button>
           </div>
         </div>
       </header>
-      <div className="flex min-h-screen w-full pt-16">
+      <div className="flex min-h-screen w-full office-content">
         <AppSidebar badges={badges} />
         <main className="min-w-0 flex-1"><Outlet /></main>
       </div>
