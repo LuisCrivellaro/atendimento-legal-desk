@@ -43,8 +43,8 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
         const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
         const auditar = (acao: string, resumo: string, status: string, erro: string | null = null) =>
           supabaseAdmin.rpc('registrar_audit_log', {
-            p_ator: 'canal', p_perfil: 'telegram', p_acao: acao, p_resumo: resumo, p_status: status, p_erro: erro ?? undefined,
-
+            p_ator: 'canal', p_perfil: 'telegram', p_acao: acao, p_resumo: resumo, p_status: status,
+            ...(erro ? { p_erro: erro } : {}),
           });
 
         const config = await supabaseAdmin
