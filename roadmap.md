@@ -1,5 +1,20 @@
 # Construção dos módulos Manager ADV
 
+## Testes do Atendimento — próximos passos
+- [ ] Fase 1: equipe testa os 5 roteiros na demonstração (`manager-adv-demonstracao.html`, gerada por `tools/demo-navegador`) e envia tempos e travamentos.
+- [ ] Corrigir: link do contrato enviado fora do sistema (Lembrar assinatura bloqueado), horários com segundos, próximo passo de cliente ativo, cabeçalho no celular, contraste do amarelo.
+- [ ] Fase 2: sistema real no Lovable Cloud com contas da equipe e perfis em `user_roles`.
+- [ ] Fase 3: ponte real com n8n (envio pelo servidor, recebimento de mensagens, simulador, workflows), UltraMsg em chip de teste, lembretes no n8n.
+
+## Mensagens prontas no Atendimento — 20/10/2026
+- [x] Sugestões da etapa acima da caixa de mensagem (aparecem com a caixa vazia): um clique coloca o texto já com o nome do cliente para revisar antes de enviar.
+- [x] Botão "Mensagens prontas" com busca, categorias (Boas-vindas, Documentos, Agendamento, Processo, Geral) e prévia com os dados do cliente aberto.
+- [x] Atalho "/" sem abrir janela: lista no próprio campo, setas para escolher, Enter para usar; também abre as ações da etapa.
+- [x] Criar, editar, excluir e restaurar mensagens; variáveis {nome}, {nome_completo}, {documentos_faltantes}, {atendimento} e campos livres (ex.: {data}) que bloqueiam o envio até serem preenchidos.
+- [x] Botão de ações da etapa separado das mensagens (ícone de lista), sem mudar handlers, permissões ou integrações.
+- [x] 60 testes aprovados (7 novos), compilação sem erros; verificado no navegador em 1440×900 e 390 px.
+- Limite: as mensagens criadas ficam no perfil de cada usuário (área de trabalho própria). Uma biblioteca compartilhada pelo escritório exige tabela nova e fica para uma próxima etapa.
+
 ## ProJuris no painel da conversa
 - [x] Mostrar processos, andamentos, prazos, tribunal, classe, protocolo e arquivos locais do cliente selecionado em uma aba ProJuris, indicando que não houve importação real.
 - [x] Verificar sessão autenticada: processos de Helena, ausência deles em Rogério, menu ProJuris, atualização e apresentação em 1424×661 e 855×661; 23 testes aprovados e compilação sem erros, sem alterar dados ou ativar integrações.

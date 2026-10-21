@@ -4,13 +4,13 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandSeparator } from '@/components/ui/command';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { AnaliseDocumento } from '@/components/analise-documento';
 import { ChecklistCorrection } from './checklist-correction';
 import { actionLabels, type AttendanceAction } from './attendance-actions';
-import { shortcuts, type programmed } from '@/lib/atendimento';
+import { type programmed } from '@/lib/atendimento';
 import type { Conversa } from '@/lib/mock-data';
 import type { OfficeCase } from '@/lib/office';
 import { AttendanceProjuris } from './attendance-projuris';
@@ -24,10 +24,10 @@ export function AttendanceMenu({ open, onOpenChange, c, busy, primary, choose, i
   primary: AttendanceAction[]; choose: (key: string, content: string) => void; initialSearch: string;
 }) {
   const actions = [...primary, ...(Object.keys(actionLabels) as AttendanceAction[]).filter(k => !primary.includes(k))];
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-md gap-0 overflow-hidden p-0"><DialogHeader className="sr-only"><DialogTitle>Ações e respostas</DialogTitle></DialogHeader><Command key={initialSearch}><CommandInput aria-label="Buscar ação ou resposta" placeholder="Buscar ação ou resposta…" defaultValue={initialSearch}/><CommandList className="max-h-[60vh]"><CommandEmpty>Nenhuma ação ou resposta encontrada.</CommandEmpty><CommandGroup heading="Ações desta etapa">{actions.map(k => {
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-md gap-0 overflow-hidden p-0"><DialogHeader className="sr-only"><DialogTitle>Ações da etapa</DialogTitle></DialogHeader><Command key={initialSearch}><CommandInput aria-label="Buscar ação" placeholder="Buscar ação…" defaultValue={initialSearch}/><CommandList className="max-h-[60vh]"><CommandEmpty>Nenhuma ação encontrada.</CommandEmpty><CommandGroup heading="Ações desta etapa">{actions.map(k => {
     const reason = busy ? 'Aguarde a ação atual' : k === 'retorno' && c.etapa !== 'ativo' ? 'Disponível para cliente ativo' : '';
     return <CommandItem key={k} value={`${k} ${actionLabels[k]}`} disabled={!!reason} onSelect={() => choose(k, '')}><ChevronRight/><span className="min-w-0"><span className="block">{k === 'provas' ? 'Pedir lista de provas' : actionLabels[k]}</span>{reason && <span className="block text-xs text-muted-foreground">{reason}</span>}</span></CommandItem>;
-  })}</CommandGroup><CommandSeparator/><CommandGroup heading="Respostas rápidas">{shortcuts.filter(([key]) => !(key in actionLabels)).map(([key, content]) => <CommandItem key={key} value={`${key} ${content}`} onSelect={() => choose(key, content)}><span className="min-w-0"><span className="block text-xs font-medium">/{key}</span><span className="block truncate text-xs text-muted-foreground">{content.replaceAll('{nome}', c.nome.split(' ')[0] ?? c.nome)}</span></span></CommandItem>)}</CommandGroup></CommandList></Command></DialogContent></Dialog>;
+  })}</CommandGroup></CommandList></Command></DialogContent></Dialog>;
 }
 
 export function AttendanceDetails({ c, update, summary, refreshSummary, busy, jobs, updateContract, initialTab = 'cliente', work, loadingRecords, recordsError, refreshRecords }: {
