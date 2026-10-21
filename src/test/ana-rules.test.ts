@@ -1,7 +1,10 @@
 import { describe,it,expect } from 'vitest';
-import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, type AnaResult } from '@/lib/atendimento/ana-rules';
+import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, type AnaResult } from '@/lib/atendimento/ana-rules';
 const response:AnaResult={acao:'enviar',mensagem:'Sou Ana, assistente virtual. Como posso ajudar?',motivo_aprovacao:'',intencao:'duvida_geral',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''};
 describe('limites Ana',()=>{
+ it('nova mensagem descarta a geração anterior',()=>{expect(aceitarRespostaAna('1','2',undefined)).toBe(false);expect(aceitarRespostaAna('2','2',undefined)).toBe(true);});
+ it('tomada humana não pode ser revertida por geração em andamento',()=>expect(aceitarRespostaAna('1','1',{humano:true})).toBe(false));
+ it('pausa bloqueia geração em andamento',()=>expect(aceitarRespostaAna('1','1',{pausa:true})).toBe(false));
  it('Desligada não produz mensagem ao cliente',()=>expect(aplicarRegrasAna(response,'Desligada','Olá',[]).mensagem).toBe(''));
  it('Sugerir sempre retém a resposta para a equipe',()=>expect(aplicarRegrasAna(response,'Sugerir','Olá',[]).acao).toBe('rascunho'));
  it('Automática libera dúvida geral',()=>expect(aplicarRegrasAna(response,'Automática','Qual o expediente?',[]).acao).toBe('enviar'));

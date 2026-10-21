@@ -15,6 +15,9 @@ export interface AnaState {
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
 }
+export function aceitarRespostaAna(messageId:string,lastId:string|undefined,state:AnaState|undefined){
+  return lastId===messageId&&!state?.humano&&!state?.pausa;
+}
 export function expedienteAna(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone:'America/Sao_Paulo', weekday:'short', hour:'numeric', hourCycle:'h23' }).formatToParts(now);
   const weekday = parts.find(p=>p.type==='weekday')?.value;

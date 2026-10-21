@@ -3,7 +3,7 @@ import type { Database, Json } from '@/integrations/supabase/types';
 import type { Conversa } from '../mock-data';
 import { defaultState, type OfficeState } from '../office';
 import { defaultAutomations, newMessage } from '../atendimento';
-import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, type AnaState } from './ana-rules';
+import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna } from './ana-rules';
 type Db=SupabaseClient<Database>;
 
 /** CAS: não substitui mensagens ou edições recebidas durante a geração. */
@@ -47,7 +47,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     let accepted=false;
     await atualizarConversa(db,id,current=>{
       accepted=false;
-      if(current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.humano||current.agenteAna?.pausa)return current;
+      if(!aceitarRespostaAna(messageId,current.mensagens.at(-1)?.id,current.agenteAna))return current;
       accepted=true;
       return {...current,agenteAna:{...current.agenteAna,resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida};
     });
