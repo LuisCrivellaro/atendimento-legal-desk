@@ -57,6 +57,13 @@
       "when": 1792607088556,
       "tag": "0007_atendimento_canais_config_contatos_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792607228742,
+      "tag": "0008_grant_service_role_canal_functions",
+      "breakpoints": true
     }
   ]
 }
