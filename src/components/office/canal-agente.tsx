@@ -55,7 +55,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
   });
   const atualizar = (c: ContatoLista, patch: { status?: 'aguardando_liberacao' | 'liberado' | 'bloqueado'; conversaId?: string | null }) =>
     void executar('Atualizar contato de teste', async () => {
-      await saveContato({ data: { id: c.id, canal: c.canal as 'telegram', nome: c.nome, telefoneFicticio: c.telefone_ficticio, status: patch.status ?? c.status, conversaId: patch.conversaId === undefined ? c.conversa_id : patch.conversaId } });
+      await saveContato({ data: { id: c.id, canal: c.canal as 'telegram', nome: c.nome, telefoneFicticio: c.telefone_ficticio, status: (patch.status ?? c.status) as 'aguardando_liberacao' | 'liberado' | 'bloqueado', conversaId: patch.conversaId === undefined ? c.conversa_id : patch.conversaId } });
       await refresh();
     });
 
@@ -82,7 +82,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={!config.data?.segredos.telegram || !config.data?.segredos.webhook}
-            onClick={() => void executar('Registrar webhook no Telegram', async () => { const r = await registrar({ data: {} }); setWebhookInfo(r.descricao); })}>
+            onClick={() => void executar('Registrar webhook no Telegram', async () => { const r = await registrar(); setWebhookInfo(r.descricao); })}>
             <Webhook />Registrar webhook no Telegram</Button>
           <Button variant="outline" size="sm" disabled={!config.data?.segredos.telegram}
             onClick={() => void executar('Verificar webhook', async () => {
