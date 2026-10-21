@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { toast } from 'sonner';
 import { executar } from '@/lib/executar';
 import { etiquetaAcao, type CanalConfig } from '@/lib/atendimento/canal-envio';
 import { actionLabels, type AttendanceAction } from './attendance-actions';

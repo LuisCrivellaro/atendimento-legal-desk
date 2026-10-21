@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save, LockKeyhole, CheckCircle2, Plug } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
 import { OfficePage, Section, action, type Office } from './shared';
 import { supabase } from '@/integrations/supabase/client';
 import { Integrations } from './integrations';
