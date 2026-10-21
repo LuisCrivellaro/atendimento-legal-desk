@@ -10,6 +10,7 @@ describe('limites Ana',()=>{
  it('tema proibido retém e encaminha',()=>{const r=aplicarRegrasAna(response,'Automática','Quanto vou ganhar?',[]);expect(r.acao).toBe('rascunho');expect(r.encaminhar_humano).toBe(true);});
  it('pedido humano encaminha sem insistir',()=>expect(aplicarRegrasAna(response,'Automática','Quero falar com uma pessoa',[]).encaminhar_humano).toBe(true));
  it('citação e risco pessoal são urgentes',()=>{expect(aplicarRegrasAna(response,'Automática','Chegou um oficial de justiça',[]).urgente).toBe(true);expect(aplicarRegrasAna(response,'Automática','Estou em perigo',[]).urgente).toBe(true);});
+ it('perigo imediato informa o 190 mesmo se omitido pela IA',()=>expect(aplicarRegrasAna(response,'Automática','Estou em perigo',[]).mensagem).toContain('ligue 190'));
  it('CPF completo nunca aparece',()=>expect(aplicarRegrasAna({...response,mensagem:'CPF 123.456.789-01'},'Automática','Olá',[]).mensagem).toBe('CPF ••••••••901'));
  it('CPF de menos de 11 dígitos não é aceito',()=>expect(aplicarRegrasAna({...response,dados_coletados:{...response.dados_coletados,cpf:'123'}},'Automática','123',[]).dados_coletados.cpf).toBe(''));
  it('não responde ok nem obrigado',()=>{expect(mensagemSemResposta('ok')).toBe(true);expect(mensagemSemResposta('obrigado')).toBe(true);expect(mensagemSemResposta('ok',true)).toBe(false);});

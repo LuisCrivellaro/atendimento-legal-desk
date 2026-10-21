@@ -33,7 +33,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   await atualizarConversa(db,id,current=>{
     claimed=false;
     const target=current.mensagens.find(m=>m.id===messageId);
-    if(!target||target.iaProcessada||current.agenteAna?.humano||current.agenteAna?.pausa)return current;
+    if(!target||target.iaProcessada||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.humano||current.agenteAna?.pausa)return current;
     claimed=true;
     return {...current,mensagens:current.mensagens.map(m=>m.id===messageId?{...m,iaProcessada:true}:m)};
   });
@@ -44,12 +44,20 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const history=c.mensagens.filter(m=>m.canal==='telegram').slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
     const raw=await gerarRespostaAna(request,{data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:'Não informado: consultar equipe.',temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
     const r=aplicarRegrasAna(raw,mode,m.texto,state.training.proibidos);
-    await atualizarConversa(db,id,current=>({...current,agenteAna:{...current.agenteAna,resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida}));
+    let accepted=false;
+    await atualizarConversa(db,id,current=>{
+      accepted=false;
+      if(current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.humano||current.agenteAna?.pausa)return current;
+      accepted=true;
+      return {...current,agenteAna:{...current.agenteAna,resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida};
+    });
+    if(!accepted)return;
     if(r.acao==='enviar'&&r.mensagem.trim()) {
       // Relê bloqueios imediatamente antes de enviar; alteração de modo/canal vence a geração.
-      const [fresh,cfg,contact]=await Promise.all([db.from('casos').select('dados').eq('id',id).single(),db.from('atendimento_canal_config').select('canal_ativo,agente_ativo').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo,status').eq('conversa_id',id).eq('canal','telegram').eq('status','liberado').maybeSingle()]);
+      const [fresh,cfg,contact,freshWorkspace]=await Promise.all([db.from('casos').select('dados').eq('id',id).single(),db.from('atendimento_canal_config').select('canal_ativo,agente_ativo').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo,status').eq('conversa_id',id).eq('canal','telegram').eq('status','liberado').maybeSingle(),db.from('office_workspace').select('dados').eq('owner_id',row.data.owner_id).maybeSingle()]);
       const current=fresh.data?.dados as unknown as Conversa|undefined;
-      if(fresh.error||cfg.error||contact.error||!contact.data||!current||cfg.data?.canal_ativo!=='telegram'||!cfg.data.agente_ativo||(current.modoIA??mode)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
+      const currentState=(freshWorkspace.data?.dados as unknown as OfficeState)??defaultState;
+      if(fresh.error||cfg.error||contact.error||freshWorkspace.error||!contact.data||!current||cfg.data?.canal_ativo!=='telegram'||!cfg.data.agente_ativo||(current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||currentState.anaPausa?.ativa||current.agenteAna?.humano&&!r.encaminhar_humano||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
       if(!messageId.startsWith(`telegram:${contact.data.contato_externo}:`))return;
       // Claim persistente antes do envio impede replay em falha de rede; nunca reenvia automaticamente.
       const {enviarMensagemSistema}=await import('./envio.functions');

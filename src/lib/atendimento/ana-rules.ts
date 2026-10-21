@@ -33,6 +33,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   const prohibited = etico || forbiddenTopics(texto,proibidos).length > 0 || forbiddenTopics(r.mensagem,proibidos).length > 0;
   if (humano || prohibited) result = {...result, encaminhar_humano:true};
   result.urgente ||= urgent;
+  if(/risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo/.test(folded)&&!r.mensagem.includes('190'))result.mensagem=`${result.mensagem.trim()}\n\nSe houver perigo imediato, ligue 190.`.trim();
   const sensitive = prohibited || ['agendamento','processo','reclamacao'].includes(r.intencao) || /documentos? (?:faltantes|pendentes)/i.test(r.mensagem);
   if (sensitive || validarTextoEnvio(r.mensagem) && r.mensagem.trim()) result = {...result, acao:'rascunho',motivo_aprovacao:r.motivo_aprovacao || 'Revisão da equipe obrigatória; agenda real indisponível.'};
   if (mode==='Sugerir' && result.mensagem.trim()) result.acao='rascunho';
