@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 - AI calls run only in server functions (`src/lib/*.functions.ts`) via Lovable AI Gateway Responses with streamed structured output; why: keeps the key server-side.
-- External integrations go through `src/services/n8n.ts` (mocked in demo mode); why: the front end never calls third-party services directly.
+- External integrations use `src/services/integracoes.ts`; why: no third-party browser calls.
 - Integration readiness is a credential-presence-only authenticated server read; it never activates providers or proves connectivity. Claude preparation uses native Messages when activated and leaves existing Responses calls unchanged; why: setup must not silently send legal data, sign contracts, charge clients, or replace the current model.
 - Office pages live under `src/routes/_authenticated/` (client-only login gate); cases and checklist items are per-user rows protected by owner RLS, and new users get demo cases copied from `casos_modelo` by the signup trigger; why: each staff member has their own saved data.
 - Roles live only in `user_roles` (new users get `atendente`); why: prevents self-promotion.
@@ -26,7 +26,7 @@
 - Attendance and assessor rules are pure modules with tests; optional attendance fields stay in case JSON and automation settings stay at workspace root, without schema changes; why: preserves existing storage and legal gates.
 - Attendance client-time formatting, unambiguous slot matching, external contract registration and message safety checks share pure attendance rules; header and workspace share one safe-area-aware height token; why: keeps display consistent and prevents unsafe fallback messages without changing integrations or legal gates.
 - Attendance AI reads the live checklist table and workspace training server-side through legalAI; why: checklist is not stored in case JSON and legal data must remain authoritative.
-- Demo reminders run only while the conversation is open and use persisted message markers; why: no unattended external scheduler or duplicate AI dispatch is silently activated.
+- Demo reminders stay browser-only and off on Telegram; Ana awaits server generation with owner training, test-contact history and CAS claims/drafts/handoff; why: no duplicates or case disclosure. No ProJuris/Drive/Agenda tools.
 - Optional operational case fields can invalidate draft approval under the unchanged database revision function; why: preserving the existing legal gate takes priority over bypassing reapproval without a migration.
 - Attendance presentation components contain only menus, tooltips and detail tabs; existing attendance handlers remain in the route, and the details panel always auto-opens on entering a conversation (inline at ≥1024px, right drawer below) with no collapse toggle; why: visual refactors must not alter legal data or integration behavior.
 - Attendance ProJuris details project only the selected case and its owner-scoped workspace; local records and simulated sync markers never imply a provider import; why: prevents cross-client mixing and misleading integration claims.
