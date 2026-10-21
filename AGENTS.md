@@ -31,3 +31,4 @@
 - Attendance handlers stay in the route; details auto-open inline at ≥1024px or in a right drawer below, without collapse; why: presentation preserves behavior.
 - Attendance ProJuris details project only the selected case and its owner-scoped workspace; local records and simulated sync markers never imply a provider import; why: prevents cross-client mixing and misleading integration claims.
 - Quick replies use pure rules and owner workspace overrides outside case material; why: no approval changes. Unfilled braces block sends.
+- Telegram test destinations encode the second bot as bot2:<chat_id>, with separate token and webhook secret and one released contact per conversation; why: isolates simultaneous bots without schema or approval changes and preserves legacy first-bot destinations.

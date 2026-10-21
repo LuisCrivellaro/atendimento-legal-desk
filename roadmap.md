@@ -1,5 +1,9 @@
 # Construção dos módulos Manager ADV
 
+## Segundo bot Telegram — 21/10/2026
+- [ ] Separar credenciais, destino, recebimento e contato de teste do segundo bot, preservando o primeiro.
+- [ ] Vincular outra conversa, verificar os dois bots e registrar recebimento seguro; publicação necessária para usar a atualização no site publicado.
+
 ## Agente Ana pelo Telegram — 21/10/2026
 - [x] Ajustar brevidade, evitar perguntas repetidas, continuar acolhimento em temas delicados e permitir agenda fictícia claramente identificada no Telegram de teste; regras e duas respostas reais da IA verificadas sem envio externo.
 - [x] Aplicar identidade enviada e regras de modos, aprovação, identificação e encaminhamento humano.
