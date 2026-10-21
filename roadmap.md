@@ -1,9 +1,9 @@
 # Construção dos módulos Manager ADV
 
-## Segundo bot Telegram — 21/10/2026
-- [x] Preparar seleção Bot 1/Bot 2, credenciais e recebimento separados, mantendo destinos anteriores; 38 testes aprovados e compilação limpa.
-- [ ] Restaurar credencial do bot original — bloqueado: os dois tokens continuam identificando @ManagerADV2Bot mesmo após atualização pelo formulário; necessário token de @CSLawyersBot.
-- [ ] Vincular outra conversa e verificar envio/recebimento dos dois bots — bloqueado pela credencial acima e publicação da atualização; nenhum webhook foi alterado nesta etapa.
+## Um bot Telegram para testes — 21/10/2026
+- [x] Simplificar a tela para um bot, @ManagerADV2Bot; pedido de dois bots cancelado pela usuária.
+- [x] Conferir contato Teste Dra. liberado e vinculado a Paulo, Ana ligada e modo Automática; webhook principal registrado no site publicado, sem pendências/erros. Teste assinado local processado, resposta enviada e lida na conversa após recarga; chamada sem assinatura recusada (401). Ana retomada ao final; 38 testes aprovados e compilação limpa.
+- [ ] Publicar a atualização preparada — aguardando publicação manual pela usuária; após publicar, enviar nova mensagem ao @ManagerADV2Bot. Histórico de testes preservado, sem afirmar sessão nova.
 
 ## Agente Ana pelo Telegram — 21/10/2026
 - [x] Ajustar brevidade, evitar perguntas repetidas, continuar acolhimento em temas delicados e permitir agenda fictícia claramente identificada no Telegram de teste; regras e duas respostas reais da IA verificadas sem envio externo.
