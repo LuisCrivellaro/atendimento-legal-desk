@@ -9,9 +9,9 @@ describe('telefone', () => {
     expect(normalizarTelefone('abc')).toBe('');
   });
   it('chave: DDD + últimos 8 dígitos, com ou sem 55 e sem o 9 extra', () => {
-    expect(chaveTelefone('(11) 98765-0001')).toBe('1198760001');
-    expect(chaveTelefone('5511987650001')).toBe('1198760001');
-    expect(chaveTelefone('11987650001')).toBe('1198760001');
+    expect(chaveTelefone('(11) 98765-0001')).toBe('1187650001');
+    expect(chaveTelefone('5511987650001')).toBe('1187650001');
+    expect(chaveTelefone('11987650001')).toBe('1187650001');
   });
   it('mascara no formato (11) •••••-0001', () => {
     expect(mascararTelefone('(11) 98765-0001')).toBe('(11) •••••-0001');
