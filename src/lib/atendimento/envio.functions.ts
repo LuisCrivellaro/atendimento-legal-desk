@@ -73,6 +73,7 @@ interface EnvioBase {
   conversaId: string;
   acao: string;
   texto: string;
+  contatoEsperado?: string;
 }
 
 /** Núcleo do envio: vale para mensagens da equipe e do sistema. O destino é sempre buscado no servidor. */
@@ -96,6 +97,7 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','telegram').eq('status','liberado').maybeSingle();
     if(destino.error)throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
     const contato = destino.data;
+    if(entrada.contatoEsperado&&contato?.contato_externo!==entrada.contatoEsperado)throw new Error('Vínculo do contato alterado; envio interrompido.');
     const decisao = decidirEnvio(config, contato?.status==='liberado'?{status:'liberado'}:null);
     if (!decisao.permitido || !contato) {
       const motivo = decisao.motivo ?? 'Modo teste: contato não liberado. Nada foi enviado.';
@@ -130,11 +132,11 @@ export const enviarMensagemCanal = createServerFn({ method: 'POST' })
   });
 
 /** Envio pelo sistema (agente/lembretes): só chamável no servidor, pronto para a fase 3. Ainda não usado. */
-export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string }) {
+export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string; contatoEsperado?:string }) {
   return enviarComRegras(
     deps.supabase,
     { nome: 'agente', perfil: 'sistema' },
-    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto },
+    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto, ...(deps.contatoEsperado?{contatoEsperado:deps.contatoEsperado}:{}) },
   );
 }
 

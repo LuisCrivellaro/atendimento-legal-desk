@@ -61,7 +61,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       if(!messageId.startsWith(`telegram:${contact.data.contato_externo}:`))return;
       // Claim persistente antes do envio impede replay em falha de rede; nunca reenvia automaticamente.
       const {enviarMensagemSistema}=await import('./envio.functions');
-      const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana'});
+      const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo});
       if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');
       await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal:'telegram',idExterno:sent.idExterno,respostaAnaDe:messageId})]}));
     }
@@ -73,15 +73,19 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     try {const body=JSON.parse(e.responseBody??'{}');safe=body.message??body.error?.message??safe;}catch {/* Não exibir corpo bruto. */}
     safe=safe.slice(0,400);
     const pause=e.statusCode===402||e.statusCode===403||e.statusCode===404||e.statusCode===401;
+    await atualizarConversa(db,id,current=>({...current,agenteAna:{...current.agenteAna,humano:true,pausa:pause,erro:safe,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
     if(pause) {
       // Pausa durável para todos os atendimentos do proprietário. Sem probes/retries.
+      for(let attempt=0;attempt<5;attempt++){
       const latest=await db.from('office_workspace').select('dados,updated_at').eq('owner_id',row.data.owner_id).maybeSingle();
       if(latest.error)throw new Error('Não foi possível salvar a pausa da IA.');
       const next={...((latest.data?.dados as unknown as OfficeState)??defaultState),anaPausa:{ativa:true,motivo:safe}};
-      const save=latest.data?await db.from('office_workspace').update({dados:next as unknown as Json}).eq('owner_id',row.data.owner_id).eq('updated_at',latest.data.updated_at).select('owner_id'):await db.from('office_workspace').insert({owner_id:row.data.owner_id,dados:next as unknown as Json}).select('owner_id');
-      if(save.error||!save.data?.length)throw new Error('Não foi possível salvar a pausa da IA.');
+      const save=latest.data?await db.from('office_workspace').update({dados:next as unknown as Json,updated_at:new Date().toISOString()}).eq('owner_id',row.data.owner_id).eq('updated_at',latest.data.updated_at).select('owner_id'):await db.from('office_workspace').insert({owner_id:row.data.owner_id,dados:next as unknown as Json}).select('owner_id');
+      if(save.error)throw new Error('Não foi possível salvar a pausa da IA.');
+      if(save.data?.length)break;
+      if(attempt===4)throw new Error('Não foi possível salvar a pausa da IA.');
+      }
     }
-    await atualizarConversa(db,id,current=>({...current,agenteAna:{...current.agenteAna,humano:true,pausa:pause,erro:safe,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
     await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'agenteAna',p_resumo:'Resposta interrompida · atendimento humano',p_status:'erro',p_erro:safe});
   }
 }
