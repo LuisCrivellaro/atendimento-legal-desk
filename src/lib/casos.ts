@@ -22,8 +22,20 @@ export async function listarCasos(): Promise<Conversa[]> {
 
 export async function salvarCaso(antes: Conversa, depois: Conversa) {
   const { id, documentos, naoLidas: _n, ...dados } = depois;
-  const { error } = await supabase.from("casos").update({ dados: dados as unknown as Json, etapa: depois.etapa, nome: depois.nome, updated_at: new Date().toISOString() }).eq("id", id);
-  if (error) throw error;
+  // Não sobrescrever mensagens/estado da Ana que chegaram depois da última leitura da equipe.
+  let saved=false;
+  for(let attempt=0;attempt<5;attempt++) {
+    const row=await supabase.from('casos').select('dados,updated_at').eq('id',id).single();
+    if(row.error)throw row.error;
+    const current=row.data.dados as unknown as Conversa;
+    const incoming=new Map((current.mensagens??[]).map(m=>[m.id,m]));
+    const merged=depois.mensagens.map(m=>{const original=antes.mensagens.find(x=>x.id===m.id);const fresh=incoming.get(m.id);incoming.delete(m.id);return original&&fresh&&JSON.stringify(original)===JSON.stringify(m)?fresh:m;});
+    const data={...dados,mensagens:[...merged,...incoming.values()],...(JSON.stringify(antes.agenteAna)===JSON.stringify(depois.agenteAna)?{agenteAna:current.agenteAna}:{}),...(antes.iaRetida===depois.iaRetida?{iaRetida:current.iaRetida}:{})};
+    const r=await supabase.from('casos').update({dados:JSON.parse(JSON.stringify(data)) as Json,etapa:depois.etapa,nome:depois.nome,updated_at:new Date().toISOString()}).eq('id',id).eq('updated_at',row.data.updated_at).select('id');
+    if(r.error)throw r.error;
+    if(r.data?.length){saved=true;break;}
+  }
+  if(!saved)throw new Error('Conversa mudou durante o salvamento. Atualize e tente novamente.');
   const mudados = documentos.filter((d) => d.id && antes.documentos.find((a) => a.id === d.id)?.recebido !== d.recebido);
   for (const d of mudados) {
     if (!d.id) continue;

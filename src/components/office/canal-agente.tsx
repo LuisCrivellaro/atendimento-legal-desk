@@ -124,9 +124,9 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
 
       <Cartao title="Agente">
         <label className="flex items-center justify-between gap-4 border-b pb-3 text-sm">Agente de IA
-          <Switch checked={false} disabled title="Disponível na fase 3" aria-label="Agente de IA" />
+          <Switch checked={cfg?.agente_ativo??false} disabled={cfg?.canal_ativo!=='telegram'} aria-label="Agente de IA" onCheckedChange={ativo=>void executar('Salvar agente Ana',async()=>{const salvo=await saveConfig({data:{canal_ativo:'telegram',fonte_sugestoes:'agente',agente_ativo:ativo}});onConfig?.(salvo);await refresh();})} />
         </label>
-        <p className="mt-1 text-xs text-muted-foreground">Disponível na fase 3.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Ana · assistente virtual CS Lawyers</p>
         <label className="mt-3 block text-sm">Fonte das sugestões
           <Select value={cfg?.fonte_sugestoes ?? 'ia_manager'} onValueChange={mudarFonte}>
             <SelectTrigger aria-label="Fonte das sugestões" className="mt-1"><SelectValue /></SelectTrigger>

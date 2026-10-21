@@ -73,6 +73,7 @@ interface EnvioBase {
   conversaId: string;
   acao: string;
   texto: string;
+  contatoEsperado?: string;
 }
 
 /** Núcleo do envio: vale para mensagens da equipe e do sistema. O destino é sempre buscado no servidor. */
@@ -93,9 +94,11 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
   }
 
   if (config.canal_ativo === 'telegram') {
-    const destino = await supabase.rpc('destino_canal', { p_conversa: entrada.conversaId });
-    const contato = destino.data?.[0] as Pick<ContatoTeste, 'contato_externo' | 'telefone_ficticio' | 'status'> | undefined;
-    const decisao = decidirEnvio(config, contato ?? null);
+    const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','telegram').eq('status','liberado').maybeSingle();
+    if(destino.error)throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
+    const contato = destino.data;
+    if(entrada.contatoEsperado&&contato?.contato_externo!==entrada.contatoEsperado)throw new Error('Vínculo do contato alterado; envio interrompido.');
+    const decisao = decidirEnvio(config, contato?.status==='liberado'?{status:'liberado'}:null);
     if (!decisao.permitido || !contato) {
       const motivo = decisao.motivo ?? 'Modo teste: contato não liberado. Nada foi enviado.';
       await auditar(supabase, ator, entrada.acao, 'Envio recusado pelo modo teste', 'bloqueado', motivo);
@@ -129,11 +132,11 @@ export const enviarMensagemCanal = createServerFn({ method: 'POST' })
   });
 
 /** Envio pelo sistema (agente/lembretes): só chamável no servidor, pronto para a fase 3. Ainda não usado. */
-export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string }) {
+export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string; contatoEsperado?:string }) {
   return enviarComRegras(
     deps.supabase,
     { nome: 'agente', perfil: 'sistema' },
-    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto },
+    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto, ...(deps.contatoEsperado?{contatoEsperado:deps.contatoEsperado}:{}) },
   );
 }
 
@@ -155,11 +158,13 @@ export const salvarConfigCanal = createServerFn({ method: 'POST' })
   .inputValidator(z.object({
     canal_ativo: z.enum(['desligado', 'telegram', 'ultramsg']),
     fonte_sugestoes: z.enum(['ia_manager', 'agente']),
+    agente_ativo: z.boolean().optional(),
   }))
   .handler(async ({ data, context }) => {
     if (data.canal_ativo === 'ultramsg') throw new Error('WhatsApp UltraMsg estará disponível em breve.');
     const ator = await exigirGestor(context.supabase, context.userId);
-    const config = sanitizarConfig(data);
+    const atual = await carregarConfig(context.supabase);
+    const config = sanitizarConfig({...data,agente_ativo:data.agente_ativo??atual.agente_ativo});
     const r = await context.supabase
       .from('atendimento_canal_config')
       .upsert({ id: true, ...config, atualizado_por: context.userId, atualizado_em: new Date().toISOString() });
