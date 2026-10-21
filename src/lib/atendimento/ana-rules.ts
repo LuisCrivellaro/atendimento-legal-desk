@@ -13,7 +13,7 @@ export const anaSchema = z.object({
 export type AnaResult = z.infer<typeof anaSchema>;
 export interface AnaState {
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
-  dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string; pausa?: boolean;
+  dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
 }
 export function expedienteAna(now = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone:'America/Sao_Paulo', weekday:'short', hour:'numeric', hourCycle:'h23' }).formatToParts(now);
