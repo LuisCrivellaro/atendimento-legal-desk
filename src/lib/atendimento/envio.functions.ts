@@ -198,9 +198,14 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
   }))
   .handler(async ({ data, context }) => {
     const ator = await exigirGestor(context.supabase, context.userId);
-    const telefone = normalizarTelefone(data.telefoneFicticio);
+    // Na edição, a lista exibe o telefone mascarado: valor com '•' significa "manter o já salvo".
+    let telefone = normalizarTelefone(data.telefoneFicticio);
+    if (data.id && data.telefoneFicticio.includes('•')) {
+      const atual = await context.supabase.from('atendimento_contatos_teste').select('telefone_ficticio').eq('id', data.id).maybeSingle();
+      telefone = atual.data?.telefone_ficticio ?? '';
+    }
     if (telefone.length < 12) throw new Error('Informe o telefone fictício com DDD.');
-    if (data.status === 'liberado' && !telefone) throw new Error('Liberar exige telefone fictício.');
+    if (!data.id && !(data.contatoExterno ?? '').trim()) throw new Error('Informe o chat_id do Telegram.');
     if (data.conversaId) {
       const caso = await context.supabase.from('casos').select('id').eq('id', data.conversaId).maybeSingle();
       if (caso.error || !caso.data) throw new Error('Conversa não encontrada para vincular.');
@@ -219,7 +224,6 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
           contato_externo: (data.contatoExterno ?? '').trim(),
         });
     if (r.error) throw new Error('Não foi possível salvar o contato de teste.');
-    if (!data.id && !(data.contatoExterno ?? '').trim()) throw new Error('Informe o chat_id do Telegram.');
     await auditar(context.supabase, ator, 'salvarContatoTeste', `${data.nome.trim() || 'contato'} · ${data.status}`, 'sucesso');
     return { ok: true as const };
   });
