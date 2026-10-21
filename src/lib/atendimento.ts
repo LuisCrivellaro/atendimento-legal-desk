@@ -22,12 +22,12 @@ export function nextStep(c:Conversa,ultimoAndamento?:string):{title:string;reaso
  if(c.horariosOfertados?.length&&!c.consultaAgendada)return {title:'Aguardar escolha de horário',reason:'Horários enviados ao cliente.'};
  if(!c.consulta&&!c.consultaAgendada)return {title:'Enviar horários',reason:'Consulta ainda não marcada.',action:'horarios'};
  if(c.documentos.some(d=>!d.recebido))return {title:'Pedir documentos faltantes',reason:'Há itens pendentes no checklist.',action:'faltantes'};
- if(c.etapa!=='ativo'&&c.documentos.length&&c.documentos.every(d=>d.recebido))return {title:'Pode seguir para a Produção',reason:'Checklist completo; aprovação jurídica continua obrigatória.',action:'producao'};
+ if(c.documentos.length&&c.documentos.every(d=>d.recebido))return {title:'Pode seguir para a Produção',reason:'Checklist completo; aprovação jurídica continua obrigatória.',action:'producao'};
  return {title:'Nada pendente',reason:'Nenhuma ação operacional imediata.'};
 }
 export interface FreeSlot {iso:string; label:string; ocupado:boolean}
 function horarioParts(iso:string){const d=new Date(iso);if(!Number.isFinite(d.getTime()))return undefined;return Object.fromEntries(new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',weekday:'long',day:'2-digit',month:'2-digit',hour:'numeric',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(p=>[p.type,p.value]));}
-export function formatarHorarioCliente(iso:string){const p=horarioParts(iso);if(!p)return '';const weekday=p.weekday??'';return `${weekday.charAt(0).toUpperCase()+weekday.slice(1)}, ${p.day}/${p.month}, às ${Number(p.hour)}h${p.minute==='00'?'':p.minute}`;}
+export function formatarHorarioCliente(iso:string){const p=horarioParts(iso);if(!p)return '';const weekday=p['weekday']??'';return `${weekday.charAt(0).toUpperCase()+weekday.slice(1)}, ${p['day']}/${p['month']}, às ${Number(p['hour'])}h${p['minute']==='00'?'':p['minute']}`;}
 export function mensagemHorariosCliente(slots:FreeSlot[]){return slots.map(s=>`• ${formatarHorarioCliente(s.iso)}`).join('\n');}
 export function validContractLink(link:string){try{return new URL(link).protocol==='https:';}catch{return false;}}
 export function registrarContratoEnviado(c:Conversa,link:string,now=new Date().toISOString()):Conversa{if(!validContractLink(link))throw new Error('Informe um link de contrato com https://.');return {...c,contrato:'enviado',contratoLink:link.trim(),contratoEnviadoEm:now,timeline:[...c.timeline,{data:now,evento:'Registrar contrato enviado'}]};}
@@ -45,6 +45,6 @@ export function chosenSlot(offered:string[],text:string){
  const times=[...folded.matchAll(/\b(\d{1,2})(?:h(\d{2})?|:(\d{2}))\b/g)].map(m=>({hour:Number(m[1]),minute:Number(m[2]??m[3]??0)}));
  if(times.length!==1||times[0]?.hour===undefined||times[0].hour>23||times[0].minute>59)return undefined;
  const dates=[...folded.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/\d{4})?\b/g)];const days=[...folded.matchAll(/\bdia\s+(\d{1,2})\b/g)];const weekdays=[...folded.matchAll(/\b(domingo|segunda|terca|quarta|quinta|sexta|sabado)(?:-feira)?\b/g)];
- const matches=unique.filter(iso=>{const p=horarioParts(iso);return p&&Number(p.hour)===times[0]?.hour&&Number(p.minute)===times[0]?.minute&&dates.every(m=>Number(p.day)===Number(m[1])&&Number(p.month)===Number(m[2]))&&days.every(m=>Number(p.day)===Number(m[1]))&&weekdays.every(m=>normalized(p.weekday??'').startsWith(m[1]??''));});
+ const matches=unique.filter(iso=>{const p=horarioParts(iso);return p&&Number(p['hour'])===times[0]?.hour&&Number(p['minute'])===times[0]?.minute&&dates.every(m=>Number(p['day'])===Number(m[1])&&Number(p['month'])===Number(m[2]))&&days.every(m=>Number(p['day'])===Number(m[1]))&&weekdays.every(m=>normalized(p['weekday']??'').startsWith(m[1]??''));});
  return matches.length===1?matches[0]:undefined;
 }
