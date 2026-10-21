@@ -48,7 +48,7 @@ async function auditar(
     p_acao: acao,
     p_resumo: resumo,
     p_status: status,
-    p_erro: erro ?? null,
+    ...(erro ? { p_erro: erro } : {}),
   });
 }
 
