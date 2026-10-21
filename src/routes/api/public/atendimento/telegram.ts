@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { timingSafeEqual } from 'node:crypto';
+import type { Database } from '@/integrations/supabase/types';
 import { mascararContato } from '@/lib/atendimento/canal-envio';
 
 function seguroIgual(a: string, b: string): boolean {
@@ -84,9 +85,9 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
         }
 
         const tipo = mensagem.text ? 'texto' : mensagem.audio ? 'audio' : mensagem.document ? 'arquivo' : mensagem.photo ? 'imagem' : 'arquivo';
-        const dados = caso.data.dados as { mensagens?: unknown[] };
+        const dados = caso.data.dados as { mensagens?: Record<string, unknown>[] };
         const agora = new Date();
-        const novaMensagem = {
+        const novaMensagem: Record<string, unknown> = {
           id: crypto.randomUUID(),
           de: 'cliente',
           texto: mensagem.text ?? '',
@@ -96,9 +97,10 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
           canal: 'telegram',
           idExterno: String(mensagem.message_id),
         };
+        const novosDados = { ...dados, mensagens: [...(dados.mensagens ?? []), novaMensagem] } as Database['public']['Tables']['casos']['Row']['dados'];
         const atualizacao = await supabaseAdmin
           .from('casos')
-          .update({ dados: { ...dados, mensagens: [...(dados.mensagens ?? []), novaMensagem] } })
+          .update({ dados: novosDados })
           .eq('id', caso.data.id);
         if (atualizacao.error) {
           await auditar('mensagemRecebida', 'Falha ao gravar mensagem na conversa', 'erro', atualizacao.error.message);
