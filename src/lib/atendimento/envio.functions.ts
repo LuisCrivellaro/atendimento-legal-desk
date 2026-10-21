@@ -93,8 +93,9 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
   }
 
   if (config.canal_ativo === 'telegram') {
-    const destino = await supabase.rpc('destino_canal', { p_conversa: entrada.conversaId });
-    const contato = destino.data?.[0] as Pick<ContatoTeste, 'contato_externo' | 'telefone_ficticio' | 'status'> | undefined;
+    const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','telegram').eq('status','liberado').maybeSingle();
+    if(destino.error)throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
+    const contato = destino.data;
     const decisao = decidirEnvio(config, contato ?? null);
     if (!decisao.permitido || !contato) {
       const motivo = decisao.motivo ?? 'Modo teste: contato não liberado. Nada foi enviado.';

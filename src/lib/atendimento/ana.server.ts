@@ -49,7 +49,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       // Relê bloqueios imediatamente antes de enviar; alteração de modo/canal vence a geração.
       const [fresh,cfg,contact]=await Promise.all([db.from('casos').select('dados').eq('id',id).single(),db.from('atendimento_canal_config').select('canal_ativo,agente_ativo').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo,status').eq('conversa_id',id).eq('canal','telegram').eq('status','liberado').maybeSingle()]);
       const current=fresh.data?.dados as unknown as Conversa|undefined;
-      if(fresh.error||cfg.error||contact.error||!contact.data||!current||cfg.data.canal_ativo!=='telegram'||!cfg.data.agente_ativo||(current.modoIA??mode)!=='Automática'||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
+      if(fresh.error||cfg.error||contact.error||!contact.data||!current||cfg.data?.canal_ativo!=='telegram'||!cfg.data.agente_ativo||(current.modoIA??mode)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
+      if(!messageId.startsWith(`telegram:${contact.data.contato_externo}:`))return;
       // Claim persistente antes do envio impede replay em falha de rede; nunca reenvia automaticamente.
       const {enviarMensagemSistema}=await import('./envio.functions');
       const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana'});
