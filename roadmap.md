@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Agente Ana pelo Telegram — 21/10/2026
+- [ ] Aplicar identidade enviada e regras de modos, aprovação, identificação e encaminhamento humano.
+- [ ] Processar mensagens do contato de teste liberado no servidor e persistir respostas/rascunhos sem depender da conversa aberta.
+- [ ] Ativar e verificar o fluxo no teste autorizado; informar limites de integrações indisponíveis e publicação.
+
 ## Atendimento por canal (Telegram) — 21/10/2026
 - [x] Camada de canais (tipos, telegram, simulador, ultramsg stub) e funções puras de telefone com testes.
 - [x] Tabelas atendimento_canal_config, atendimento_contatos_teste e audit_log com RLS; só sênior/admin alteram config.
