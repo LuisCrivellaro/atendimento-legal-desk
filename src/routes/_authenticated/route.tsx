@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { officeDashboard } from "@/lib/office.functions";
 import { buildAssessor } from "@/lib/assessor";
 import { localDay } from "@/lib/dashboard";
-import { loadOffice } from "@/lib/office-store";
 import { setAuditUser } from "@/services/integracoes";
 import { useOfficeNotifications } from "@/hooks/use-office-notifications";
 import { LogOut, ChevronDown } from "lucide-react";
@@ -48,7 +47,6 @@ function Layout() {
 
   const read=useServerFn(officeDashboard);
   const dashboard=useQuery({queryKey:["dashboard",user.id],queryFn:()=>read(),refetchInterval:15000});
-  const workspace=useQuery({queryKey:["office",user.id],queryFn:()=>loadOffice(user.id)});
   useOfficeNotifications(dashboard.data?.cases);
   const badges=buildAssessor(dashboard.data?.cases??[],localDay()).badges;
   useEffect(()=>{if(perfil)setAuditUser({id:user.id,nome:perfil.nome,perfil:perfil.roles.join(", ")});},[perfil,user.id]);
