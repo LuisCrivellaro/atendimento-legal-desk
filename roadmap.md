@@ -2,7 +2,12 @@
 
 ## Testes do Atendimento — próximos passos
 - [ ] Fase 1: equipe testa os 5 roteiros na demonstração (`manager-adv-demonstracao.html`, gerada por `tools/demo-navegador`) e envia tempos e travamentos.
-- [ ] Corrigir: link do contrato enviado fora do sistema (Lembrar assinatura bloqueado), horários com segundos, próximo passo de cliente ativo, cabeçalho no celular, contraste do amarelo.
+- [x] Corrigir: horários do cliente e reconhecimento sem ambiguidade.
+- [x] Corrigir: registro do link HTTPS do contrato enviado fora do sistema.
+- [x] Corrigir: próximo passo de cliente ativo e abertura da aba ProJuris.
+- [x] Corrigir: cabeçalho e filtros no celular, incluindo área segura.
+- [x] Corrigir: contraste do amarelo, apenas fundo com texto preto.
+- Verificação em 21/10/2026: 70 testes aprovados e compilação limpa; busca/filtros em 390×844, 360×740 e 1440×900; aba ProJuris no celular; contrato HTTPS registrado e lido após recarga; horários enviados em demonstração sem ISO ou segundos no corpo da mensagem. Link de exemplo foi salvo no caso demonstrativo de Paulo durante o teste.
 - [ ] Fase 2: sistema real no Lovable Cloud com contas da equipe e perfis em `user_roles`.
 - [ ] Fase 3: ponte real com n8n (envio pelo servidor, recebimento de mensagens, simulador, workflows), UltraMsg em chip de teste, lembretes no n8n.
 

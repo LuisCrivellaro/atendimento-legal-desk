@@ -1,6 +1,6 @@
 import { describe,it,expect } from 'vitest';
 import { conversas } from '@/lib/mock-data';
-import { validCharge,chosenSlot,needsReply,unread,replyQueue,waitTone,validOffer,validReturn,nextStep,forbiddenTopics,programmed,defaultAutomations } from '@/lib/atendimento';
+import { validCharge,chosenSlot,needsReply,unread,replyQueue,waitTone,validOffer,validReturn,nextStep,forbiddenTopics,programmed,defaultAutomations,formatarHorarioCliente,mensagemHorariosCliente,validContractLink,registrarContratoEnviado,mensagemPermitida } from '@/lib/atendimento';
 const base=conversas[0];if(!base)throw new Error('Fixture absent');
 describe('Atendimento',()=>{
  it('excludes only short confirmations, not questions',()=>{for(const text of ['ok','obrigado','recebi','beleza','certo','perfeito','combinado'])expect(needsReply({mensagens:[{id:'1',de:'cliente',texto:text,hora:''}]})).toBe(false);expect(needsReply({mensagens:[{id:'1',de:'cliente',texto:'Obrigado! Posso levar acompanhante?',hora:''}]})).toBe(true);});
@@ -15,3 +15,18 @@ describe('Atendimento',()=>{
 
 it('requires charge amount description and due date, without a fixed price',()=>{expect(validCharge('125.50','Serviço','2026-10-25')).toBe(true);expect(validCharge('','Serviço','2026-10-25')).toBe(false);expect(validCharge('0','Serviço','2026-10-25')).toBe(false);expect(validCharge('125.50','','2026-10-25')).toBe(false);expect(validCharge('125.50','Serviço','')).toBe(false);});
 it('recognizes an offered date and time without requiring ISO input',()=>expect(chosenSlot(['2026-10-23T17:20:00Z'],'Escolho 23/10 às 14:20')).toBe('2026-10-23T17:20:00Z'));
+
+describe('Correções da Fase 1',()=>{
+ const nine='2026-10-22T12:00:00Z';const tenThirty='2026-10-22T13:30:00Z';
+ it('formats São Paulo hours without seconds or year',()=>{expect(formatarHorarioCliente(nine)).toBe('Quinta-feira, 22/10, às 9h');expect(formatarHorarioCliente(tenThirty)).toBe('Quinta-feira, 22/10, às 10h30');});
+ it('builds offered hours without ISO or seconds',()=>{const message=mensagemHorariosCliente([{iso:nine,label:nine,ocupado:false}]);expect(message).not.toContain('T');expect(message).not.toMatch(/\d{2}:\d{2}:\d{2}/);expect(message).toContain('às 9h');});
+ it('recognizes each requested natural time variation',()=>{for(const answer of ['quinta às 9h','22/10 9h','dia 22 às 9:00','22/10 às 09:00'])expect(chosenSlot([nine,tenThirty],answer)).toBe(nine);expect(chosenSlot([nine,tenThirty],'10h30')).toBe(tenThirty);});
+ it('refuses ambiguous dates, bare times, multiple choices and conflicting dates',()=>{const otherNine='2026-10-23T12:00:00Z';expect(chosenSlot([nine,otherNine],'9h')).toBeUndefined();expect(chosenSlot([nine,'2026-10-29T12:00:00Z'],'quinta às 9h')).toBeUndefined();expect(chosenSlot([nine,tenThirty],'9h ou 10h30')).toBeUndefined();expect(chosenSlot([nine,otherNine],`${nine} ou ${otherNine}`)).toBeUndefined();expect(chosenSlot([nine],'sexta 22/10 9h')).toBeUndefined();});
+ it('requires a registered contract link before offering a signature reminder',()=>{expect(nextStep({...base,etapa:'inicial',contrato:'enviado',contratoLink:undefined}).title).toBe('Registrar link do contrato');expect(nextStep({...base,etapa:'inicial',contrato:'enviado',contratoLink:'https://example.com/contrato'}).title).toBe('Lembrar assinatura');});
+ it('rejects contract URLs without HTTPS',()=>{expect(validContractLink('https://example.com/contrato')).toBe(true);for(const link of ['http://example.com','javascript:alert(1)','example.com','https://'])expect(validContractLink(link)).toBe(false);expect(()=>registrarContratoEnviado(base,'http://example.com')).toThrow();});
+ it('records and corrects external contracts with a reminder exactly 24 hours later',()=>{const saved=registrarContratoEnviado(base,'https://example.com/contrato','2026-10-21T15:00:00Z');expect(saved.contrato).toBe('enviado');expect(saved.contratoLink).toBe('https://example.com/contrato');expect(saved.contratoEnviadoEm).toBe('2026-10-21T15:00:00Z');expect(programmed(saved,defaultAutomations).find(j=>j.key==='contrato')?.when).toBe('2026-10-22T15:00:00.000Z');expect(registrarContratoEnviado(saved,'https://example.com/corrigido').contratoLink).toBe('https://example.com/corrigido');});
+ it('blocks missing-link fallback messages regardless of case and accents',()=>{expect(mensagemPermitida('Paulo, Link não registrado')).toBe(false);expect(mensagemPermitida('link nao registrado')).toBe(false);expect(mensagemPermitida('Segue https://example.com/contrato')).toBe(true);});
+ const helena=conversas.find(c=>c.nome.startsWith('Helena'));if(!helena)throw new Error('Helena fixture absent');
+ it('follows active clients without scheduling new consultations',()=>{expect(nextStep(helena).title).toBe('Acompanhar processo');expect(nextStep(helena).action).toBe('projuris');expect(nextStep(helena,'Perícia designada').reason).toBe('Perícia designada');expect(nextStep({...helena,processos:[]}).reason).toBe('Nenhum processo vinculado ainda');for(const c of conversas){const {consulta,...withoutConsultation}=c;expect(nextStep({...withoutConsultation,etapa:'ativo',consultaAgendada:undefined,horariosOfertados:[]}).action).not.toBe('horarios');}});
+ it('suggests a reply to active clients awaiting an answer',()=>expect(nextStep({...helena,mensagens:[{id:'new',de:'cliente',texto:'Tenho uma dúvida',hora:''}]}).title).toBe('Sugerir resposta'));
+});

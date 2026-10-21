@@ -122,8 +122,7 @@ o build; para gerar de novo após mudanças, ver `tools/demo-navegador/LEIA-ME.m
    Lembretes automáticos devem passar para o n8n (hoje só rodam com a conversa
    aberta).
 
-**Problemas já encontrados na verificação da fase 1 (corrigir junto com as
-anotações da equipe):**
+**Problemas encontrados na fase 1 (corrigidos em 21/10/2026):**
 
 - Paulo: "Lembrar assinatura" fica bloqueado com "Link não registrado" quando o
   contrato foi enviado fora do sistema; falta campo para colar o link.
@@ -136,4 +135,8 @@ anotações da equipe):**
 **Repositório:** github.com/LuisCrivellaro/Manager-ADV — o código foi enviado
 como ZIP; descompactar o conteúdo na raiz do repositório e apagar o `.zip`.
 O projeto no Lovable ainda não está ligado a esse repositório.
+
+## Atualização — correções da Fase 1 (21/10/2026)
+
+Horários exibidos em America/Sao_Paulo sem ISO, segundos ou ano, com reconhecimento de respostas naturais e rejeição de ambiguidades; registro/correção de links HTTPS de contratos enviados fora do sistema e bloqueio de mensagens com link ausente; clientes ativos seguem para resposta ou acompanhamento na aba ProJuris. Cabeçalho e Atendimento compartilham altura com área segura no celular, e pendências usam fundo #FFE600 com texto #0D0D0D. Permissões, aprovações, hash de revisão, banco e integrações permanecem inalterados, em demonstração.
 

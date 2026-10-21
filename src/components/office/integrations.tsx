@@ -21,7 +21,7 @@ export function Integrations({ userId }: { userId: string }) {
         return <article key={service.id} className="flex flex-col rounded-md border bg-card p-4">
           <div className="flex items-center justify-between gap-2"><h3 className="text-xl">{service.name}</h3><Plug className="size-4 text-muted-foreground"/></div>
           <p className="mt-2 text-sm">{service.purpose}</p>
-          <p className="mt-4 text-xs font-medium text-pending">{!status ? 'Situação não conferida' : status.credentialsPresent ? 'Credencial presente · ativação pendente' : 'Aguardando credenciais'}</p>
+          <p className="mt-4 self-start rounded bg-pending px-1.5 py-0.5 text-xs font-medium text-pending-foreground">{!status ? 'Situação não conferida' : status.credentialsPresent ? 'Credencial presente · ativação pendente' : 'Aguardando credenciais'}</p>
           {status?.missing.map(label => <p key={label} className="mt-2 text-xs text-muted-foreground">Pendente: {label}</p>)}
           {service.id === 'claude' && <p className="mt-2 text-xs text-muted-foreground">Claude Sonnet 5 · IA atual mantida</p>}
           <div className="mt-auto pt-5"><Button asChild variant="outline" size="sm"><a href={service.documentation} target="_blank" rel="noopener noreferrer"><ExternalLink/>Documentação</a></Button></div>
