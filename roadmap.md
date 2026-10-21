@@ -1,6 +1,7 @@
 # Construção dos módulos Manager ADV
 
 ## Agente Ana pelo Telegram — 21/10/2026
+- [x] Ajustar brevidade, evitar perguntas repetidas, continuar acolhimento em temas delicados e permitir agenda fictícia claramente identificada no Telegram de teste; regras e duas respostas reais da IA verificadas sem envio externo.
 - [x] Aplicar identidade enviada e regras de modos, aprovação, identificação e encaminhamento humano.
 - [x] Processar mensagens do contato de teste liberado no servidor e persistir respostas/rascunhos sem depender da conversa aberta.
 - [x] Ativar e verificar duas respostas reais localmente, retenção jurídica e deduplicação; integrações ProJuris/Agenda/Drive seguem indisponíveis.
