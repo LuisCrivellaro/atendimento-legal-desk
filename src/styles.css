@@ -209,6 +209,7 @@
 .attendance-conversation { display:grid; grid-template-columns:minmax(0,1fr); }
 .attendance-with-panel { grid-template-columns:minmax(0,1fr) 300px; }
 @media (min-width:1440px) { .attendance-with-panel { grid-template-columns:minmax(0,1fr) 320px; } }
+@media (max-width:1199px) { .attendance-with-panel { grid-template-columns:minmax(0,1fr) 280px; } }
 @media (max-width:1199px) { .attendance-workspace { grid-template-columns:240px minmax(0,1fr); } }
 @media (min-width:768px) and (max-width:1050px) {
   .attendance-workspace { grid-template-columns:220px minmax(0,1fr); }
