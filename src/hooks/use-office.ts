@@ -4,7 +4,7 @@ import { listarCasos, salvarCaso } from '@/lib/casos';
 import { loadOffice, saveOffice } from '@/lib/office-store';
 import type { OfficeState, OfficeCase } from '@/lib/office';
 import { useEffect, useRef, useState } from 'react';
-import { setModoDemonstracao } from '@/services/n8n';
+import { setModoDemonstracao } from '@/services/integracoes';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 export function useOffice() { const {user}=AuthRoute.useRouteContext(); const qc=useQueryClient();const [busy,setBusy]=useState(false);const lock=useRef(false);const cases=useQuery({queryKey:['casos'],queryFn:listarCasos,refetchInterval:15000}); const workspace=useQuery({queryKey:['office',user.id],queryFn:()=>loadOffice(user.id)});

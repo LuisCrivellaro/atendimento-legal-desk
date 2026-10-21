@@ -14,7 +14,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { PIPELINE, etapaLabel, type Conversa, type Etapa, type Mensagem } from '@/lib/mock-data';
-import { n8n } from '@/services/n8n';
+import { n8n } from '@/services/integracoes';
 import { AnaliseDocumento } from '@/components/analise-documento';
 import { executar } from '@/lib/executar';
 import { replyQueue, needsReply, matchesConversation, nextStep, newMessage, unread, waitingMinutes, waitTone, programmed, defaultAutomations, formatarHorarioCliente, mensagemPermitida, type AIMode } from '@/lib/atendimento';

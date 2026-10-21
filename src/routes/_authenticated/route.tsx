@@ -6,7 +6,7 @@ import { officeDashboard } from "@/lib/office.functions";
 import { buildAssessor } from "@/lib/assessor";
 import { localDay } from "@/lib/dashboard";
 import { loadOffice } from "@/lib/office-store";
-import { setAuditUser, setModoDemonstracao } from "@/services/n8n";
+import { setAuditUser, setModoDemonstracao } from "@/services/integracoes";
 import { useOfficeNotifications } from "@/hooks/use-office-notifications";
 import { LogOut, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";

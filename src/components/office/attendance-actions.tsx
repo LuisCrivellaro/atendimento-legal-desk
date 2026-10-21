@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
-import { n8n } from '@/services/n8n';
+import { n8n } from '@/services/integracoes';
 import { executar } from '@/lib/executar';
 import { validOffer, validReturn, validCharge, chosenSlot, newMessage, formatarHorarioCliente, mensagemHorariosCliente, validContractLink, registrarContratoEnviado, mensagemPermitida, type FreeSlot } from '@/lib/atendimento';
 import type { Conversa } from '@/lib/mock-data';
