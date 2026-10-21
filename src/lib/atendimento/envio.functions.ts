@@ -155,11 +155,13 @@ export const salvarConfigCanal = createServerFn({ method: 'POST' })
   .inputValidator(z.object({
     canal_ativo: z.enum(['desligado', 'telegram', 'ultramsg']),
     fonte_sugestoes: z.enum(['ia_manager', 'agente']),
+    agente_ativo: z.boolean().optional(),
   }))
   .handler(async ({ data, context }) => {
     if (data.canal_ativo === 'ultramsg') throw new Error('WhatsApp UltraMsg estará disponível em breve.');
     const ator = await exigirGestor(context.supabase, context.userId);
-    const config = sanitizarConfig(data);
+    const atual = await carregarConfig(context.supabase);
+    const config = sanitizarConfig({...data,agente_ativo:data.agente_ativo??atual.agente_ativo});
     const r = await context.supabase
       .from('atendimento_canal_config')
       .upsert({ id: true, ...config, atualizado_por: context.userId, atualizado_em: new Date().toISOString() });

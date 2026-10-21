@@ -61,13 +61,13 @@ export function podeGerenciarCanal(roles: string[]): boolean {
   return roles.includes('advogada_senior') || roles.includes('admin');
 }
 
-/** Normaliza a configuração antes de salvar: agente sempre desligado (fase 3) e, com Telegram, modo teste sempre ligado. */
+/** Agente autorizado apenas no Telegram de teste. */
 export function sanitizarConfig(entrada: Partial<CanalConfig>): CanalConfig {
   const canal = entrada.canal_ativo === 'telegram' ? 'telegram' : 'desligado';
   return {
     canal_ativo: canal,
     modo_teste: canal === 'telegram' ? true : entrada.modo_teste ?? true,
-    agente_ativo: false,
+    agente_ativo: canal === 'telegram' && entrada.agente_ativo === true,
     fonte_sugestoes: entrada.fonte_sugestoes === 'agente' ? 'agente' : 'ia_manager',
   };
 }

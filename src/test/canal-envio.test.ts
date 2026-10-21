@@ -45,9 +45,10 @@ describe('permissões e configuração', () => {
     expect(podeGerenciarCanal(['advogada_senior'])).toBe(true);
     expect(podeGerenciarCanal(['admin'])).toBe(true);
   });
-  it('agente sempre desligado e modo teste sempre ligado com Telegram', () => {
+  it('agente autorizado no Telegram e modo teste sempre ligado', () => {
     const c = sanitizarConfig({ canal_ativo: 'telegram', modo_teste: false, agente_ativo: true, fonte_sugestoes: 'agente' });
-    expect(c).toEqual({ canal_ativo: 'telegram', modo_teste: true, agente_ativo: false, fonte_sugestoes: 'agente' });
+    expect(c).toEqual({ canal_ativo: 'telegram', modo_teste: true, agente_ativo: true, fonte_sugestoes: 'agente' });
+    expect(sanitizarConfig({canal_ativo:'desligado',agente_ativo:true}).agente_ativo).toBe(false);
     expect(sanitizarConfig({ canal_ativo: 'ultramsg' }).canal_ativo).toBe('desligado');
   });
   it('etiquetas das ações: real só com Telegram nas ações de mensagem', () => {

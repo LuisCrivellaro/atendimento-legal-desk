@@ -6,6 +6,7 @@ export const PIPELINE = ["Atendimento inicial", "Contrato assinado", "Coleta de 
 export type Sync = "sincronizado" | "pendente" | "erro";
 
 export interface Mensagem {
+  canal?: string; idExterno?: string; respostaAnaDe?: string;
   id: string; de: "cliente" | "escritorio" | "sistema"; texto: string; hora: string;
   iaProcessada?: boolean; automacaoKey?: string; dataHora?: string | undefined; autor?: string | undefined; tipoIdentificado?: string | undefined; confirmarTipo?: boolean | undefined; path?: string | undefined;
   tipo?: "texto" | "documento" | "audio" | "imagem"; arquivo?: string | undefined; salvoStart?: boolean | undefined;
@@ -13,6 +14,7 @@ export interface Mensagem {
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }
 export interface DocItem { id?: string | undefined; nome: string; recebido: boolean }
 export interface Conversa {
+  agenteAna?: import('./atendimento/ana-rules').AnaState;
   id: string; nome: string; cpf: string; telefone: string; atendimento: string; etapa: Etapa;
   naoLidas: number; etapaPipeline: number; syncs: Sync[]; processos: Processo[];
   documentos: DocItem[]; mensagens: Mensagem[]; contrato?: "gerado" | "enviado" | "visualizado" | "assinado";
