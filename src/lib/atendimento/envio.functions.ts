@@ -96,7 +96,7 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','telegram').eq('status','liberado').maybeSingle();
     if(destino.error)throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
     const contato = destino.data;
-    const decisao = decidirEnvio(config, contato ?? null);
+    const decisao = decidirEnvio(config, contato?.status==='liberado'?{status:'liberado'}:null);
     if (!decisao.permitido || !contato) {
       const motivo = decisao.motivo ?? 'Modo teste: contato não liberado. Nada foi enviado.';
       await auditar(supabase, ator, entrada.acao, 'Envio recusado pelo modo teste', 'bloqueado', motivo);
