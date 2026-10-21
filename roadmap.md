@@ -1,12 +1,12 @@
 # Construção dos módulos Manager ADV
 
 ## Atendimento por canal (Telegram) — 21/10/2026
-- [ ] Camada de canais (tipos, telegram, simulador, ultramsg stub) e funções puras de telefone com testes.
-- [ ] Tabelas atendimento_canal_config, atendimento_contatos_teste e audit_log com RLS; só sênior/admin alteram config.
-- [ ] enviarMensagemCanal no servidor + enviarMensagemSistema interna; n8n.ts renomeado para integracoes.ts.
-- [ ] Rota pública do webhook do Telegram com verificação de secret.
-- [ ] Aba "Canal e Agente" no Atendimento (só sênior/admin); remover campo URL n8n e modo demonstração do navegador.
-- [ ] Testes: telefone, canal desligado, contato não liberado, {campo} bloqueado, falha não grava, permissão, token fora de erros.
+- [x] Camada de canais (tipos, telegram, simulador, ultramsg stub) e funções puras de telefone com testes.
+- [x] Tabelas atendimento_canal_config, atendimento_contatos_teste e audit_log com RLS; só sênior/admin alteram config.
+- [x] enviarMensagemCanal no servidor + enviarMensagemSistema interna; n8n.ts renomeado para integracoes.ts.
+- [x] Rota pública do webhook do Telegram com verificação de secret.
+- [x] Aba "Canal e Agente" no Atendimento (só sênior/admin); remover campo URL n8n e modo demonstração do navegador.
+- [x] Testes: telefone, canal desligado, contato não liberado, {campo} bloqueado, falha não grava, permissão, token fora de erros.
 
 ## Testes do Atendimento — próximos passos
 - [ ] Fase 1: equipe testa os 5 roteiros na demonstração (`manager-adv-demonstracao.html`, gerada por `tools/demo-navegador`) e envia tempos e travamentos.
