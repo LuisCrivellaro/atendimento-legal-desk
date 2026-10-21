@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { Mensagem } from '@/lib/mock-data';
 import { z } from 'zod';
 import { mascararContato } from '@/lib/atendimento/canal-envio';
+import { destinoTelegram } from '@/lib/atendimento/telegram-bots';
 
 function seguroIgual(a: string, b: string): boolean {
   const ba = Buffer.from(a);
@@ -30,7 +31,10 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env['TELEGRAM_WEBHOOK_SECRET'];
+        const botParam = new URL(request.url).searchParams.get('bot');
+        if (botParam !== null && botParam !== 'segundo') return new Response('Invalid bot', { status: 400 });
+        const bot = botParam === 'segundo' ? 'segundo' : 'principal';
+        const secret = bot === 'segundo' ? process.env['TELEGRAM_WEBHOOK_SECRET_2'] : process.env['TELEGRAM_WEBHOOK_SECRET'];
         if (!secret) return new Response('Não configurado', { status: 503 });
         const recebido = request.headers.get('X-Telegram-Bot-Api-Secret-Token') ?? '';
         if (!seguroIgual(recebido, secret)) return new Response('Unauthorized', { status: 401 });
@@ -62,11 +66,12 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
         }
 
         const chatId = String(mensagem.chat.id);
+        const destino = destinoTelegram(bot, chatId);
         const contato = await supabaseAdmin
           .from('atendimento_contatos_teste')
           .select('id,conversa_id,telefone_ficticio,status')
           .eq('canal', 'telegram')
-          .eq('contato_externo', chatId)
+          .eq('contato_externo', destino)
           .maybeSingle();
 
         if (!contato.data || contato.data.status !== 'liberado') {
@@ -92,7 +97,7 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
         const tipo = mensagem.text ? 'texto' : mensagem.audio ? 'audio' : mensagem.document ? 'arquivo' : mensagem.photo ? 'imagem' : 'arquivo';
         const agora = new Date();
         const novaMensagem: Mensagem = {
-          id: `telegram:${chatId}:${mensagem.message_id}`,
+          id: `telegram:${destino}:${mensagem.message_id}`,
           de: 'cliente',
           texto: mensagem.text ?? '',
           arquivo: tipo === 'texto' ? undefined : `[${tipo} recebido pelo Telegram]`,

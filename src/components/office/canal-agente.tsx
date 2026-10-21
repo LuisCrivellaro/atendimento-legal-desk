@@ -15,6 +15,7 @@ import {
   registrarWebhookTelegram, verificarWebhookTelegram,
 } from '@/lib/atendimento/envio.functions';
 import type { Conversa } from '@/lib/mock-data';
+import type { TelegramBot } from '@/lib/atendimento/telegram-bots';
 
 type ContatoLista = Awaited<ReturnType<typeof listarContatosTeste>>[number];
 
@@ -33,6 +34,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
   const registrar = useServerFn(registrarWebhookTelegram);
   const verificar = useServerFn(verificarWebhookTelegram);
   const [webhookInfo, setWebhookInfo] = useState<string>('');
+  const [bot, setBot] = useState<TelegramBot>('principal');
   const [form, setForm] = useState({ nome: '', chatId: '', telefone: '' });
 
   const config = useQuery({ queryKey: ['canal-config'], queryFn: () => read(), enabled: open });
@@ -50,7 +52,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
     onConfig?.(salvo); await refresh();
   });
   const adicionar = () => void executar('Adicionar contato de teste', async () => {
-    await saveContato({ data: { canal: 'telegram', contatoExterno: form.chatId, nome: form.nome, telefoneFicticio: form.telefone, status: 'aguardando_liberacao' } });
+    await saveContato({ data: { canal: 'telegram', bot, contatoExterno: form.chatId, nome: form.nome, telefoneFicticio: form.telefone, status: 'aguardando_liberacao' } });
     setForm({ nome: '', chatId: '', telefone: '' }); await refresh();
   });
   const atualizar = (c: ContatoLista, patch: { status?: 'aguardando_liberacao' | 'liberado' | 'bloqueado'; conversaId?: string | null }) =>
@@ -77,16 +79,20 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
           <p className="text-xs text-muted-foreground">Modo teste sempre ligado com Telegram.</p>
         </div>
         <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-          <p>Token do bot: {config.data?.segredos.telegram ? 'configurado' : 'não configurado'}</p>
-          <p>Secret do webhook: {config.data?.segredos.webhook ? 'configurado' : 'não configurado'}</p>
+          <Select value={bot} onValueChange={v => { setBot(v as TelegramBot); setWebhookInfo(''); }}>
+            <SelectTrigger aria-label="Bot do Telegram"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="principal">Bot 1 · atual</SelectItem><SelectItem value="segundo">Bot 2 · novo teste</SelectItem></SelectContent>
+          </Select>
+          <p>Token do bot: {(bot === 'segundo' ? config.data?.segredos.telegram2 : config.data?.segredos.telegram) ? 'configurado' : 'não configurado'}</p>
+          <p>Secret do webhook: {(bot === 'segundo' ? config.data?.segredos.webhook2 : config.data?.segredos.webhook) ? 'configurado' : 'não configurado'}</p>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" disabled={!config.data?.segredos.telegram || !config.data?.segredos.webhook}
-            onClick={() => void executar('Registrar webhook no Telegram', async () => { const r = await registrar(); setWebhookInfo(r.descricao); })}>
+          <Button variant="outline" size="sm" disabled={!(bot === 'segundo' ? config.data?.segredos.telegram2 && config.data?.segredos.webhook2 : config.data?.segredos.telegram && config.data?.segredos.webhook)}
+            onClick={() => void executar('Registrar webhook no Telegram', async () => { const r = await registrar({ data: { bot } }); setWebhookInfo(r.descricao); })}>
             <Webhook />Registrar webhook no Telegram</Button>
-          <Button variant="outline" size="sm" disabled={!config.data?.segredos.telegram}
+          <Button variant="outline" size="sm" disabled={!(bot === 'segundo' ? config.data?.segredos.telegram2 : config.data?.segredos.telegram)}
             onClick={() => void executar('Verificar webhook', async () => {
-              const r = await verificar();
+              const r = await verificar({ data: { bot } });
               setWebhookInfo(r.registrado ? `Registrado · ${r.pendentes} atualizações pendentes${r.ultimoErro ? ` · último erro: ${r.ultimoErro}` : ''}` : 'Webhook não registrado.');
             })}><RefreshCw />Verificar webhook</Button>
         </div>
@@ -102,6 +108,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
         </div>
         <div className="divide-y">{(contatos.data ?? []).map(c => <div key={c.id} className="flex flex-wrap items-center gap-2 py-2 text-xs">
           <span className="min-w-28 font-medium">{c.nome || 'Sem nome'}</span>
+          <span className="text-muted-foreground">{c.bot === 'segundo' ? 'Bot 2' : 'Bot 1'}</span>
           <span className="text-muted-foreground">{c.contato_externo} · {c.telefone_ficticio}</span>
           <span className={c.status === 'liberado' ? 'text-success' : c.status === 'bloqueado' ? 'text-destructive' : 'text-pending-foreground'}>
             {c.status === 'liberado' ? 'Liberado' : c.status === 'bloqueado' ? 'Bloqueado' : 'Aguardando liberação'}</span>

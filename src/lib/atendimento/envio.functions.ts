@@ -16,6 +16,7 @@ import {
 } from './canal-envio';
 import { normalizarTelefone } from './telefone';
 import { telegramAdapter } from './canais/telegram';
+import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
 
 type Db = SupabaseClient<Database>;
 
@@ -104,12 +105,13 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
       await auditar(supabase, ator, entrada.acao, 'Envio recusado pelo modo teste', 'bloqueado', motivo);
       throw new Error(motivo);
     }
-    const token = process.env['TELEGRAM_BOT_TOKEN'];
+    const destinoBot = lerDestinoTelegram(contato.contato_externo);
+    const token = destinoBot.bot === 'segundo' ? process.env['TELEGRAM_BOT_TOKEN_2'] : process.env['TELEGRAM_BOT_TOKEN'];
     if (!token) {
       await auditar(supabase, ator, entrada.acao, 'Telegram não configurado', 'erro', 'Secret ausente');
       throw new Error('Telegram não configurado. Nada foi enviado.');
     }
-    const resultado = await telegramAdapter.enviarTexto(contato.contato_externo, entrada.texto, { token });
+    const resultado = await telegramAdapter.enviarTexto(destinoBot.chatId, entrada.texto, { token });
     if (!resultado.ok) {
       // Falha: nada é registrado como enviado; o token nunca aparece no erro.
       await auditar(supabase, ator, entrada.acao, 'Falha no envio pelo Telegram', 'erro', resultado.erro);
@@ -149,6 +151,8 @@ export const lerConfigCanal = createServerFn({ method: 'GET' })
       segredos: {
         telegram: Boolean(process.env['TELEGRAM_BOT_TOKEN']?.trim()),
         webhook: Boolean(process.env['TELEGRAM_WEBHOOK_SECRET']?.trim()),
+        telegram2: Boolean(process.env['TELEGRAM_BOT_TOKEN_2']?.trim()),
+        webhook2: Boolean(process.env['TELEGRAM_WEBHOOK_SECRET_2']?.trim()),
       },
     };
   });
@@ -185,6 +189,7 @@ export const listarContatosTeste = createServerFn({ method: 'GET' })
     // chat_id e telefone sempre mascarados na tela
     return (r.data ?? []).map((c) => ({
       ...c,
+      bot: lerDestinoTelegram(c.contato_externo).bot,
       contato_externo: mascararContato(c.contato_externo),
       telefone_ficticio: `••••${c.telefone_ficticio.slice(-4)}`,
     }));
@@ -194,6 +199,7 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
     id: z.string().uuid().optional(),
+    bot: z.enum(['principal', 'segundo']).default('principal'),
     canal: z.enum(['telegram', 'simulador', 'ultramsg']).default('telegram'),
     contatoExterno: z.string().max(120).optional(),
     nome: z.string().max(120).default(''),
@@ -214,6 +220,9 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
     if (data.conversaId) {
       const caso = await context.supabase.from('casos').select('id').eq('id', data.conversaId).maybeSingle();
       if (caso.error || !caso.data) throw new Error('Conversa não encontrada para vincular.');
+      const outros = await context.supabase.from('atendimento_contatos_teste').select('id').eq('conversa_id', data.conversaId).eq('canal', 'telegram').eq('status', 'liberado');
+      if (outros.error) throw new Error('Não foi possível verificar o vínculo.');
+      if (data.status === 'liberado' && outros.data?.some(c => c.id !== data.id)) throw new Error('Esta conversa já tem um contato liberado; escolha outra conversa para separar os testes.');
     }
     const registro = {
       canal: data.canal,
@@ -226,7 +235,7 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
       ? await context.supabase.from('atendimento_contatos_teste').update(registro).eq('id', data.id)
       : await context.supabase.from('atendimento_contatos_teste').insert({
           ...registro,
-          contato_externo: (data.contatoExterno ?? '').trim(),
+          contato_externo: destinoTelegram(data.bot, (data.contatoExterno ?? '').trim()),
         });
     if (r.error) throw new Error('Não foi possível salvar o contato de teste.');
     await auditar(context.supabase, ator, 'salvarContatoTeste', `${data.nome.trim() || 'contato'} · ${data.status}`, 'sucesso');
@@ -237,17 +246,18 @@ const TELEGRAM_API = 'https://api.telegram.org/bot';
 
 export const registrarWebhookTelegram = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator(z.object({ bot: z.enum(['principal', 'segundo']) }).default({ bot: 'principal' }))
+  .handler(async ({ data, context }) => {
     const ator = await exigirGestor(context.supabase, context.userId);
-    const token = process.env['TELEGRAM_BOT_TOKEN'];
-    const secret = process.env['TELEGRAM_WEBHOOK_SECRET'];
+    const token = data.bot === 'segundo' ? process.env['TELEGRAM_BOT_TOKEN_2'] : process.env['TELEGRAM_BOT_TOKEN'];
+    const secret = data.bot === 'segundo' ? process.env['TELEGRAM_WEBHOOK_SECRET_2'] : process.env['TELEGRAM_WEBHOOK_SECRET'];
     if (!token || !secret) throw new Error('Secrets do Telegram não configurados.');
     const base = process.env['PUBLIC_APP_URL'] ?? 'https://atendimento-legal-desk.lovable.app';
     const resposta = await fetch(`${TELEGRAM_API}${token}/setWebhook`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        url: `${base}/api/public/atendimento/telegram`,
+        url: `${base}/api/public/atendimento/telegram${data.bot === 'segundo' ? '?bot=segundo' : ''}`,
         secret_token: secret,
         allowed_updates: ['message', 'edited_message'],
       }),
@@ -264,9 +274,10 @@ export const registrarWebhookTelegram = createServerFn({ method: 'POST' })
 
 export const verificarWebhookTelegram = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator(z.object({ bot: z.enum(['principal', 'segundo']) }).default({ bot: 'principal' }))
+  .handler(async ({ data, context }) => {
     await exigirGestor(context.supabase, context.userId);
-    const token = process.env['TELEGRAM_BOT_TOKEN'];
+    const token = data.bot === 'segundo' ? process.env['TELEGRAM_BOT_TOKEN_2'] : process.env['TELEGRAM_BOT_TOKEN'];
     if (!token) throw new Error('Secret do Telegram não configurado.');
     const resposta = await fetch(`${TELEGRAM_API}${token}/getWebhookInfo`, { signal: AbortSignal.timeout(15000) });
     const corpo = (await resposta.json().catch(() => undefined)) as {
