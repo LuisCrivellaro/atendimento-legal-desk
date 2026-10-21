@@ -31,6 +31,7 @@ function perguntaKey(s:string){
  return n;
 }
 export function mensagemBreveAna(texto:string,ultimaResposta=''){
+ texto=texto.replace(/\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b/g,cpf=>`••••••••${cpf.replace(/\D/g,'').slice(-3)}`);
  const previous=(ultimaResposta.match(/[^.!?\n]+\?/g)??[]).map(perguntaKey);
  let question=false;
  const sentences=texto.match(/[^.!?\n]+[.!?]?/g)??[];
@@ -67,7 +68,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   else if(!humano)result.encaminhar_humano=false;
   if(humano)result={...result,acao:'enviar',mensagem:'Claro. Seu pedido ficou registrado para a equipe continuar o atendimento.',encaminhar_humano:true};
   result.urgente ||= urgent;
-  if(/risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo/.test(folded)&&!r.mensagem.includes('190'))result.mensagem=`${result.mensagem.trim()}\n\nSe houver perigo imediato, ligue 190.`.trim();
+  const perigo=/risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo/.test(folded);
   const testAgenda=options.teste&&r.intencao==='agendamento'&&!prohibited&&!humano;
   if(testAgenda)result={...result,acao:'enviar',mensagem:respostaAgendaTeste(texto,options.horarios??[],options.now).mensagem,encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:'Agenda fictícia de teste; nenhuma reserva real.'};
   const sensitive = !prohibited&&!humano&&r.intencao!=='reclamacao'&&(['processo'].includes(r.intencao)||r.intencao==='agendamento'&&!testAgenda||/documentos? (?:faltantes|pendentes)/i.test(result.mensagem));
@@ -75,6 +76,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   if (mode==='Sugerir' && result.mensagem.trim()) result.acao='rascunho';
   if (mode==='Desligada') result = {...result,acao:'nenhuma',mensagem:''};
   if(!testAgenda)result.mensagem=mensagemBreveAna(result.mensagem,options.ultimaResposta);
+  if(perigo&&mode!=='Desligada'&&!result.mensagem.includes('190'))result.mensagem=mensagemBreveAna(`Se houver perigo imediato, ligue 190. ${result.mensagem}`,options.ultimaResposta);
   if(!result.mensagem.trim())result.acao='nenhuma';
   // Nunca exibir CPF completo, inclusive um CPF recém-coletado.
   result.mensagem = result.mensagem.replace(/\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b/g, cpf=>`••••••••${cpf.replace(/\D/g,'').slice(-3)}`);
