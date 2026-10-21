@@ -22,6 +22,7 @@ import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenti
 import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticated/producao'
 import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authenticated/protocolo'
 import { Route as AuthenticatedTreinamentoRouteImport } from './routes/_authenticated/treinamento'
+import { Route as ApiPublicAtendimentoTelegramRouteImport } from './routes/api/public/atendimento/telegram'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -91,6 +92,12 @@ const AuthenticatedTreinamentoRoute =
     path: '/treinamento',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicAtendimentoTelegramRoute =
+  ApiPublicAtendimentoTelegramRouteImport.update({
+    id: '/api/public/atendimento/telegram',
+    path: '/api/public/atendimento/telegram',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/producao': typeof AuthenticatedProducaoRoute
   '/protocolo': typeof AuthenticatedProtocoloRoute
   '/treinamento': typeof AuthenticatedTreinamentoRoute
+  '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -119,6 +127,7 @@ export interface FileRoutesByTo {
   '/protocolo': typeof AuthenticatedProtocoloRoute
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -135,6 +144,7 @@ export interface FileRoutesById {
   '/_authenticated/protocolo': typeof AuthenticatedProtocoloRoute
   '/_authenticated/treinamento': typeof AuthenticatedTreinamentoRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
     | '/producao'
     | '/protocolo'
     | '/treinamento'
+    | '/api/public/atendimento/telegram'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -165,6 +176,7 @@ export interface FileRouteTypes {
     | '/protocolo'
     | '/treinamento'
     | '/'
+    | '/api/public/atendimento/telegram'
   id:
     | '__root__'
     | '/_authenticated'
@@ -180,11 +192,13 @@ export interface FileRouteTypes {
     | '/_authenticated/protocolo'
     | '/_authenticated/treinamento'
     | '/_authenticated/'
+    | '/api/public/atendimento/telegram'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicAtendimentoTelegramRoute: typeof ApiPublicAtendimentoTelegramRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -280,6 +294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTreinamentoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/atendimento/telegram': {
+      id: '/api/public/atendimento/telegram'
+      path: '/api/public/atendimento/telegram'
+      fullPath: '/api/public/atendimento/telegram'
+      preLoaderRoute: typeof ApiPublicAtendimentoTelegramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -317,6 +338,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicAtendimentoTelegramRoute: ApiPublicAtendimentoTelegramRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

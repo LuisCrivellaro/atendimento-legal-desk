@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { OfficePage, Section, Empty, action, type Office } from './shared';
-import { n8n } from '@/services/n8n';
+import { n8n } from '@/services/integracoes';
 import type { Conversa } from '@/lib/mock-data';
 import type { Movement } from '@/lib/office';
 export function MovementsPage(){return <OfficePage title="Andamentos">{(o,c)=><Movements o={o} c={c}/>}</OfficePage>;}

@@ -1,8 +1,38 @@
-import { useState } from 'react';
-import { RefreshCw, Save } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useServerFn } from '@tanstack/react-start';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { auditLog, endpoints } from '@/services/n8n';
-import { executar } from '@/lib/executar';
-import { Section, type Office } from './shared';
-export function N8nSettings({o,allowed}:{o:Office;allowed:boolean}){const [url,setUrl]=useState(o.state?.n8nBaseUrl??'');const [,refresh]=useState(0);return <><Section title="Conexão n8n"><div className="mb-4 flex flex-wrap items-end gap-3"><label className="min-w-0 flex-1 text-sm">URL base<Input aria-label="URL base n8n" type="url" value={url} readOnly={!allowed} onChange={e=>setUrl(e.target.value)} placeholder="Não conectada"/></label><Button disabled={!allowed||o.busy} title={!allowed?'Seu perfil não permite esta ação':undefined} variant="outline" onClick={()=>executar('Salvar endereço n8n',()=>o.save(s=>({...s,n8nBaseUrl:url})))}><Save/>Salvar</Button><span className="text-xs text-muted-foreground">{o.state?.demo?'Modo demonstração':'Envios reais indisponíveis'}</span></div><h3 className="mb-2 text-sm font-semibold">Endpoints por ação</h3><div className="overflow-x-auto"><table className="w-full text-left text-xs"><thead><tr className="border-b"><th className="p-2">Ação</th><th className="p-2">Caminho</th></tr></thead><tbody>{Object.entries(endpoints).map(([action,path])=><tr key={action} className="border-b"><td className="p-2">{action}</td><td className="break-all p-2 font-mono">{path}</td></tr>)}</tbody></table></div></Section><Section title="Log de auditoria"><div className="mb-3 flex items-center justify-between"><p className="text-xs text-muted-foreground">Sessão atual · ações mais recentes primeiro</p><Button size="icon" variant="outline" aria-label="Atualizar log" onClick={()=>refresh(n=>n+1)}><RefreshCw/></Button></div>{allowed?<div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-xs"><thead className="border-b"><tr>{['Data e hora','Usuário / perfil','Ação','Resumo','Resultado'].map(h=><th key={h} className="p-2">{h}</th>)}</tr></thead><tbody>{auditLog.map(row=><tr key={row.id} className="border-b"><td className="p-2">{row.dataHora.toLocaleString('pt-BR')}</td><td className="p-2">{row.usuario}<p className="text-muted-foreground">{row.perfil}</p></td><td className="p-2">{row.acao}</td><td className="p-2">{row.payload||row.resposta}</td><td className={`p-2 ${row.status==='sucesso'?'text-success':'text-destructive'}`}>{row.status}</td></tr>)}</tbody></table>{!auditLog.length&&<p className="py-5 text-sm text-muted-foreground">Nenhuma ação nesta sessão.</p>}</div>:<p className="text-sm text-muted-foreground">Seu perfil não permite esta ação.</p>}</Section></>;}
+import { endpoints } from '@/services/integracoes';
+import { lerAuditLog } from '@/lib/atendimento/envio.functions';
+import { Section } from './shared';
+
+export function N8nSettings({ allowed }: { allowed: boolean }) {
+  const read = useServerFn(lerAuditLog);
+  const log = useQuery({ queryKey: ['audit-log'], queryFn: () => read(), enabled: allowed, refetchInterval: 30000 });
+  return <>
+    <Section title="Conexão n8n">
+      <p className="mb-4 text-sm text-muted-foreground">Integração n8n ainda não conectada · ações externas simuladas</p>
+      <h3 className="mb-2 text-sm font-semibold">Endpoints por ação</h3>
+      <div className="overflow-x-auto"><table className="w-full text-left text-xs">
+        <thead><tr className="border-b"><th className="p-2">Ação</th><th className="p-2">Caminho</th></tr></thead>
+        <tbody>{Object.entries(endpoints).map(([action, path]) => <tr key={action} className="border-b"><td className="p-2">{action}</td><td className="break-all p-2 font-mono">{path}</td></tr>)}</tbody>
+      </table></div>
+    </Section>
+    <Section title="Log de auditoria">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Registros do escritório · ações mais recentes primeiro</p>
+        <Button size="icon" variant="outline" aria-label="Atualizar log" disabled={!allowed} onClick={() => void log.refetch()}><RefreshCw /></Button>
+      </div>
+      {allowed ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-xs">
+        <thead className="border-b"><tr>{['Data e hora', 'Usuário / perfil', 'Ação', 'Resumo', 'Resultado'].map(h => <th key={h} className="p-2">{h}</th>)}</tr></thead>
+        <tbody>{(log.data ?? []).map(row => <tr key={row.id} className="border-b">
+          <td className="p-2">{new Date(row.criado_em).toLocaleString('pt-BR')}</td>
+          <td className="p-2">{row.ator}<p className="text-muted-foreground">{row.perfil}</p></td>
+          <td className="p-2">{row.acao}</td>
+          <td className="p-2">{row.resumo || row.erro}</td>
+          <td className={`p-2 ${row.status === 'sucesso' ? 'text-success' : 'text-destructive'}`}>{row.status}</td>
+        </tr>)}</tbody>
+      </table>{log.data && !log.data.length && <p className="py-5 text-sm text-muted-foreground">Nenhuma ação registrada.</p>}{log.isLoading && <p className="py-5 text-sm text-muted-foreground">Carregando log…</p>}</div> : <p className="text-sm text-muted-foreground">Seu perfil não permite esta ação.</p>}
+    </Section>
+  </>;
+}

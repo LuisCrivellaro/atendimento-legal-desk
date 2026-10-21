@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      atendimento_canal_config: {
+        Row: {
+          agente_ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          canal_ativo: string
+          fonte_sugestoes: string
+          id: boolean
+          modo_teste: boolean
+        }
+        Insert: {
+          agente_ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          canal_ativo?: string
+          fonte_sugestoes?: string
+          id?: boolean
+          modo_teste?: boolean
+        }
+        Update: {
+          agente_ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          canal_ativo?: string
+          fonte_sugestoes?: string
+          id?: boolean
+          modo_teste?: boolean
+        }
+        Relationships: []
+      }
+      atendimento_contatos_teste: {
+        Row: {
+          canal: string
+          contato_externo: string
+          conversa_id: string | null
+          criado_em: string
+          id: string
+          nome: string
+          status: string
+          telefone_ficticio: string
+        }
+        Insert: {
+          canal?: string
+          contato_externo: string
+          conversa_id?: string | null
+          criado_em?: string
+          id?: string
+          nome?: string
+          status?: string
+          telefone_ficticio: string
+        }
+        Update: {
+          canal?: string
+          contato_externo?: string
+          conversa_id?: string | null
+          criado_em?: string
+          id?: string
+          nome?: string
+          status?: string
+          telefone_ficticio?: string
+        }
+        Relationships: []
+      }
+      audit_log: {
+        Row: {
+          acao: string
+          ator: string
+          criado_em: string
+          erro: string | null
+          id: string
+          perfil: string
+          resumo: string
+          status: string
+        }
+        Insert: {
+          acao: string
+          ator: string
+          criado_em?: string
+          erro?: string | null
+          id?: string
+          perfil?: string
+          resumo?: string
+          status?: string
+        }
+        Update: {
+          acao?: string
+          ator?: string
+          criado_em?: string
+          erro?: string | null
+          id?: string
+          perfil?: string
+          resumo?: string
+          status?: string
+        }
+        Relationships: []
+      }
       casos: {
         Row: {
           created_at: string
@@ -233,6 +329,15 @@ export type Database = {
         Args: { p_case: string; p_kind: string }
         Returns: undefined
       }
+      destino_canal: {
+        Args: { p_conversa: string }
+        Returns: {
+          canal: string
+          contato_externo: string
+          nome: string
+          telefone_ficticio: string
+        }[]
+      }
       draft_approval_queue: { Args: never; Returns: Json }
       has_role: {
         Args: {
@@ -250,6 +355,17 @@ export type Database = {
         Returns: string
       }
       material_status: { Args: { p_case: string }; Returns: Json }
+      registrar_audit_log: {
+        Args: {
+          p_acao: string
+          p_ator: string
+          p_erro?: string
+          p_perfil: string
+          p_resumo: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       schedule_draft_review: {
         Args: { p_case: string; p_due?: string; p_lawyer?: string }
         Returns: undefined

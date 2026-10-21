@@ -5,8 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { officeDashboard } from "@/lib/office.functions";
 import { buildAssessor } from "@/lib/assessor";
 import { localDay } from "@/lib/dashboard";
-import { loadOffice } from "@/lib/office-store";
-import { setAuditUser, setModoDemonstracao } from "@/services/n8n";
+import { setAuditUser } from "@/services/integracoes";
 import { useOfficeNotifications } from "@/hooks/use-office-notifications";
 import { LogOut, ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,11 +47,9 @@ function Layout() {
 
   const read=useServerFn(officeDashboard);
   const dashboard=useQuery({queryKey:["dashboard",user.id],queryFn:()=>read(),refetchInterval:15000});
-  const workspace=useQuery({queryKey:["office",user.id],queryFn:()=>loadOffice(user.id)});
   useOfficeNotifications(dashboard.data?.cases);
   const badges=buildAssessor(dashboard.data?.cases??[],localDay()).badges;
   useEffect(()=>{if(perfil)setAuditUser({id:user.id,nome:perfil.nome,perfil:perfil.roles.join(", ")});},[perfil,user.id]);
-  useEffect(()=>{setModoDemonstracao(workspace.data?.demo??true);},[workspace.data?.demo]);
   const sair = async () => {
     setAuditUser({id:"",nome:"",perfil:""});
     await qc.cancelQueries();
@@ -70,7 +67,7 @@ function Layout() {
           <div className="min-w-0 font-serif"><p className="text-sm font-bold text-foreground sm:text-lg">CS LAWYERS<span className="hidden md:inline"> | ADVOCACIA</span></p><p className="hidden text-[10px] font-semibold text-primary md:block lg:text-xs">BRASIL • DUBAI • PORTUGAL</p></div>
           <QuickSearch />
           <div className="ml-auto flex min-w-0 items-center gap-1 text-sm md:gap-3">
-            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-auto min-w-0 gap-1 px-1 text-right"><span className="block max-w-20 leading-tight md:max-w-48"><span className="block truncate text-xs font-medium">{perfil?.nome}</span><span className="hidden truncate text-[10px] text-muted-foreground sm:block">{roleLabel[['advogada_senior','advogado_junior','admin','atendente','operacoes'].find(r=>perfil?.roleIds.includes(r as typeof perfil.roleIds[number]))??'']}</span></span><ChevronDown className="size-3 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Perfis de acesso</DropdownMenuLabel><DropdownMenuSeparator/>{perfil?.roles.map(r=><DropdownMenuLabel key={r} className="text-xs font-normal">{r}</DropdownMenuLabel>)}{(workspace.data?.demo??true)&&<><DropdownMenuSeparator/><DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Modo demonstração</DropdownMenuLabel></>}</DropdownMenuContent></DropdownMenu>
+            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-auto min-w-0 gap-1 px-1 text-right"><span className="block max-w-20 leading-tight md:max-w-48"><span className="block truncate text-xs font-medium">{perfil?.nome}</span><span className="hidden truncate text-[10px] text-muted-foreground sm:block">{roleLabel[['advogada_senior','advogado_junior','admin','atendente','operacoes'].find(r=>perfil?.roleIds.includes(r as typeof perfil.roleIds[number]))??'']}</span></span><ChevronDown className="size-3 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Perfis de acesso</DropdownMenuLabel><DropdownMenuSeparator/>{perfil?.roles.map(r=><DropdownMenuLabel key={r} className="text-xs font-normal">{r}</DropdownMenuLabel>)}</DropdownMenuContent></DropdownMenu>
             <Button variant="ghost" size="sm" className="shrink-0 px-2" aria-label="Sair" onClick={sair}><LogOut /><span className="hidden md:inline">Sair</span></Button>
           </div>
         </div>
