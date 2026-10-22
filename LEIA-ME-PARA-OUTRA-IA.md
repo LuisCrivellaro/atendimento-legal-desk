@@ -41,8 +41,9 @@ As regras completas estão em `AGENTS.md`. As críticas:
 
 1. Chamadas de IA só em server functions (`src/lib/*.functions.ts`), via
    Lovable AI Gateway. A chave nunca vai para o navegador.
-2. Integrações externas passam por `src/services/n8n.ts` (modo demonstração).
-   O front-end nunca chama serviço de terceiro direto.
+2. Integrações externas passam por `src/services/integracoes.ts` (modo demonstração)
+   e envio de mensagens por `src/lib/atendimento/envio.functions.ts`. O front-end
+   nunca chama serviço de terceiro direto.
 3. Perfis só em `user_roles`; novos usuários entram como `atendente` e recebem
    os casos-modelo. Nunca Promover a si mesmo pela interface.
 4. Aprovações de checklist e minuta são validadas no servidor contra
