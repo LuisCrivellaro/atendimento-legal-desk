@@ -15,6 +15,7 @@ export interface AnaState {
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
   horariosTeste?: string[]; consultaTeste?: string; agendaReal?: boolean;
+   reservaCalendar?: import('./calendar-booking').ReservaCalendar;
 }
 export function horariosTesteAna(now=new Date()){
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
@@ -49,7 +50,7 @@ export function horariosLivresAna(ocupados:{start:string;end:string}[],now=new D
 export function respostaAgendaTeste(texto:string,offered:string[],now=new Date(),real=false){
  const selected=chosenSlot(offered,texto);
  const slots=offered.length?offered:horariosTesteAna(now);
- if(real)return {slots,selected,mensagem:selected?`Anotei sua preferência por ${formatarHorarioCliente(selected)}. A equipe confirma a reserva em seguida.`:`Tenho estes horários livres na agenda:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere?`};
+  if(real)return {slots,selected,mensagem:selected?`Vou verificar e reservar ${formatarHorarioCliente(selected)} na agenda.`:`Tenho estes horários livres na agenda:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere?`};
  return {slots,selected,mensagem:selected?`Para este teste, ficou combinado ${formatarHorarioCliente(selected)}. É uma simulação: não há reserva real no Google Calendar.`:`Podemos simular estes horários:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere? São horários fictícios de teste, sem reserva real.`};
 }
 function perguntaKey(s:string){
