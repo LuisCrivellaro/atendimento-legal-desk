@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Reserva automática Google Calendar — 22/10/2026
+- [ ] Reservar horário real escolhido inequivocamente no Telegram autorizado, revalidar disponibilidade e evitar duplicação.
+- [ ] Salvar confirmação e exibir compromisso real na Agenda; manter simulações separadas.
+- [ ] Verificar regras e fluxo; site publicado depende de nova publicação.
+
 ## Status das mensagens e mídias na conversa — 22/10/2026
 - [x] Campo opcional `status` na mensagem (`simulada` | `enviada` | `entregue` | `lida`), sem mudança de banco (fica no JSON do caso). Regras puras `statusDoEnvio` e `avancarStatus` (não volta atrás, não promove simulada) com teste.
 - [x] Gravado em todos os envios: mensagem digitada e automática, lembretes, contrato assinado, ações da etapa (`statusDoEnvio` do resultado do canal) e respostas da Ana no Telegram (`enviada`). Anexos ficam `simulada` porque `enviarAnexo` ainda é simulado.
