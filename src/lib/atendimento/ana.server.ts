@@ -66,7 +66,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       const {enviarMensagemSistema}=await import('./envio.functions');
       const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo});
       if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');
-      await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal:'telegram',idExterno:sent.idExterno,respostaAnaDe:messageId})]}));
+      await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal:'telegram',idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
     }
     const audit=await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'agenteAna',p_resumo:`${mode} · ${r.acao} · ${r.intencao}${r.urgente?' · urgente':''}`,p_status:'sucesso'});
     if(audit.error)throw new Error('Falha ao registrar auditoria.');

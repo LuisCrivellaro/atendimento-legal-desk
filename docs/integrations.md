@@ -35,6 +35,12 @@ Configurações consulta apenas a presença de credenciais, sem devolver seus va
 - Documentação consultada não estabelece assinatura padrão de webhook; confirmar proteção antes de aceitar eventos. Conteúdo recebido nunca é instrução confiável para IA.
 - Fonte: https://docs.ultramsg.com/api/get/instance/status e https://docs.ultramsg.com/api/post/messages/chat.
 
+## Status das mensagens (enviada, entregue, vista)
+
+- O Atendimento mostra o status gravado em cada mensagem do escritório. Hoje só existem `simulada` (canal desligado) e `enviada` (canal confirmou o envio).
+- Telegram: a Bot API confirma o envio, mas não informa entrega nem leitura; mensagens pelo Telegram param em `enviada`.
+- WhatsApp: entrega e leitura dependem do webhook de confirmação do provedor. Antes de ativar, confirmar na documentação oficial o evento, o formato e a forma de autenticar o webhook; localizar a mensagem por `idExterno` e aplicar `avancarStatus` (nunca regride). Nada de inferir "vista" porque o cliente respondeu.
+
 ## Próximo passo
 
 As três APIs externas não constam no catálogo de conectores disponível nesta sessão. Confirmar armazenamento privado e solicitar credenciais em formulário seguro, nunca em chat, código ou campos de perfil. Ativar por serviço, com permissões verificadas no servidor, teste real controlado e publicação posterior. Não habilitar operações reais apenas desligando demonstração.

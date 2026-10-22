@@ -5,7 +5,7 @@ import seed from './seed.json';
 export const USER = '11111111-1111-4111-8111-111111111111';
 const LAWYER2 = '22222222-2222-4222-8222-222222222222';
 const caseId = (i: number) => `aaaaaaaa-0000-4000-8000-00000000000${i}`;
-const KEY = 'manager-adv-demo-db-v1';
+const KEY = 'manager-adv-demo-db-v2';
 const SESSION_KEY = 'manager-adv-demo-session-v1';
 type Row = Record<string, any>;
 

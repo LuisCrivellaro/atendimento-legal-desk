@@ -43,14 +43,14 @@ export function SlashList({ items, index, onPick, onHover }: { items: SlashItem[
         <button key={it.kind + it.key} type="button" role="option" aria-selected={i === index} disabled={!!it.disabled}
           onMouseDown={(e) => { e.preventDefault(); onPick(it); }} onMouseEnter={() => onHover(i)}
           className={cn('flex w-full items-start gap-2 px-3 py-1.5 text-left disabled:opacity-50', i === index && 'bg-secondary')}>
-          <span className={cn('mt-0.5 shrink-0 rounded px-1 text-[10px] font-medium', it.kind === 'reply' ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground')}>{it.kind === 'reply' ? `/${it.key}` : 'Ação'}</span>
+          <span className={cn('mt-0.5 shrink-0 rounded px-1 text-2xs font-medium', it.kind === 'reply' ? 'bg-secondary text-secondary-foreground' : 'bg-primary text-primary-foreground')}>{it.kind === 'reply' ? `/${it.key}` : 'Ação'}</span>
           <span className="min-w-0">
             <span className="block text-xs font-medium">{it.title}</span>
-            <span className="block truncate text-[11px] text-muted-foreground">{it.disabled ?? it.detail}</span>
+            <span className="block truncate text-2xs text-muted-foreground">{it.disabled ?? it.detail}</span>
           </span>
         </button>
       ))}
-      <p className="border-t px-3 py-1 text-[10px] text-muted-foreground">↑ ↓ para escolher · Enter para usar · Esc para fechar</p>
+      <p className="border-t px-3 py-1 text-2xs text-muted-foreground">↑ ↓ para escolher · Enter para usar · Esc para fechar</p>
     </div>
   );
 }
@@ -93,7 +93,7 @@ export function QuickReplyPanel({ open, onOpenChange, replies, c, onPick, onEdit
             {(['Todas', ...REPLY_CATEGORIES] as const).map((k) => {
               const n = k === 'Todas' ? replies.length : counts(k);
               if (!n && k !== 'Todas') return null;
-              return <button key={k} type="button" onClick={() => setCat(k)} className={cn('shrink-0 rounded-full px-2 py-0.5 text-[11px]', cat === k ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent')}>{k} <span className="opacity-70">{n}</span></button>;
+              return <button key={k} type="button" onClick={() => setCat(k)} className={cn('shrink-0 rounded-full px-2 py-0.5 text-2xs', cat === k ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground hover:bg-accent')}>{k} <span className="opacity-70">{n}</span></button>;
             })}
           </div>
         </div>
@@ -104,10 +104,10 @@ export function QuickReplyPanel({ open, onOpenChange, replies, c, onPick, onEdit
               <button type="button" onClick={() => onPick(r)} className="min-w-0 flex-1 px-2 py-2 text-left focus-visible:outline-none">
                 <span className="flex items-baseline gap-2">
                   <span className="truncate text-xs font-medium">{r.titulo}</span>
-                  <span className="shrink-0 font-mono text-[10px] text-muted-foreground">/{r.atalho}</span>
-                  {cat === 'Todas' && !query && <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{r.categoria}</span>}
+                  <span className="shrink-0 font-mono text-2xs text-muted-foreground">/{r.atalho}</span>
+                  {cat === 'Todas' && !query && <span className="ml-auto shrink-0 text-2xs text-muted-foreground">{r.categoria}</span>}
                 </span>
-                <span className="mt-0.5 line-clamp-2 block text-[11px] leading-snug text-muted-foreground">{fillReply(r.texto, c)}</span>
+                <span className="mt-0.5 line-clamp-2 block text-2xs leading-snug text-muted-foreground">{fillReply(r.texto, c)}</span>
               </button>
               <Hint label="Editar mensagem">
                 <Button size="icon" variant="ghost" className="mt-1.5 size-7 shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100" aria-label={`Editar ${r.titulo}`} onClick={() => onEdit(r)}><Pencil className="size-3.5" /></Button>
@@ -116,7 +116,7 @@ export function QuickReplyPanel({ open, onOpenChange, replies, c, onPick, onEdit
           ))}
         </div>
         <div className="flex items-center justify-between gap-2 border-t px-2 py-1.5">
-          <p className="text-[10px] text-muted-foreground">Dica: digite <kbd className="rounded border px-1 font-mono">/</kbd> na caixa de mensagem</p>
+          <p className="text-2xs text-muted-foreground">Dica: digite <kbd className="rounded border px-1 font-mono">/</kbd> na caixa de mensagem</p>
           <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs text-primary" onClick={onCreate}><Plus className="size-3.5" />Nova mensagem</Button>
         </div>
       </PopoverContent>
@@ -179,17 +179,17 @@ export function QuickReplyEditor({ reply, all, c, open, onOpenChange, onSave, on
           <label className="text-xs font-medium" htmlFor="quick-reply-text">Texto</label>
           <Textarea id="quick-reply-text" ref={area} value={texto} onChange={(e) => setTexto(e.target.value)} className="mt-1 min-h-28 text-sm" placeholder="Olá, {nome}! …" />
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground">Inserir:</span>
-            {VARIABLES.map((v) => <button key={v.key} type="button" onClick={() => insert(`{${v.key}}`)} className="rounded-full border px-2 py-0.5 text-[11px] hover:border-primary hover:bg-secondary">{v.label}</button>)}
+            <span className="text-2xs text-muted-foreground">Inserir:</span>
+            {VARIABLES.map((v) => <button key={v.key} type="button" onClick={() => insert(`{${v.key}}`)} className="rounded-full border px-2 py-0.5 text-2xs hover:border-primary hover:bg-secondary">{v.label}</button>)}
             <Hint label="Um campo como {data} precisa ser preenchido pela atendente antes de enviar.">
-              <button type="button" onClick={() => insert('{data}')} className="rounded-full border border-dashed px-2 py-0.5 text-[11px] hover:border-primary hover:bg-secondary">Campo para preencher</button>
+              <button type="button" onClick={() => insert('{data}')} className="rounded-full border border-dashed px-2 py-0.5 text-2xs hover:border-primary hover:bg-secondary">Campo para preencher</button>
             </Hint>
           </div>
         </div>
         <section className="border-l-2 border-primary bg-secondary p-3">
-          <h3 className="mb-1 font-sans text-[11px] font-semibold text-muted-foreground">Prévia com {c.nome.split(' ')[0]}</h3>
+          <h3 className="mb-1 font-sans text-2xs font-semibold text-muted-foreground">Prévia com {c.nome.split(' ')[0]}</h3>
           <p className="whitespace-pre-wrap text-sm">{fillReply(texto, c) || <span className="text-muted-foreground">O texto aparece aqui.</span>}</p>
-          {free.length > 0 && <p className="mt-2 text-[11px] text-muted-foreground">A atendente vai preencher: {free.map((f) => `{${f}}`).join(', ')}</p>}
+          {free.length > 0 && <p className="mt-2 text-2xs text-muted-foreground">A atendente vai preencher: {free.map((f) => `{${f}}`).join(', ')}</p>}
         </section>
         {touched && errors.length > 0 && <ul className="space-y-0.5 text-xs text-destructive">{errors.map((e) => <li key={e}>{e}</li>)}</ul>}
         <DialogFooter className="flex-row flex-wrap items-center gap-2 sm:justify-between">

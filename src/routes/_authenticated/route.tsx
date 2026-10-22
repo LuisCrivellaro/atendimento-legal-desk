@@ -61,13 +61,13 @@ function Layout() {
 
   return (
     <SidebarProvider>
-      <header className="fixed inset-x-0 top-0 z-30 office-header border-b border-primary bg-card">
-        <div className="flex h-full items-center gap-2 px-3 lg:gap-4 lg:px-4">
-          <SidebarTrigger />
-          <div className="min-w-0 font-serif"><p className="text-sm font-bold text-foreground sm:text-lg">CS LAWYERS<span className="hidden md:inline"> | ADVOCACIA</span></p><p className="hidden text-[10px] font-semibold text-primary md:block lg:text-xs">BRASIL • DUBAI • PORTUGAL</p></div>
+      <header className="fixed inset-x-0 top-0 z-30 office-header border-b-2 border-brand bg-card">
+        <div className="flex h-full items-center gap-2 px-3 lg:gap-5 lg:px-5">
+          <SidebarTrigger className="text-muted-foreground hover:text-foreground" />
+          <div className="min-w-0 shrink-0 md:pr-2"><p className="brand-lockup text-[15px] sm:text-xl">CS LAWYERS<span className="hidden md:inline"><span className="brand-bar">|</span>ADVOCACIA</span></p><p className="brand-cities mt-1.5 hidden md:block">Brasil • Dubai • Portugal</p></div>
           <QuickSearch />
           <div className="ml-auto flex min-w-0 items-center gap-1 text-sm md:gap-3">
-            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-auto min-w-0 gap-1 px-1 text-right"><span className="block max-w-20 leading-tight md:max-w-48"><span className="block truncate text-xs font-medium">{perfil?.nome}</span><span className="hidden truncate text-[10px] text-muted-foreground sm:block">{roleLabel[['advogada_senior','advogado_junior','admin','atendente','operacoes'].find(r=>perfil?.roleIds.includes(r as typeof perfil.roleIds[number]))??'']}</span></span><ChevronDown className="size-3 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Perfis de acesso</DropdownMenuLabel><DropdownMenuSeparator/>{perfil?.roles.map(r=><DropdownMenuLabel key={r} className="text-xs font-normal">{r}</DropdownMenuLabel>)}</DropdownMenuContent></DropdownMenu>
+            <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-auto min-w-0 gap-1 px-1 text-right"><span className="block max-w-20 leading-tight md:max-w-48"><span className="block truncate text-xs font-medium">{perfil?.nome}</span><span className="hidden truncate text-2xs text-muted-foreground sm:block">{roleLabel[['advogada_senior','advogado_junior','admin','atendente','operacoes'].find(r=>perfil?.roleIds.includes(r as typeof perfil.roleIds[number]))??'']}</span></span><ChevronDown className="size-3 shrink-0"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Perfis de acesso</DropdownMenuLabel><DropdownMenuSeparator/>{perfil?.roles.map(r=><DropdownMenuLabel key={r} className="text-xs font-normal">{r}</DropdownMenuLabel>)}</DropdownMenuContent></DropdownMenu>
             <Button variant="ghost" size="sm" className="shrink-0 px-2" aria-label="Sair" onClick={sair}><LogOut /><span className="hidden md:inline">Sair</span></Button>
           </div>
         </div>

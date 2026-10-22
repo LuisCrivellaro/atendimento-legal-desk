@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { endpoints } from '@/services/integracoes';
 import { lerAuditLog } from '@/lib/atendimento/envio.functions';
 import { Section } from './shared';
+import { dataHoraCurta } from '@/lib/atendimento';
 
 export function N8nSettings({ allowed }: { allowed: boolean }) {
   const read = useServerFn(lerAuditLog);
@@ -26,7 +27,7 @@ export function N8nSettings({ allowed }: { allowed: boolean }) {
       {allowed ? <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-xs">
         <thead className="border-b"><tr>{['Data e hora', 'Usuário / perfil', 'Ação', 'Resumo', 'Resultado'].map(h => <th key={h} className="p-2">{h}</th>)}</tr></thead>
         <tbody>{(log.data ?? []).map(row => <tr key={row.id} className="border-b">
-          <td className="p-2">{new Date(row.criado_em).toLocaleString('pt-BR')}</td>
+          <td className="p-2">{dataHoraCurta(row.criado_em)}</td>
           <td className="p-2">{row.ator}<p className="text-muted-foreground">{row.perfil}</p></td>
           <td className="p-2">{row.acao}</td>
           <td className="p-2">{row.resumo || row.erro}</td>
