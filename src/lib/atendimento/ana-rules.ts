@@ -100,7 +100,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   result.urgente ||= urgent;
   const perigo=/risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo/.test(folded);
   const testAgenda=options.teste&&r.intencao==='agendamento'&&!prohibited&&!humano;
-  if(testAgenda)result={...result,acao:'enviar',mensagem:respostaAgendaTeste(texto,options.horarios??[],options.now).mensagem,encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:'Agenda fictícia de teste; nenhuma reserva real.'};
+  if(testAgenda){const ag=respostaAgendaTeste(texto,options.horarios??[],options.now,options.agendaReal);result={...result,acao:'enviar',mensagem:ag.mensagem,encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:options.agendaReal?(ag.selected?'Equipe: confirmar reserva do horário escolhido no Google Calendar.':'Horários livres reais oferecidos pelo Google Calendar.'):'Agenda fictícia de teste; nenhuma reserva real.'};}
   const sensitive = !prohibited&&!humano&&r.intencao!=='reclamacao'&&(['processo'].includes(r.intencao)||r.intencao==='agendamento'&&!testAgenda||/documentos? (?:faltantes|pendentes)/i.test(result.mensagem));
   if (sensitive || validarTextoEnvio(result.mensagem) && result.mensagem.trim()) result = {...result, acao:'rascunho',motivo_aprovacao:r.motivo_aprovacao || 'Revisão da equipe obrigatória; agenda real indisponível.'};
   if (mode==='Sugerir' && result.mensagem.trim()) result.acao='rascunho';
