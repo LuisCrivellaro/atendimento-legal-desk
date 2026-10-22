@@ -14,7 +14,7 @@ export type AnaResult = z.infer<typeof anaSchema>;
 export interface AnaState {
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
-  horariosTeste?: string[]; consultaTeste?: string; agendaReal?: boolean;
+  horariosTeste?: string[]; consultaTeste?: string | undefined; agendaReal?: boolean;
    reservaCalendar?: import('./calendar-booking').ReservaCalendar;
 }
 export function horariosTesteAna(now=new Date()){
