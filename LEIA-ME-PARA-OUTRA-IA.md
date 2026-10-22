@@ -75,6 +75,10 @@ Tudo marcado como pendente em `roadmap.md`, em resumo:
   `integration-readiness.ts`, `src/lib/legal/visual-law.ts`.
 - Funções de servidor (IA, banco, integrações): `src/lib/*.functions.ts`,
   `src/lib/legal/ai.server.ts`.
+- Atendimento por canal e agente Ana: `src/lib/atendimento/` (`canal-envio.ts`,
+  `envio.functions.ts`, `ana-rules.ts`, `ana.server.ts`, `ana.functions.ts`,
+  `responses.server.ts`, `telegram-bots.ts`) e a rota de recebimento
+  `src/routes/api/public/atendimento/telegram.ts`.
 - Telas: `src/routes/_authenticated/*.tsx` e `src/components/office/`.
 - Prompts jurídicos controlados no servidor: `src/lib/legal/prompts/*.txt`.
 - Estado de integrações e contratos: `src/services/integration-contracts.ts`,
