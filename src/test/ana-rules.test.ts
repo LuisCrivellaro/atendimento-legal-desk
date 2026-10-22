@@ -26,5 +26,5 @@ describe('limites Ana',()=>{
 });import { horariosLivresAna } from '@/lib/atendimento/ana-rules';
 describe('agenda real',()=>{
  it('pula horário ocupado no Google Calendar',()=>{const s=horariosLivresAna([{start:'2026-10-26T12:00:00Z',end:'2026-10-26T13:00:00Z'}],new Date('2026-10-23T20:00:00Z'));expect(s[0]).toBe('2026-10-26T13:30:00.000Z');expect(s).not.toContain('2026-10-26T12:00:00.000Z');});
- it('não promete reserva com agenda real',()=>{const r=respostaAgendaTeste('26/10 às 10h30',['2026-10-26T13:30:00.000Z'],new Date(),true);expect(r.mensagem).toContain('equipe confirma');});
+ it('oferta real ainda não é confirmação de reserva',()=>{const r=respostaAgendaTeste('26/10 às 10h30',['2026-10-26T13:30:00.000Z'],new Date(),true);expect(r.selected).toBe('2026-10-26T13:30:00.000Z');});
 });
