@@ -23,4 +23,8 @@ describe('limites Ana',()=>{
  it('CPF de menos de 11 dígitos não é aceito',()=>expect(aplicarRegrasAna({...response,dados_coletados:{...response.dados_coletados,cpf:'123'}},'Automática','123',[]).dados_coletados.cpf).toBe(''));
  it('não responde ok nem obrigado',()=>{expect(mensagemSemResposta('ok')).toBe(true);expect(mensagemSemResposta('obrigado')).toBe(true);expect(mensagemSemResposta('ok',true)).toBe(false);});
  it('expediente é 8 às 18 em Brasília segunda a sexta',()=>{expect(expedienteAna(new Date('2026-10-21T11:00:00Z'))).toBe(true);expect(expedienteAna(new Date('2026-10-21T21:00:00Z'))).toBe(false);expect(expedienteAna(new Date('2026-10-24T14:00:00Z'))).toBe(false);expect(expedienteAna(new Date('2026-10-21T10:59:00Z'))).toBe(false);});
+});import { horariosLivresAna } from '@/lib/atendimento/ana-rules';
+describe('agenda real',()=>{
+ it('pula horário ocupado no Google Calendar',()=>{const s=horariosLivresAna([{start:'2026-10-26T12:00:00Z',end:'2026-10-26T13:00:00Z'}],new Date('2026-10-23T20:00:00Z'));expect(s[0]).toBe('2026-10-26T13:30:00.000Z');expect(s).not.toContain('2026-10-26T12:00:00.000Z');});
+ it('não promete reserva com agenda real',()=>{const r=respostaAgendaTeste('26/10 às 10h30',['2026-10-26T13:30:00.000Z'],new Date(),true);expect(r.mensagem).toContain('equipe confirma');});
 });
