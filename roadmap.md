@@ -108,3 +108,6 @@
 - [ ] Vincular processo (CNJ) ao caso no ProJuris — bloqueado: credenciais de API.
 - [ ] Enviar pacote final aprovado ao ProJuris — bloqueado: credenciais de API.
 - [ ] Receber andamentos/prazos do ProJuris (webhook) em Andamentos — bloqueado: credenciais de API.
+
+## Pacote de continuação — 22/10/2026
+- [x] Gerar manager-adv-cs-lawyers_v3.zip com o estado atual do projeto para continuar em outra IA: 112 testes aprovados, compilação sem erros, sem .env nem chaves privadas.
