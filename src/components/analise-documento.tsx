@@ -69,7 +69,7 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
         <div key={i} className="rounded-lg border-l-4 border-primary bg-secondary p-2.5 text-sm">
           <p className="flex items-center gap-1 font-semibold"><Sparkles className="size-3.5 text-primary" />{a.resultado.tipoDocumento}</p>
           <p className="truncate text-xs text-muted-foreground">{a.arquivo}</p>
-          <div className="mt-1 flex flex-wrap gap-1 text-[10px]">
+          <div className="mt-1 flex flex-wrap gap-1 text-2xs">
             <span className={cn("rounded px-1.5 py-0.5", a.resultado.itemChecklist ? "bg-success text-success-foreground" : "bg-pending text-pending-foreground")}>
               {a.resultado.itemChecklist ? <><CheckCircle2 className="mr-0.5 inline size-3" />{a.resultado.itemChecklist}</> : "Fora do checklist"}
             </span>

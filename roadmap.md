@@ -1,5 +1,45 @@
 # Construção dos módulos Manager ADV
 
+## Status das mensagens e mídias na conversa — 22/10/2026
+- [x] Campo opcional `status` na mensagem (`simulada` | `enviada` | `entregue` | `lida`), sem mudança de banco (fica no JSON do caso). Regras puras `statusDoEnvio` e `avancarStatus` (não volta atrás, não promove simulada) com teste.
+- [x] Gravado em todos os envios: mensagem digitada e automática, lembretes, contrato assinado, ações da etapa (`statusDoEnvio` do resultado do canal) e respostas da Ana no Telegram (`enviada`). Anexos ficam `simulada` porque `enviarAnexo` ainda é simulado.
+- [x] Tiques como no WhatsApp: relógio (simulada), ✓ cinza (enviada), ✓✓ cinza (entregue), ✓✓ azul (vista), com rótulo acessível.
+- [x] Imagens aparecem como foto (lidas do armazenamento privado do caso, sem alterar o original) e abrem em tela cheia; documentos abrem em prévia com Baixar e mostram tamanho; arquivos sem conteúdo guardado mostram aviso em vez de cartão quebrado.
+- [ ] "Entregue" e "vista" reais — depende de recibos do canal: o Telegram Bot API não envia confirmação de entrega/leitura; o WhatsApp (UltraMsg ou API oficial) precisa de webhook de confirmação validado antes de chamar `avancarStatus`.
+- Demonstração: mensagens fictícias com status variados (dados da demonstração passaram para `manager-adv-demo-db-v2`).
+
+## Conversa no padrão do WhatsApp — 22/10/2026
+- [x] Novo `src/components/office/chat-messages.tsx`: balões verde (escritório) e branco (cliente) com "rabinho" no início de cada bloco, horário dentro do balão, separadores de dia (Hoje, Ontem, dia da semana, data) só para mensagens com data real, mensagens do sistema em selo central.
+- [x] Foto do cliente ao lado das mensagens dele: `ClienteAvatar` aceita foto; sem foto no cadastro/canal, usa iniciais com cor fixa por nome.
+- [x] Arquivos como cartão de documento (PDF/imagem, "Salvo na pasta Start") e áudio como mensagem de voz (ondas ilustrativas; arquivo de áudio não disponível para tocar).
+- [x] Classes `zap-*`. Topo e barra de digitação no cinza do WhatsApp, campo arredondado e botão de enviar redondo verde; papel de parede com contraste reduzido (imagem clareada em 42%).
+- Sem "✓✓" de entregue/lida: o canal não informa esse status ao sistema.
+- [x] Regras puras `rotuloDia` e `agruparMensagens` com 2 testes; 116 testes aprovados.
+
+## Papel de parede na conversa do Atendimento — 22/10/2026
+- [x] Imagem enviada pela usuária aplicada só na área das mensagens (`.attendance-messages`), repetida em blocos de 470px e parada enquanto as mensagens rolam; lista, cabeçalho, próximo passo, caixa de texto e tela vazia sem fundo.
+- [x] Arquivo convertido de PNG (2,4 MB) para WebP (163 KB) em `src/assets/atendimento-wallpaper.webp`; o build gera o arquivo com hash.
+
+## Demonstração: sugestões da IA só com a mensagem ao cliente — 22/10/2026
+- [x] IA simulada (`tools/demo-navegador/legal-ai-fake.ts`) deixa de anexar "(Resposta simulada…)" nas sugestões de resposta, resumos e traduções de andamento; o aviso fica só na minuta e na auditoria (peças internas).
+- [x] Sugestões conforme a situação: arquivos recebidos e documentos faltantes, áudio, demissão/trabalhista, agendamento, processo, urgência (sem afirmar aviso já feito), temas proibidos (encaminha à Dra. Carolina), saudação e agradecimento.
+- Sistema real inalterado: a IA do escritório já devolve só o texto da mensagem.
+
+## Legibilidade do Atendimento e escala de texto — 21/10/2026
+- [x] Escala de texto: mínimo de 12px (`text-2xs`, horários e metadados); `text-xs` passa de 12px para 13px em todo o sistema; textos de 9–11px eliminados.
+- [x] Atendimento: nomes da fila em 14px com etapa escrita (antes só um ponto colorido), filtros e "Etapas" em 13px, conversa selecionada com régua aqua; nome no topo em 16px; mensagens, dados do cliente e caixa de texto em 14px; abas Cliente/Documentos/Consulta e histórico/ProJuris em 13px com aba ativa marcada.
+- [x] Clareza: faixa "Próximo passo" com botão de ação destacado; mensagens do sistema centralizadas (não parecem do cliente); sugestão da IA marcada "revise antes de enviar"; aviso "Atenção: toca em…" legível.
+- [x] Horários sem segundos: `horaMensagem` (mensagens: "14:05" ou "18/10 · 14:05") e `dataHoraCurta` (registros e agenda: "10/11/2026 · 21:00") em Atendimento, Assessor, Clientes, Protocolo, Treinamento, Integrações e log do n8n; 2 testes novos.
+- [x] Larguras: lista 288px e painel 340–360px; em conversa estreita o nome ganha a linha inteira e os ícones da caixa de mensagem descem (consulta por contêiner).
+- [x] Verificado: 114 testes, tipos e build sem erros; Atendimento conferido em 1440, 1280, 1100 e 390 px; sem mudança de regras, permissões, banco ou integrações.
+
+## Visual renovado com a identidade CS Lawyers — 21/10/2026
+- [x] Tokens de cor: aqua da marca #00ACA7 em réguas, marcadores e foco; aqua de ação #007F7B em botões e links (contraste 4,9:1 com texto branco; antes 2,9:1); petróleo #0F3533 no menu; fundo #F4F7F7; pendências seguem #FFE600 com texto #0D0D0D.
+- [x] Menu lateral em grupos (Assessor; Fluxo do caso; Cadastros; Escritório), com linha ligando as etapas do fluxo na ordem de trabalho. No celular o menu fecha ao escolher uma tela.
+- [x] Cabeçalho com assinatura da marca e régua aqua de papel timbrado; títulos de página em EB Garamond sem o rótulo repetido "CS LAWYERS / OPERAÇÃO JURÍDICA".
+- [x] Tela de entrada em duas colunas (painel petróleo com a marca e formulário), empilhada no celular.
+- [x] Verificado: 112 testes aprovados, tipos e build sem erros, telas conferidas em 1440×900 e 390×844. Sem mudança em regras, permissões, banco ou integrações.
+
 ## Um bot Telegram para testes — 21/10/2026
 - [x] Simplificar a tela para um bot, @ManagerADV2Bot; pedido de dois bots cancelado pela usuária.
 - [x] Conferir contato Teste Dra. liberado e vinculado a Paulo, Ana ligada e modo Automática; webhook principal registrado no site publicado, sem pendências/erros. Teste assinado local processado, resposta enviada e lida na conversa após recarga; chamada sem assinatura recusada (401). Ana retomada ao final; 38 testes aprovados e compilação limpa.
