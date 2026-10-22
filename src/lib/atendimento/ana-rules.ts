@@ -28,9 +28,28 @@ export function horariosTesteAna(now=new Date()){
  }
  return slots;
 }
-export function respostaAgendaTeste(texto:string,offered:string[],now=new Date()){
+/** Horários candidatos (seg–sex, Brasília) que não colidem com períodos ocupados da agenda real. */
+export function horariosLivresAna(ocupados:{start:string;end:string}[],now=new Date(),duracaoMin=60,quantidade=4){
+ const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+ const value=(key:string)=>parts.find(p=>p.type===key)?.value??'';
+ const day=new Date(`${value('year')}-${value('month')}-${value('day')}T12:00:00Z`);
+ const busy=ocupados.map(b=>[Date.parse(b.start),Date.parse(b.end)] as const);
+ const slots:string[]=[];
+ for(let i=0;i<14&&slots.length<quantidade;i++){
+  day.setUTCDate(day.getUTCDate()+1);
+  if([0,6].includes(day.getUTCDay()))continue;
+  for(const time of ['09:00','10:30','14:00','16:00']){
+   if(slots.length>=quantidade)break;
+   const s=Date.parse(`${day.toISOString().slice(0,10)}T${time}:00-03:00`),e=s+duracaoMin*60000;
+   if(!busy.some(([bs,be])=>s<be&&e>bs))slots.push(new Date(s).toISOString());
+  }
+ }
+ return slots;
+}
+export function respostaAgendaTeste(texto:string,offered:string[],now=new Date(),real=false){
  const selected=chosenSlot(offered,texto);
  const slots=offered.length?offered:horariosTesteAna(now);
+ if(real)return {slots,selected,mensagem:selected?`Anotei sua preferência por ${formatarHorarioCliente(selected)}. A equipe confirma a reserva em seguida.`:`Tenho estes horários livres na agenda:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere?`};
  return {slots,selected,mensagem:selected?`Para este teste, ficou combinado ${formatarHorarioCliente(selected)}. É uma simulação: não há reserva real no Google Calendar.`:`Podemos simular estes horários:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere? São horários fictícios de teste, sem reserva real.`};
 }
 function perguntaKey(s:string){
@@ -67,7 +86,7 @@ export function expedienteAna(now = new Date()) {
 export function mensagemSemResposta(texto: string, arquivo = false) {
   return !arquivo && ['', 'ok','obrigado','obrigada','recebi','beleza','certo','perfeito','combinado'].includes(normalized(texto));
 }
-export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date}={}):AnaResult {
+export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const humano = /(?:falar|conversar|atendimento).{0,35}(?:pessoa|humano|equipe|advogad|carolina)|(?:pessoa|humano).{0,25}(?:falar|atender)/.test(folded);
