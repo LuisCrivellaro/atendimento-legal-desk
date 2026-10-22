@@ -1,9 +1,10 @@
 # Construção dos módulos Manager ADV
 
 ## Reserva automática Google Calendar — 22/10/2026
-- [ ] Reservar horário real escolhido inequivocamente no Telegram autorizado, revalidar disponibilidade e evitar duplicação.
-- [ ] Salvar confirmação e exibir compromisso real na Agenda; manter simulações separadas.
-- [ ] Verificar regras e fluxo; site publicado depende de nova publicação.
+- [x] Reservar horário real escolhido inequivocamente no Telegram autorizado, revalidar disponibilidade e evitar duplicação.
+- [x] Salvar confirmação e exibir compromisso real na Agenda; manter simulações separadas.
+- [x] Verificar fluxo local pelo webhook assinado: consulta real criada para 23/10 às 16h–17h (Brasília), confirmada no Google Calendar e lida no Atendimento autenticado; 135 testes aprovados e compilação limpa. Compromisso de teste preservado.
+- [ ] Disponibilizar no site publicado — depende de nova publicação autorizada pela usuária.
 
 ## Status das mensagens e mídias na conversa — 22/10/2026
 - [x] Campo opcional `status` na mensagem (`simulada` | `enviada` | `entregue` | `lida`), sem mudança de banco (fica no JSON do caso). Regras puras `statusDoEnvio` e `avancarStatus` (não volta atrás, não promove simulada) com teste.
