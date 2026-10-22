@@ -14,7 +14,7 @@ export type AnaResult = z.infer<typeof anaSchema>;
 export interface AnaState {
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
-  horariosTeste?: string[]; consultaTeste?: string;
+  horariosTeste?: string[]; consultaTeste?: string; agendaReal?: boolean;
 }
 export function horariosTesteAna(now=new Date()){
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
