@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## WhatsApp exclusivo e acesso direto — 23/10/2026
+- [ ] Suprimir Telegram dos controles e bloquear sua utilização, preservando o histórico.
+- [ ] Cadastrar e liberar o número de teste informado em conversa própria.
+- [ ] Exibir acesso direto a Canal e Agente e verificar o fluxo autenticado.
+
 ## Etiquetas e agenda da Ana — 23/10/2026
 - [x] Etiquetas AC/RT automáticas pela mensagem de entrada, filtro e ajuste manual no Atendimento.
 - [x] Agenda por carteira: novos seg–qui; cadastrados sexta 13:30–17:30; reuniões de 30 min, sem feriados nacionais. Bloqueios locais dependem de indisponibilidade no Calendar; não foi fornecida jurisdição municipal.
