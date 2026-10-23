@@ -18,8 +18,9 @@ describe('decisão de envio', () => {
     expect(decidirEnvio(telegram, { status: 'bloqueado' }).permitido).toBe(false);
     expect(decidirEnvio(telegram, liberado)).toEqual({ permitido: true, simulado: false });
   });
-  it('ultramsg fica indisponível nesta fase', () => {
-    expect(decidirEnvio({ ...configPadrao, canal_ativo: 'ultramsg' }, liberado).permitido).toBe(false);
+  it('WhatsApp envia só para contato liberado', () => {
+    expect(decidirEnvio({ ...configPadrao, canal_ativo: 'ultramsg' }, liberado).permitido).toBe(true);
+    expect(decidirEnvio({ ...configPadrao, canal_ativo: 'ultramsg' }, null).permitido).toBe(false);
   });
 });
 
@@ -49,7 +50,7 @@ describe('permissões e configuração', () => {
     const c = sanitizarConfig({ canal_ativo: 'telegram', modo_teste: false, agente_ativo: true, fonte_sugestoes: 'agente' });
     expect(c).toEqual({ canal_ativo: 'telegram', modo_teste: true, agente_ativo: true, fonte_sugestoes: 'agente' });
     expect(sanitizarConfig({canal_ativo:'desligado',agente_ativo:true}).agente_ativo).toBe(false);
-    expect(sanitizarConfig({ canal_ativo: 'ultramsg' }).canal_ativo).toBe('desligado');
+    expect(sanitizarConfig({ canal_ativo: 'ultramsg' }).canal_ativo).toBe('ultramsg');
   });
   it('etiquetas das ações: real só com Telegram nas ações de mensagem', () => {
     expect(etiquetaAcao('enviarMensagem', telegram)).toBe('Real (Telegram)');
