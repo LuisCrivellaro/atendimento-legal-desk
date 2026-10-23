@@ -17,6 +17,8 @@ export type StatusMensagem = "simulada" | "enviada" | "entregue" | "lida";
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }
 export interface DocItem { id?: string | undefined; nome: string; recebido: boolean }
 export interface Conversa {
+  etiquetaAcao?: import('./atendimento/intake-rules').EtiquetaAcao;
+  tipoClienteAgenda?: import('./atendimento/intake-rules').TipoCliente;
   agenteAna?: import('./atendimento/ana-rules').AnaState;
   id: string; nome: string; cpf: string; telefone: string; atendimento: string; etapa: Etapa;
   naoLidas: number; etapaPipeline: number; syncs: Sync[]; processos: Processo[];
