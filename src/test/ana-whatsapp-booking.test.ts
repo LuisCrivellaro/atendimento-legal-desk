@@ -48,13 +48,14 @@ describe('reserva WhatsApp com telefone do canal', () => {
         },
         rpc: async () => ({ error: null }),
       };
-      mocks.gerar.mockResolvedValue({ acao: 'enviar', mensagem: '', motivo_aprovacao: '', intencao: 'agendamento', urgente: false, encaminhar_humano: false, dados_coletados: { nome: '', cpf: '', assunto: '', email: '' }, proximo_passo: '' });
+      mocks.gerar.mockResolvedValue({ acao: 'enviar', mensagem: 'Sua solicitação ficou registrada como prioridade para a equipe, que retorna no próximo dia útil a partir das 8h.', motivo_aprovacao: '', intencao: 'outro', urgente: false, encaminhar_humano: true, dados_coletados: { nome: '', cpf: '', assunto: '', email: '' }, proximo_passo: '' });
       mocks.reservar.mockResolvedValue({ id: 'evento-teste', inicio });
       mocks.enviar.mockResolvedValue({ simulado: false, idExterno: 'envio-teste' });
       await processarAna(db as unknown as SupabaseClient<Database>, 'caso-teste', messageId, new Request('http://localhost:8080'));
       expect(mocks.gerar.mock.calls[0]?.[1].telefone_informado).toBe('5511999600306');
       expect(mocks.reservar).toHaveBeenCalledWith('caso-teste', inicio, expect.any(Date), { nome: 'Maria Teste', telefone: '5511999600306', tipo: 'novo' });
       expect(saved.consultaAgendada).toBe(inicio);
+      expect(saved.agenteAna).toMatchObject({ humano: false });
       expect(mocks.enviar).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
     } finally {
