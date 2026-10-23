@@ -77,7 +77,7 @@ interface EnvioBase {
   texto: string;
   contatoEsperado?: string;
   /** Horários ofertados viram botões clicáveis no Telegram. */
-  horarios?: string[];
+  horarios?: string[] | undefined;
 }
 
 /** Núcleo do envio: vale para mensagens da equipe e do sistema. O destino é sempre buscado no servidor. */
