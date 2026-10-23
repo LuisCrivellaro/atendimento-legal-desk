@@ -1,4 +1,6 @@
 import { idReservaCalendar, intervaloLivre, type ReservaCalendar } from './calendar-booking';
+import { DURACAO_REUNIAO, horarioPermitido } from './schedule-rules';
+import { telefoneAgenda, type TipoCliente } from './intake-rules';
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_calendar/calendar/v3';
 
 async function calendarRequest(path: string, init: RequestInit = {}) {
@@ -21,10 +23,12 @@ function validarReserva(event: CalendarEvent, conversaId: string, inicio: string
 }
 
 /** Só chamado após validar webhook, contato, modo Automática e escolha inequívoca. Sem CPF, assunto jurídico ou convites. */
-export async function reservarGoogleCalendar(conversaId: string, inicio: string, now = new Date()): Promise<ReservaCalendar> {
+export async function reservarGoogleCalendar(conversaId: string, inicio: string, now = new Date(), cliente?: {nome: string; telefone: string; tipo: TipoCliente}): Promise<ReservaCalendar> {
   if (!conversaId || !Number.isFinite(Date.parse(inicio)) || Date.parse(inicio) <= now.getTime()) throw new Error('Escolha um horário futuro disponível.');
+  if (!cliente?.nome.trim() || !telefoneAgenda(cliente.telefone)) throw new Error('Informe nome e telefone do cliente antes de reservar.');
+  if (!horarioPermitido(inicio, cliente.tipo)) throw new Error('Horário fora da carteira de atendimento permitida.');
   inicio = new Date(inicio).toISOString();
-  const fim = new Date(Date.parse(inicio) + 60 * 60000).toISOString();
+  const fim = new Date(Date.parse(inicio) + DURACAO_REUNIAO * 60000).toISOString();
   const id = await idReservaCalendar(inicio);
   const existing = await calendarRequest(`/calendars/primary/events/${id}`);
   if (existing.ok) return validarReserva(await existing.json(), conversaId, inicio, fim);
@@ -35,7 +39,7 @@ export async function reservarGoogleCalendar(conversaId: string, inicio: string,
   const calendar = availability.calendars?.['primary'];
   if (!calendar || calendar.errors?.length || !Array.isArray(calendar.busy)) throw new Error('Não foi possível verificar disponibilidade; nenhuma reserva confirmada.');
   if (!intervaloLivre(calendar.busy, inicio, fim)) throw new Error('Esse horário acabou de ficar ocupado. Escolha outro horário.');
-  const created = await calendarRequest('/calendars/primary/events?sendUpdates=none', { method: 'POST', body: JSON.stringify({ id, summary: 'Consulta CS Lawyers · Ana', start: { dateTime: inicio, timeZone: 'America/Sao_Paulo' }, end: { dateTime: fim, timeZone: 'America/Sao_Paulo' }, extendedProperties: { private: { conversa: conversaId } } }) });
+  const created = await calendarRequest('/calendars/primary/events?sendUpdates=none', { method: 'POST', body: JSON.stringify({ id, summary: `Consulta CS Lawyers · ${cliente.nome.trim()}`, description: `Nome: ${cliente.nome.trim()}\nTelefone: ${telefoneAgenda(cliente.telefone)}\nReunião: 30 minutos`, start: { dateTime: inicio, timeZone: 'America/Sao_Paulo' }, end: { dateTime: fim, timeZone: 'America/Sao_Paulo' }, extendedProperties: { private: { conversa: conversaId } } }) });
   if (created.status === 409) {
     const concurrent = await calendarRequest(`/calendars/primary/events/${id}`);
     if (!concurrent.ok) return erroCalendar(concurrent);

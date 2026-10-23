@@ -32,3 +32,6 @@
 - Attendance ProJuris details project only the selected case and its owner-scoped workspace; local records and simulated sync markers never imply a provider import; why: prevents cross-client mixing and misleading integration claims.
 - Quick replies use pure rules and owner workspace overrides outside case material; why: no approval changes. Unfilled braces block sends.
 - Attendance uses one Telegram test bot only, with a single token and webhook secret and one released contact per conversation; why: the two-bot setup was cancelled, so no second credential may be activated and destinations must stay readable by the legacy parser.
+
+- Intake labels and scheduling policy live in pure tested modules, shared by UI offers and server booking validation; booking contact identity is collected from the channel, not inherited from a linked demo case. Why: consistent day/duration rules without schema or legal-gate changes.
+- National Brazilian public holidays are checked using date-holidays; local office closures remain Calendar busy blocks until a location-specific policy is supplied. Why: avoid inventing municipal holiday jurisdiction.

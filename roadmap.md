@@ -1,5 +1,12 @@
 # Construção dos módulos Manager ADV
 
+## Etiquetas e agenda da Ana — 23/10/2026
+- [x] Etiquetas AC/RT automáticas pela mensagem de entrada, filtro e ajuste manual no Atendimento.
+- [x] Agenda por carteira: novos seg–qui; cadastrados sexta 13:30–17:30; reuniões de 30 min, sem feriados nacionais. Bloqueios locais dependem de indisponibilidade no Calendar; não foi fornecida jurisdição municipal.
+- [x] Coleta sem CPF no agendamento; nome/telefone reais informados pelo contato, sem herdar identidade do caso de teste.
+- [x] 149 testes aprovados; compilação limpa; etiqueta RT salva, relida após recarga e filtrada na conversa autenticada. Classificação de teste restaurada. Nova reserva real não criada neste turno; compromissos anteriores preservados.
+- [ ] Aviso externo à Dra. Carolina e lembrete automático às 8h com confirmação/cancelamento — depende da ativação autorizada do canal WhatsApp e de execução agendada; não simular envio real.
+
 ## Reserva automática Google Calendar — 22/10/2026
 - [x] Reservar horário real escolhido inequivocamente no Telegram autorizado, revalidar disponibilidade e evitar duplicação.
 - [x] Salvar confirmação e exibir compromisso real na Agenda; manter simulações separadas.

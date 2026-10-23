@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import type { AIMode } from '../atendimento';
 import { forbiddenTopics, normalized, chosenSlot, formatarHorarioCliente } from '../atendimento';
+import { gerarHorarios } from './schedule-rules';
+import type { TipoCliente } from './intake-rules';
 import { validarTextoEnvio } from './canal-envio';
 
 export const anaSchema = z.object({
@@ -12,44 +14,22 @@ export const anaSchema = z.object({
 });
 export type AnaResult = z.infer<typeof anaSchema>;
 export interface AnaState {
+  tipoCliente?: TipoCliente | undefined; telefone?: string | undefined;
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
   horariosTeste?: string[]; consultaTeste?: string | undefined; agendaReal?: boolean;
    reservaCalendar?: import('./calendar-booking').ReservaCalendar;
 }
-export function horariosTesteAna(now=new Date()){
- const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
- const value=(key:string)=>parts.find(p=>p.type===key)?.value??'';
- const day=new Date(`${value('year')}-${value('month')}-${value('day')}T12:00:00Z`);
- const slots:string[]=[];
- while(slots.length<4){
-  day.setUTCDate(day.getUTCDate()+1);
-  if([0,6].includes(day.getUTCDay()))continue;
-  for(const time of ['09:00','10:30'])slots.push(new Date(`${day.toISOString().slice(0,10)}T${time}:00-03:00`).toISOString());
- }
- return slots;
+export function horariosTesteAna(now = new Date(), tipo: TipoCliente = 'novo') {
+ return gerarHorarios([], now, tipo, 3);
 }
-/** Horários candidatos (seg–sex, Brasília) que não colidem com períodos ocupados da agenda real. */
-export function horariosLivresAna(ocupados:{start:string;end:string}[],now=new Date(),duracaoMin=60,quantidade=4){
- const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
- const value=(key:string)=>parts.find(p=>p.type===key)?.value??'';
- const day=new Date(`${value('year')}-${value('month')}-${value('day')}T12:00:00Z`);
- const busy=ocupados.map(b=>[Date.parse(b.start),Date.parse(b.end)] as const);
- const slots:string[]=[];
- for(let i=0;i<14&&slots.length<quantidade;i++){
-  day.setUTCDate(day.getUTCDate()+1);
-  if([0,6].includes(day.getUTCDay()))continue;
-  for(const time of ['09:00','10:30','14:00','16:00']){
-   if(slots.length>=quantidade)break;
-   const s=Date.parse(`${day.toISOString().slice(0,10)}T${time}:00-03:00`),e=s+duracaoMin*60000;
-   if(!busy.some(([bs,be])=>s<be&&e>bs))slots.push(new Date(s).toISOString());
-  }
- }
- return slots;
+export function horariosLivresAna(ocupados: {start:string;end:string}[], now = new Date(), tipo: TipoCliente = 'novo', quantidade = 3) {
+ return gerarHorarios(ocupados, now, tipo, quantidade);
 }
-export function respostaAgendaTeste(texto:string,offered:string[],now=new Date(),real=false){
+export function respostaAgendaTeste(texto:string,offered:string[],now=new Date(),real=false,tipo:TipoCliente='novo'){
  const selected=chosenSlot(offered,texto);
- const slots=offered.length?offered:horariosTesteAna(now);
+ const slots=real?offered:offered.length?offered:horariosTesteAna(now,tipo);
+ if(real&&!slots.length)return {slots,selected:undefined,mensagem:'Não há horários livres permitidos nos próximos 14 dias. Deixei o pedido para a equipe verificar outras datas.'};
   if(real)return {slots,selected,mensagem:selected?`Vou verificar e reservar ${formatarHorarioCliente(selected)} na agenda.`:`Tenho estes horários livres na agenda:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere?`};
  return {slots,selected,mensagem:selected?`Para este teste, ficou combinado ${formatarHorarioCliente(selected)}. É uma simulação: não há reserva real no Google Calendar.`:`Podemos simular estes horários:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere? São horários fictícios de teste, sem reserva real.`};
 }
@@ -87,7 +67,7 @@ export function expedienteAna(now = new Date()) {
 export function mensagemSemResposta(texto: string, arquivo = false) {
   return !arquivo && ['', 'ok','obrigado','obrigada','recebi','beleza','certo','perfeito','combinado'].includes(normalized(texto));
 }
-export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean}={}):AnaResult {
+export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const humano = /(?:falar|conversar|atendimento).{0,35}(?:pessoa|humano|equipe|advogad|carolina)|(?:pessoa|humano).{0,25}(?:falar|atender)/.test(folded);
@@ -101,7 +81,10 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   result.urgente ||= urgent;
   const perigo=/risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo/.test(folded);
   const testAgenda=options.teste&&r.intencao==='agendamento'&&!prohibited&&!humano;
-  if(testAgenda){const ag=respostaAgendaTeste(texto,options.horarios??[],options.now,options.agendaReal);result={...result,acao:'enviar',mensagem:ag.mensagem,encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:options.agendaReal?(ag.selected?'Equipe: confirmar reserva do horário escolhido no Google Calendar.':'Horários livres reais oferecidos pelo Google Calendar.'):'Agenda fictícia de teste; nenhuma reserva real.'};}
+  const dadosAgenda = testAgenda && (options.tipoCliente === undefined || !options.nome?.trim() || !options.telefone);
+  if(testAgenda&&!dadosAgenda){const ag=respostaAgendaTeste(texto,options.horarios??[],options.now,options.agendaReal,options.tipoCliente);result={...result,acao:'enviar',mensagem:ag.mensagem,encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:options.agendaReal?(ag.selected?'Equipe: confirmar reserva do horário escolhido no Google Calendar.':'Horários livres reais oferecidos pelo Google Calendar.'):'Agenda fictícia de teste; nenhuma reserva real.'};}
+  if(dadosAgenda)result={...result,acao:'enviar',mensagem:options.tipoCliente===undefined?'É seu primeiro contato ou você já é cliente do escritório?':!options.nome?.trim()?'Qual é seu nome completo?':'Qual é seu telefone com DDD para registrar a consulta?',encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:'Coletar carteira, nome e telefone antes de oferecer ou reservar horários.'};
+  if(/cpf/i.test(result.mensagem)&&/\?/.test(result.mensagem)){result.mensagem='Para o agendamento não precisamos de CPF. Qual é seu nome completo?';}
   const sensitive = !prohibited&&!humano&&r.intencao!=='reclamacao'&&(['processo'].includes(r.intencao)||r.intencao==='agendamento'&&!testAgenda||/documentos? (?:faltantes|pendentes)/i.test(result.mensagem));
   if (sensitive || validarTextoEnvio(result.mensagem) && result.mensagem.trim()) result = {...result, acao:'rascunho',motivo_aprovacao:r.motivo_aprovacao || 'Revisão da equipe obrigatória; agenda real indisponível.'};
   if (mode==='Sugerir' && result.mensagem.trim()) result.acao='rascunho';
@@ -111,6 +94,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   if(!result.mensagem.trim())result.acao='nenhuma';
   // Nunca exibir CPF completo, inclusive um CPF recém-coletado.
   result.mensagem = result.mensagem.replace(/\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b/g, cpf=>`••••••••${cpf.replace(/\D/g,'').slice(-3)}`);
+  result.dados_coletados.cpf = '';
   if (result.dados_coletados.cpf && !/^\d{11}$/.test(result.dados_coletados.cpf.replace(/\D/g,''))) result.dados_coletados.cpf='';
   return result;
 }

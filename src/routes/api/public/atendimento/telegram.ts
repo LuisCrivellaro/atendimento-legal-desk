@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import type { Mensagem } from '@/lib/mock-data';
 import { z } from 'zod';
 import { mascararContato } from '@/lib/atendimento/canal-envio';
+import { classificarEntrada } from '@/lib/atendimento/intake-rules';
 import { destinoTelegram } from '@/lib/atendimento/telegram-bots';
 
 function seguroIgual(a: string, b: string): boolean {
@@ -108,7 +109,7 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
         };
         const {atualizarConversa,processarAna}=await import('@/lib/atendimento/ana.server');
         try {
-          await atualizarConversa(supabaseAdmin,caso.data.id,current=>current.mensagens.some(m=>m.id===novaMensagem.id)?current:{...current,mensagens:[...current.mensagens,novaMensagem]});
+          await atualizarConversa(supabaseAdmin,caso.data.id,current=>current.mensagens.some(m=>m.id===novaMensagem.id)?current:classificarEntrada({...current,mensagens:[...current.mensagens,novaMensagem]}));
         } catch {
           await auditar('mensagemRecebida','Falha ao gravar mensagem na conversa','erro');
           return Response.json({error:'Falha ao registrar'},{status:500});
