@@ -14,7 +14,7 @@ export const anaSchema = z.object({
 });
 export type AnaResult = z.infer<typeof anaSchema>;
 export interface AnaState {
-  tipoCliente?: TipoCliente; telefone?: string;
+  tipoCliente?: TipoCliente | undefined; telefone?: string | undefined;
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
   horariosTeste?: string[]; consultaTeste?: string | undefined; agendaReal?: boolean;
@@ -67,7 +67,7 @@ export function expedienteAna(now = new Date()) {
 export function mensagemSemResposta(texto: string, arquivo = false) {
   return !arquivo && ['', 'ok','obrigado','obrigada','recebi','beleza','certo','perfeito','combinado'].includes(normalized(texto));
 }
-export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente;nome?:string;telefone?:string}={}):AnaResult {
+export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const humano = /(?:falar|conversar|atendimento).{0,35}(?:pessoa|humano|equipe|advogad|carolina)|(?:pessoa|humano).{0,25}(?:falar|atender)/.test(folded);

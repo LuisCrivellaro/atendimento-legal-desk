@@ -3,7 +3,7 @@ import { horarioPermitido } from './schedule-rules';
 import type { TipoCliente } from './intake-rules';
 
 /** A escolha vem do texto do cliente, nunca da interpretação livre da IA. */
-export function escolherReservaAna(input: { texto: string; horarios: string[]; real: boolean; teste: boolean; modo: string; bloqueado: boolean; tipoCliente?: TipoCliente; now?: Date }) {
+export function escolherReservaAna(input: { texto: string; horarios: string[]; real: boolean; teste: boolean; modo: string; bloqueado: boolean; tipoCliente?: TipoCliente | undefined; now?: Date }) {
   if (!input.real || !input.teste || input.modo !== 'Automática' || input.bloqueado) return undefined;
   const slot = chosenSlot(input.horarios, input.texto);
   return slot && horarioPermitido(slot, input.tipoCliente ?? 'novo') && Date.parse(slot) > (input.now ?? new Date()).getTime() ? slot : undefined;
