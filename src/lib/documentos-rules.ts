@@ -9,6 +9,8 @@ export const resultadoSchema = z.object({
 });
 export type ResultadoAnalise = z.infer<typeof resultadoSchema>;
 export function itemIdentificado(resultado: ResultadoAnalise, documentos: DocItem[]) {
-  if (resultado.confianca !== 'alta' || !resultado.itemChecklist) return undefined;
+  // Recebimento de comprovante reconhecido não significa validar endereço/grafia.
+  const comprovante = resultado.confianca === 'media' && /^(?:Comprovante de endere[cç]o|Comprovante de resid[eê]ncia)$/i.test(resultado.itemChecklist ?? '') && /fatura|conta|comprovante|endere[cç]o|resid[eê]ncia/i.test(resultado.tipoDocumento);
+  if ((resultado.confianca !== 'alta' && !comprovante) || !resultado.itemChecklist) return undefined;
   return documentos.find(d => d.nome === resultado.itemChecklist);
 }
