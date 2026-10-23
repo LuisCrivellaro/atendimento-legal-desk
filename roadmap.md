@@ -3,8 +3,8 @@
 ## E-mail cadastral pela conversa — 23/10/2026
 - [x] Reconhecer e-mail válido informado pelo cliente sem anexo, salvar no cadastro e marcar o item real do checklist; preservar confirmação de alteração de checklist aprovado.
 - [x] Fornecer checklist real e e-mail cadastrado à Ana, solicitar dado faltante na coleta e impedir nova cobrança após recebimento.
-- [ ] Testar reconhecimento, isolamento, persistência, aprovações, reentrega e cadastro visível.
-- [ ] Marcar comprovante de endereço com correspondência identificada, distinguindo recebimento de conferência do conteúdo; verificar persistência sem desmarcação por atualizações da conversa.
+- [x] Testar reconhecimento, isolamento, persistência, aprovações, reentrega e cadastro visível; e-mail real já recebido cadastrado sem criar anexo ou mensagem externa.
+- [x] Marcar comprovante de endereço reconhecido com ressalvas, mantendo conferência humana; corrigir salvamento de leitura da conversa que revertia marcações recentes. Teste WhatsApp conferido após recarga: 4 de 4 recebidos. 50 testes aprovados e compilação limpa; novos recebimentos dependem de publicar esta atualização.
 
 ## Subpastas dos clientes no Google Drive — 23/10/2026
 - [x] Criar 1- Start, 2- Revisao, 3- Upload e 4- Andamento processual dentro de cada pasta criada/reutilizada para o cliente.
