@@ -1,6 +1,7 @@
 # Construção dos módulos Manager ADV
 
 ## Cancelamento e remarcação autorizados — 23/10/2026
+- [ ] Integrar Google Meet aos novos compromissos, exibir link em Consulta e histórico e incluí-lo na confirmação ao cliente.
 - [ ] Adicionar em Consulta e histórico ações humanas de cancelar/reagendar, aviso automático de diligência emergencial com desculpas e ofertas reais de novos horários.
 - [x] Consultar disponibilidade real em cada oferta; nunca oferecer simulação se a agenda falhar.
 - [x] Reconhecer consulta existente, perguntar cancelar/remarcar e executar apenas com autorização explícita; validar recibo, vincular consentimento de remarcação por 30 min e impedir alterações simultâneas. Reservar novo antes de cancelar anterior e desfazer novo se cancelamento falhar.
