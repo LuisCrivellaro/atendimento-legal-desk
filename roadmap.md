@@ -1,11 +1,11 @@
 # Construção dos módulos Manager ADV
 
 ## Cancelamento e remarcação autorizados — 23/10/2026
-- [ ] Integrar Google Meet aos novos compromissos, exibir link em Consulta e histórico e incluí-lo na confirmação ao cliente.
-- [ ] Adicionar em Consulta e histórico ações humanas de cancelar/reagendar, aviso automático de diligência emergencial com desculpas e ofertas reais de novos horários.
+- [x] Integrar Google Meet aos novos compromissos, exibir link em Consulta e histórico e incluí-lo na confirmação ao cliente. Agenda conectada confirmou suporte a Meet; criação de reunião validada com resposta substituída, sem gerar compromisso real.
+- [x] Adicionar em Consulta e histórico ações humanas de cancelar/reagendar, confirmação de diligência emergencial, aviso automático com desculpas e ofertas reais de novos horários. Modal conferido na sessão autenticada; nenhum cancelamento real executado.
 - [x] Consultar disponibilidade real em cada oferta; nunca oferecer simulação se a agenda falhar.
 - [x] Reconhecer consulta existente, perguntar cancelar/remarcar e executar apenas com autorização explícita; validar recibo, vincular consentimento de remarcação por 30 min e impedir alterações simultâneas. Reservar novo antes de cancelar anterior e desfazer novo se cancelamento falhar.
-- [x] Testes de disponibilidade, autorização, propriedade, rollback e cinco fluxos WhatsApp com integrações substituídas; nenhuma operação real executada. Nova publicação e teste real pelo cliente ainda necessários; consultas sem recibo verificável continuam sob conferência humana.
+- [x] 87 testes aprovados: disponibilidade, autorização, propriedade, rollback, ações do atendente e cinco fluxos WhatsApp com integrações substituídas; compilação limpa. Nova publicação e teste real pelo cliente ainda necessários; consultas sem recibo verificável continuam sob conferência humana.
 
 ## Agendamento 24 horas — 23/10/2026
 - [x] Continuar coleta, oferta e reserva de consulta fora do expediente sem substituir por promessa de retorno da equipe; preservar limites jurídicos e pedidos humanos.
