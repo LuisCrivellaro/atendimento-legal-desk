@@ -12,11 +12,9 @@ describe('decisão de envio', () => {
   it('canal desligado não faz chamada externa (simulado)', () => {
     expect(decidirEnvio(configPadrao, null)).toEqual({ permitido: true, simulado: true });
   });
-  it('contato não liberado é recusado com a mensagem do modo teste', () => {
-    expect(decidirEnvio(telegram, null).motivo).toBe('Modo teste: contato não liberado. Nada foi enviado.');
-    expect(decidirEnvio(telegram, { status: 'aguardando_liberacao' }).permitido).toBe(false);
-    expect(decidirEnvio(telegram, { status: 'bloqueado' }).permitido).toBe(false);
-    expect(decidirEnvio(telegram, liberado)).toEqual({ permitido: true, simulado: false });
+  it('Telegram descontinuado bloqueia inclusive contato liberado', () => {
+    expect(decidirEnvio(telegram, liberado)).toEqual({ permitido: false, simulado: false, motivo: 'Telegram descontinuado. Utilize WhatsApp.' });
+    expect(decidirEnvio(telegram, null).permitido).toBe(false);
   });
   it('WhatsApp envia só para contato liberado', () => {
     expect(decidirEnvio({ ...configPadrao, canal_ativo: 'ultramsg' }, liberado).permitido).toBe(true);
@@ -46,14 +44,15 @@ describe('permissões e configuração', () => {
     expect(podeGerenciarCanal(['advogada_senior'])).toBe(true);
     expect(podeGerenciarCanal(['admin'])).toBe(true);
   });
-  it('agente autorizado no Telegram e modo teste sempre ligado', () => {
+  it('configuração antiga do Telegram desliga o agente', () => {
     const c = sanitizarConfig({ canal_ativo: 'telegram', modo_teste: false, agente_ativo: true, fonte_sugestoes: 'agente' });
-    expect(c).toEqual({ canal_ativo: 'telegram', modo_teste: true, agente_ativo: true, fonte_sugestoes: 'agente' });
+    expect(c).toEqual({ canal_ativo: 'desligado', modo_teste: false, agente_ativo: false, fonte_sugestoes: 'agente' });
     expect(sanitizarConfig({canal_ativo:'desligado',agente_ativo:true}).agente_ativo).toBe(false);
     expect(sanitizarConfig({ canal_ativo: 'ultramsg' }).canal_ativo).toBe('ultramsg');
   });
-  it('etiquetas das ações: real só com Telegram nas ações de mensagem', () => {
-    expect(etiquetaAcao('enviarMensagem', telegram)).toBe('Real (Telegram)');
+  it('etiquetas das ações: real apenas no WhatsApp', () => {
+    expect(etiquetaAcao('enviarMensagem', telegram)).toBe('Simulado');
+    expect(etiquetaAcao('enviarMensagem', { ...configPadrao, canal_ativo: 'ultramsg' })).toBe('Real (WhatsApp)');
     expect(etiquetaAcao('gerarCobranca', telegram)).toBe('Simulado');
     expect(etiquetaAcao('enviarMensagem', configPadrao)).toBe('Simulado');
   });

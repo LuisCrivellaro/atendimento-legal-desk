@@ -16,7 +16,6 @@ import {
   type ContatoTeste,
 } from './canal-envio';
 import { normalizarTelefone } from './telefone';
-import { telegramAdapter } from './canais/telegram';
 import { ultramsgAdapter } from './canais/ultramsg';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
 
@@ -34,7 +33,7 @@ async function carregarConfig(supabase: Db): Promise<CanalConfig> {
     .eq('id', true)
     .maybeSingle();
   if (r.error) throw new Error('Configuração do canal indisponível.');
-  return (r.data as CanalConfig | null) ?? configPadrao;
+  return sanitizarConfig((r.data as CanalConfig | null) ?? configPadrao);
 }
 
 async function auditar(
@@ -98,32 +97,7 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     return { ok: true as const, simulado: true as const, canal: 'simulador' as const };
   }
 
-  if (config.canal_ativo === 'telegram') {
-    const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','telegram').eq('status','liberado').maybeSingle();
-    if(destino.error)throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
-    const contato = destino.data;
-    if(entrada.contatoEsperado&&contato?.contato_externo!==entrada.contatoEsperado)throw new Error('Vínculo do contato alterado; envio interrompido.');
-    const decisao = decidirEnvio(config, contato?.status==='liberado'?{status:'liberado'}:null);
-    if (!decisao.permitido || !contato) {
-      const motivo = decisao.motivo ?? 'Modo teste: contato não liberado. Nada foi enviado.';
-      await auditar(supabase, ator, entrada.acao, 'Envio recusado pelo modo teste', 'bloqueado', motivo);
-      throw new Error(motivo);
-    }
-    const destinoBot = lerDestinoTelegram(contato.contato_externo);
-    const token = destinoBot.bot === 'segundo' ? process.env['TELEGRAM_BOT_TOKEN_2'] : process.env['TELEGRAM_BOT_TOKEN'];
-    if (!token) {
-      await auditar(supabase, ator, entrada.acao, 'Telegram não configurado', 'erro', 'Secret ausente');
-      throw new Error('Telegram não configurado. Nada foi enviado.');
-    }
-    const resultado = await telegramAdapter.enviarTexto(destinoBot.chatId, entrada.texto, { token, ...(entrada.horarios?.length ? { botoes: botoesHorarios(entrada.horarios) } : {}) });
-    if (!resultado.ok) {
-      // Falha: nada é registrado como enviado; o token nunca aparece no erro.
-      await auditar(supabase, ator, entrada.acao, 'Falha no envio pelo Telegram', 'erro', resultado.erro);
-      throw new Error('O envio não foi concluído. Nada foi registrado como enviado.');
-    }
-    await auditar(supabase, ator, entrada.acao, resumoEnvio('telegram', contato.contato_externo, contato.telefone_ficticio, entrada.texto.length), 'sucesso');
-    return { ok: true as const, simulado: false as const, canal: 'telegram' as const, idExterno: resultado.idExterno };
-  }
+  if (config.canal_ativo === 'telegram') throw new Error('Telegram descontinuado. Utilize WhatsApp.');
 
   if (config.canal_ativo === 'ultramsg') {
     const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','ultramsg').eq('status','liberado').maybeSingle();
@@ -184,7 +158,7 @@ export const lerConfigCanal = createServerFn({ method: 'GET' })
 export const salvarConfigCanal = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
-    canal_ativo: z.enum(['desligado', 'telegram', 'ultramsg']),
+    canal_ativo: z.enum(['desligado', 'ultramsg']),
     fonte_sugestoes: z.enum(['ia_manager', 'agente']),
     agente_ativo: z.boolean().optional(),
   }))
@@ -224,7 +198,7 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
   .inputValidator(z.object({
     id: z.string().uuid().optional(),
     bot: z.enum(['principal', 'segundo']).default('principal'),
-    canal: z.enum(['telegram', 'simulador', 'ultramsg']).default('telegram'),
+    canal: z.enum(['ultramsg']).default('ultramsg'),
     contatoExterno: z.string().max(120).optional(),
     nome: z.string().max(120).default(''),
     telefoneFicticio: z.string().max(20),
@@ -264,57 +238,6 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
     if (r.error) throw new Error('Não foi possível salvar o contato de teste.');
     await auditar(context.supabase, ator, 'salvarContatoTeste', `${data.nome.trim() || 'contato'} · ${data.status}`, 'sucesso');
     return { ok: true as const };
-  });
-
-const TELEGRAM_API = 'https://api.telegram.org/bot';
-
-export const registrarWebhookTelegram = createServerFn({ method: 'POST' })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ bot: z.enum(['principal', 'segundo']) }).default({ bot: 'principal' }))
-  .handler(async ({ data, context }) => {
-    const ator = await exigirGestor(context.supabase, context.userId);
-    const token = data.bot === 'segundo' ? process.env['TELEGRAM_BOT_TOKEN_2'] : process.env['TELEGRAM_BOT_TOKEN'];
-    const secret = data.bot === 'segundo' ? process.env['TELEGRAM_WEBHOOK_SECRET_2'] : process.env['TELEGRAM_WEBHOOK_SECRET'];
-    if (!token || !secret) throw new Error('Secrets do Telegram não configurados.');
-    const base = process.env['PUBLIC_APP_URL'] ?? 'https://atendimento-legal-desk.lovable.app';
-    const resposta = await fetch(`${TELEGRAM_API}${token}/setWebhook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: `${base}/api/public/atendimento/telegram${data.bot === 'segundo' ? '?bot=segundo' : ''}`,
-        secret_token: secret,
-        allowed_updates: ['message', 'edited_message'],
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-    const corpo = (await resposta.json().catch(() => undefined)) as { ok?: boolean; description?: string } | undefined;
-    if (!resposta.ok || corpo?.ok !== true) {
-      await auditar(context.supabase, ator, 'registrarWebhookTelegram', 'Falha ao registrar webhook', 'erro', `HTTP ${resposta.status}`);
-      throw new Error(`O Telegram não confirmou o registro (HTTP ${resposta.status}).`);
-    }
-    await auditar(context.supabase, ator, 'registrarWebhookTelegram', 'Webhook registrado', 'sucesso');
-    return { ok: true as const, descricao: corpo.description ?? 'Webhook registrado.' };
-  });
-
-export const verificarWebhookTelegram = createServerFn({ method: 'GET' })
-  .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ bot: z.enum(['principal', 'segundo']) }).default({ bot: 'principal' }))
-  .handler(async ({ data, context }) => {
-    await exigirGestor(context.supabase, context.userId);
-    const token = data.bot === 'segundo' ? process.env['TELEGRAM_BOT_TOKEN_2'] : process.env['TELEGRAM_BOT_TOKEN'];
-    if (!token) throw new Error('Secret do Telegram não configurado.');
-    const resposta = await fetch(`${TELEGRAM_API}${token}/getWebhookInfo`, { signal: AbortSignal.timeout(15000) });
-    const corpo = (await resposta.json().catch(() => undefined)) as {
-      ok?: boolean;
-      result?: { url?: string; pending_update_count?: number; last_error_message?: string; last_error_date?: number };
-    } | undefined;
-    if (!resposta.ok || corpo?.ok !== true) throw new Error('Não foi possível verificar o webhook.');
-    const info = corpo.result ?? {};
-    return {
-      registrado: Boolean(info.url),
-      pendentes: info.pending_update_count ?? 0,
-      ultimoErro: info.last_error_message ?? null,
-    };
   });
 
 export const lerAuditLog = createServerFn({ method: 'GET' })

@@ -24,8 +24,8 @@ export async function atualizarConversa(db:Db,id:string,fn:(c:Conversa)=>Convers
 
 export async function processarAna(db:Db,id:string,messageId:string,request:Request) {
   const [row,config]=await Promise.all([db.from('casos').select('owner_id,dados').eq('id',id).single(),db.from('atendimento_canal_config').select('*').eq('id',true).single()]);
-  if(row.error||config.error||!config.data.agente_ativo||(config.data.canal_ativo!=='telegram'&&config.data.canal_ativo!=='ultramsg'))return;
-  const canal=config.data.canal_ativo as 'telegram'|'ultramsg';
+  if(row.error||config.error||!config.data.agente_ativo||config.data.canal_ativo!=='ultramsg')return;
+  const canal='ultramsg' as const;
   const c=row.data.dados as unknown as Conversa;
   const ws=await db.from('office_workspace').select('dados').eq('owner_id',row.data.owner_id).maybeSingle();
   if(ws.error)throw new Error('Treinamento indisponível.');
