@@ -35,3 +35,4 @@
 
 - Intake labels and scheduling policy live in pure tested modules, shared by UI offers and server booking validation; booking contact identity is collected from the channel, not inherited from a linked demo case. Why: consistent day/duration rules without schema or legal-gate changes.
 - National Brazilian public holidays are checked using date-holidays; local office closures remain Calendar busy blocks until a location-specific policy is supplied. Why: avoid inventing municipal holiday jurisdiction.
+- Trato feito rules (base docs, AC/RT folder, phase, production notice) live in src/lib/atendimento/trato-feito.ts with tests; Production start stays manual; why: future automation must respect legal gates.
