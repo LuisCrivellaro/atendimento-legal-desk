@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## E-mail cadastral pela conversa — 23/10/2026
+- [x] Reconhecer e-mail válido informado pelo cliente sem anexo, salvar no cadastro e marcar o item real do checklist; preservar confirmação de alteração de checklist aprovado.
+- [x] Fornecer checklist real e e-mail cadastrado à Ana, solicitar dado faltante na coleta e impedir nova cobrança após recebimento.
+- [ ] Testar reconhecimento, isolamento, persistência, aprovações, reentrega e cadastro visível.
+
 ## Subpastas dos clientes no Google Drive — 23/10/2026
 - [x] Criar 1- Start, 2- Revisao, 3- Upload e 4- Andamento processual dentro de cada pasta criada/reutilizada para o cliente.
 - [x] Direcionar novos documentos do WhatsApp e do Atendimento para 1- Start, inclusive em pastas anteriores; preservar arquivos existentes.

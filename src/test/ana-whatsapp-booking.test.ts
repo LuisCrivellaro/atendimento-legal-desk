@@ -40,7 +40,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
               if (patch) saved = patch.dados;
               return { error: null, data: updating ? [{ id: 'caso-teste' }] : { owner_id: 'owner-teste', dados: saved, updated_at: 'revision' } };
             }
-            return { error: null, data: table === 'office_workspace' ? { dados: defaultState } : table === 'atendimento_canal_config' ? config : contato };
+            return { error: null, data: table === 'checklist_itens' ? [] : table === 'office_workspace' ? { dados: defaultState } : table === 'atendimento_canal_config' ? config : contato };
           };
           const query = {
             select: () => query, eq: () => query,

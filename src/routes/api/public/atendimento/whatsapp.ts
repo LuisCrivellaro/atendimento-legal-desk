@@ -94,7 +94,11 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         const caso = await supabaseAdmin.from('casos').select('id,owner_id,dados').eq('id', contato.conversa_id).maybeSingle();
         if (caso.error || !caso.data) return Response.json({ ok: true, ignorado: true });
         const mensagens = (caso.data.dados as unknown as { mensagens?: Mensagem[] }).mensagens ?? [];
-        if (mensagens.some(m => m.id === `ultramsg:${contato.contato_externo}:${data.id}`)) return Response.json({ ok: true, repetido: true });
+        if (mensagens.some(m => m.id === `ultramsg:${contato.contato_externo}:${data.id}`)) {
+          const { registrarEmailConversa } = await import('@/lib/atendimento/email.server');
+          await registrarEmailConversa(supabaseAdmin, caso.data.id, caso.data.owner_id, `ultramsg:${contato.contato_externo}:${data.id}`);
+          return Response.json({ ok: true, repetido: true });
+        }
 
         // Resposta numérica a uma lista de horários vira escolha explícita do horário correspondente.
         let texto = data.body ?? '';
@@ -129,6 +133,13 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           return Response.json({ error: 'Falha ao registrar' }, { status: 500 });
         }
         await auditar('mensagemRecebida', `WhatsApp ← ${mascararContato(numero)} · ${tipo}`, 'sucesso');
+        try {
+          const { registrarEmailConversa } = await import('@/lib/atendimento/email.server');
+          await registrarEmailConversa(supabaseAdmin, caso.data.id, caso.data.owner_id, nova.id);
+        } catch {
+          await auditar('emailRecebido', 'Falha ao cadastrar e-mail ou marcar checklist; repetir processamento necessário', 'erro');
+          return Response.json({ error: 'Falha ao registrar e-mail' }, { status: 500 });
+        }
         if (nova.path) {
           try {
             const { analisarAnexoDoCaso } = await import('@/lib/documentos.server');
