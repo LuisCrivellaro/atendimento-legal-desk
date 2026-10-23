@@ -18,7 +18,7 @@ function fixture(aprovado = false) {
     let patch: any;
     const result = () => {
       if (table === 'casos') { if (patch) { caso = patch.dados; return { error: null, data: [{ id: 'caso' }] }; } return { error: null, data: { dados: caso, updated_at: 'revision' } }; }
-      if (patch) { writes++; itens[0].recebido = patch.recebido; }
+      if (patch) { writes++; const first = itens[0]; if (first) first.recebido = patch.recebido; }
       return { error: null, data: itens };
     };
     const query: any = { select: () => query, eq: () => query, update: (p: any) => { patch = p; return query; }, single: async () => result(), then: (resolve: any) => Promise.resolve(result()).then(resolve) };
@@ -31,7 +31,7 @@ describe('análise do original recebido', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.analisar.mockResolvedValue({ ok: true, resultado }); });
   it('marca RG ou CNH e guarda extração vinculada à mensagem', async () => {
     const f = fixture(); await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');
-    expect(f.itens[0].recebido).toBe(true);
+    expect(f.itens[0]?.recebido).toBe(true);
     expect(f.caso.mensagens[0]?.analiseDocumento?.nomeTitular).toBe('Pessoa Teste');
     expect(mocks.analisar).toHaveBeenCalledWith(expect.objectContaining({ mimeType: 'image/png', checklist: ['RG ou CNH'] }));
   });
@@ -43,7 +43,7 @@ describe('análise do original recebido', () => {
   it('checklist aprovado exige confirmação explícita e não chama IA novamente', async () => {
     const f = fixture(true); await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada'); expect(f.writes).toBe(0);
     await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada', true);
-    expect(f.itens[0].recebido).toBe(true); expect(mocks.analisar).toHaveBeenCalledOnce();
+    expect(f.itens[0]?.recebido).toBe(true); expect(mocks.analisar).toHaveBeenCalledOnce();
   });
   it('mesmo anexo já analisado não repete análise nem marcação', async () => {
     const f = fixture(); await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada'); await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');

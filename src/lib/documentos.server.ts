@@ -15,7 +15,7 @@ export async function analisarAnexoDoCaso(db: SupabaseClient<Database>, casoId: 
   const c = row.data.dados as unknown as Conversa;
   const m = c.mensagens.find(m => m.id === mensagemId);
   if (!m?.path?.startsWith(`${owner}/${casoId}/`)) throw new Error('Original não disponível neste atendimento.');
-  if (m.analiseDocumento && !confirmarAlteracao) return { ok: true as const, resultado: m.analiseDocumento, checklistAtualizado: m.checklistAtualizado === true };
+  if (m.analiseDocumento && !confirmarAlteracao) return { ok: true as const, resultado: m.analiseDocumento, checklistAtualizado: m.checklistAtualizado === true, pendencia: m.pendenciaChecklist };
   const file = await db.storage.from('case-documents').download(m.path);
   if (file.error || !file.data) throw new Error('Não foi possível ler o original guardado.');
   const mime = file.data.type.split(';')[0] ?? '';
@@ -28,7 +28,7 @@ export async function analisarAnexoDoCaso(db: SupabaseClient<Database>, casoId: 
   const item = itemIdentificado(result.resultado, checklist.data);
   let marcado = item?.recebido === true;
   let pendencia: string | undefined;
-  if (item && !marcado) {
+  if (item?.id && !marcado) {
     const status = await db.rpc('material_status', { p_case: casoId });
     if (status.error) pendencia = 'Não foi possível verificar a aprovação; checklist preservado.';
     else if ((status.data as { checklist?: boolean } | null)?.checklist && !confirmarAlteracao) pendencia = 'Checklist aprovado: confirme a alteração para solicitar nova revisão jurídica.';
