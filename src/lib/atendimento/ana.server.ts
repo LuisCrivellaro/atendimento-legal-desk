@@ -5,6 +5,8 @@ import { defaultState, type OfficeState } from '../office';
 import { defaultAutomations, newMessage, chosenSlot, formatarHorarioCliente } from '../atendimento';
 import { escolherReservaAna } from './calendar-booking';
 import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, horariosLivresAna } from './ana-rules';
+import { etiquetaConversa, identificarTipoCliente, telefoneAgenda } from './intake-rules';
+import { horarioPermitido } from './schedule-rules';
 type Db=SupabaseClient<Database>;
 
 /** CAS: não substitui mensagens ou edições recebidas durante a geração. */
@@ -43,26 +45,30 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
     const history=c.mensagens.filter(m=>m.canal==='telegram').slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
-    const raw=await gerarRespostaAna(request,{data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:'Não informado: consultar equipe.',horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
+    const tipoCliente=c.tipoClienteAgenda??identificarTipoCliente(m.texto)??c.agenteAna?.tipoCliente;
+    const telefone=telefoneAgenda(m.texto)??c.agenteAna?.telefone;
+    const etiqueta=etiquetaConversa(c);
+    const raw=await gerarRespostaAna(request,{data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:'Não informado: consultar equipe.',horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
     if(chosenSlot(c.agenteAna?.horariosTeste??[],m.texto))raw.intencao='agendamento';
     const teste=config.data.modo_teste===true;
     const previous=c.mensagens.filter(m=>m.canal==='telegram'&&m.de==='escritorio').at(-1)?.texto??'';
-    let horarios=c.agenteAna?.horariosTeste??[];
+    const nome=raw.dados_coletados.nome.trim()||c.agenteAna?.dados?.nome||'';
+    let horarios=(c.agenteAna?.horariosTeste??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
     let agendaReal=c.agenteAna?.agendaReal===true&&horarios.length>0;
-    if(teste&&raw.intencao==='agendamento'&&!agendaReal){
+    if(teste&&tipoCliente&&nome&&telefone&&raw.intencao==='agendamento'&&!agendaReal){
       // Oferta de disponibilidade; a escolha é revalidada antes da reserva.
       const {ocupadosGoogleCalendar}=await import('./google-calendar.server');
       const busy=await ocupadosGoogleCalendar();
-      if(busy){const livres=horariosLivresAna(busy);if(livres.length){horarios=livres;agendaReal=true;}}
+      if(busy){horarios=horariosLivresAna(busy,new Date(),tipoCliente);agendaReal=true;}
     }
-    const r=aplicarRegrasAna(raw,mode,m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal});
-    const agenda=teste&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,horarios,new Date(),agendaReal):undefined;
+    const r=aplicarRegrasAna(raw,mode,m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal,tipoCliente,nome,telefone});
+    const agenda=teste&&tipoCliente&&nome&&telefone&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,horarios,new Date(),agendaReal,tipoCliente):undefined;
     let accepted=false;
     await atualizarConversa(db,id,current=>{
       accepted=false;
       if(!aceitarRespostaAna(messageId,current.mensagens.at(-1)?.id,current.agenteAna))return current;
       accepted=true;
-      return {...current,agenteAna:{...current.agenteAna,...(agenda?{horariosTeste:agenda.slots,agendaReal,...(agenda.selected&&!agendaReal?{consultaTeste:agenda.selected}:{})}:{}),resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida};
+      return {...current,...(current.etiquetaAcao||etiqueta==='sem'?{}:{etiquetaAcao:etiqueta}),agenteAna:{...current.agenteAna,tipoCliente,telefone,...(agenda?{horariosTeste:agenda.slots,agendaReal,...(agenda.selected&&!agendaReal?{consultaTeste:agenda.selected}:{})}:{}),resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida};
     });
     if(!accepted)return;
     if(r.acao==='enviar'&&r.mensagem.trim()) {
@@ -72,7 +78,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       const currentState=(freshWorkspace.data?.dados as unknown as OfficeState)??defaultState;
       if(fresh.error||cfg.error||contact.error||freshWorkspace.error||!contact.data||!current||cfg.data?.canal_ativo!=='telegram'||!cfg.data.agente_ativo||(current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||currentState.anaPausa?.ativa||current.agenteAna?.humano&&!r.encaminhar_humano||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
       if(!messageId.startsWith(`telegram:${contact.data.contato_externo}:`))return;
-      const escolhido=escolherReservaAna({texto:m.texto,horarios:c.agenteAna?.horariosTeste??[],real:agendaReal,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
+      const escolhido=escolherReservaAna({texto:m.texto,horarios:c.agenteAna?.horariosTeste??[],real:agendaReal,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
       if(escolhido){
         if(current.consultaAgendada&&Date.parse(current.consultaAgendada)!==Date.parse(escolhido)){
           r.mensagem=`Você já tem uma consulta marcada para ${formatarHorarioCliente(current.consultaAgendada)}. Registrei seu pedido para a equipe verificar a remarcação.`;
@@ -80,7 +86,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         }else{
           try{
             const {reservarGoogleCalendar}=await import('./google-calendar.server');
-            const reserva=await reservarGoogleCalendar(id,escolhido);
+            const reserva=await reservarGoogleCalendar(id,escolhido,new Date(),{nome,telefone:telefone??'',tipo:tipoCliente??'novo'});
             r.mensagem=`Sua consulta está confirmada para ${formatarHorarioCliente(reserva.inicio)}. O compromisso já foi criado no Google Calendar.`;
             r.proximo_passo='Consulta reservada automaticamente no Google Calendar.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
