@@ -1,5 +1,9 @@
 # Construção dos módulos Manager ADV
 
+## Agendamento 24 horas — 23/10/2026
+- [ ] Continuar coleta, oferta e reserva de consulta fora do expediente sem substituir por promessa de retorno da equipe; preservar limites jurídicos e pedidos humanos.
+- [ ] Validar regressão de classificação e reserva WhatsApp com integrações substituídas, sem enviar mensagem ou criar compromisso de teste real.
+
 ## Conversa de agendamento — 23/10/2026
 - [x] Usar telefone do remetente WhatsApp sem pedir DDD; preservar isolamento do caso vinculado.
 - [x] Confirmar reserva real somente com data e horário e trocar calendário numerado por 🗓️.
