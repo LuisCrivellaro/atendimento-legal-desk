@@ -1,5 +1,9 @@
 # Construção dos módulos Manager ADV
 
+## PDFs identificados na pasta Start — 23/10/2026
+- [ ] Gerar cópias PDF nomeadas pelo conteúdo identificado, abaixo de 100 caracteres e até 10 MB, preservando originais e revisões jurídicas.
+- [ ] Registrar tipo e descrição específicos e recibo real do Drive; testar envio automático, reanálise e falhas sem afirmar protocolo liberado.
+
 ## E-mail cadastral pela conversa — 23/10/2026
 - [x] Reconhecer e-mail válido informado pelo cliente sem anexo, salvar no cadastro e marcar o item real do checklist; preservar confirmação de alteração de checklist aprovado.
 - [x] Fornecer checklist real e e-mail cadastrado à Ana, solicitar dado faltante na coleta e impedir nova cobrança após recebimento.
