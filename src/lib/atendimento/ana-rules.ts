@@ -83,7 +83,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   const testAgenda=options.teste&&r.intencao==='agendamento'&&!prohibited&&!humano;
   const dadosAgenda = testAgenda && (options.tipoCliente === undefined || !options.nome?.trim() || !options.telefone);
   if(testAgenda&&!dadosAgenda){const ag=respostaAgendaTeste(texto,options.horarios??[],options.now,options.agendaReal,options.tipoCliente);result={...result,acao:'enviar',mensagem:ag.mensagem,encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:options.agendaReal?(ag.selected?'Equipe: confirmar reserva do horário escolhido no Google Calendar.':'Horários livres reais oferecidos pelo Google Calendar.'):'Agenda fictícia de teste; nenhuma reserva real.'};}
-  if(dadosAgenda)result={...result,acao:'enviar',mensagem:options.tipoCliente===undefined?'É seu primeiro contato ou você já é cliente do escritório?':!options.nome?.trim()?'Qual é seu nome completo?':'Qual é seu telefone com DDD para registrar a consulta?',encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:'Coletar carteira, nome e telefone antes de oferecer ou reservar horários.'};
+  if(dadosAgenda)result={...result,acao:'enviar',mensagem:options.tipoCliente===undefined?'É seu primeiro contato ou você já é cliente do escritório?':!options.nome?.trim()?'Qual é seu nome completo?':'Não consegui identificar o contato da conversa para o agendamento. Deixei a situação registrada para a equipe verificar.',encaminhar_humano:!!options.tipoCliente&&!!options.nome?.trim()&&!options.telefone,motivo_aprovacao:'',proximo_passo:'Coletar carteira, nome e telefone do canal antes de oferecer ou reservar horários.'};
   if(/cpf/i.test(result.mensagem)&&/\?/.test(result.mensagem)){result.mensagem='Para o agendamento não precisamos de CPF. Qual é seu nome completo?';}
   const sensitive = !prohibited&&!humano&&r.intencao!=='reclamacao'&&(['processo'].includes(r.intencao)||r.intencao==='agendamento'&&!testAgenda||/documentos? (?:faltantes|pendentes)/i.test(result.mensagem));
   if (sensitive || validarTextoEnvio(result.mensagem) && result.mensagem.trim()) result = {...result, acao:'rascunho',motivo_aprovacao:r.motivo_aprovacao || 'Revisão da equipe obrigatória; agenda real indisponível.'};
@@ -93,7 +93,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   if(perigo&&mode!=='Desligada'&&!result.mensagem.includes('190'))result.mensagem=mensagemBreveAna(`Se houver perigo imediato, ligue 190. ${result.mensagem}`,options.ultimaResposta);
   if(!result.mensagem.trim())result.acao='nenhuma';
   // Nunca exibir CPF completo, inclusive um CPF recém-coletado.
-  result.mensagem = result.mensagem.replace(/\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b/g, cpf=>`••••••••${cpf.replace(/\D/g,'').slice(-3)}`);
+  result.mensagem = result.mensagem.replace(/📅/g,'🗓️').replace(/\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b/g, cpf=>`••••••••${cpf.replace(/\D/g,'').slice(-3)}`);
   result.dados_coletados.cpf = '';
   if (result.dados_coletados.cpf && !/^\d{11}$/.test(result.dados_coletados.cpf.replace(/\D/g,''))) result.dados_coletados.cpf='';
   return result;

@@ -32,3 +32,9 @@ export function telefoneAgenda(telefone: string | undefined) {
   const digits = (telefone ?? '').replace(/\D/g, '');
   return /^\d{10,13}$/.test(digits) ? digits : undefined;
 }
+
+/** Usa apenas o remetente liberado desta mensagem, nunca o cadastro do caso vinculado. */
+export function telefoneCanalAgenda(contato: string | undefined, messageId: string) {
+  if (!contato || !messageId.startsWith(`ultramsg:${contato}:`)) return undefined;
+  return telefoneAgenda(contato.replace(/@.*$/, ''));
+}

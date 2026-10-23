@@ -8,7 +8,7 @@ export interface BotaoCanal { texto: string; dados: string }
 /** Um botão por horário (máx. 8), com o horário de Brasília legível. */
 export function botoesHorarios(isos: string[]): BotaoCanal[] {
   return [...new Set(isos)].filter(iso => Number.isFinite(Date.parse(iso))).slice(0, 8)
-    .map(iso => ({ texto: `📅 ${formatarHorarioCliente(iso)}`, dados: `${PREFIXO}${new Date(iso).toISOString()}` }));
+    .map(iso => ({ texto: `🗓️ ${formatarHorarioCliente(iso)}`, dados: `${PREFIXO}${new Date(iso).toISOString()}` }));
 }
 
 /** Lê o horário do clique; só aceita se ainda estiver entre os ofertados e no futuro. */

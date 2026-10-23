@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Conversa de agendamento — 23/10/2026
+- [ ] Usar telefone do remetente WhatsApp sem pedir DDD; preservar isolamento do caso vinculado.
+- [ ] Confirmar reserva real somente com data e horário e trocar calendário numerado por 🗓️.
+- [ ] Verificar testes e fluxo de reserva sem criar compromissos ou enviar mensagens de teste à cliente.
+
 ## WhatsApp exclusivo e acesso direto — 23/10/2026
 - [x] Suprimir Telegram dos controles e bloquear sua utilização, preservando o histórico; endpoint retorna 410.
 - [x] Cadastrar e liberar o número de teste informado em conversa própria “Teste WhatsApp”; vínculo relido após recarga.

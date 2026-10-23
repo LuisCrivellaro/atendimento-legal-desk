@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classificarEntrada, detectarOrigem, etiquetaConversa, identificarTipoCliente, telefoneAgenda } from '@/lib/atendimento/intake-rules';
+import { classificarEntrada, detectarOrigem, etiquetaConversa, identificarTipoCliente, telefoneAgenda, telefoneCanalAgenda } from '@/lib/atendimento/intake-rules';
 import { gerarHorarios, horarioPermitido, DURACAO_REUNIAO } from '@/lib/atendimento/schedule-rules';
 import { aplicarRegrasAna, type AnaResult } from '@/lib/atendimento/ana-rules';
 import { escolherReservaAna } from '@/lib/atendimento/calendar-booking';
@@ -15,6 +15,8 @@ describe('origem da landing page',()=>{
  it('não herda a origem de mensagens fictícias do caso Telegram',()=>expect(etiquetaConversa({...base,mensagens:[{id:'1',de:'cliente',texto:ac,hora:''},{id:'2',de:'cliente',texto:'Olá',hora:'',canal:'telegram'}]})).toBe('sem'));
  it('autodeclaração diferencia carteiras sem usar cadastro fictício',()=>{expect(identificarTipoCliente('Já sou cliente do escritório')).toBe('cadastrado');expect(identificarTipoCliente('Não sou cliente')).toBe('novo');expect(identificarTipoCliente(ac)).toBe('novo');expect(identificarTipoCliente('Olá')).toBeUndefined();});
  it('telefone não é inferido do chat_id nem de horário escolhido',()=>{expect(telefoneAgenda('839854097')).toBeUndefined();expect(telefoneAgenda('23/10 às 14h')).toBeUndefined();expect(telefoneAgenda('(11) 98765-4321')).toBe('11987654321');});
+ it('agenda usa o telefone fornecido pelo remetente WhatsApp sem coleta na mensagem',()=>expect(telefoneCanalAgenda('5511999600306','ultramsg:5511999600306:mensagem-1')).toBe('5511999600306'));
+ it('telefone de outro contato ou canal nunca identifica o remetente desta consulta',()=>{expect(telefoneCanalAgenda('5511999600306','ultramsg:5511987654321:mensagem-1')).toBeUndefined();expect(telefoneCanalAgenda('5511999600306','telegram:5511999600306:mensagem-1')).toBeUndefined();});
 });
 describe('agenda por carteira',()=>{
  it('todas as reuniões duram 30 min',()=>expect(DURACAO_REUNIAO).toBe(30));

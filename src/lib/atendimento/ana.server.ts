@@ -5,7 +5,7 @@ import { defaultState, type OfficeState } from '../office';
 import { defaultAutomations, newMessage, chosenSlot, formatarHorarioCliente } from '../atendimento';
 import { escolherReservaAna } from './calendar-booking';
 import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, horariosLivresAna } from './ana-rules';
-import { etiquetaConversa, identificarTipoCliente, telefoneAgenda } from './intake-rules';
+import { etiquetaConversa, identificarTipoCliente, telefoneCanalAgenda } from './intake-rules';
 import { horarioPermitido } from './schedule-rules';
 type Db=SupabaseClient<Database>;
 
@@ -23,8 +23,10 @@ export async function atualizarConversa(db:Db,id:string,fn:(c:Conversa)=>Convers
 }
 
 export async function processarAna(db:Db,id:string,messageId:string,request:Request) {
-  const [row,config]=await Promise.all([db.from('casos').select('owner_id,dados').eq('id',id).single(),db.from('atendimento_canal_config').select('*').eq('id',true).single()]);
+  const [row,config,remetente]=await Promise.all([db.from('casos').select('owner_id,dados').eq('id',id).single(),db.from('atendimento_canal_config').select('*').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo').eq('conversa_id',id).eq('canal','ultramsg').eq('status','liberado').maybeSingle()]);
   if(row.error||config.error||!config.data.agente_ativo||config.data.canal_ativo!=='ultramsg')return;
+  const telefone=telefoneCanalAgenda(remetente.data?.contato_externo,messageId);
+  if(remetente.error||!telefone)return;
   const canal='ultramsg' as const;
   const c=row.data.dados as unknown as Conversa;
   const ws=await db.from('office_workspace').select('dados').eq('owner_id',row.data.owner_id).maybeSingle();
@@ -47,7 +49,6 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
     const history=c.mensagens.filter(m=>m.canal===canal).slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
     const tipoCliente=c.tipoClienteAgenda??identificarTipoCliente(m.texto)??c.agenteAna?.tipoCliente;
-    const telefone=telefoneAgenda(m.texto)??c.agenteAna?.telefone;
     const etiqueta=etiquetaConversa(c);
     const raw=await gerarRespostaAna(request,{data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:'Não informado: consultar equipe.',horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
     if(chosenSlot(c.agenteAna?.horariosTeste??[],m.texto))raw.intencao='agendamento';
@@ -89,7 +90,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
           try{
             const {reservarGoogleCalendar}=await import('./google-calendar.server');
             const reserva=await reservarGoogleCalendar(id,escolhido,new Date(),{nome,telefone:telefone??'',tipo:tipoCliente??'novo'});
-            r.mensagem=`Sua consulta está confirmada para ${formatarHorarioCliente(reserva.inicio)}. O compromisso já foi criado no Google Calendar.`;
+            r.mensagem=`Sua consulta está confirmada para ${formatarHorarioCliente(reserva.inicio)}.`;
             r.proximo_passo='Consulta reservada automaticamente no Google Calendar.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
             await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,agenteAna:{...x.agenteAna,reservaCalendar:reserva,consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada no Google Calendar · ${formatarHorarioCliente(reserva.inicio)}`}]}));
