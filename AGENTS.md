@@ -33,7 +33,7 @@
 - Quick replies use pure rules and owner workspace overrides outside case material; why: no approval changes. Unfilled braces block sends.
 - Attendance channel management is directly accessible from the list header with existing senior/admin permissions; why: channel setup must not depend on selecting a conversation.
 
-- Intake labels and scheduling policy live in pure tested modules, shared by UI offers and server booking validation; booking contact identity is collected from the channel, not inherited from a linked demo case. Why: consistent day/duration rules without schema or legal-gate changes.
+- Intake labels and scheduling policy live in pure tested modules, shared by UI offers and server booking validation; booking phone comes from the released channel contact matched against the current message ID, not message text or the linked case. Why: consistent rules and authoritative sender identity without schema or legal-gate changes.
 - National Brazilian public holidays are checked using date-holidays; local office closures remain Calendar busy blocks until a location-specific policy is supplied. Why: avoid inventing municipal holiday jurisdiction.
 - Trato feito rules (base docs, AC/RT folder, phase, production notice) live in src/lib/atendimento/trato-feito.ts with tests; Production start stays manual; why: future automation must respect legal gates.
 - WhatsApp via UltraMsg is the only active real attendance channel; Telegram endpoints are retired and history preserved: sending through `canais/ultramsg.ts`, receiving at `/api/public/atendimento/whatsapp` (query secret + instance check), only released contacts linked to one conversation; why: keeps the same legal and test-contact gates as before.
