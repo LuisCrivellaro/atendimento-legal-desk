@@ -33,8 +33,48 @@ interface TelegramMessage {
   from?: { first_name?: string; last_name?: string };
   chat?: { id?: number };
   audio?: unknown;
-  document?: unknown;
-  photo?: unknown;
+  document?: { file_id?: string; file_name?: string; mime_type?: string; file_size?: number };
+  photo?: { file_id?: string; file_size?: number }[];
+}
+
+
+const MIMES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+/** Baixa o anexo do Telegram, guarda o original no caso e copia à pasta do cliente no Drive, se já criada. */
+async function guardarAnexoTelegram(admin: any, m: TelegramMessage, caso: { id: string; owner_id: string; dados: unknown }) {
+  const token = process.env['TELEGRAM_BOT_TOKEN'];
+  const foto = m.photo?.at(-1);
+  const fileId = m.document?.file_id ?? foto?.file_id;
+  const tamanho = m.document?.file_size ?? foto?.file_size ?? 0;
+  if (!token || !fileId || tamanho > 10 * 1024 * 1024) return undefined;
+  const mime = m.document ? (m.document.mime_type ?? '') : 'image/jpeg';
+  if (!MIMES.includes(mime)) return undefined;
+  try {
+    const info = await (await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${encodeURIComponent(fileId)}`)).json() as { ok?: boolean; result?: { file_path?: string } };
+    if (!info.ok || !info.result?.file_path) return undefined;
+    const r = await fetch(`https://api.telegram.org/file/bot${token}/${info.result.file_path}`);
+    if (!r.ok) return undefined;
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    if (bytes.length > 10 * 1024 * 1024) return undefined;
+    const nome = (m.document?.file_name ?? `foto_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.jpg`).replace(/[\\/]/g, '_').slice(0, 200);
+    const path = `${caso.owner_id}/${caso.id}/${crypto.randomUUID()}/${nome}`;
+    const up = await admin.storage.from('case-documents').upload(path, bytes, { upsert: false, contentType: mime });
+    if (up.error) return undefined;
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
+    const ws = await admin.from('office_workspace').select('dados').eq('owner_id', caso.owner_id).maybeSingle();
+    if (ws.data?.dados) {
+      const dados = ws.data.dados as { casos?: Record<string, { arquivos?: unknown[] }> };
+      const casos = { ...(dados.casos ?? {}) };
+      const atual = casos[caso.id] ?? {};
+      casos[caso.id] = { ...atual, arquivos: [...(atual.arquivos ?? []), { id: crypto.randomUUID(), nome, path, hash, mime, bytes: bytes.length, revisado: false, contrato: false }] };
+      await admin.from('office_workspace').update({ dados: { ...dados, casos } }).eq('owner_id', caso.owner_id);
+    }
+    let driveUrl: string | undefined;
+    const pasta = (caso.dados as { pastaDrive?: { id?: string } })?.pastaDrive?.id;
+    if (pasta) {
+      try { const { enviarArquivo } = await import('@/lib/atendimento/google-drive.server'); driveUrl = (await enviarArquivo(pasta, nome, mime, bytes)).url; } catch { /* original preservado no caso */ }
+    }
+    return { nome, path, driveUrl };
+  } catch { return undefined; }
 }
 
 export const Route = createFileRoute('/api/public/atendimento/telegram')({
@@ -97,7 +137,7 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
 
         const caso = await supabaseAdmin
           .from('casos')
-          .select('id,dados')
+          .select('id,owner_id,dados')
           .eq('id', contato.data.conversa_id)
           .maybeSingle();
         if (caso.error || !caso.data) {
@@ -127,6 +167,11 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
           canal: 'telegram',
           idExterno: clique ? `cb${clique.id}` : String(mensagem.message_id),
         };
+        if (tipo === 'arquivo' || tipo === 'imagem') {
+          const salvo = await guardarAnexoTelegram(supabaseAdmin, mensagem, caso.data as { id: string; owner_id: string; dados: unknown });
+          if (salvo) { novaMensagem.arquivo = salvo.nome; novaMensagem.path = salvo.path; novaMensagem.salvoStart = true; novaMensagem.tipo = tipo === 'imagem' ? 'imagem' : 'documento'; novaMensagem.driveUrl = salvo.driveUrl; }
+          await auditar('anexoRecebido', salvo ? `Anexo guardado${salvo.driveUrl ? ' e copiado ao Google Drive' : ''}` : 'Anexo não pôde ser baixado', salvo ? 'sucesso' : 'erro');
+        }
         const {atualizarConversa,processarAna}=await import('@/lib/atendimento/ana.server');
         try {
           await atualizarConversa(supabaseAdmin,caso.data.id,current=>current.mensagens.some(m=>m.id===novaMensagem.id)?current:classificarEntrada({...current,mensagens:[...current.mensagens,novaMensagem]}));

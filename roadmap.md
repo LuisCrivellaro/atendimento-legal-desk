@@ -167,3 +167,4 @@
 - [x] Botões clicáveis de horário no Telegram (Ana e atendente) com reserva no Google Calendar ao clicar.
 - [x] Modelos de mensagens do escritório nos atalhos e no treinamento da Ana (2 listas enviadas em 22/10).
 - Trato feito: Drive, ProJuris/ZapSign, Plaud e WhatsApp da Dra. simulados até autorização e credenciais.
+- Google Drive real: o TRATO FEITO cria a pasta Raiz/AC ou RT/Cliente; anexos (painel e Telegram) são copiados para ela; ProJuris/ZapSign/Plaud ainda simulados.

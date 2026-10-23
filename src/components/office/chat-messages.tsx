@@ -101,6 +101,7 @@ function Documento({ m, arquivo }: { m: Mensagem; arquivo?: CaseFile | undefined
   if (!url) return <div className="flex min-w-56 items-center gap-3 rounded-md bg-black/[0.045] px-2.5 py-2" title={m.path || arquivo ? (erro ? 'Não foi possível abrir o arquivo' : 'Carregando arquivo…') : 'Arquivo sem conteúdo guardado para abrir'}>{corpo}</div>;
   return <>
     <button type="button" onClick={() => setAberto(true)} aria-label={`Abrir ${nome}`} className="flex w-full min-w-56 items-center gap-3 rounded-md bg-black/[0.045] px-2.5 py-2 transition-colors hover:bg-black/[0.07] focus-visible:outline-2">{corpo}</button>
+    {m.driveUrl && <a href={m.driveUrl} target="_blank" rel="noreferrer" className="mt-1 block text-2xs text-primary underline">Ver no Google Drive</a>}
     <Visualizador open={aberto} onOpenChange={setAberto} nome={nome} url={url} imagem={false} />
   </>;
 }
