@@ -1,5 +1,8 @@
 # Construção dos módulos Manager ADV
 
+## Limpeza do atendimento fictício — 23/10/2026
+- [ ] Remover somente Juliana Moreira Lacerda, atendimento fictício em Aguardando da conta atual, e conferir a lista após exclusão.
+
 ## Cancelamento e remarcação autorizados — 23/10/2026
 - [x] Integrar Google Meet aos novos compromissos, exibir link em Consulta e histórico e incluí-lo na confirmação ao cliente. Agenda conectada confirmou suporte a Meet; criação de reunião validada com resposta substituída, sem gerar compromisso real.
 - [x] Adicionar em Consulta e histórico ações humanas de cancelar/reagendar, confirmação de diligência emergencial, aviso automático com desculpas e ofertas reais de novos horários. Modal conferido na sessão autenticada; nenhum cancelamento real executado.
