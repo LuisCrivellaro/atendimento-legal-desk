@@ -1,5 +1,5 @@
 import {describe,it,expect,vi,afterEach} from 'vitest';
-import {decidirAlteracaoConsulta} from '@/lib/atendimento/appointment-management';
+import {decidirAlteracaoConsulta,operacaoExpirada} from '@/lib/atendimento/appointment-management';
 import {cancelarGoogleCalendar,remarcarGoogleCalendar,ocupadosGoogleCalendar} from '@/lib/atendimento/google-calendar.server';
 const inicio='2026-10-26T12:00:00.000Z',fim='2026-10-26T12:30:00.000Z';
 const novaInicio='2026-10-27T12:00:00.000Z',novaFim='2026-10-27T12:30:00.000Z';
@@ -32,4 +32,7 @@ describe('alteração autorizada da consulta',()=>{
   await expect(remarcarGoogleCalendar('caso-1',reserva,novaInicio,true,new Date('2026-10-23T04:21:00Z'),{nome:'Maria',telefone:'5511999600306',tipo:'novo'})).rejects.toThrow('500');expect(f.mock.calls[7]?.[0]).toContain('ananovo');expect(f.mock.calls[7]?.[1].method).toBe('DELETE');
  });
  it('resposta incompleta da agenda nunca significa disponibilidade livre',async()=>{setup().mockResolvedValueOnce(json({calendars:{primary:{}}}));expect(await ocupadosGoogleCalendar()).toBeNull();});
+ it('operação sem data de início está expirada e não bloqueia novas ações',()=>expect(operacaoExpirada({})).toBe(true));
+ it('operação iniciada há 1 minuto ainda bloqueia novas ações',()=>expect(operacaoExpirada({desde:new Date(Date.now()-60000).toISOString()})).toBe(false));
+ it('operação travada há 20 minutos é liberada automaticamente',()=>expect(operacaoExpirada({desde:new Date(Date.now()-20*60000).toISOString()})).toBe(true));
 });
