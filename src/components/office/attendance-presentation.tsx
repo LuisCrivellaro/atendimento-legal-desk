@@ -16,6 +16,7 @@ import type { OfficeCase } from '@/lib/office';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { etiquetaConversa, etiquetasAcao, type EtiquetaAcao, type TipoCliente } from '@/lib/atendimento/intake-rules';
 import { AttendanceProjuris } from './attendance-projuris';
+import {AppointmentControls} from './appointment-controls';
 
 export function Hint({ label, children }: { label: string; children: ReactElement }) {
   return <TooltipProvider delayDuration={250}><Tooltip><TooltipTrigger asChild>{children}</TooltipTrigger><TooltipContent className="max-w-72 whitespace-normal">{label}</TooltipContent></Tooltip></TooltipProvider>;
