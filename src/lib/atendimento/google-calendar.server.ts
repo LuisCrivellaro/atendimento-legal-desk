@@ -8,7 +8,7 @@ async function calendarRequest(path: string, init: RequestInit = {}) {
   const lovable = process.env['LOVABLE_API_KEY'];
   const key = process.env['GOOGLE_CALENDAR_API_KEY'];
   if (!lovable || !key) throw new Error('Google Calendar não configurado. Nenhuma reserva confirmada.');
-  return fetch(`${GATEWAY_URL}${path}`, { ...init, headers: { Authorization: `Bearer ${lovable}`, 'X-Connection-Api-Key': key, 'Content-Type': 'application/json' } });
+  return fetch(`${GATEWAY_URL}${path}`, { ...init, headers: { Authorization: `Bearer ${lovable}`, 'X-Connection-Api-Key': key, 'Content-Type': 'application/json', ...init.headers } });
 }
 
 async function erroCalendar(res: Response): Promise<never> {
