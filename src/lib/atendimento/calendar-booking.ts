@@ -9,7 +9,13 @@ export function escolherReservaAna(input: { texto: string; horarios: string[]; r
   return slot && horarioPermitido(slot, input.tipoCliente ?? 'novo') && Date.parse(slot) > (input.now ?? new Date()).getTime() ? slot : undefined;
 }
 
-export interface ReservaCalendar { id: string; inicio: string; fim: string; url?: string; }
+export interface ReservaCalendar { id: string; inicio: string; fim: string; url?: string; meetUrl?:string; }
+
+export function linkMeet(event:{hangoutLink?:string;conferenceData?:{entryPoints?:{entryPointType?:string;uri?:string}[]}}) {
+ const url=event.hangoutLink??event.conferenceData?.entryPoints?.find(e=>e.entryPointType==='video')?.uri;
+ if(!url)return undefined;
+ try{const parsed=new URL(url);return parsed.protocol==='https:'&&parsed.hostname==='meet.google.com'?url:undefined;}catch{return undefined;}
+}
 
 /** ID por horário na agenda compartilhada impede duplicações entre mensagens e contatos. */
 export async function idReservaCalendar(inicio: string) {

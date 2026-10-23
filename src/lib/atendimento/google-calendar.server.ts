@@ -1,4 +1,4 @@
-import { idReservaCalendar, intervaloLivre, type ReservaCalendar } from './calendar-booking';
+import { idReservaCalendar, intervaloLivre, linkMeet, type ReservaCalendar } from './calendar-booking';
 import { DURACAO_REUNIAO, horarioPermitido } from './schedule-rules';
 import { telefoneAgenda, type TipoCliente } from './intake-rules';
 import { reservaDoAtendimento } from './appointment-management';
@@ -17,10 +17,23 @@ async function erroCalendar(res: Response): Promise<never> {
   throw new Error(`Google Calendar [${res.status}]: ${body}`);
 }
 
-type CalendarEvent = { id?: string; status?: string; htmlLink?: string; start?: { dateTime?: string }; end?: { dateTime?: string }; extendedProperties?: { private?: { conversa?: string } } };
+type CalendarEvent = { id?: string; status?: string; htmlLink?: string; hangoutLink?:string;conferenceData?:{entryPoints?:{entryPointType?:string;uri?:string}[];createRequest?:{status?:{statusCode?:string}}}; start?: { dateTime?: string }; end?: { dateTime?: string }; extendedProperties?: { private?: { conversa?: string } } };
 function validarReserva(event: CalendarEvent, conversaId: string, inicio: string, fim: string): ReservaCalendar {
   if (event.status === 'cancelled' || !event.id || event.extendedProperties?.private?.conversa !== conversaId || Date.parse(event.start?.dateTime ?? '') !== Date.parse(inicio) || Date.parse(event.end?.dateTime ?? '') !== Date.parse(fim)) throw new Error('Horário indisponível ou já reservado por outro atendimento.');
-  return { id: event.id, inicio, fim, ...(event.htmlLink ? { url: event.htmlLink } : {}) };
+  const meetUrl=linkMeet(event);
+  return { id: event.id, inicio, fim, ...(event.htmlLink ? { url: event.htmlLink } : {}),...(meetUrl?{meetUrl}:{}) };
+}
+
+async function receberReservaMeet(event:CalendarEvent,conversaId:string,inicio:string,fim:string){
+ let current=event;
+ const reserva=validarReserva(event,conversaId,inicio,fim);
+ for(let attempt=0;attempt<3&&!linkMeet(current)&&current.conferenceData?.createRequest?.status?.statusCode==='pending';attempt++){
+  await new Promise(resolve=>setTimeout(resolve,500));
+  const response=await calendarRequest(`/calendars/primary/events/${encodeURIComponent(reserva.id)}`);
+  if(!response.ok){console.error('Meet ainda indisponível',response.status);break;}
+  current=await response.json() as CalendarEvent;
+ }
+ return validarReserva(current,conversaId,inicio,fim);
 }
 
 /** Só chamado após validar webhook, contato, modo Automática e escolha inequívoca. Sem CPF, assunto jurídico ou convites. */
@@ -41,14 +54,14 @@ export async function reservarGoogleCalendar(conversaId: string, inicio: string,
   const calendar = availability.calendars?.['primary'];
   if (!calendar || calendar.errors?.length || !Array.isArray(calendar.busy)) throw new Error('Não foi possível verificar disponibilidade; nenhuma reserva confirmada.');
   if (!intervaloLivre(calendar.busy, inicio, fim)) throw new Error('Esse horário acabou de ficar ocupado. Escolha outro horário.');
-  const created = await calendarRequest(existingEvent?`/calendars/primary/events/${id}?sendUpdates=none`:'/calendars/primary/events?sendUpdates=none', { method: existingEvent?'PATCH':'POST', body: JSON.stringify({ id, status:'confirmed', summary: `Consulta CS Lawyers · ${cliente.nome.trim()}`, description: `Nome: ${cliente.nome.trim()}\nTelefone: ${telefoneAgenda(cliente.telefone)}\nReunião: 30 minutos`, start: { dateTime: inicio, timeZone: 'America/Sao_Paulo' }, end: { dateTime: fim, timeZone: 'America/Sao_Paulo' }, extendedProperties: { private: { conversa: conversaId } } }) });
+  const created = await calendarRequest(existingEvent?`/calendars/primary/events/${id}?sendUpdates=none&conferenceDataVersion=1`:'/calendars/primary/events?sendUpdates=none&conferenceDataVersion=1', { method: existingEvent?'PATCH':'POST', body: JSON.stringify({ id, status:'confirmed', summary: `Consulta CS Lawyers · ${cliente.nome.trim()}`, description: `Nome: ${cliente.nome.trim()}\nTelefone: ${telefoneAgenda(cliente.telefone)}\nReunião: 30 minutos`, start: { dateTime: inicio, timeZone: 'America/Sao_Paulo' }, end: { dateTime: fim, timeZone: 'America/Sao_Paulo' },conferenceData:{createRequest:{requestId:crypto.randomUUID(),conferenceSolutionKey:{type:'hangoutsMeet'}}}, extendedProperties: { private: { conversa: conversaId } } }) });
   if (created.status === 409) {
     const concurrent = await calendarRequest(`/calendars/primary/events/${id}`);
     if (!concurrent.ok) return erroCalendar(concurrent);
     return validarReserva(await concurrent.json(), conversaId, inicio, fim);
   }
   if (!created.ok) return erroCalendar(created);
-  return validarReserva(await created.json(), conversaId, inicio, fim);
+  return receberReservaMeet(await created.json(), conversaId, inicio, fim);
 }
 
 /** Períodos ocupados da agenda principal (somente leitura). Retorna null se indisponível. */

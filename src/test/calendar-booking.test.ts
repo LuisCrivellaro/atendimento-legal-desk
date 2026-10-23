@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { escolherReservaAna, idReservaCalendar, intervaloLivre } from '@/lib/atendimento/calendar-booking';
+import { escolherReservaAna, idReservaCalendar, intervaloLivre,linkMeet } from '@/lib/atendimento/calendar-booking';
 import { reservarGoogleCalendar } from '@/lib/atendimento/google-calendar.server';
 
 const inicio='2026-10-26T12:00:00.000Z', fim='2026-10-26T12:30:00.000Z';
@@ -11,6 +11,8 @@ const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status}
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
 function setup(){vi.stubEnv('LOVABLE_API_KEY','test');vi.stubEnv('GOOGLE_CALENDAR_API_KEY','test');return vi.fn();}
 describe('reserva automática autorizada',()=>{
+  it('link de reunião só aceita Google Meet HTTPS',()=>{expect(linkMeet({hangoutLink:'https://meet.google.com/abc-defg-hij'})).toBe('https://meet.google.com/abc-defg-hij');expect(linkMeet({hangoutLink:'https://outro.example/abc'})).toBeUndefined();});
+  it('cria reunião Meet e inclui link real no recibo',async()=>{const mock=setup().mockResolvedValueOnce(json({},404)).mockResolvedValueOnce(json({calendars:{primary:{busy:[]}}})).mockResolvedValueOnce(json({...event,hangoutLink:'https://meet.google.com/abc-defg-hij'}));vi.stubGlobal('fetch',mock);const r=await reservarGoogleCalendar('caso-1',inicio,now,cliente);expect(r.meetUrl).toBe('https://meet.google.com/abc-defg-hij');expect(mock.mock.calls[2]?.[0]).toContain('conferenceDataVersion=1');expect(JSON.parse(mock.mock.calls[2]?.[1].body).conferenceData.createRequest.conferenceSolutionKey.type).toBe('hangoutsMeet');});
   it('escolha única de horário real é reservável sem confirmação manual',()=>expect(escolherReservaAna(input)).toBe(inicio));
   it('horário fictício nunca gera reserva real',()=>expect(escolherReservaAna({...input,real:false})).toBeUndefined());
   it.each(['Sugerir','Desligada'])('modo %s nunca reserva',modo=>expect(escolherReservaAna({...input,modo})).toBeUndefined());
