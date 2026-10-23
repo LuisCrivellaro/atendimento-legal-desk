@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ analisar: vi.fn(), ana: vi.fn(), db: { from: vi.fn(), rpc: vi.fn(), storage: { from: vi.fn() } }, save: vi.fn() }));
+vi.mock('@/lib/atendimento/email.server', () => ({ registrarEmailConversa: vi.fn() }));
 vi.mock('@tanstack/react-router', () => ({ createFileRoute: () => (options: unknown) => options }));
 vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: mocks.db }));
 vi.mock('@/lib/documentos.server', () => ({ analisarAnexoDoCaso: mocks.analisar }));

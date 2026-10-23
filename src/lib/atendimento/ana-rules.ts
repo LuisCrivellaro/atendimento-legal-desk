@@ -77,7 +77,7 @@ export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=f
   const continuidade=emAgendamento&&['outro','duvida_geral'].includes(r.intencao);
   return pedido||r.intencao==='novo_caso'||continuidade?{...r,intencao:'agendamento'}:r;
 }
-export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined}={}):AnaResult {
+export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const humano = /(?:falar|conversar|atendimento).{0,35}(?:pessoa|humano|equipe|advogad|carolina)|(?:pessoa|humano).{0,25}(?:falar|atender)/.test(folded);
@@ -97,6 +97,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   if(/cpf/i.test(result.mensagem)&&/\?/.test(result.mensagem)){result.mensagem='Para o agendamento não precisamos de CPF. Qual é seu nome completo?';}
   const sensitive = !prohibited&&!humano&&r.intencao!=='reclamacao'&&(['processo'].includes(r.intencao)||r.intencao==='agendamento'&&!testAgenda||/documentos? (?:faltantes|pendentes)/i.test(result.mensagem));
   if (sensitive || validarTextoEnvio(result.mensagem) && result.mensagem.trim()) result = {...result, acao:'rascunho',motivo_aprovacao:r.motivo_aprovacao || 'Revisão da equipe obrigatória; agenda real indisponível.'};
+  if(options.emailPendente&&!humano&&!prohibited&&!urgent&&['documento','outro','duvida_geral'].includes(r.intencao)&&!perguntaKey(options.ultimaResposta??'').includes('email'))result={...result,acao:'enviar',mensagem:'Para completar seu cadastro, qual é o seu e-mail? Pode escrevê-lo aqui, sem anexar documento.',motivo_aprovacao:'',intencao:'documento',proximo_passo:'Aguardar e-mail do cliente para cadastro e checklist.'};
   if (mode==='Sugerir' && result.mensagem.trim()) result.acao='rascunho';
   if (mode==='Desligada') result = {...result,acao:'nenhuma',mensagem:''};
   if(!testAgenda)result.mensagem=mensagemBreveAna(result.mensagem,options.ultimaResposta);

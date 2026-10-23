@@ -22,7 +22,7 @@ export async function analisarAnexoDoCaso(db: SupabaseClient<Database>, casoId: 
     if (restored.error) throw new Error('Não foi possível recuperar a lista de documentos-base.');
     checklist.data.push(...restored.data);
   }
-  if (m.analiseDocumento && !confirmarAlteracao) return { ok: true as const, resultado: m.analiseDocumento, checklistAtualizado: m.checklistAtualizado === true, pendencia: m.pendenciaChecklist };
+  // Reutiliza extração, mas confere a tabela real: marcador antigo não comprova recebimento persistido.
   const file = await db.storage.from('case-documents').download(m.path);
   if (file.error || !file.data) throw new Error('Não foi possível ler o original guardado.');
   const mime = file.data.type.split(';')[0] ?? '';

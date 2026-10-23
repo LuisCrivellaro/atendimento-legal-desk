@@ -54,6 +54,17 @@ describe('análise do original recebido', () => {
     expect(f.download).not.toHaveBeenCalled(); expect(mocks.analisar).not.toHaveBeenCalled();
   });
   it('nome desconhecido não vira item recebido', () => { expect(itemIdentificado({ ...resultado, itemChecklist: 'Documento inventado' }, [{ nome: 'RG ou CNH', recebido: false }])).toBeUndefined(); });
+  it('comprovante de endereço reconhecido com ressalvas marca recebimento sem validar conteúdo', () => {
+    const doc = { nome: 'Comprovante de endereço', recebido: false };
+    expect(itemIdentificado({ ...resultado, tipoDocumento: 'Fatura de energia elétrica da Enel', itemChecklist: doc.nome, confianca: 'media' }, [doc])).toEqual(doc);
+    expect(itemIdentificado({ ...resultado, tipoDocumento: 'Fatura de energia', itemChecklist: doc.nome, confianca: 'baixa' }, [doc])).toBeUndefined();
+  });
+  it('reanálise reaproveita extração e recupera item que ficou desmarcado', async () => {
+    const f = fixture(); await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');
+    const item=f.itens[0]; if (!item) throw new Error('Item missing'); item.recebido=false;
+    await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');
+    expect(item.recebido).toBe(true); expect(mocks.analisar).toHaveBeenCalledOnce();
+  });
   it('recupera lista-base perdida no TRATO FEITO e marca somente RG ou CNH', async () => {
     const f = fixture(false, true); await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');
     expect(f.itens.map(d => d.nome)).toEqual(['RG ou CNH', 'CPF', 'Comprovante de endereço', 'E-mail']);

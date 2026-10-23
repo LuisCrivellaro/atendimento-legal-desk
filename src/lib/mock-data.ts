@@ -18,6 +18,7 @@ export type StatusMensagem = "simulada" | "enviada" | "entregue" | "lida";
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }
 export interface DocItem { id?: string | undefined; nome: string; recebido: boolean }
 export interface Conversa {
+  email?: string | undefined;
   etiquetaAcao?: import('./atendimento/intake-rules').EtiquetaAcao | undefined;
   pastaDrive?: { id: string; url: string } | undefined;
   tipoClienteAgenda?: import('./atendimento/intake-rules').TipoCliente;
