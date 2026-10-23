@@ -56,10 +56,16 @@ export async function garantirPastaCliente(caminho: string) {
 }
 
 /** Recebe o ID da pasta do cliente; todo original recebido entra em Start. */
-export async function enviarArquivo(pasta: string, nome: string, mime: string, bytes: Uint8Array) {
+export async function enviarArquivo(pasta: string, nome: string, mime: string, bytes: Uint8Array, documento?: { chave: string; tipo: string; descricao: string }) {
   const { start } = await garantirSubpastasCliente(pasta);
+  if (documento) {
+    const q = `'${esc(start)}' in parents and trashed=false and appProperties has { key='pdfOrigem' and value='${esc(documento.chave)}' }`;
+    const existentes = await ok<{ files: { id: string; webViewLink?: string }[] }>(await fetch(`${GATEWAY}/drive/v3/files?${new URLSearchParams({ q, fields: 'files(id,webViewLink)', pageSize: '1' })}`, { headers: headers() }), 'a busca de PDF preparado');
+    const existente = existentes.files[0];
+    if (existente) return { id: existente.id, url: existente.webViewLink ?? `https://drive.google.com/file/d/${existente.id}/view` };
+  }
   const limite = 'cslawyers' + crypto.randomUUID();
-  const meta = JSON.stringify({ name: nome, parents: [start] });
+  const meta = JSON.stringify({ name: nome, parents: [start], ...(documento ? { description: `Tipo de Documento: ${documento.tipo}\nDescrição: ${documento.descricao}\nCópia de organização; exige revisão jurídica antes do protocolo.`, appProperties: { pdfOrigem: documento.chave } } : {}) });
   const enc = new TextEncoder();
   const partes = [enc.encode(`--${limite}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${limite}\r\nContent-Type: ${mime}\r\n\r\n`), bytes, enc.encode(`\r\n--${limite}--`)];
   const corpo = new Uint8Array(partes.reduce((n, p) => n + p.length, 0));

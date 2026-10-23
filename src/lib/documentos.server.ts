@@ -5,6 +5,8 @@ import { executarAnaliseDocumento } from './documentos.functions';
 import { itemIdentificado } from './documentos-rules';
 import { atualizarConversa } from './atendimento/ana.server';
 import { DOCUMENTOS_BASE } from './atendimento/trato-feito';
+import { converterOriginalPdf } from './documento-pdf.server';
+import { nomePdfIdentificado, tipoEspecifico } from './documento-pdf-rules';
 
 /** Chamador já autenticou proprietário ou validou assinatura + contato liberado do webhook. */
 export async function analisarAnexoDoCaso(db: SupabaseClient<Database>, casoId: string, owner: string, mensagemId: string, confirmarAlteracao = false) {
@@ -33,6 +35,27 @@ export async function analisarAnexoDoCaso(db: SupabaseClient<Database>, casoId: 
     return result;
   }
   const item = itemIdentificado(result.resultado, checklist.data);
+  let pdfStart = m.pdfStart;
+  let pendenciaPdf: string | undefined;
+  if (!pdfStart) {
+    const tipo = tipoEspecifico(result.resultado);
+    if (!tipo || (result.resultado.confianca !== 'alta' && !item)) pendenciaPdf = 'Identificação incerta: conferir o tipo antes de preparar o PDF.';
+    else if (!c.pastaDrive?.id) pendenciaPdf = 'Pasta do cliente ainda não criada; original preservado para preparar o PDF em Start.';
+    else {
+      try {
+        const bytes = new Uint8Array(await file.data.arrayBuffer());
+        const hash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
+        const nome = nomePdfIdentificado(tipo, hash);
+        const pdf = await converterOriginalPdf(bytes, mime);
+        const { enviarArquivo } = await import('./atendimento/google-drive.server');
+        const recibo = await enviarArquivo(c.pastaDrive.id, nome, 'application/pdf', pdf, { chave: `${hash}:${nome}`, tipo, descricao: tipo });
+        pdfStart = { ...recibo, nome, tipoDocumento: tipo, descricao: tipo, bytes: pdf.length };
+      } catch (e) {
+        console.error('Preparação PDF em Start falhou:', e);
+        pendenciaPdf = e instanceof Error && /WEBP|10.000 KB/.test(e.message) ? e.message : 'Original preservado; PDF em Start pendente. Reanalise o original para tentar novamente.';
+      }
+    }
+  }
   let marcado = item?.recebido === true;
   let pendencia: string | undefined;
   if (item?.id && !marcado) {
@@ -46,8 +69,8 @@ export async function analisarAnexoDoCaso(db: SupabaseClient<Database>, casoId: 
     }
   }
   await atualizarConversa(db, casoId, x => ({ ...x,
-    mensagens: x.mensagens.map(a => a.id === mensagemId ? { ...a, analiseDocumento: result.resultado, tipoIdentificado: result.resultado.tipoDocumento, confirmarTipo: result.resultado.confianca !== 'alta', checklistAtualizado: marcado, pendenciaChecklist: pendencia, erroAnalise: undefined } : a),
+    mensagens: x.mensagens.map(a => a.id === mensagemId ? { ...a, pdfStart, pendenciaPdf, analiseDocumento: result.resultado, tipoIdentificado: result.resultado.tipoDocumento, confirmarTipo: result.resultado.confianca !== 'alta', checklistAtualizado: marcado, pendenciaChecklist: pendencia, erroAnalise: undefined } : a),
     timeline: x.mensagens.find(a => a.id === mensagemId)?.analiseDocumento ? x.timeline : [...(x.timeline ?? []), { data: new Date().toISOString(), evento: `IA identificou: ${result.resultado.tipoDocumento} (${m.arquivo ?? 'documento'})${marcado ? ' · checklist marcado' : ' · conferência pendente'}` }],
   }));
-  return { ...result, checklistAtualizado: marcado, pendencia };
+  return { ...result, checklistAtualizado: marcado, pendencia, pdfStart, pendenciaPdf };
 }
