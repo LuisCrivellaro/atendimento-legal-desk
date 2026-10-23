@@ -7,16 +7,16 @@ import { escolherReservaAna } from './calendar-booking';
 import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, horariosLivresAna, priorizarAgendamentoAna } from './ana-rules';
 import { etiquetaConversa, identificarTipoCliente, telefoneCanalAgenda } from './intake-rules';
 import { horarioPermitido } from './schedule-rules';
-import { decidirAlteracaoConsulta } from './appointment-management';
+import { decidirAlteracaoConsulta, operacaoExpirada } from './appointment-management';
 type Db=SupabaseClient<Database>;
 
 async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
   let claimed=false;
   await atualizarConversa(db,id,x=>{
     claimed=false;
-    if(x.agenteAna?.operacaoConsulta||x.agenteAna?.reservaCalendar?.id!==eventoId||x.mensagens.at(-1)?.id!==messageId||x.agenteAna?.humano||x.agenteAna?.pausa)return x;
+    if((x.agenteAna?.operacaoConsulta&&!operacaoExpirada(x.agenteAna.operacaoConsulta))||x.agenteAna?.reservaCalendar?.id!==eventoId||x.mensagens.at(-1)?.id!==messageId||x.agenteAna?.humano||x.agenteAna?.pausa)return x;
     claimed=true;
-    return {...x,agenteAna:{...x.agenteAna,operacaoConsulta:{mensagemId:messageId,eventoId,tipo}}};
+    return {...x,agenteAna:{...x.agenteAna,operacaoConsulta:{mensagemId:messageId,eventoId,tipo,desde:new Date().toISOString()}}};
   });
   if(!claimed)throw new Error('Alteração já em andamento ou consulta alterada; conferir antes de repetir.');
 }
@@ -167,7 +167,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     try {const body=JSON.parse(e.responseBody??'{}');safe=body.message??body.error?.message??safe;}catch {/* Não exibir corpo bruto. */}
     safe=safe.slice(0,400);
     const pause=e.statusCode===402||e.statusCode===403||e.statusCode===404||e.statusCode===401;
-    await atualizarConversa(db,id,current=>({...current,agenteAna:{...current.agenteAna,humano:true,pausa:pause,erro:safe,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
+    // Libera a operação de agenda travada pela falha; sem isso a conversa ficaria impedida de cancelar/remarcar para sempre.
+    await atualizarConversa(db,id,current=>({...current,agenteAna:{...current.agenteAna,humano:true,pausa:pause,erro:safe,operacaoConsulta:undefined,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
     if(pause) {
       // Pausa durável para todos os atendimentos do proprietário. Sem probes/retries.
       for(let attempt=0;attempt<5;attempt++){
