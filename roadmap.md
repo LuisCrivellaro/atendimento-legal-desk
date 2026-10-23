@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Análise automática de documentos — 23/10/2026
+- [ ] Analisar imagens/PDF recebidos pelo WhatsApp sem baixar e reenviar, preservando originais e os bloqueios jurídicos.
+- [ ] Persistir os dados extraídos e a marcação de itens reais do checklist, inclusive documentos-base adicionados pelo TRATO FEITO.
+- [ ] Verificar análise, marcação após recarga, incerteza e recebimento repetido sem duplicações.
+
 ## Limpeza do atendimento fictício — 23/10/2026
 - [x] Removido somente Juliana Moreira Lacerda da conta atual; exclusão confirmada e tela autenticada mostra Aguardando (0). Demais atendimentos preservados.
 
