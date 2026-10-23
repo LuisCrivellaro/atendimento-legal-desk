@@ -9,9 +9,9 @@ const mocks = vi.hoisted(() => ({ analisar: vi.fn() }));
 vi.mock('@/lib/documentos.functions', () => ({ executarAnaliseDocumento: mocks.analisar }));
 const resultado: ResultadoAnalise = { tipoDocumento: 'RG', itemChecklist: 'RG ou CNH', confianca: 'alta', nomeTitular: 'Pessoa Teste', cpf: null, datas: [], detalhesCaso: ['RG legível'], observacoes: null };
 
-function fixture(aprovado = false) {
-  let caso = { mensagens: [{ id: 'entrada', path: 'owner/caso/original/rg.png', arquivo: 'rg.png', tipo: 'imagem', de: 'cliente', texto: '', hora: '10:00' }], timeline: [] } as unknown as Conversa;
-  const itens = [{ id: 'item-rg', nome: 'RG ou CNH', recebido: false }];
+function fixture(aprovado = false, legado = false) {
+  let caso = { mensagens: [{ id: 'entrada', path: 'owner/caso/original/rg.png', arquivo: 'rg.png', tipo: 'imagem', de: 'cliente', texto: '', hora: '10:00' }], timeline: legado ? [{ data: '2026-10-23', evento: 'Trato feito · pasta criada' }] : [] } as unknown as Conversa;
+  const itens = legado ? [] : [{ id: 'item-rg', nome: 'RG ou CNH', recebido: false }];
   let writes = 0;
   const download = vi.fn(async () => ({ error: null, data: { type: 'image/png', size: 3, arrayBuffer: async () => new Uint8Array([1,2,3]).buffer } }));
   const db = { storage: { from: () => ({ download }) }, rpc: async () => ({ error: null, data: { checklist: aprovado } }), from(table: string) {
@@ -21,7 +21,7 @@ function fixture(aprovado = false) {
       if (patch) { writes++; const first = itens[0]; if (first) first.recebido = patch.recebido; }
       return { error: null, data: itens };
     };
-    const query: any = { select: () => query, eq: () => query, update: (p: any) => { patch = p; return query; }, single: async () => result(), then: (resolve: any) => Promise.resolve(result()).then(resolve) };
+    const query: any = { select: () => query, eq: () => query, insert: (p: any[]) => { itens.push(...p.map((x, i) => ({ id: `item-${i}`, nome: x.nome, recebido: x.recebido }))); return query; }, update: (p: any) => { patch = p; return query; }, single: async () => result(), then: (resolve: any) => { const r = result(); return Promise.resolve({ ...r, data: Array.isArray(r.data) ? [...r.data] : r.data }).then(resolve); } };
     return query;
   } };
   return { db: db as unknown as SupabaseClient<Database>, get caso() { return caso; }, itens, download, get writes() { return writes; } };
@@ -54,4 +54,9 @@ describe('análise do original recebido', () => {
     expect(f.download).not.toHaveBeenCalled(); expect(mocks.analisar).not.toHaveBeenCalled();
   });
   it('nome desconhecido não vira item recebido', () => { expect(itemIdentificado({ ...resultado, itemChecklist: 'Documento inventado' }, [{ nome: 'RG ou CNH', recebido: false }])).toBeUndefined(); });
+  it('recupera lista-base perdida no TRATO FEITO e marca somente RG ou CNH', async () => {
+    const f = fixture(false, true); await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');
+    expect(f.itens.map(d => d.nome)).toEqual(['RG ou CNH', 'CPF', 'Comprovante de endereço', 'E-mail']);
+    expect(f.itens.filter(d => d.recebido).map(d => d.nome)).toEqual(['RG ou CNH']);
+  });
 });
