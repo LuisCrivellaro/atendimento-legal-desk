@@ -1,6 +1,7 @@
 # Construção dos módulos Manager ADV
 
 ## Cancelamento e remarcação autorizados — 23/10/2026
+- [ ] Adicionar em Consulta e histórico ações humanas de cancelar/reagendar, aviso automático de diligência emergencial com desculpas e ofertas reais de novos horários.
 - [x] Consultar disponibilidade real em cada oferta; nunca oferecer simulação se a agenda falhar.
 - [x] Reconhecer consulta existente, perguntar cancelar/remarcar e executar apenas com autorização explícita; validar recibo, vincular consentimento de remarcação por 30 min e impedir alterações simultâneas. Reservar novo antes de cancelar anterior e desfazer novo se cancelamento falhar.
 - [x] Testes de disponibilidade, autorização, propriedade, rollback e cinco fluxos WhatsApp com integrações substituídas; nenhuma operação real executada. Nova publicação e teste real pelo cliente ainda necessários; consultas sem recibo verificável continuam sob conferência humana.
