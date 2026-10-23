@@ -11,7 +11,7 @@
 
 - AI calls run only in server functions (`src/lib/*.functions.ts`) via Lovable AI Gateway Responses with streamed structured output; why: keeps the key server-side.
 - External integrations use `src/services/integracoes.ts`; why: no third-party browser calls.
-- Integration readiness is a credential-presence-only authenticated server read; it never activates providers or proves connectivity. Claude preparation uses native Messages when activated and leaves existing Responses calls unchanged; why: setup must not silently send legal data, sign contracts, charge clients, or replace the current model.
+- Integration readiness only checks credentials with auth; Claude preparation leaves Responses unchanged. Why: setup must not send legal data, sign, charge or switch models.
 - Office pages live under `src/routes/_authenticated/` (client-only login gate); cases and checklist items are per-user rows protected by owner RLS, and new users get demo cases copied from `casos_modelo` by the signup trigger; why: each staff member has their own saved data.
 - Roles live only in `user_roles` (new users get `atendente`); why: prevents self-promotion.
 - Shared office pages use `office_workspace` owner-scoped state and private append-only document storage; why: drafts, review findings and original files persist without modifying originals.
@@ -21,10 +21,11 @@
 - Uploaded legal prompt texts are source-controlled server-only guidance, applied by practice area; why: preserves the supplied methodology without sending office prompts to the browser.
 - Draft review scheduling lives separately from legal material, with authenticated database functions for scoped queue reads and validated lawyer assignment; why: scheduling must not invalidate approvals or grant cross-owner material edits/approvals.
 - Client directory and quick search project saved cases into CPF-grouped client records, with authenticated role-scoped reads and owner-scoped case creation/history; why: keeps dashboard and client records consistent without duplicating case ownership or bypassing legal gates.
-- Integration connection checks are authenticated senior/admin read-only provider probes; credential presence never activates sending, signing, payment or import workflows; why: prevents silent legal-data transfer and financial actions.
+- Connection probes are senior/admin-only and read-only, never activate workflows. Why: no silent legal-data or financial actions.
 - Visual Law preview and DOCX share explicit block classification and document-layout roles; why: preserves source text and consistent formatting without importing area-specific legal claims.
 - Attendance and assessor rules are pure modules with tests; optional attendance fields stay in case JSON and automation settings stay at workspace root, without schema changes; why: preserves existing storage and legal gates.
 - Uploaded/WhatsApp originals share server analysis; extracted data is source-linked, confident matches update real checklist rows, approvals require confirmation, and new items persist. Why: prevent false receipt markers.
+- Drive creation/uploads share a server-only subfolder initializer; receipts retain client-root IDs and uploads resolve the intake subfolder. Why: same destinations for WhatsApp, staff and existing folders without moving originals.
 - Attendance AI reads the live checklist table and workspace training server-side through legalAI; why: checklist is not stored in case JSON and legal data must remain authoritative.
 - Demo reminders stay browser-only; Ana uses owner training, contact history and CAS claims/drafts/handoff. Calendar offers refresh real availability; bookings use slot IDs and verified receipts. Cancellation/rescheduling require deterministic client consent and conversation-owned receipts; reserve new before cancelling old, roll back on failure. Why: prevent duplicate, unauthorized or lost appointments without weakening legal gates.
 - Optional operational case fields can invalidate draft approval under the unchanged database revision function; why: preserving the existing legal gate takes priority over bypassing reapproval without a migration.
