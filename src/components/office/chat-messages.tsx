@@ -105,6 +105,11 @@ function Documento({ m, arquivo }: { m: Mensagem; arquivo?: CaseFile | undefined
   </>;
 }
 
+/** Quem respondeu: mensagens da IA aparecem como ANA; as humanas, com o nome do atendente. */
+export function nomeEmissor(autor?: string) {
+  if (!autor) return undefined;
+  return /^(ana\b|ia\b)/i.test(autor.trim()) ? 'ANA' : autor;
+}
 export function ChatMessages({ c, arquivos = [] }: { c: Conversa; arquivos?: CaseFile[] | undefined }) {
   const itens = agruparMensagens(c.mensagens);
   const porId = new Map(arquivos.map(a => [a.id, a]));
@@ -116,13 +121,15 @@ export function ChatMessages({ c, arquivos = [] }: { c: Conversa; arquivos?: Cas
     const imagem = !audio && !!m.arquivo && (m.tipo === 'imagem' || /\.(jpe?g|png|webp|heic|gif)$/i.test(m.arquivo));
     const arquivo = porId.get(m.id);
     const status = out ? m.status : undefined;
-    const meta = <span className="inline-flex items-center gap-1">{m.autor && <span className="font-medium">{m.autor} ·</span>}<span>{horaMensagem(m)}</span>{status && <StatusTique status={status} />}</span>;
-    const temMeta = !!(m.autor || m.dataHora || m.hora || status);
+    const meta = <span className="inline-flex items-center gap-1"><span>{horaMensagem(m)}</span>{status && <StatusTique status={status} />}</span>;
+    const temMeta = !!(m.dataHora || m.hora || status);
+    const emissor = out ? nomeEmissor(m.autor) : undefined;
     // Imagem sem legenda: horário vai por cima da foto, como no WhatsApp.
     const metaNaFoto = imagem && !m.texto && !!(m.path ?? arquivo?.path);
     return <div key={m.id}>{sep}<div data-message="true" className={cn('flex items-start gap-2', out ? 'justify-end' : 'justify-start', inicio ? 'pt-2' : 'pt-0.5')}>
       {!out && (inicio ? <ClienteAvatar nome={c.nome} className="mt-0.5" /> : <span className="w-8 shrink-0" aria-hidden="true" />)}
       <div className={cn('zap-bubble relative max-w-[78%] break-words text-sm leading-[1.45] lg:max-w-[65%]', imagem ? 'p-1' : 'px-2.5 pb-1.5 pt-1.5', out ? 'zap-out' : 'zap-in', inicio && 'zap-tail')}>
+        {emissor && <p className={cn('px-0.5 text-[13px] font-bold', emissor === 'ANA' ? 'text-primary' : 'text-foreground', imagem && 'px-1.5 pt-0.5')}>{emissor}</p>}
         {audio ? <Audio m={m} /> : imagem ? <Imagem m={m} arquivo={arquivo} meta={meta} /> : m.arquivo && <Documento m={m} arquivo={arquivo} />}
         {m.texto && <p className={cn('whitespace-pre-wrap px-0.5', m.arquivo && 'mt-1.5', imagem && 'px-1.5 pb-1')}>{m.texto}<span aria-hidden="true" className="invisible ml-3 inline-block text-2xs">{meta}</span></p>}
         {m.tipoIdentificado && <p className="mt-1 px-0.5 text-[13px] text-primary">{m.tipoIdentificado}</p>}
