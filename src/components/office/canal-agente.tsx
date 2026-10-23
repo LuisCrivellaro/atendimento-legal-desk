@@ -45,7 +45,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
     onConfig?.(salvo); await refresh();
   });
   const mudarFonte = (fonte: string) => void executar('Salvar fonte das sugestões', async () => {
-    const salvo = await saveConfig({ data: { canal_ativo: cfg?.canal_ativo ?? 'desligado', fonte_sugestoes: fonte as 'ia_manager' | 'agente' } });
+    const salvo = await saveConfig({ data: { canal_ativo: cfg?.canal_ativo === 'ultramsg' ? 'ultramsg' : 'desligado', fonte_sugestoes: fonte as 'ia_manager' | 'agente' } });
     onConfig?.(salvo); await refresh();
   });
   const canalContato = 'ultramsg' as const;
