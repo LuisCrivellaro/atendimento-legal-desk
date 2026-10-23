@@ -20,7 +20,7 @@ describe('Mensagens prontas', () => {
 
   it('sugere por etapa e prioriza documento recebido', () => {
     const all = mergeReplies();
-    expect(suggestedReplies(rogerio, all).map((r) => r.id)).toEqual(['ola', 'entender', 'verificar']);
+    expect(suggestedReplies(rogerio, all).map((r) => r.id)).toEqual(['ola', 'entender', 'cs-boas-vindas', 'cs-docs-contrato']);
     const comArquivo = { ...mariana, mensagens: [...mariana.mensagens, { id: 'x', de: 'cliente' as const, texto: '', arquivo: 'ctps.pdf', hora: '' }] };
     expect(suggestedReplies(comArquivo, all)[0]?.id).toBe('recebido');
     expect(suggestedReplies(helena, all).map((r) => r.id)).toContain('andamento');

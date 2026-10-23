@@ -5,6 +5,15 @@ import { z } from 'zod';
 import { mascararContato } from '@/lib/atendimento/canal-envio';
 import { classificarEntrada } from '@/lib/atendimento/intake-rules';
 import { destinoTelegram } from '@/lib/atendimento/telegram-bots';
+import { horarioDoClique, textoEscolhaHorario } from '@/lib/atendimento/botoes-horario';
+
+/** Responde ao clique e remove os botões para evitar cliques repetidos. Falhas aqui não bloqueiam o fluxo. */
+async function fecharClique(token: string | undefined, id: string, chatId: number, messageId: number | undefined, texto: string) {
+  if (!token) return;
+  const api = (m: string, body: unknown) => fetch(`https://api.telegram.org/bot${token}/${m}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).catch(() => undefined);
+  await api('answerCallbackQuery', { callback_query_id: id, text: texto });
+  if (messageId) await api('editMessageReplyMarkup', { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
+}
 
 function seguroIgual(a: string, b: string): boolean {
   const ba = Buffer.from(a);
@@ -40,11 +49,12 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
         const recebido = request.headers.get('X-Telegram-Bot-Api-Secret-Token') ?? '';
         if (!seguroIgual(recebido, secret)) return new Response('Unauthorized', { status: 401 });
 
-        const parsed = z.object({update_id:z.number().int().optional(),message:z.object({message_id:z.number().int(),text:z.string().max(16000).optional(),chat:z.object({id:z.number().int()})}).passthrough().optional(),edited_message:z.unknown().optional()}).safeParse(await request.json().catch(()=>null));
+        const parsed = z.object({update_id:z.number().int().optional(),message:z.object({message_id:z.number().int(),text:z.string().max(16000).optional(),chat:z.object({id:z.number().int()})}).passthrough().optional(),edited_message:z.unknown().optional(),callback_query:z.object({id:z.string().max(128),data:z.string().max(64).optional(),message:z.object({message_id:z.number().int(),chat:z.object({id:z.number().int()})}).passthrough().optional()}).passthrough().optional()}).safeParse(await request.json().catch(()=>null));
         if(!parsed.success)return Response.json({ok:true,ignorado:true});
         const update = parsed.data as TelegramUpdate;
         if(update.edited_message)return Response.json({ok:true,ignorado:true});
-        const mensagem = update.message;
+        const clique = parsed.data.callback_query;
+        const mensagem: TelegramMessage | undefined = update.message ?? (clique?.message ? { message_id: clique.message.message_id, chat: { id: clique.message.chat.id }, text: '' } : undefined);
         if (!mensagem?.chat?.id || typeof mensagem.message_id !== 'number') {
           return Response.json({ ok: true, ignorado: true });
         }
@@ -95,17 +105,27 @@ export const Route = createFileRoute('/api/public/atendimento/telegram')({
           return Response.json({ ok: true, ignorado: true });
         }
 
+        let textoClique: string | undefined;
+        if (clique) {
+          const atual = caso.data.dados as unknown as { horariosOfertados?: string[]; agenteAna?: { horariosTeste?: string[]; agendaReal?: boolean } };
+          const ofertados = [...(atual.agenteAna?.agendaReal ? atual.agenteAna.horariosTeste ?? [] : []), ...(atual.horariosOfertados ?? [])];
+          const iso = horarioDoClique(clique.data, ofertados);
+          await fecharClique(process.env['TELEGRAM_BOT_TOKEN'], clique.id, mensagem.chat.id, clique.message?.message_id, iso ? 'Horário recebido ✅' : 'Esse horário não está mais disponível.');
+          if (!iso) { await auditar('mensagemRecebida', 'Clique em horário inválido ou vencido', 'bloqueado'); return Response.json({ ok: true, ignorado: true }); }
+          textoClique = textoEscolhaHorario(iso);
+          mensagem.text = textoClique;
+        }
         const tipo = mensagem.text ? 'texto' : mensagem.audio ? 'audio' : mensagem.document ? 'arquivo' : mensagem.photo ? 'imagem' : 'arquivo';
         const agora = new Date();
         const novaMensagem: Mensagem = {
-          id: `telegram:${destino}:${mensagem.message_id}`,
+          id: clique ? `telegram:${destino}:cb${clique.id}` : `telegram:${destino}:${mensagem.message_id}`,
           de: 'cliente',
           texto: mensagem.text ?? '',
           arquivo: tipo === 'texto' ? undefined : `[${tipo} recebido pelo Telegram]`,
           hora: agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
           dataHora: agora.toISOString(),
           canal: 'telegram',
-          idExterno: String(mensagem.message_id),
+          idExterno: clique ? `cb${clique.id}` : String(mensagem.message_id),
         };
         const {atualizarConversa,processarAna}=await import('@/lib/atendimento/ana.server');
         try {

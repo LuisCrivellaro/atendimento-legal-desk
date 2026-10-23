@@ -164,3 +164,5 @@
 
 ## Pacote de continuação — 22/10/2026
 - [x] Gerar manager-adv-cs-lawyers_v3.zip com o estado atual do projeto para continuar em outra IA: 112 testes aprovados, compilação sem erros, sem .env nem chaves privadas.
+- [x] Botões clicáveis de horário no Telegram (Ana e atendente) com reserva no Google Calendar ao clicar.
+- [x] Modelos de mensagens do escritório nos atalhos e no treinamento da Ana (2 listas enviadas em 22/10).

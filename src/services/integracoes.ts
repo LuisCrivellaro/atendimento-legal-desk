@@ -57,9 +57,9 @@ async function call<T = { ok: true }>(acao: N8nAction, mock: () => T | Promise<T
 }
 
 /** Mensagens do Atendimento: enviadas pelo servidor através do canal ativo. */
-async function viaCanal(acao: N8nAction, p: { conversaId: string; texto: string }) {
+async function viaCanal(acao: N8nAction, p: { conversaId: string; texto: string; horarios?: string[] }) {
   try {
-    const r = await enviarMensagemCanal({ data: { conversaId: p.conversaId, acao, texto: p.texto } });
+    const r = await enviarMensagemCanal({ data: { conversaId: p.conversaId, acao, texto: p.texto, ...(p.horarios?.length ? { horarios: p.horarios } : {}) } });
     recordAudit(acao, 'sucesso', r.simulado ? 'Simulado — canal desligado' : 'Enviado pelo canal');
     return r;
   } catch (e) {
@@ -71,7 +71,7 @@ async function viaCanal(acao: N8nAction, p: { conversaId: string; texto: string 
 const ok = () => ({ ok: true as const });
 export const n8n = {
   enviarMensagem: (p: { conversaId: string; texto: string }) => viaCanal("enviarMensagem", p),
-  enviarHorarios: (p: { conversaId: string; texto: string }) => viaCanal("enviarHorarios", p),
+  enviarHorarios: (p: { conversaId: string; texto: string; horarios?: string[] }) => viaCanal("enviarHorarios", p),
   solicitarDocumentos: (p: { conversaId: string; texto: string }) => viaCanal("solicitarDocumentos", p),
   solicitarFaltantes: (p: { conversaId: string; texto: string }) => viaCanal("solicitarFaltantes", p),
   enviarListaProvas: (p: { conversaId: string; texto: string }) => viaCanal("enviarListaProvas", p),

@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
+import { botoesHorarios } from './botoes-horario';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -75,6 +76,8 @@ interface EnvioBase {
   acao: string;
   texto: string;
   contatoEsperado?: string;
+  /** Horários ofertados viram botões clicáveis no Telegram. */
+  horarios?: string[] | undefined;
 }
 
 /** Núcleo do envio: vale para mensagens da equipe e do sistema. O destino é sempre buscado no servidor. */
@@ -111,7 +114,7 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
       await auditar(supabase, ator, entrada.acao, 'Telegram não configurado', 'erro', 'Secret ausente');
       throw new Error('Telegram não configurado. Nada foi enviado.');
     }
-    const resultado = await telegramAdapter.enviarTexto(destinoBot.chatId, entrada.texto, { token });
+    const resultado = await telegramAdapter.enviarTexto(destinoBot.chatId, entrada.texto, { token, ...(entrada.horarios?.length ? { botoes: botoesHorarios(entrada.horarios) } : {}) });
     if (!resultado.ok) {
       // Falha: nada é registrado como enviado; o token nunca aparece no erro.
       await auditar(supabase, ator, entrada.acao, 'Falha no envio pelo Telegram', 'erro', resultado.erro);
@@ -127,18 +130,18 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
 /** Envio pela equipe: exige usuário autenticado do escritório. */
 export const enviarMensagemCanal = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ conversaId: z.string().uuid(), acao: z.string().min(1).max(60), texto: z.string().max(16000) }))
+  .inputValidator(z.object({ conversaId: z.string().uuid(), acao: z.string().min(1).max(60), texto: z.string().max(16000), horarios: z.array(z.string().datetime()).max(8).optional() }))
   .handler(async ({ data, context }) => {
     const ator = await atorDoUsuario(context.supabase, context.userId);
     return enviarComRegras(context.supabase, ator, data);
   });
 
 /** Envio pelo sistema (agente/lembretes): só chamável no servidor, pronto para a fase 3. Ainda não usado. */
-export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string; contatoEsperado?:string }) {
+export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string; contatoEsperado?:string; horarios?: string[] }) {
   return enviarComRegras(
     deps.supabase,
     { nome: 'agente', perfil: 'sistema' },
-    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto, ...(deps.contatoEsperado?{contatoEsperado:deps.contatoEsperado}:{}) },
+    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto, ...(deps.contatoEsperado?{contatoEsperado:deps.contatoEsperado}:{}), ...(deps.horarios?.length?{horarios:deps.horarios}:{}) },
   );
 }
 
