@@ -6,6 +6,7 @@ export function decidirAlteracaoConsulta(texto:string,existente:boolean,pendente
   if(!existente)return undefined;
   const t=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   if(/\bnao\b|\bnão\b|\b(?:talvez|pensar|manter)\b/.test(t))return undefined;
+  if(/\?|\b(?:como|posso|possivel|poderia|funciona)\b/.test(t))return 'perguntar';
   const cancelar=/\b(?:cancelar|cancele|cancela|cancelamento)\b/.test(t);
   const remarcar=/\b(?:remarcar|remarque|remarca|reagendar|reagendamento|remarcacao)\b/.test(t);
   if(cancelar&&remarcar)return 'perguntar';
