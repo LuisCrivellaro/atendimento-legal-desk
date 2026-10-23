@@ -17,6 +17,9 @@ export function decidirAlteracaoConsulta(texto:string,existente:boolean,pendente
   return undefined;
 }
 
+/** Operação de agenda travada há mais de 15 minutos (ou sem registro de início) não bloqueia novas ações. */
+export function operacaoExpirada(op?:{desde?:string},now=Date.now()){return !op||!op.desde||Date.parse(op.desde)<=now-15*60000;}
+
 export function reservaDoAtendimento(event:{id?:string;status?:string;start?:{dateTime?:string};end?:{dateTime?:string};extendedProperties?:{private?:{conversa?:string}}},conversaId:string,reserva:ReservaCalendar) {
   return event.id===reserva.id&&event.extendedProperties?.private?.conversa===conversaId&&Date.parse(event.start?.dateTime??'')===Date.parse(reserva.inicio)&&Date.parse(event.end?.dateTime??'')===Date.parse(reserva.fim);
 }

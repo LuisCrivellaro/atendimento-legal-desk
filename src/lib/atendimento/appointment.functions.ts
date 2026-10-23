@@ -1,6 +1,7 @@
 import {createServerFn} from '@tanstack/react-start';
 import {requireSupabaseAuth} from '@/integrations/supabase/auth-middleware';
 import {z} from 'zod';
+import {operacaoExpirada} from './appointment-management';
 
 export const alterarConsultaEquipe=createServerFn({method:'POST'})
  .middleware([requireSupabaseAuth])
@@ -35,9 +36,9 @@ export const alterarConsultaEquipe=createServerFn({method:'POST'})
   let claimed=false;
   await atualizarConversa(context.supabase,data.casoId,x=>{
    claimed=false;
-   if(x.agenteAna?.operacaoConsulta||x.agenteAna?.reservaCalendar?.id!==data.eventoId)return x;
+   if((x.agenteAna?.operacaoConsulta&&!operacaoExpirada(x.agenteAna.operacaoConsulta))||x.agenteAna?.reservaCalendar?.id!==data.eventoId)return x;
    claimed=true;
-   return {...x,agenteAna:{...x.agenteAna,operacaoConsulta:{mensagemId:operationId,eventoId:data.eventoId,tipo:'cancelar'}}};
+   return {...x,agenteAna:{...x.agenteAna,operacaoConsulta:{mensagemId:operationId,eventoId:data.eventoId,tipo:'cancelar',desde:new Date().toISOString()}}};
   });
   if(!claimed)throw new Error('Consulta alterada ou operação em andamento.');
   try{await cancelarGoogleCalendar(data.casoId,reserva,true);}
