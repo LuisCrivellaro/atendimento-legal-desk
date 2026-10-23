@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Subpastas dos clientes no Google Drive — 23/10/2026
+- [x] Criar 1- Start, 2- Revisao, 3- Upload e 4- Andamento processual dentro de cada pasta criada/reutilizada para o cliente.
+- [x] Direcionar novos documentos do WhatsApp e do Atendimento para 1- Start, inclusive em pastas anteriores; preservar arquivos existentes.
+- [x] Quatro testes aprovados; criação autenticada e leitura real das quatro subpastas de Teste WhatsApp confirmadas no Drive; compilação limpa. Destino do upload verificado com integração substituída, sem reenviar documentos existentes. Nova publicação necessária para os próximos recebimentos no site publicado.
+
 ## Análise automática de documentos — 23/10/2026
 - [x] Analisar imagens/PDF recebidos pelo WhatsApp sem baixar e reenviar, preservando originais e os bloqueios jurídicos; recebimento automático verificado com integração substituída.
 - [x] Persistir os dados extraídos e a marcação de itens reais do checklist, inclusive documentos-base adicionados pelo TRATO FEITO.
