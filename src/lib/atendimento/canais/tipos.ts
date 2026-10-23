@@ -25,6 +25,8 @@ export interface ResultadoEnvio {
 export interface ReferenciaCanal {
   /** Credencial do canal, fornecida apenas pelo servidor. */
   token?: string;
+  /** Botões clicáveis (Telegram), um por linha. */
+  botoes?: { texto: string; dados: string }[];
 }
 
 export interface AdaptadorCanal {

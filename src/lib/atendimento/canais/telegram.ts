@@ -9,7 +9,7 @@ interface RespostaTelegram {
   description?: string;
 }
 
-export async function enviarTextoTelegram(contatoExterno: string, texto: string, token: string): Promise<ResultadoEnvio> {
+export async function enviarTextoTelegram(contatoExterno: string, texto: string, token: string, botoes?: { texto: string; dados: string }[]): Promise<ResultadoEnvio> {
   if (!token) return { ok: false, erro: 'Telegram não configurado.' };
   const controlador = new AbortController();
   const limite = setTimeout(() => controlador.abort(), TIMEOUT_MS);
@@ -17,7 +17,7 @@ export async function enviarTextoTelegram(contatoExterno: string, texto: string,
     const resposta = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: contatoExterno, text: texto }),
+      body: JSON.stringify({ chat_id: contatoExterno, text: texto, ...(botoes?.length ? { reply_markup: { inline_keyboard: botoes.map(b => [{ text: b.texto, callback_data: b.dados }]) } } : {}) }),
       signal: controlador.signal,
     });
     const corpo = (await resposta.json().catch(() => undefined)) as RespostaTelegram | undefined;
@@ -35,5 +35,5 @@ export async function enviarTextoTelegram(contatoExterno: string, texto: string,
 
 export const telegramAdapter: AdaptadorCanal = {
   nome: 'telegram',
-  enviarTexto: (contatoExterno, texto, referencia) => enviarTextoTelegram(contatoExterno, texto, referencia?.token ?? ''),
+  enviarTexto: (contatoExterno, texto, referencia) => enviarTextoTelegram(contatoExterno, texto, referencia?.token ?? '', referencia?.botoes),
 };
