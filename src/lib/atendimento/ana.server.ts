@@ -24,7 +24,8 @@ export async function atualizarConversa(db:Db,id:string,fn:(c:Conversa)=>Convers
 
 export async function processarAna(db:Db,id:string,messageId:string,request:Request) {
   const [row,config]=await Promise.all([db.from('casos').select('owner_id,dados').eq('id',id).single(),db.from('atendimento_canal_config').select('*').eq('id',true).single()]);
-  if(row.error||config.error||!config.data.agente_ativo||config.data.canal_ativo!=='telegram')return;
+  if(row.error||config.error||!config.data.agente_ativo||(config.data.canal_ativo!=='telegram'&&config.data.canal_ativo!=='ultramsg'))return;
+  const canal=config.data.canal_ativo as 'telegram'|'ultramsg';
   const c=row.data.dados as unknown as Conversa;
   const ws=await db.from('office_workspace').select('dados').eq('owner_id',row.data.owner_id).maybeSingle();
   if(ws.error)throw new Error('Treinamento indisponível.');
@@ -44,14 +45,14 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   try {
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
-    const history=c.mensagens.filter(m=>m.canal==='telegram').slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
+    const history=c.mensagens.filter(m=>m.canal===canal).slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
     const tipoCliente=c.tipoClienteAgenda??identificarTipoCliente(m.texto)??c.agenteAna?.tipoCliente;
     const telefone=telefoneAgenda(m.texto)??c.agenteAna?.telefone;
     const etiqueta=etiquetaConversa(c);
     const raw=await gerarRespostaAna(request,{data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:'Não informado: consultar equipe.',horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
     if(chosenSlot(c.agenteAna?.horariosTeste??[],m.texto))raw.intencao='agendamento';
     const teste=config.data.modo_teste===true;
-    const previous=c.mensagens.filter(m=>m.canal==='telegram'&&m.de==='escritorio').at(-1)?.texto??'';
+    const previous=c.mensagens.filter(m=>m.canal===canal&&m.de==='escritorio').at(-1)?.texto??'';
     const nome=raw.dados_coletados.nome.trim()||c.agenteAna?.dados?.nome||'';
     let horarios=(c.agenteAna?.horariosTeste??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
     let agendaReal=c.agenteAna?.agendaReal===true&&horarios.length>0;
@@ -73,11 +74,11 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(!accepted)return;
     if(r.acao==='enviar'&&r.mensagem.trim()) {
       // Relê bloqueios imediatamente antes de enviar; alteração de modo/canal vence a geração.
-      const [fresh,cfg,contact,freshWorkspace]=await Promise.all([db.from('casos').select('dados').eq('id',id).single(),db.from('atendimento_canal_config').select('canal_ativo,agente_ativo,modo_teste').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo,status').eq('conversa_id',id).eq('canal','telegram').eq('status','liberado').maybeSingle(),db.from('office_workspace').select('dados').eq('owner_id',row.data.owner_id).maybeSingle()]);
+      const [fresh,cfg,contact,freshWorkspace]=await Promise.all([db.from('casos').select('dados').eq('id',id).single(),db.from('atendimento_canal_config').select('canal_ativo,agente_ativo,modo_teste').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo,status').eq('conversa_id',id).eq('canal',canal).eq('status','liberado').maybeSingle(),db.from('office_workspace').select('dados').eq('owner_id',row.data.owner_id).maybeSingle()]);
       const current=fresh.data?.dados as unknown as Conversa|undefined;
       const currentState=(freshWorkspace.data?.dados as unknown as OfficeState)??defaultState;
-      if(fresh.error||cfg.error||contact.error||freshWorkspace.error||!contact.data||!current||cfg.data?.canal_ativo!=='telegram'||!cfg.data.agente_ativo||(current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||currentState.anaPausa?.ativa||current.agenteAna?.humano&&!r.encaminhar_humano||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
-      if(!messageId.startsWith(`telegram:${contact.data.contato_externo}:`))return;
+      if(fresh.error||cfg.error||contact.error||freshWorkspace.error||!contact.data||!current||cfg.data?.canal_ativo!==canal||!cfg.data.agente_ativo||(current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||currentState.anaPausa?.ativa||current.agenteAna?.humano&&!r.encaminhar_humano||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
+      if(!messageId.startsWith(`${canal}:${contact.data.contato_externo}:`))return;
       const ofertasEquipe=(current.horariosOfertados??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
       const escolhido=escolherReservaAna({texto:m.texto,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
       if(escolhido){
@@ -115,7 +116,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       const {enviarMensagemSistema}=await import('./envio.functions');
       const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,...(!escolhido&&agendaReal&&!agenda?.selected&&agenda?.slots.length?{horarios:agenda.slots}:{})});
       if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');
-      await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal:'telegram',idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
+      await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal,idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
     }
     const audit=await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'agenteAna',p_resumo:`${mode} · ${r.acao} · ${r.intencao}${r.urgente?' · urgente':''}`,p_status:'sucesso'});
     if(audit.error)throw new Error('Falha ao registrar auditoria.');

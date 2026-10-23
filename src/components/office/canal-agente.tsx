@@ -12,7 +12,7 @@ import { etiquetaAcao, type CanalConfig } from '@/lib/atendimento/canal-envio';
 import { actionLabels, type AttendanceAction } from './attendance-actions';
 import {
   lerConfigCanal, salvarConfigCanal, listarContatosTeste, salvarContatoTeste,
-  registrarWebhookTelegram, verificarWebhookTelegram,
+  registrarWebhookTelegram, verificarWebhookTelegram, registrarWebhookUltramsg, verificarUltramsg,
 } from '@/lib/atendimento/envio.functions';
 import type { Conversa } from '@/lib/mock-data';
 
@@ -32,6 +32,8 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
   const saveContato = useServerFn(salvarContatoTeste);
   const registrar = useServerFn(registrarWebhookTelegram);
   const verificar = useServerFn(verificarWebhookTelegram);
+  const registrarWa = useServerFn(registrarWebhookUltramsg);
+  const verificarWa = useServerFn(verificarUltramsg);
   const [webhookInfo, setWebhookInfo] = useState<string>('');
   const bot = 'principal' as const;
   const [form, setForm] = useState({ nome: '', chatId: '', telefone: '' });
@@ -42,21 +44,22 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
 
   const cfg = config.data?.config;
   const mudarCanal = (canal: string) => void executar('Salvar canal', async () => {
-    if (canal === 'ultramsg') throw new Error('WhatsApp UltraMsg estará disponível em breve.');
-    const salvo = await saveConfig({ data: { canal_ativo: canal as 'desligado' | 'telegram', fonte_sugestoes: cfg?.fonte_sugestoes ?? 'ia_manager' } });
+    const salvo = await saveConfig({ data: { canal_ativo: canal as 'desligado' | 'telegram' | 'ultramsg', fonte_sugestoes: cfg?.fonte_sugestoes ?? 'ia_manager' } });
     onConfig?.(salvo); await refresh();
   });
   const mudarFonte = (fonte: string) => void executar('Salvar fonte das sugestões', async () => {
-    const salvo = await saveConfig({ data: { canal_ativo: cfg?.canal_ativo === 'telegram' ? 'telegram' : 'desligado', fonte_sugestoes: fonte as 'ia_manager' | 'agente' } });
+    const salvo = await saveConfig({ data: { canal_ativo: cfg?.canal_ativo ?? 'desligado', fonte_sugestoes: fonte as 'ia_manager' | 'agente' } });
     onConfig?.(salvo); await refresh();
   });
-  const adicionar = () => void executar('Adicionar contato de teste', async () => {
-    await saveContato({ data: { canal: 'telegram', bot, contatoExterno: form.chatId, nome: form.nome, telefoneFicticio: form.telefone, status: 'aguardando_liberacao' } });
+  const wa = cfg?.canal_ativo === 'ultramsg';
+  const canalContato = wa ? 'ultramsg' as const : 'telegram' as const;
+  const adicionar = () => void executar('Adicionar contato', async () => {
+    await saveContato({ data: { canal: canalContato, bot, contatoExterno: form.chatId, nome: form.nome, telefoneFicticio: form.telefone, status: 'aguardando_liberacao' } });
     setForm({ nome: '', chatId: '', telefone: '' }); await refresh();
   });
   const atualizar = (c: ContatoLista, patch: { status?: 'aguardando_liberacao' | 'liberado' | 'bloqueado'; conversaId?: string | null }) =>
     void executar('Atualizar contato de teste', async () => {
-      await saveContato({ data: { id: c.id, canal: c.canal as 'telegram', nome: c.nome, telefoneFicticio: c.telefone_ficticio, status: (patch.status ?? c.status) as 'aguardando_liberacao' | 'liberado' | 'bloqueado', conversaId: patch.conversaId === undefined ? c.conversa_id : patch.conversaId } });
+      await saveContato({ data: { id: c.id, canal: c.canal as 'telegram' | 'ultramsg', nome: c.nome, telefoneFicticio: c.telefone_ficticio, status: (patch.status ?? c.status) as 'aguardando_liberacao' | 'liberado' | 'bloqueado', conversaId: patch.conversaId === undefined ? c.conversa_id : patch.conversaId } });
       await refresh();
     });
 
@@ -71,11 +74,11 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
               <SelectContent>
                 <SelectItem value="desligado">Desligado (demonstração)</SelectItem>
                 <SelectItem value="telegram">Telegram</SelectItem>
-                <SelectItem value="ultramsg" disabled>WhatsApp UltraMsg · em breve</SelectItem>
+                <SelectItem value="ultramsg" disabled={!config.data?.segredos.ultramsg}>WhatsApp (UltraMsg)</SelectItem>
               </SelectContent>
             </Select>
           </label>
-          <p className="text-xs text-muted-foreground">Modo teste sempre ligado com Telegram.</p>
+          <p className="text-xs text-muted-foreground">Só contatos liberados recebem e enviam mensagens.</p>
         </div>
         <div className="mt-3 space-y-1 text-xs text-muted-foreground">
           <p className="font-medium text-foreground">@ManagerADV2Bot · bot de teste</p>
@@ -92,17 +95,29 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
               setWebhookInfo(r.registrado ? `Registrado · ${r.pendentes} atualizações pendentes${r.ultimoErro ? ` · último erro: ${r.ultimoErro}` : ''}` : 'Webhook não registrado.');
             })}><RefreshCw />Verificar webhook</Button>
         </div>
+        <div className="mt-3 space-y-1 border-t pt-3 text-xs text-muted-foreground">
+          <p className="font-medium text-foreground">WhatsApp · UltraMsg</p>
+          <p>Credenciais: {config.data?.segredos.ultramsg ? 'configuradas' : 'não configuradas'}</p>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" disabled={!config.data?.segredos.ultramsg}
+            onClick={() => void executar('Registrar recebimento do WhatsApp', async () => { const r = await registrarWa(); setWebhookInfo(r.descricao); })}>
+            <Webhook />Registrar recebimento do WhatsApp</Button>
+          <Button variant="outline" size="sm" disabled={!config.data?.segredos.ultramsg}
+            onClick={() => void executar('Verificar WhatsApp', async () => { const r = await verificarWa(); setWebhookInfo(`WhatsApp: ${r.status}${r.substatus ? ` · ${r.substatus}` : ''}`); })}>
+            <RefreshCw />Verificar WhatsApp</Button>
+        </div>
         {webhookInfo && <p className="mt-2 text-xs text-muted-foreground">{webhookInfo}</p>}
       </Cartao>
 
       <Cartao title="Contatos de teste">
         <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
           <Input aria-label="Nome do contato" placeholder="Nome" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} />
-          <Input aria-label="Chat ID do Telegram" placeholder="chat_id do Telegram" value={form.chatId} onChange={e => setForm({ ...form, chatId: e.target.value })} />
+          <Input aria-label={wa ? 'Número de WhatsApp' : 'Chat ID do Telegram'} placeholder={wa ? 'WhatsApp com DDD' : 'chat_id do Telegram'} value={form.chatId} onChange={e => setForm({ ...form, chatId: e.target.value })} />
           <Input aria-label="Telefone fictício" placeholder="Telefone fictício com DDD" value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} />
           <Button size="icon" aria-label="Adicionar contato" disabled={!form.chatId.trim() || !form.telefone.trim()} onClick={adicionar}><Plus /></Button>
         </div>
-        <div className="divide-y">{(contatos.data ?? []).filter(c => c.bot === 'principal').map(c => <div key={c.id} className="flex flex-wrap items-center gap-2 py-2 text-xs">
+        <div className="divide-y">{(contatos.data ?? []).filter(c => c.canal === canalContato && (wa || c.bot === 'principal')).map(c => <div key={c.id} className="flex flex-wrap items-center gap-2 py-2 text-xs">
           <span className="min-w-28 font-medium">{c.nome || 'Sem nome'}</span>
           <span className="text-muted-foreground">{c.contato_externo} · {c.telefone_ficticio}</span>
           <span className={c.status === 'liberado' ? 'text-success' : c.status === 'bloqueado' ? 'text-destructive' : 'text-pending-foreground'}>
@@ -126,7 +141,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
 
       <Cartao title="Agente">
         <label className="flex items-center justify-between gap-4 border-b pb-3 text-sm">Agente de IA
-          <Switch checked={cfg?.agente_ativo??false} disabled={cfg?.canal_ativo!=='telegram'} aria-label="Agente de IA" onCheckedChange={ativo=>void executar('Salvar agente Ana',async()=>{const salvo=await saveConfig({data:{canal_ativo:'telegram',fonte_sugestoes:'agente',agente_ativo:ativo}});onConfig?.(salvo);await refresh();})} />
+          <Switch checked={cfg?.agente_ativo??false} disabled={!cfg||cfg.canal_ativo==='desligado'} aria-label="Agente de IA" onCheckedChange={ativo=>void executar('Salvar agente Ana',async()=>{const salvo=await saveConfig({data:{canal_ativo:cfg?.canal_ativo==='ultramsg'?'ultramsg':'telegram',fonte_sugestoes:'agente',agente_ativo:ativo}});onConfig?.(salvo);await refresh();})} />
         </label>
         <p className="mt-1 text-xs text-muted-foreground">Ana · assistente virtual CS Lawyers</p>
         <label className="mt-3 block text-sm">Fonte das sugestões
@@ -144,7 +159,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
         <div className="grid gap-1 text-xs sm:grid-cols-2">{(Object.keys(actionLabels) as AttendanceAction[]).map(k => (
           <p key={k} className="flex items-center justify-between gap-2 border-b py-1.5">
             <span>{actionLabels[k]}</span>
-            <span className={cfg && etiquetaAcao(k === 'retorno' || k === 'confirmar' || k === 'video' || k === 'contrato' || k === 'cobranca' || k === 'registrarContrato' ? 'enviarMensagem' : k, cfg) === 'Real (Telegram)' ? 'text-success' : 'text-muted-foreground'}>
+            <span className={cfg && etiquetaAcao(k === 'retorno' || k === 'confirmar' || k === 'video' || k === 'contrato' || k === 'cobranca' || k === 'registrarContrato' ? 'enviarMensagem' : k, cfg) .startsWith('Real') ? 'text-success' : 'text-muted-foreground'}>
               {etiquetaAcao(k === 'retorno' || k === 'confirmar' || k === 'video' || k === 'contrato' || k === 'cobranca' || k === 'registrarContrato' ? 'enviarMensagem' : k, cfg ?? { canal_ativo: 'desligado', modo_teste: true, agente_ativo: false, fonte_sugestoes: 'ia_manager' })}
             </span>
           </p>))}
