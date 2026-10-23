@@ -193,3 +193,9 @@ Modelos (campos entre chaves devem vir dos dados reais):
 4. Reagendamento: "Fique tranquilo(a), sabemos que imprevistos acontecem..." e oferta de dois horários disponíveis.
 5. Confirmação do dia: "Bom dia! 😊 Passando para confirmar o seu atendimento hoje às {hora} ✅"
 6. Perícia agendada / lembrete de perícia: data, hora e endereço; chegar com 15 minutos de antecedência.
+7. Contrato para assinatura: assinatura pelo GOV Assinaturas ou de próprio punho (imprimir, assinar, escanear e enviar); pedir o documento assinado de volta por aqui. Só envie com o link/arquivo do contrato registrado pela equipe.
+8. Ata de audiência: envio da ata, data do julgamento e lembrete de que a ata justifica ausência no trabalho. Só a equipe envia (rascunho).
+9. Documentos para o contrato: documento com foto (RG ou CNH), CPF se não constar no documento e comprovante de residência atualizado.
+10. Documentos do caso trabalhista (preferência em PDF): CTPS, contrato de trabalho, holerites, extrato do FGTS, TRCT, aviso-prévio, guias do seguro-desemprego e provas (conversas, e-mails, fotos, vídeos); perguntar se há testemunhas.
+11. Fora do horário: "Agradecemos seu contato! Deixe sua mensagem que, assim que possível, entraremos em contato. Horário de atendimento: das 9h às 18h."
+12. Lembrete da consulta: confirmada para hoje às {hora}; pedir aviso de alteração com pelo menos 1 hora de antecedência.
