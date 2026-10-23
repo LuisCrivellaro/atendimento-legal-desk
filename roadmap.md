@@ -1,9 +1,9 @@
 # Construção dos módulos Manager ADV
 
 ## WhatsApp exclusivo e acesso direto — 23/10/2026
-- [ ] Suprimir Telegram dos controles e bloquear sua utilização, preservando o histórico.
-- [ ] Cadastrar e liberar o número de teste informado em conversa própria.
-- [ ] Exibir acesso direto a Canal e Agente e verificar o fluxo autenticado.
+- [x] Suprimir Telegram dos controles e bloquear sua utilização, preservando o histórico; endpoint retorna 410.
+- [x] Cadastrar e liberar o número de teste informado em conversa própria “Teste WhatsApp”; vínculo relido após recarga.
+- [x] Exibir acesso direto a Canal e Agente no topo da lista, inclusive sem conversa aberta; verificar fluxo autenticado, 55 testes aprovados e compilação limpa. Nova publicação necessária para disponibilizar os ajustes visuais e o bloqueio no site publicado; nenhuma mensagem externa enviada neste turno.
 
 ## Etiquetas e agenda da Ana — 23/10/2026
 - [x] Etiquetas AC/RT automáticas pela mensagem de entrada, filtro e ajuste manual no Atendimento.
