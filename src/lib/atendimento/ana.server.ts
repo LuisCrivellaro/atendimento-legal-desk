@@ -10,6 +10,17 @@ import { horarioPermitido } from './schedule-rules';
 import { decidirAlteracaoConsulta } from './appointment-management';
 type Db=SupabaseClient<Database>;
 
+async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
+  let claimed=false;
+  await atualizarConversa(db,id,x=>{
+    claimed=false;
+    if(x.agenteAna?.operacaoConsulta||x.agenteAna?.reservaCalendar?.id!==eventoId||x.mensagens.at(-1)?.id!==messageId||x.agenteAna?.humano||x.agenteAna?.pausa)return x;
+    claimed=true;
+    return {...x,agenteAna:{...x.agenteAna,operacaoConsulta:{mensagemId:messageId,eventoId,tipo}}};
+  });
+  if(!claimed)throw new Error('Alteração já em andamento ou consulta alterada; conferir antes de repetir.');
+}
+
 /** CAS: não substitui mensagens ou edições recebidas durante a geração. */
 export async function atualizarConversa(db:Db,id:string,fn:(c:Conversa)=>Conversa) {
   for(let attempt=0;attempt<5;attempt++) {
@@ -96,10 +107,11 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         const reserva=current.agenteAna?.reservaCalendar;
         if(!reserva||reserva.inicio!==current.consultaAgendada)throw new Error('Consulta sem recibo verificável; equipe deve conferir antes de cancelar.');
         const {cancelarGoogleCalendar}=await import('./google-calendar.server');
+        await assumirAlteracao(db,id,messageId,reserva.id,'cancelar');
         await cancelarGoogleCalendar(id,reserva,true);
         r.mensagem=`Sua consulta de ${formatarHorarioCliente(reserva.inicio)} foi cancelada.`;
         r.proximo_passo='Consulta cancelada com autorização do cliente.';
-        await atualizarConversa(db,id,x=>({...x,consultaAgendada:undefined,horariosOfertados:[],agenteAna:{...x.agenteAna,reservaCalendar:undefined,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],agendaReal:false,resultado:r,proximoPasso:r.proximo_passo},timeline:[...x.timeline,{data:new Date().toISOString(),evento:r.proximo_passo}]}));
+        await atualizarConversa(db,id,x=>({...x,consultaAgendada:undefined,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:undefined,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],agendaReal:false,resultado:r,proximoPasso:r.proximo_passo},timeline:[...x.timeline,{data:new Date().toISOString(),evento:r.proximo_passo}]}));
         await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'cancelarCalendar',p_resumo:r.proximo_passo,p_status:'sucesso'});
       }
       const ofertasEquipe=(current.horariosOfertados??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
@@ -115,12 +127,13 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
             if(current.consultaAgendada){
               const consent=current.agenteAna?.autorizacaoRemarcacao;
               if(!current.agenteAna?.reservaCalendar||!consent||consent.eventoId!==current.agenteAna.reservaCalendar.id||consent.inicio!==current.consultaAgendada||consent.contato!==telefone||Date.parse(consent.expira)<=Date.now())throw new Error('Remarcação sem autorização vigente para esta consulta.');
+              await assumirAlteracao(db,id,messageId,current.agenteAna.reservaCalendar.id,'remarcar');
             }
             const reserva=current.consultaAgendada&&current.agenteAna?.reservaCalendar?await remarcarGoogleCalendar(id,current.agenteAna.reservaCalendar,escolhido,true,new Date(),cliente):await reservarGoogleCalendar(id,escolhido,new Date(),cliente);
             r.mensagem=`Sua consulta está confirmada para ${formatarHorarioCliente(reserva.inicio)}.`;
             r.proximo_passo='Consulta reservada automaticamente no Google Calendar.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
-            await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada no Google Calendar · ${formatarHorarioCliente(reserva.inicio)}`}]}));
+            await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada no Google Calendar · ${formatarHorarioCliente(reserva.inicio)}`}]}));
             const audit=await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'reservaCalendar',p_resumo:`Compromisso confirmado · ${reserva.inicio}`,p_status:'sucesso'});
             if(audit.error)throw new Error('Reserva criada; falha de auditoria. Confira a Agenda.');
           }catch(error){

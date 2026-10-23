@@ -21,6 +21,7 @@ export interface AnaState {
    reservaCalendar?: import('./calendar-booking').ReservaCalendar | undefined;
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;
   autorizacaoRemarcacao?: {eventoId:string;inicio:string;contato:string;expira:string} | undefined;
+  operacaoConsulta?: {mensagemId:string;eventoId:string;tipo:'cancelar'|'remarcar'} | undefined;
 }
 export function horariosTesteAna(now = new Date(), tipo: TipoCliente = 'novo') {
  return gerarHorarios([], now, tipo, 3);
