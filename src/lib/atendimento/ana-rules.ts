@@ -67,6 +67,13 @@ export function expedienteAna(now = new Date()) {
 export function mensagemSemResposta(texto: string, arquivo = false) {
   return !arquivo && ['', 'ok','obrigado','obrigada','recebi','beleza','certo','perfeito','combinado'].includes(normalized(texto));
 }
+/** A disponibilidade da Ana não depende do expediente da equipe. */
+export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=false):AnaResult {
+  const folded=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const pedido=/\bagend(?:ar|amento)\b|\bmarcar\b.{0,30}\b(?:consulta|reuniao|horario)\b|\bconsulta\b/.test(folded);
+  const continuidade=emAgendamento&&['outro','duvida_geral'].includes(r.intencao);
+  return pedido||r.intencao==='novo_caso'||continuidade?{...r,intencao:'agendamento'}:r;
+}
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();

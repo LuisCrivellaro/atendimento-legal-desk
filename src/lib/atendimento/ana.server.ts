@@ -4,7 +4,7 @@ import type { Conversa } from '../mock-data';
 import { defaultState, type OfficeState } from '../office';
 import { defaultAutomations, newMessage, chosenSlot, formatarHorarioCliente } from '../atendimento';
 import { escolherReservaAna } from './calendar-booking';
-import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, horariosLivresAna } from './ana-rules';
+import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, horariosLivresAna, priorizarAgendamentoAna } from './ana-rules';
 import { etiquetaConversa, identificarTipoCliente, telefoneCanalAgenda } from './intake-rules';
 import { horarioPermitido } from './schedule-rules';
 type Db=SupabaseClient<Database>;
@@ -50,7 +50,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const history=c.mensagens.filter(m=>m.canal===canal).slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
     const tipoCliente=c.tipoClienteAgenda??identificarTipoCliente(m.texto)??c.agenteAna?.tipoCliente;
     const etiqueta=etiquetaConversa(c);
-    const raw=await gerarRespostaAna(request,{data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:'Não informado: consultar equipe.',horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
+    const gerada=await gerarRespostaAna(request,{data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:'Não informado: consultar equipe.',horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
+    const raw=priorizarAgendamentoAna(gerada,m.texto,c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada);
     if(chosenSlot(c.agenteAna?.horariosTeste??[],m.texto))raw.intencao='agendamento';
     const teste=config.data.modo_teste===true;
     const previous=c.mensagens.filter(m=>m.canal===canal&&m.de==='escritorio').at(-1)?.texto??'';
