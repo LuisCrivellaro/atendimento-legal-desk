@@ -38,16 +38,28 @@ export async function garantirPasta(nome: string, pai?: string): Promise<string>
   return criada.id;
 }
 
-/** Cria (ou reaproveita) Raiz / Categoria / Cliente a partir do caminho "Categoria/Cliente". */
+/** Garante a estrutura também em pastas antigas, sem mover ou alterar arquivos. */
+export async function garantirSubpastasCliente(pastaCliente: string) {
+  const nomes = ['1- Start', '2- Revisao', '3- Upload', '4- Andamento processual'] as const;
+  const ids = await Promise.all(nomes.map(nome => garantirPasta(nome, pastaCliente)));
+  const start = ids[0];
+  if (!start) throw new Error('Pasta Start indisponível.');
+  return { start };
+}
+
+/** Cria (ou reaproveita) Raiz / Categoria / Cliente e as quatro subpastas. */
 export async function garantirPastaCliente(caminho: string) {
   let pai = await garantirPasta(RAIZ_DRIVE);
   for (const parte of caminho.split('/').filter(Boolean)) pai = await garantirPasta(parte.slice(0, 200), pai);
+  await garantirSubpastasCliente(pai);
   return { id: pai, url: `https://drive.google.com/drive/folders/${pai}` };
 }
 
+/** Recebe o ID da pasta do cliente; todo original recebido entra em Start. */
 export async function enviarArquivo(pasta: string, nome: string, mime: string, bytes: Uint8Array) {
+  const { start } = await garantirSubpastasCliente(pasta);
   const limite = 'cslawyers' + crypto.randomUUID();
-  const meta = JSON.stringify({ name: nome, parents: [pasta] });
+  const meta = JSON.stringify({ name: nome, parents: [start] });
   const enc = new TextEncoder();
   const partes = [enc.encode(`--${limite}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${limite}\r\nContent-Type: ${mime}\r\n\r\n`), bytes, enc.encode(`\r\n--${limite}--`)];
   const corpo = new Uint8Array(partes.reduce((n, p) => n + p.length, 0));
