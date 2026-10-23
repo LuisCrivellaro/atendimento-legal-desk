@@ -23,6 +23,7 @@ import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authenticated/protocolo'
 import { Route as AuthenticatedTreinamentoRouteImport } from './routes/_authenticated/treinamento'
 import { Route as ApiPublicAtendimentoTelegramRouteImport } from './routes/api/public/atendimento/telegram'
+import { Route as ApiPublicAtendimentoWhatsappRouteImport } from './routes/api/public/atendimento/whatsapp'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -98,6 +99,12 @@ const ApiPublicAtendimentoTelegramRoute =
     path: '/api/public/atendimento/telegram',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicAtendimentoWhatsappRoute =
+  ApiPublicAtendimentoWhatsappRouteImport.update({
+    id: '/api/public/atendimento/whatsapp',
+    path: '/api/public/atendimento/whatsapp',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/protocolo': typeof AuthenticatedProtocoloRoute
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
+  '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -128,6 +136,7 @@ export interface FileRoutesByTo {
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/': typeof AuthenticatedIndexRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
+  '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -145,6 +154,7 @@ export interface FileRoutesById {
   '/_authenticated/treinamento': typeof AuthenticatedTreinamentoRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
+  '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/protocolo'
     | '/treinamento'
     | '/api/public/atendimento/telegram'
+    | '/api/public/atendimento/whatsapp'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/treinamento'
     | '/'
     | '/api/public/atendimento/telegram'
+    | '/api/public/atendimento/whatsapp'
   id:
     | '__root__'
     | '/_authenticated'
@@ -193,12 +205,14 @@ export interface FileRouteTypes {
     | '/_authenticated/treinamento'
     | '/_authenticated/'
     | '/api/public/atendimento/telegram'
+    | '/api/public/atendimento/whatsapp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicAtendimentoTelegramRoute: typeof ApiPublicAtendimentoTelegramRoute
+  ApiPublicAtendimentoWhatsappRoute: typeof ApiPublicAtendimentoWhatsappRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -301,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAtendimentoTelegramRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/atendimento/whatsapp': {
+      id: '/api/public/atendimento/whatsapp'
+      path: '/api/public/atendimento/whatsapp'
+      fullPath: '/api/public/atendimento/whatsapp'
+      preLoaderRoute: typeof ApiPublicAtendimentoWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -339,6 +360,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicAtendimentoTelegramRoute: ApiPublicAtendimentoTelegramRoute,
+  ApiPublicAtendimentoWhatsappRoute: ApiPublicAtendimentoWhatsappRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
