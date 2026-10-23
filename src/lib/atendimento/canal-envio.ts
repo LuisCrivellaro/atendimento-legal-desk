@@ -47,7 +47,7 @@ export interface DecisaoEnvio {
 /** Decide para onde vai a mensagem. Com canal desligado nenhuma chamada externa acontece. */
 export function decidirEnvio(config: CanalConfig, contato: Pick<ContatoTeste, 'status'> | null): DecisaoEnvio {
   if (config.canal_ativo === 'desligado') return { permitido: true, simulado: true };
-  if (config.canal_ativo === 'telegram') {
+  if (config.canal_ativo === 'telegram' || config.canal_ativo === 'ultramsg') {
     if (!contato || contato.status !== 'liberado') {
       return { permitido: false, simulado: false, motivo: 'Modo teste: contato não liberado. Nada foi enviado.' };
     }
@@ -63,11 +63,11 @@ export function podeGerenciarCanal(roles: string[]): boolean {
 
 /** Agente autorizado apenas no Telegram de teste. */
 export function sanitizarConfig(entrada: Partial<CanalConfig>): CanalConfig {
-  const canal = entrada.canal_ativo === 'telegram' ? 'telegram' : 'desligado';
+  const canal: CanalAtivo = entrada.canal_ativo === 'telegram' || entrada.canal_ativo === 'ultramsg' ? entrada.canal_ativo : 'desligado';
   return {
     canal_ativo: canal,
-    modo_teste: canal === 'telegram' ? true : entrada.modo_teste ?? true,
-    agente_ativo: canal === 'telegram' && entrada.agente_ativo === true,
+    modo_teste: canal !== 'desligado' ? true : entrada.modo_teste ?? true,
+    agente_ativo: canal !== 'desligado' && entrada.agente_ativo === true,
     fonte_sugestoes: entrada.fonte_sugestoes === 'agente' ? 'agente' : 'ia_manager',
   };
 }
@@ -85,6 +85,7 @@ export function resumoEnvio(canal: string, contatoExterno: string, telefoneFicti
 /** Ações do Atendimento que passam pelo canal; as demais seguem simuladas. */
 export const acoesMensagem = ['enviarMensagem', 'enviarHorarios', 'solicitarDocumentos', 'solicitarFaltantes', 'enviarListaProvas', 'lembrete'] as const;
 
-export function etiquetaAcao(acao: string, config: CanalConfig): 'Real (Telegram)' | 'Simulado' {
-  return config.canal_ativo === 'telegram' && (acoesMensagem as readonly string[]).includes(acao) ? 'Real (Telegram)' : 'Simulado';
+export function etiquetaAcao(acao: string, config: CanalConfig): 'Real (Telegram)' | 'Real (WhatsApp)' | 'Simulado' {
+  if (!(acoesMensagem as readonly string[]).includes(acao)) return 'Simulado';
+  return config.canal_ativo === 'telegram' ? 'Real (Telegram)' : config.canal_ativo === 'ultramsg' ? 'Real (WhatsApp)' : 'Simulado';
 }

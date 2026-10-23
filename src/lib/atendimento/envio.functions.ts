@@ -17,6 +17,7 @@ import {
 } from './canal-envio';
 import { normalizarTelefone } from './telefone';
 import { telegramAdapter } from './canais/telegram';
+import { ultramsgAdapter } from './canais/ultramsg';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
 
 type Db = SupabaseClient<Database>;
@@ -124,6 +125,25 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     return { ok: true as const, simulado: false as const, canal: 'telegram' as const, idExterno: resultado.idExterno };
   }
 
+  if (config.canal_ativo === 'ultramsg') {
+    const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','ultramsg').eq('status','liberado').maybeSingle();
+    if (destino.error) throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
+    const contato = destino.data;
+    if (entrada.contatoEsperado && contato?.contato_externo !== entrada.contatoEsperado) throw new Error('Vínculo do contato alterado; envio interrompido.');
+    if (!contato) {
+      await auditar(supabase, ator, entrada.acao, 'Envio recusado: contato WhatsApp não liberado', 'bloqueado');
+      throw new Error('Contato de WhatsApp não liberado para esta conversa. Nada foi enviado.');
+    }
+    if (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID']) throw new Error('WhatsApp não configurado. Nada foi enviado.');
+    const resultado = await ultramsgAdapter.enviarTexto(contato.contato_externo, entrada.texto, entrada.horarios?.length ? { botoes: botoesHorarios(entrada.horarios) } : undefined);
+    if (!resultado.ok) {
+      await auditar(supabase, ator, entrada.acao, 'Falha no envio pelo WhatsApp', 'erro', resultado.erro);
+      throw new Error('O envio pelo WhatsApp não foi concluído. Nada foi registrado como enviado.');
+    }
+    await auditar(supabase, ator, entrada.acao, resumoEnvio('whatsapp', contato.contato_externo, contato.telefone_ficticio, entrada.texto.length), 'sucesso');
+    return { ok: true as const, simulado: false as const, canal: 'ultramsg' as const, idExterno: resultado.idExterno };
+  }
+
   throw new Error('Canal indisponível.');
 }
 
@@ -156,6 +176,7 @@ export const lerConfigCanal = createServerFn({ method: 'GET' })
         webhook: Boolean(process.env['TELEGRAM_WEBHOOK_SECRET']?.trim()),
         telegram2: Boolean(process.env['TELEGRAM_BOT_TOKEN_2']?.trim()),
         webhook2: Boolean(process.env['TELEGRAM_WEBHOOK_SECRET_2']?.trim()),
+        ultramsg: Boolean(process.env['ULTRAMSG_TOKEN']?.trim() && process.env['ULTRAMSG_INSTANCE_ID']?.trim()),
       },
     };
   });
@@ -168,7 +189,7 @@ export const salvarConfigCanal = createServerFn({ method: 'POST' })
     agente_ativo: z.boolean().optional(),
   }))
   .handler(async ({ data, context }) => {
-    if (data.canal_ativo === 'ultramsg') throw new Error('WhatsApp UltraMsg estará disponível em breve.');
+    if (data.canal_ativo === 'ultramsg' && (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID'])) throw new Error('Credenciais do UltraMsg ausentes.');
     const ator = await exigirGestor(context.supabase, context.userId);
     const atual = await carregarConfig(context.supabase);
     const config = sanitizarConfig({...data,agente_ativo:data.agente_ativo??atual.agente_ativo});
@@ -219,11 +240,11 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
       telefone = atual.data?.telefone_ficticio ?? '';
     }
     if (telefone.length < 12) throw new Error('Informe o telefone fictício com DDD.');
-    if (!data.id && !(data.contatoExterno ?? '').trim()) throw new Error('Informe o chat_id do Telegram.');
+    if (!data.id && !(data.contatoExterno ?? '').trim()) throw new Error(data.canal === 'ultramsg' ? 'Informe o número de WhatsApp.' : 'Informe o chat_id do Telegram.');
     if (data.conversaId) {
       const caso = await context.supabase.from('casos').select('id').eq('id', data.conversaId).maybeSingle();
       if (caso.error || !caso.data) throw new Error('Conversa não encontrada para vincular.');
-      const outros = await context.supabase.from('atendimento_contatos_teste').select('id').eq('conversa_id', data.conversaId).eq('canal', 'telegram').eq('status', 'liberado');
+      const outros = await context.supabase.from('atendimento_contatos_teste').select('id').eq('conversa_id', data.conversaId).eq('canal', data.canal).eq('status', 'liberado');
       if (outros.error) throw new Error('Não foi possível verificar o vínculo.');
       if (data.status === 'liberado' && outros.data?.some(c => c.id !== data.id)) throw new Error('Esta conversa já tem um contato liberado; escolha outra conversa para separar os testes.');
     }
@@ -238,7 +259,7 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
       ? await context.supabase.from('atendimento_contatos_teste').update(registro).eq('id', data.id)
       : await context.supabase.from('atendimento_contatos_teste').insert({
           ...registro,
-          contato_externo: destinoTelegram(data.bot, (data.contatoExterno ?? '').trim()),
+          contato_externo: data.canal === 'ultramsg' ? normalizarTelefone(data.contatoExterno ?? '') : destinoTelegram(data.bot, (data.contatoExterno ?? '').trim()),
         });
     if (r.error) throw new Error('Não foi possível salvar o contato de teste.');
     await auditar(context.supabase, ator, 'salvarContatoTeste', `${data.nome.trim() || 'contato'} · ${data.status}`, 'sucesso');
@@ -326,3 +347,37 @@ export const registrarAuditoria = createServerFn({ method: 'POST' })
 
 // Referência mantida para verificação de tipos das regras puras no bundle do servidor.
 void podeGerenciarCanal;
+
+/** Registra no UltraMsg o endereço que recebe as mensagens do WhatsApp. Só sênior/admin. */
+export const registrarWebhookUltramsg = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ator = await exigirGestor(context.supabase, context.userId);
+    const inst = process.env['ULTRAMSG_INSTANCE_ID'], token = process.env['ULTRAMSG_TOKEN'], secret = process.env['ULTRAMSG_WEBHOOK_SECRET'];
+    if (!inst || !token || !secret) throw new Error('Credenciais do UltraMsg ausentes.');
+    const base = process.env['PUBLIC_APP_URL'] ?? 'https://atendimento-legal-desk.lovable.app';
+    const r = await fetch(`https://api.ultramsg.com/${encodeURIComponent(inst)}/instance/settings`, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ token, webhook_url: `${base}/api/public/atendimento/whatsapp?s=${secret}`, webhook_message_received: 'true', webhook_message_create: 'false', webhook_message_ack: 'false', webhook_message_download_media: 'true' }).toString(),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) {
+      await auditar(context.supabase, ator, 'registrarWebhookUltramsg', 'Falha ao registrar webhook', 'erro', `HTTP ${r.status}`);
+      throw new Error(`O UltraMsg não confirmou o registro (HTTP ${r.status}).`);
+    }
+    await auditar(context.supabase, ator, 'registrarWebhookUltramsg', 'Webhook WhatsApp registrado', 'sucesso');
+    return { ok: true as const, descricao: 'Recebimento de mensagens do WhatsApp registrado.' };
+  });
+
+/** Estado da instância (conectada ao celular ou não). */
+export const verificarUltramsg = createServerFn({ method: 'GET' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirGestor(context.supabase, context.userId);
+    const inst = process.env['ULTRAMSG_INSTANCE_ID'], token = process.env['ULTRAMSG_TOKEN'];
+    if (!inst || !token) throw new Error('Credenciais do UltraMsg ausentes.');
+    const r = await fetch(`https://api.ultramsg.com/${encodeURIComponent(inst)}/instance/status?token=${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(15000) });
+    const corpo = (await r.json().catch(() => undefined)) as { status?: { accountStatus?: { status?: string; substatus?: string } }; error?: unknown } | undefined;
+    if (!r.ok || !corpo?.status) throw new Error(`Não foi possível verificar o WhatsApp (HTTP ${r.status}).`);
+    return { status: corpo.status.accountStatus?.status ?? 'desconhecido', substatus: corpo.status.accountStatus?.substatus ?? '' };
+  });
