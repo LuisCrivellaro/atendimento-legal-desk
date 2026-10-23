@@ -22,6 +22,20 @@ export async function listarCasos(): Promise<Conversa[]> {
 
 export async function salvarCaso(antes: Conversa, depois: Conversa) {
   const { id, documentos, naoLidas: _n, ...dados } = depois;
+  const novos = documentos.filter(d => !d.id);
+  if (novos.length) {
+    const owner = await supabase.from('casos').select('owner_id').eq('id', id).single();
+    if (owner.error) throw owner.error;
+    const existentes = await supabase.from('checklist_itens').select('id,nome,recebido').eq('caso_id', id);
+    if (existentes.error) throw existentes.error;
+    const faltantes = novos.filter(d => !existentes.data.some(x => x.nome === d.nome));
+    if (faltantes.length) {
+      const insert = await supabase.from('checklist_itens').insert(faltantes.map((d, i) => ({ caso_id: id, owner_id: owner.data.owner_id, nome: d.nome, recebido: d.recebido, ordem: existentes.data.length + i }))).select('id,nome,recebido');
+      if (insert.error) throw insert.error;
+      existentes.data.push(...insert.data);
+    }
+    documentos.forEach(d => { if (!d.id) d.id = existentes.data.find(x => x.nome === d.nome)?.id; });
+  }
   // Não sobrescrever mensagens/estado da Ana que chegaram depois da última leitura da equipe.
   let saved=false;
   for(let attempt=0;attempt<5;attempt++) {

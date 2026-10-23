@@ -6,6 +6,7 @@ export const PIPELINE = ["Atendimento inicial", "Contrato assinado", "Coleta de 
 export type Sync = "sincronizado" | "pendente" | "erro";
 
 export interface Mensagem {
+  analiseDocumento?: import('./documentos-rules').ResultadoAnalise | undefined; checklistAtualizado?: boolean | undefined; pendenciaChecklist?: string | undefined; erroAnalise?: string | undefined;
   canal?: string; idExterno?: string | undefined; respostaAnaDe?: string;
   id: string; de: "cliente" | "escritorio" | "sistema"; texto: string; hora: string;
   iaProcessada?: boolean; automacaoKey?: string; dataHora?: string | undefined; autor?: string | undefined; tipoIdentificado?: string | undefined; confirmarTipo?: boolean | undefined; path?: string | undefined; driveUrl?: string | undefined;

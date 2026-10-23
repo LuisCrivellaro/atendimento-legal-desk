@@ -34,7 +34,7 @@ export function AttendanceMenu({ open, onOpenChange, c, busy, primary, choose, i
 }
 
 export function AttendanceDetails({ c, update, summary, refreshSummary, busy, jobs, updateContract, initialTab = 'cliente', work, loadingRecords, recordsError, refreshRecords }: {
-  c: Conversa; update: (fn: (c: Conversa) => Conversa) => void; summary: string; refreshSummary: () => void;
+  c: Conversa; update: (fn: (c: Conversa) => Conversa) => Promise<unknown>; summary: string; refreshSummary: () => void;
   busy: boolean; jobs: ReturnType<typeof programmed>; updateContract: () => void; initialTab?: string;
   work: OfficeCase; loadingRecords: boolean; recordsError: boolean; refreshRecords: () => Promise<unknown>;
 }) {

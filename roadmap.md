@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Análise automática de documentos — 23/10/2026
+- [x] Analisar imagens/PDF recebidos pelo WhatsApp sem baixar e reenviar, preservando originais e os bloqueios jurídicos; recebimento automático verificado com integração substituída.
+- [x] Persistir os dados extraídos e a marcação de itens reais do checklist, inclusive documentos-base adicionados pelo TRATO FEITO.
+- [x] Análise real do RG já recebido na conversa Teste WhatsApp: extração salva e RG ou CNH marcado após recarga; lista-base recuperada (4 itens). 19 testes aprovados, incluindo incerteza, confirmação de aprovação e repetição; compilação limpa.
+- [ ] Recebimento automático no WhatsApp publicado — depende de publicar esta atualização e enviar novo documento; nenhum envio externo realizado nesta verificação.
+
 ## Limpeza do atendimento fictício — 23/10/2026
 - [x] Removido somente Juliana Moreira Lacerda da conta atual; exclusão confirmada e tela autenticada mostra Aguardando (0). Demais atendimentos preservados.
 
