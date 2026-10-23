@@ -57,4 +57,22 @@ describe('pastas e originais do Google Drive', () => {
     await expect(enviarArquivo('cliente', 'rg.png', 'image/png', new Uint8Array([1]))).rejects.toThrow();
     expect(uploaded).toBe('');
   });
+  it('envia PDF identificado a Start com tipo e descrição específicos e chave de origem', async () => {
+    folders.set('cliente/1- Start', 'start-id');
+    await enviarArquivo('cliente', 'Comprovante_Residencia_abcdef123456.pdf', 'application/pdf', new Uint8Array([65]), { chave: 'hash:pdf', tipo: 'Comprovante de Residência', descricao: 'Comprovante de Residência' });
+    expect(uploaded).toContain('"parents":["start-id"]');
+    expect(uploaded).toContain('Tipo de Documento: Comprovante de Residência');
+    expect(uploaded).toContain('Descrição: Comprovante de Residência');
+    expect(uploaded).toContain('"pdfOrigem":"hash:pdf"');
+    expect(uploaded).toContain('Content-Type: application/pdf');
+  });
+  it('reaproveita o recibo da mesma origem sem reenviar o PDF', async () => {
+    const originalFetch = fetch;
+    vi.stubGlobal('fetch', vi.fn(async (input: string, init?: RequestInit) => {
+      if (new URL(input).searchParams.get('q')?.includes("key='pdfOrigem'")) return Response.json({ files: [{ id: 'pdf-existente' }] });
+      return originalFetch(input, init);
+    }));
+    const receipt = await enviarArquivo('cliente', 'RG_abcdef123456.pdf', 'application/pdf', new Uint8Array([65]), { chave: 'hash:pdf', tipo: 'RG', descricao: 'RG' });
+    expect(receipt.id).toBe('pdf-existente'); expect(uploaded).toBe('');
+  });
 });

@@ -4,9 +4,11 @@ import type { Database } from '@/integrations/supabase/types';
 import type { Conversa } from '@/lib/mock-data';
 import { itemIdentificado, type ResultadoAnalise } from '@/lib/documentos-rules';
 import { analisarAnexoDoCaso } from '@/lib/documentos.server';
+import { PDFDocument } from 'pdf-lib';
 
-const mocks = vi.hoisted(() => ({ analisar: vi.fn() }));
+const mocks = vi.hoisted(() => ({ analisar: vi.fn(), enviar: vi.fn() }));
 vi.mock('@/lib/documentos.functions', () => ({ executarAnaliseDocumento: mocks.analisar }));
+vi.mock('@/lib/atendimento/google-drive.server', () => ({ enviarArquivo: mocks.enviar }));
 const resultado: ResultadoAnalise = { tipoDocumento: 'RG', itemChecklist: 'RG ou CNH', confianca: 'alta', nomeTitular: 'Pessoa Teste', cpf: null, datas: [], detalhesCaso: ['RG legível'], observacoes: null };
 
 function fixture(aprovado = false, legado = false) {
@@ -34,6 +36,24 @@ describe('análise do original recebido', () => {
     expect(f.itens[0]?.recebido).toBe(true);
     expect(f.caso.mensagens[0]?.analiseDocumento?.nomeTitular).toBe('Pessoa Teste');
     expect(mocks.analisar).toHaveBeenCalledWith(expect.objectContaining({ mimeType: 'image/png', checklist: ['RG ou CNH'] }));
+  });
+  it('após identificar envia PDF específico a Start e persiste recibo sem substituir original ou reenviar', async () => {
+    const f = fixture(); f.caso.pastaDrive = { id: 'cliente-drive', url: 'https://drive.google.com/drive/folders/cliente-drive' };
+    const doc = await PDFDocument.create(); doc.addPage(); const bytes = await doc.save();
+    f.download.mockResolvedValue({ error: null, data: { type: 'application/pdf', size: bytes.length, arrayBuffer: async () => bytes.slice().buffer } });
+    mocks.enviar.mockResolvedValue({ id: 'pdf-id', url: 'https://drive.google.com/file/d/pdf-id/view' });
+    await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');
+    expect(mocks.enviar).toHaveBeenCalledWith('cliente-drive', expect.stringMatching(/^RG_[a-f0-9]{12}\.pdf$/), 'application/pdf', bytes, expect.objectContaining({ tipo: 'RG', descricao: 'RG' }));
+    expect(f.caso.mensagens[0]?.pdfStart?.id).toBe('pdf-id');
+    expect(f.caso.mensagens[0]?.path).toBe('owner/caso/original/rg.png');
+    await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');
+    expect(mocks.enviar).toHaveBeenCalledOnce();
+  });
+  it('falha de conversão não desfaz extração ou recebimento e informa pendência', async () => {
+    const f = fixture(); f.caso.pastaDrive = { id: 'cliente-drive', url: 'https://drive.google.com/drive/folders/cliente-drive' };
+    await analisarAnexoDoCaso(f.db, 'caso', 'owner', 'entrada');
+    expect(f.itens[0]?.recebido).toBe(true); expect(f.caso.mensagens[0]?.pendenciaPdf).toBeTruthy();
+    expect(f.caso.mensagens[0]?.pdfStart).toBeUndefined(); expect(mocks.enviar).not.toHaveBeenCalled();
   });
   it('confiança média preserva checklist para revisão humana', async () => {
     mocks.analisar.mockResolvedValue({ ok: true, resultado: { ...resultado, confianca: 'media' } });

@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## PDFs identificados na pasta Start — 23/10/2026
+- [x] Gerar cópias PDF de JPG/PNG e preservar PDF existente, com nomes específicos abaixo de 100 caracteres e teto conservador de 10.000 KB; originais e revisões jurídicas preservados. WEBP permanece original com pendência explícita de conversão conferida.
+- [x] Registrar tipo, descrição e recibo de PDF no atendimento; busca por hash evita reenvio após falha de persistência. 27 testes aprovados de conversão, nomes, destino Start, reanálise e falhas; compilação limpa.
+- [ ] Confirmar recebimento novo e PDF no Drive publicado — depende de nova publicação e documento do cliente de teste. Conta disponível na prévia possui apenas conversas-modelo sem originais; aba Documentos conferida, sem enviar arquivo fictício ao Drive.
+
 ## E-mail cadastral pela conversa — 23/10/2026
 - [x] Reconhecer e-mail válido informado pelo cliente sem anexo, salvar no cadastro e marcar o item real do checklist; preservar confirmação de alteração de checklist aprovado.
 - [x] Fornecer checklist real e e-mail cadastrado à Ana, solicitar dado faltante na coleta e impedir nova cobrança após recebimento.
