@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Cancelamento e remarcação autorizados — 23/10/2026
+- [ ] Consultar disponibilidade real em cada oferta; nunca oferecer simulação se a agenda falhar.
+- [ ] Reconhecer consulta existente, perguntar cancelar/remarcar e executar apenas com autorização explícita; preservar consulta anterior em falhas.
+- [ ] Testar disponibilidade, autorização, propriedade do compromisso e operações com integrações substituídas; verificar resultado.
+
 ## Agendamento 24 horas — 23/10/2026
 - [x] Continuar coleta, oferta e reserva de consulta fora do expediente sem substituir por promessa de retorno da equipe; preservar limites jurídicos e pedidos humanos.
 - [x] 29 testes aprovados, incluindo reserva WhatsApp às 01h06 com classificação incorreta de encaminhamento humano corrigida; compilação limpa. Integrações substituídas, sem envio ou compromisso real. Atualização depende de nova publicação.
