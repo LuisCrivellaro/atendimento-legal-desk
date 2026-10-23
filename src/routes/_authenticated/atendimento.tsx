@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { listarCasos, salvarCaso } from '@/lib/casos';
+import { createClientCase } from '@/lib/clients.functions';
 import { toast } from 'sonner';
 import { Search, Paperclip, Send, Video, Sparkles, Loader2, Zap, ListChecks, ArrowRight, X, MoreHorizontal, ChevronDown, ShieldAlert } from 'lucide-react';
 import { Input } from '@/components/ui/input';
