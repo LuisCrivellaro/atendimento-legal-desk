@@ -18,7 +18,10 @@ export interface AnaState {
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
   horariosTeste?: string[]; consultaTeste?: string | undefined; agendaReal?: boolean;
-   reservaCalendar?: import('./calendar-booking').ReservaCalendar;
+   reservaCalendar?: import('./calendar-booking').ReservaCalendar | undefined;
+  alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;
+  autorizacaoRemarcacao?: {eventoId:string;inicio:string;contato:string;expira:string} | undefined;
+  operacaoConsulta?: {mensagemId:string;eventoId:string;tipo:'cancelar'|'remarcar'} | undefined;
 }
 export function horariosTesteAna(now = new Date(), tipo: TipoCliente = 'novo') {
  return gerarHorarios([], now, tipo, 3);

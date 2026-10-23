@@ -1,13 +1,14 @@
-import { idReservaCalendar, intervaloLivre, type ReservaCalendar } from './calendar-booking';
+import { idReservaCalendar, intervaloLivre, linkMeet, type ReservaCalendar } from './calendar-booking';
 import { DURACAO_REUNIAO, horarioPermitido } from './schedule-rules';
 import { telefoneAgenda, type TipoCliente } from './intake-rules';
+import { reservaDoAtendimento } from './appointment-management';
 const GATEWAY_URL = 'https://connector-gateway.lovable.dev/google_calendar/calendar/v3';
 
 async function calendarRequest(path: string, init: RequestInit = {}) {
   const lovable = process.env['LOVABLE_API_KEY'];
   const key = process.env['GOOGLE_CALENDAR_API_KEY'];
   if (!lovable || !key) throw new Error('Google Calendar não configurado. Nenhuma reserva confirmada.');
-  return fetch(`${GATEWAY_URL}${path}`, { ...init, headers: { Authorization: `Bearer ${lovable}`, 'X-Connection-Api-Key': key, 'Content-Type': 'application/json' } });
+  return fetch(`${GATEWAY_URL}${path}`, { ...init, headers: { Authorization: `Bearer ${lovable}`, 'X-Connection-Api-Key': key, 'Content-Type': 'application/json', ...init.headers } });
 }
 
 async function erroCalendar(res: Response): Promise<never> {
@@ -16,10 +17,23 @@ async function erroCalendar(res: Response): Promise<never> {
   throw new Error(`Google Calendar [${res.status}]: ${body}`);
 }
 
-type CalendarEvent = { id?: string; status?: string; htmlLink?: string; start?: { dateTime?: string }; end?: { dateTime?: string }; extendedProperties?: { private?: { conversa?: string } } };
+type CalendarEvent = { id?: string; status?: string; htmlLink?: string; hangoutLink?:string;conferenceData?:{entryPoints?:{entryPointType?:string;uri?:string}[];createRequest?:{status?:{statusCode?:string}}}; start?: { dateTime?: string }; end?: { dateTime?: string }; extendedProperties?: { private?: { conversa?: string } } };
 function validarReserva(event: CalendarEvent, conversaId: string, inicio: string, fim: string): ReservaCalendar {
   if (event.status === 'cancelled' || !event.id || event.extendedProperties?.private?.conversa !== conversaId || Date.parse(event.start?.dateTime ?? '') !== Date.parse(inicio) || Date.parse(event.end?.dateTime ?? '') !== Date.parse(fim)) throw new Error('Horário indisponível ou já reservado por outro atendimento.');
-  return { id: event.id, inicio, fim, ...(event.htmlLink ? { url: event.htmlLink } : {}) };
+  const meetUrl=linkMeet(event);
+  return { id: event.id, inicio, fim, ...(event.htmlLink ? { url: event.htmlLink } : {}),...(meetUrl?{meetUrl}:{}) };
+}
+
+async function receberReservaMeet(event:CalendarEvent,conversaId:string,inicio:string,fim:string){
+ let current=event;
+ const reserva=validarReserva(event,conversaId,inicio,fim);
+ for(let attempt=0;attempt<3&&!linkMeet(current)&&current.conferenceData?.createRequest?.status?.statusCode==='pending';attempt++){
+  await new Promise(resolve=>setTimeout(resolve,500));
+  const response=await calendarRequest(`/calendars/primary/events/${encodeURIComponent(reserva.id)}`);
+  if(!response.ok){console.error('Meet ainda indisponível',response.status);break;}
+  current=await response.json() as CalendarEvent;
+ }
+ return validarReserva(current,conversaId,inicio,fim);
 }
 
 /** Só chamado após validar webhook, contato, modo Automática e escolha inequívoca. Sem CPF, assunto jurídico ou convites. */
@@ -31,22 +45,23 @@ export async function reservarGoogleCalendar(conversaId: string, inicio: string,
   const fim = new Date(Date.parse(inicio) + DURACAO_REUNIAO * 60000).toISOString();
   const id = await idReservaCalendar(inicio);
   const existing = await calendarRequest(`/calendars/primary/events/${id}`);
-  if (existing.ok) return validarReserva(await existing.json(), conversaId, inicio, fim);
-  if (existing.status !== 404) return erroCalendar(existing);
+  const existingEvent:CalendarEvent|undefined=existing.ok?await existing.json():undefined;
+  if (existingEvent&&existingEvent.status!=='cancelled') return validarReserva(existingEvent, conversaId, inicio, fim);
+  if (!existing.ok&&existing.status !== 404) return erroCalendar(existing);
   const check = await calendarRequest('/freeBusy', { method: 'POST', body: JSON.stringify({ timeMin: inicio, timeMax: fim, timeZone: 'America/Sao_Paulo', items: [{ id: 'primary' }] }) });
   if (!check.ok) return erroCalendar(check);
   const availability = await check.json() as { calendars?: Record<string, { busy?: { start: string; end: string }[]; errors?: unknown[] }> };
   const calendar = availability.calendars?.['primary'];
   if (!calendar || calendar.errors?.length || !Array.isArray(calendar.busy)) throw new Error('Não foi possível verificar disponibilidade; nenhuma reserva confirmada.');
   if (!intervaloLivre(calendar.busy, inicio, fim)) throw new Error('Esse horário acabou de ficar ocupado. Escolha outro horário.');
-  const created = await calendarRequest('/calendars/primary/events?sendUpdates=none', { method: 'POST', body: JSON.stringify({ id, summary: `Consulta CS Lawyers · ${cliente.nome.trim()}`, description: `Nome: ${cliente.nome.trim()}\nTelefone: ${telefoneAgenda(cliente.telefone)}\nReunião: 30 minutos`, start: { dateTime: inicio, timeZone: 'America/Sao_Paulo' }, end: { dateTime: fim, timeZone: 'America/Sao_Paulo' }, extendedProperties: { private: { conversa: conversaId } } }) });
+  const created = await calendarRequest(existingEvent?`/calendars/primary/events/${id}?sendUpdates=none&conferenceDataVersion=1`:'/calendars/primary/events?sendUpdates=none&conferenceDataVersion=1', { method: existingEvent?'PATCH':'POST', body: JSON.stringify({ id, status:'confirmed', summary: `Consulta CS Lawyers · ${cliente.nome.trim()}`, description: `Nome: ${cliente.nome.trim()}\nTelefone: ${telefoneAgenda(cliente.telefone)}\nReunião: 30 minutos`, start: { dateTime: inicio, timeZone: 'America/Sao_Paulo' }, end: { dateTime: fim, timeZone: 'America/Sao_Paulo' },conferenceData:{createRequest:{requestId:crypto.randomUUID(),conferenceSolutionKey:{type:'hangoutsMeet'}}}, extendedProperties: { private: { conversa: conversaId } } }) });
   if (created.status === 409) {
     const concurrent = await calendarRequest(`/calendars/primary/events/${id}`);
     if (!concurrent.ok) return erroCalendar(concurrent);
     return validarReserva(await concurrent.json(), conversaId, inicio, fim);
   }
   if (!created.ok) return erroCalendar(created);
-  return validarReserva(await created.json(), conversaId, inicio, fim);
+  return receberReservaMeet(await created.json(), conversaId, inicio, fim);
 }
 
 /** Períodos ocupados da agenda principal (somente leitura). Retorna null se indisponível. */
@@ -63,7 +78,37 @@ export async function ocupadosGoogleCalendar(now = new Date(), dias = 14): Promi
     if (!res.ok) { console.error(`Google Calendar freeBusy [${res.status}]: ${await res.text()}`); return null; }
     const body = (await res.json()) as { calendars?: Record<string, { busy?: { start: string; end: string }[]; errors?: unknown[] }> };
     const cal = body.calendars?.['primary'] ?? Object.values(body.calendars ?? {})[0];
-    if (!cal || cal.errors?.length) return null;
-    return cal.busy ?? [];
+    if (!cal || cal.errors?.length || !Array.isArray(cal.busy)) return null;
+    return cal.busy;
   } catch (e) { console.error('Google Calendar indisponível', e); return null; }
+}
+
+/** Nenhum ID enviado pelo modelo é aceito; o recibo salvo deve pertencer à conversa. */
+export async function cancelarGoogleCalendar(conversaId:string,reserva:ReservaCalendar,autorizado:boolean) {
+  if(!autorizado)throw new Error('Cancelamento exige autorização explícita.');
+  const path=`/calendars/primary/events/${encodeURIComponent(reserva.id)}`;
+  const response=await calendarRequest(path);
+  if(!response.ok)return erroCalendar(response);
+  const event=await response.json() as CalendarEvent;
+  if(!reservaDoAtendimento(event,conversaId,reserva))throw new Error('Compromisso não pertence a este atendimento.');
+  if(event.status==='cancelled')return;
+  const deleted=await calendarRequest(`${path}?sendUpdates=none`,{method:'DELETE',...(response.headers.get('etag')?{headers:{'If-Match':response.headers.get('etag')??''}}:{})});
+  if(!deleted.ok)return erroCalendar(deleted);
+}
+
+/** Reserva o novo horário antes de remover o anterior; falha mantém o original. */
+export async function remarcarGoogleCalendar(conversaId:string,anterior:ReservaCalendar,inicio:string,autorizado:boolean,now=new Date(),cliente?:{nome:string;telefone:string;tipo:TipoCliente}) {
+  if(!autorizado)throw new Error('Remarcação exige autorização explícita.');
+  const original=await calendarRequest(`/calendars/primary/events/${encodeURIComponent(anterior.id)}`);
+  if(!original.ok)return erroCalendar(original);
+  const event=await original.json() as CalendarEvent;
+  if(event.status==='cancelled'||!reservaDoAtendimento(event,conversaId,anterior))throw new Error('Consulta original indisponível para remarcação.');
+  if(Date.parse(anterior.inicio)===Date.parse(inicio))return anterior;
+  const nova=await reservarGoogleCalendar(conversaId,inicio,now,cliente);
+  try {await cancelarGoogleCalendar(conversaId,anterior,true);}
+  catch(error){
+    try{await cancelarGoogleCalendar(conversaId,nova,true);}catch(rollback){console.error('Falha ao desfazer nova reserva',rollback);throw new Error('Remarcação incompleta; equipe deve conferir ambos os compromissos.');}
+    throw error;
+  }
+  return nova;
 }
