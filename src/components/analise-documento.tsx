@@ -28,6 +28,7 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
       const r = await analisar({ data: { casoId: c.id, mensagemId: id, confirmarAlteracao } });
       await refresh();
       if (!r.ok) { toast.error(r.erro); return; }
+      if (r.pendenciaPdf) toast.warning(r.pendenciaPdf);
       if (r.pendencia) toast.warning(r.pendencia);
       else toast.success(r.checklistAtualizado ? 'Documento identificado e checklist atualizado.' : 'Análise guardada; confira a correspondência com o checklist.');
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível analisar.'); }
@@ -62,7 +63,7 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
         {carregando ? <><Loader2 className="animate-spin" />Analisando {carregando}…</> : <><Upload />Enviar documento do cliente</>}
       </Button>
       <p className="text-xs text-muted-foreground">PDF ou imagem. A IA identifica o tipo, extrai dados do caso e marca o item do checklist.</p>
-      {c.mensagens.filter(m => m.path && (m.tipo === 'imagem' || m.tipo === 'documento') && (!m.analiseDocumento || m.pendenciaChecklist)).map(m => <div key={m.id} className="space-y-1 border-b py-2 text-xs"><p className="truncate">{m.arquivo}</p>{(m.erroAnalise || m.pendenciaChecklist) && <p className="text-pending-foreground">{m.erroAnalise || m.pendenciaChecklist}</p>}<Button size="sm" variant="outline" disabled={!!carregando} onClick={() => m.pendenciaChecklist ? setPendingMessage(m.id) : void reanalisar(m.id)}><Sparkles/>{m.pendenciaChecklist ? 'Confirmar atualização do checklist' : 'Analisar original recebido'}</Button></div>)}
+      {c.mensagens.filter(m => m.path && (m.tipo === 'imagem' || m.tipo === 'documento') && (!m.analiseDocumento || m.pendenciaChecklist || m.pendenciaPdf)).map(m => <div key={m.id} className="space-y-1 border-b py-2 text-xs"><p className="truncate">{m.arquivo}</p>{(m.erroAnalise || m.pendenciaChecklist || m.pendenciaPdf) && <p className="text-pending-foreground">{m.erroAnalise || m.pendenciaChecklist || m.pendenciaPdf}</p>}<Button size="sm" variant="outline" disabled={!!carregando} onClick={() => m.pendenciaChecklist ? setPendingMessage(m.id) : void reanalisar(m.id)}><Sparkles/>{m.pendenciaChecklist ? 'Confirmar atualização do checklist' : m.pendenciaPdf ? 'Preparar PDF em Start' : 'Analisar original recebido'}</Button></div>)}
       {analises.map((a, i) => (
         <div key={i} className="rounded-lg border-l-4 border-primary bg-secondary p-2.5 text-sm">
           <p className="flex items-center gap-1 font-semibold"><Sparkles className="size-3.5 text-primary" />{a.resultado.tipoDocumento}</p>
