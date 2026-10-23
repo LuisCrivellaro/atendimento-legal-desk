@@ -87,7 +87,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       if(!busy)throw new Error('Agenda indisponível; nenhum horário oferecido.');
       horarios=horariosLivresAna(busy,new Date(),tipoCliente);agendaReal=true;
     }
-    const r=aplicarRegrasAna(raw,mode,m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal,tipoCliente,nome,telefone});
+    const r=aplicarRegrasAna(raw,mode,m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal,tipoCliente,nome,telefone,emailPendente:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email)});
     const gerenciar=teste&&mode==='Automática'&&!r.encaminhar_humano&&!r.motivo_aprovacao&&!!c.consultaAgendada;
     const cancelar=gerenciar&&alteracao==='cancelar';
     const perguntar=gerenciar&&!cancelar&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar'&&r.intencao==='agendamento';

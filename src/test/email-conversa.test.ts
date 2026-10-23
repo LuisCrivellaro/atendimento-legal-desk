@@ -4,6 +4,7 @@ import type { Database } from '@/integrations/supabase/types';
 import type { Conversa } from '@/lib/mock-data';
 import { emailDaMensagem, solicitarEmailPendente } from '@/lib/atendimento/email-rules';
 import { registrarEmailConversa } from '@/lib/atendimento/email.server';
+import { aplicarRegrasAna, type AnaResult } from '@/lib/atendimento/ana-rules';
 
 function fixture(aprovado = false) {
   let caso = { mensagens: [{ id: 'email-1', de: 'cliente', texto: 'Meu e-mail é Cliente@Example.com', hora: '10:00' }], timeline: [] } as unknown as Conversa;
@@ -58,5 +59,13 @@ describe('e-mail informado na conversa', () => {
     expect(solicitarEmailPendente([{ nome: 'E-mail', recebido: false }], 'cliente@example.com')).toBe(false);
     expect(solicitarEmailPendente([{ nome: 'E-mail', recebido: true }])).toBe(false);
     expect(solicitarEmailPendente([{ nome: 'Provas (e-mails)', recebido: false }])).toBe(false);
+  });
+  it('solicita dado sem anexo em Automática; Sugerir/Desligada e pergunta recente continuam protegidos', () => {
+    const r: AnaResult = { acao: 'enviar', mensagem: 'Obrigada pelo documento.', motivo_aprovacao: '', intencao: 'documento', urgente: false, encaminhar_humano: false, dados_coletados: { nome: '', cpf: '', assunto: '', email: '' }, proximo_passo: '' };
+    expect(aplicarRegrasAna(r, 'Automática', 'enviei', [], { emailPendente: true }).mensagem).toContain('qual é o seu e-mail?');
+    expect(aplicarRegrasAna(r, 'Sugerir', 'enviei', [], { emailPendente: true }).acao).toBe('rascunho');
+    expect(aplicarRegrasAna(r, 'Desligada', 'enviei', [], { emailPendente: true }).acao).toBe('nenhuma');
+    expect(aplicarRegrasAna(r, 'Automática', 'enviei', [], { emailPendente: true, ultimaResposta: 'Qual é seu e-mail?' }).mensagem).not.toContain('qual é o seu e-mail?');
+    expect(aplicarRegrasAna(r, 'Automática', 'Quero falar com uma pessoa', [], { emailPendente: true }).encaminhar_humano).toBe(true);
   });
 });
