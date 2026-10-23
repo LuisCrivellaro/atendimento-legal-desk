@@ -4,6 +4,7 @@ import type { Conversa } from './mock-data';
 import { executarAnaliseDocumento } from './documentos.functions';
 import { itemIdentificado } from './documentos-rules';
 import { atualizarConversa } from './atendimento/ana.server';
+import { DOCUMENTOS_BASE } from './atendimento/trato-feito';
 
 /** Chamador já autenticou proprietário ou validou assinatura + contato liberado do webhook. */
 export async function analisarAnexoDoCaso(db: SupabaseClient<Database>, casoId: string, owner: string, mensagemId: string, confirmarAlteracao = false) {
@@ -13,6 +14,12 @@ export async function analisarAnexoDoCaso(db: SupabaseClient<Database>, casoId: 
   ]);
   if (row.error || checklist.error) throw new Error('Documento indisponível neste atendimento.');
   const c = row.data.dados as unknown as Conversa;
+  // Reparação do fluxo antigo: TRATO FEITO registrava a etapa, mas perdia os itens sem ID.
+  if (!checklist.data.length && c.timeline?.some(t => t.evento.startsWith('Trato feito'))) {
+    const restored = await db.from('checklist_itens').insert(DOCUMENTOS_BASE.map((nome, ordem) => ({ caso_id: casoId, owner_id: owner, nome, ordem, recebido: false }))).select('id,nome,recebido');
+    if (restored.error) throw new Error('Não foi possível recuperar a lista de documentos-base.');
+    checklist.data.push(...restored.data);
+  }
   const m = c.mensagens.find(m => m.id === mensagemId);
   if (!m?.path?.startsWith(`${owner}/${casoId}/`)) throw new Error('Original não disponível neste atendimento.');
   if (m.analiseDocumento && !confirmarAlteracao) return { ok: true as const, resultado: m.analiseDocumento, checklistAtualizado: m.checklistAtualizado === true, pendencia: m.pendenciaChecklist };
