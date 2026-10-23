@@ -113,7 +113,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       }
       // Claim persistente antes do envio impede replay em falha de rede; nunca reenvia automaticamente.
       const {enviarMensagemSistema}=await import('./envio.functions');
-      const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,...(!escolhido&&agendaReal&&agenda?.slots.length?{horarios:agenda.slots}:{})});
+      const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,...(!escolhido&&agendaReal&&!agenda?.selected&&agenda?.slots.length?{horarios:agenda.slots}:{})});
       if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');
       await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal:'telegram',idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
     }
