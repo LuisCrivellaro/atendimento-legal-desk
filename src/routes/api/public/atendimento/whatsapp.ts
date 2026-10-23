@@ -37,7 +37,7 @@ async function guardarMidia(admin: any, url: string, nomeOriginal: string | unde
     if (!/^https:\/\//.test(url)) return undefined;
     const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
     if (!r.ok || !r.body) return undefined;
-    const mime = (r.headers.get('content-type') ?? '').split(';')[0]!.trim();
+    const mime = ((r.headers.get('content-type') ?? '').split(';')[0] ?? '').trim();
     if (!MIMES.includes(mime)) return undefined;
     const reader = r.body.getReader(); const partes: Uint8Array[] = []; let total = 0;
     for (;;) { const { done, value } = await reader.read(); if (done) break; total += value.length; if (total > LIMITE) { await reader.cancel(); return undefined; } partes.push(value); }
@@ -93,6 +93,8 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         }
         const caso = await supabaseAdmin.from('casos').select('id,owner_id,dados').eq('id', contato.conversa_id).maybeSingle();
         if (caso.error || !caso.data) return Response.json({ ok: true, ignorado: true });
+        const mensagens = (caso.data.dados as unknown as { mensagens?: Mensagem[] }).mensagens ?? [];
+        if (mensagens.some(m => m.id === `ultramsg:${contato.contato_externo}:${data.id}`)) return Response.json({ ok: true, repetido: true });
 
         // Resposta numérica a uma lista de horários vira escolha explícita do horário correspondente.
         let texto = data.body ?? '';
@@ -127,6 +129,16 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           return Response.json({ error: 'Falha ao registrar' }, { status: 500 });
         }
         await auditar('mensagemRecebida', `WhatsApp ← ${mascararContato(numero)} · ${tipo}`, 'sucesso');
+        if (nova.path) {
+          try {
+            const { analisarAnexoDoCaso } = await import('@/lib/documentos.server');
+            const result = await analisarAnexoDoCaso(supabaseAdmin, caso.data.id, caso.data.owner_id, nova.id);
+            await auditar('analisarDocumento', result.ok ? 'Anexo identificado; dados extraídos guardados no atendimento' : result.erro, result.ok ? 'sucesso' : 'erro');
+          } catch {
+            await atualizarConversa(supabaseAdmin, caso.data.id, c => ({ ...c, mensagens: c.mensagens.map(m => m.id === nova.id ? { ...m, erroAnalise: 'Não foi possível analisar o original. Confira em Documentos.' } : m) }));
+            await auditar('analisarDocumento', 'Original preservado; análise pendente', 'erro');
+          }
+        }
         await processarAna(supabaseAdmin, caso.data.id, nova.id, request);
         return Response.json({ ok: true });
       },
