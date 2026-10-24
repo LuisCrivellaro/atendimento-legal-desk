@@ -4,7 +4,8 @@ import { conversas } from '@/lib/mock-data';
 
 const fixture=conversas[0];
 if(!fixture)throw new Error('Fixture missing');
-const inicial={...fixture,mensagens:[],modoIA:undefined,agenteAna:undefined};
+const {modoIA:_mode,agenteAna:_ana,...base}=fixture;
+const inicial={...base,mensagens:[]};
 describe('início automático do atendimento',()=>{
   it('nova conversa começa em Automática sem ativação humana',()=>expect(iniciarAtendimentoAutomatico(inicial).modoIA).toBe('Automática'));
   it.each(['Desligada','Sugerir','Automática'] as const)('preserva escolha explícita %s',modoIA=>expect(iniciarAtendimentoAutomatico({...inicial,modoIA}).modoIA).toBe(modoIA));

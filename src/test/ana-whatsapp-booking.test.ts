@@ -28,9 +28,10 @@ describe('reserva WhatsApp com telefone do canal', () => {
         ...fixture, consultaAgendada: undefined, modoIA: 'Automática', tipoClienteAgenda: 'novo',
         agenteAna: { apresentado: true, agendaReal: true, horariosTeste: [inicio], dados: { nome: 'Maria Teste', cpf: '', assunto: 'Consulta', email: '' } },
         ...(['perguntar','cancelar','remarcar'].includes(cenario)?{consultaAgendada:anterior.inicio,agenteAna:{apresentado:true,agendaReal:true,horariosTeste:[inicio],dados:{nome:'Maria Teste',cpf:'',assunto:'Consulta',email:''},reservaCalendar:anterior,...(cenario==='remarcar'?{alteracaoConsulta:'remarcar' as const,autorizacaoRemarcacao:{eventoId:anterior.id,inicio:anterior.inicio,contato:telefone,expira:'2026-10-23T05:06:00Z'}}:{})}}:{}),
-        ...(['inicio','nome'].includes(cenario)?{etapa:'inicial' as const,tipoClienteAgenda:undefined,agenteAna:{apresentado:cenario==='nome',dados:{nome:'',cpf:'',assunto:'',email:''}}}:{}),
+        ...(['inicio','nome'].includes(cenario)?{etapa:'inicial' as const,agenteAna:{apresentado:cenario==='nome',dados:{nome:'',cpf:'',assunto:'',email:''}}}:{}),
         mensagens: [{ id: messageId, de: 'cliente', canal: 'ultramsg', texto, hora: '01:06' }],
       };
+      if(cenario==='inicio'||cenario==='nome')delete saved.tipoClienteAgenda;
       const config = { agente_ativo: true, canal_ativo: 'ultramsg', modo_teste: true };
       const contato = { contato_externo: telefone, status: 'liberado' };
       const db = {
