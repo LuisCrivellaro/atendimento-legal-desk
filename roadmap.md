@@ -1,8 +1,8 @@
 # Construção dos módulos Manager ADV
 
 ## Reinício do teste WhatsApp — 24/10/2026
-- [ ] Apagar atendimento anterior do número 11999600306 e preparar conversa vazia vinculada ao contato liberado.
-- [ ] Remover do Google Drive somente a pasta e os arquivos associados à conversa de teste, conforme autorização explícita; preservar demais clientes e pastas gerais.
+- [x] Apagar atendimento anterior do número 11999600306 e preparar conversa vazia vinculada ao contato liberado; excluídos os quatro itens antigos, sem aprovações jurídicas ou reserva vigente.
+- [x] Remover para a lixeira do Google Drive somente a pasta Teste WhatsApp e seu conteúdo, conforme autorização explícita; resposta do Drive confirmou trashed=true. Demais clientes, pastas gerais e originais privados do aplicativo preservados.
 
 ## PDFs identificados na pasta Start — 23/10/2026
 - [x] Gerar cópias PDF de JPG/PNG e preservar PDF existente, com nomes específicos abaixo de 100 caracteres e teto conservador de 10.000 KB; originais e revisões jurídicas preservados. WEBP permanece original com pendência explícita de conversão conferida.
