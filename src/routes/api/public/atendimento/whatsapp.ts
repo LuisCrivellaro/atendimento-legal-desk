@@ -7,6 +7,7 @@ import { classificarEntrada } from '@/lib/atendimento/intake-rules';
 import { chaveTelefone } from '@/lib/atendimento/telefone';
 import { numeroWhatsApp } from '@/lib/atendimento/canais/ultramsg';
 import { textoEscolhaHorario } from '@/lib/atendimento/botoes-horario';
+import { iniciarAtendimentoAutomatico } from '@/lib/atendimento/initial-attendance';
 
 function seguroIgual(a: string, b: string) {
   const ba = Buffer.from(a), bb = Buffer.from(b);
@@ -127,7 +128,7 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         }
         const { atualizarConversa, processarAna } = await import('@/lib/atendimento/ana.server');
         try {
-          await atualizarConversa(supabaseAdmin, caso.data.id, c => c.mensagens.some(m => m.id === nova.id) ? c : classificarEntrada({ ...c, mensagens: [...c.mensagens, nova] }));
+          await atualizarConversa(supabaseAdmin, caso.data.id, c => c.mensagens.some(m => m.id === nova.id) ? c : classificarEntrada({ ...iniciarAtendimentoAutomatico(c), mensagens: [...c.mensagens, nova] }));
         } catch {
           await auditar('mensagemRecebida', 'Falha ao gravar mensagem WhatsApp', 'erro');
           return Response.json({ error: 'Falha ao registrar' }, { status: 500 });
