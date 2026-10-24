@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Início automático e novo teste — 24/10/2026
+- [x] Novas conversas em Automática; saudação solicitada uma vez e nome completo seguido de oferta real, preservando pausas e carteira de cadastrados.
+- [x] Reiniciado somente o atendimento vinculado ao número 11999600306: zero mensagens e Automática, contato liberado; sem reserva, checklist ou aprovações. Nenhum arquivo externo alterado.
+- [x] 67 testes aprovados, incluindo início, nome seguido de disponibilidade e exclusão de horário ocupado; compilação limpa. Sequência testada com serviços substituídos, sem mensagem ou reserva externa.
+- [ ] Confirmar sequência real no WhatsApp — depende de publicar atualização e mensagem do celular; nenhum teste externo enviado em nome do cliente.
+
 ## Reinício do teste WhatsApp — 24/10/2026
 - [x] Apagar atendimento anterior do número 11999600306 e preparar conversa vazia vinculada ao contato liberado; excluídos os quatro itens antigos, sem aprovações jurídicas ou reserva vigente.
 - [x] Remover para a lixeira do Google Drive somente a pasta Teste WhatsApp e seu conteúdo, conforme autorização explícita; resposta do Drive confirmou trashed=true. Demais clientes, pastas gerais e originais privados do aplicativo preservados.
