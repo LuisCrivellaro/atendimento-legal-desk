@@ -88,15 +88,18 @@ export async function cancelarGoogleCalendar(conversaId:string,reserva:ReservaCa
   if(!autorizado)throw new Error('Cancelamento exige autorização explícita.');
   const path=`/calendars/primary/events/${encodeURIComponent(reserva.id)}`;
   const response=await calendarRequest(path);
+  // 404/410: o compromisso não existe mais na agenda conectada (apagado ou criado em outra conta); nada a cancelar.
+  if(response.status===404||response.status===410)return 'ausente' as const;
   if(!response.ok)return erroCalendar(response);
   const event=await response.json() as CalendarEvent;
+  if(event.status==='cancelled')return 'ausente' as const;
   if(!reservaDoAtendimento(event,conversaId,reserva))throw new Error('Compromisso não pertence a este atendimento.');
-  if(event.status==='cancelled')return;
   // Sem If-Match: o ETag repassado pelo gateway não coincide com o do Google e gerava 412 em todo cancelamento.
   // A propriedade do compromisso já foi validada acima pelo recibo da conversa.
   const deleted=await calendarRequest(`${path}?sendUpdates=none`,{method:'DELETE'});
-  if(deleted.status===410)return;
+  if(deleted.status===410||deleted.status===404)return 'ausente' as const;
   if(!deleted.ok)return erroCalendar(deleted);
+  return 'cancelado' as const;
 }
 
 /** Reserva o novo horário antes de remover o anterior; falha mantém o original. */
