@@ -9,9 +9,9 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- AI calls run only in server functions (`src/lib/*.functions.ts`) via Lovable AI Gateway Responses with streamed structured output; why: keeps the key server-side.
+- AI calls stay server-only: Ana uses the uploaded Anthropic sample adapter; legal analysis uses Lovable Gateway Responses. Why: isolates provider billing and keeps keys private.
 - External integrations use `src/services/integracoes.ts`; why: no third-party browser calls.
-- Integration readiness only checks credentials with auth; Claude preparation leaves Responses unchanged. Why: setup must not send legal data, sign, charge or switch models.
+- Integration readiness only checks credentials with auth and never activates workflows. Why: setup must not send legal data, sign or charge.
 - Office pages live under `src/routes/_authenticated/` (client-only login gate); cases and checklist items are per-user rows protected by owner RLS, and new users get demo cases copied from `casos_modelo` by the signup trigger; why: each staff member has their own saved data.
 - Roles live only in `user_roles` (new users get `atendente`); why: prevents self-promotion.
 - Shared office pages use `office_workspace` owner-scoped state and private append-only document storage; why: drafts, review findings and original files persist without modifying originals.
@@ -37,5 +37,5 @@
 - Pure intake rules default new chats to automatic without overriding explicit modes or pauses; greeting precedes name and live availability, respecting client policy and released sender. Why: avoid manual activation and unsafe bookings.
 - National Brazilian public holidays are checked using date-holidays; local office closures remain Calendar busy blocks until a location-specific policy is supplied. Why: avoid inventing municipal holiday jurisdiction.
 - Trato feito rules (base docs, AC/RT folder, phase, production notice) live in src/lib/atendimento/trato-feito.ts with tests; Production start stays manual; why: future automation must respect legal gates.
-- Ana replies come from `src/lib/ana-claude/` (unmodified package; Calendar via connector) and leave only via `enviarAoCliente`; Telegram/UltraMsg reply only to released linked test contacts; why: channel swaps change one function.
+- Ana WhatsApp inference uses `ana.functions.ts` with the uploaded `claudeComoSample` adapter; existing server orchestration validates training, scheduling, consent and sends only to released linked UltraMsg contacts. Telegram stays retired. Why: changing provider must not replace operational safety rules.
 - Subdirectories may have their own `AGENTS.md`; read it before changing files there.
