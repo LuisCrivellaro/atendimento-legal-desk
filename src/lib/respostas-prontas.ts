@@ -30,6 +30,7 @@ export const VARIABLES = [
   { key: 'nome_completo', label: 'Nome completo' },
   { key: 'documentos_faltantes', label: 'Documentos faltantes' },
   { key: 'atendimento', label: 'Nº do atendimento' },
+  { key: 'data_horario', label: 'Data e horário (preencher)' },
 ] as const;
 
 export const DEFAULT_REPLIES: QuickReply[] = [
@@ -91,7 +92,16 @@ export function fillReply(texto: string, c: Pick<Conversa, 'nome' | 'atendimento
     documentos_faltantes: faltantes.length ? faltantes.join(', ') : 'nenhum documento pendente',
     atendimento: c.atendimento,
   };
-  return texto.replace(/\{([a-z_]+)\}/gi, (all, key: string) => values[key.toLowerCase()] ?? all);
+  const primeiro = values.nome?.trim() ?? '';
+  // Sem nome conhecido: tira {nome} e a vírgula ao redor, sem deixar a frase quebrada.
+  const base = primeiro && !/^novo contato$/i.test(c.nome.trim())
+    ? texto
+    : texto
+        .replace(/\{nome\}, (\p{Ll})/gu, (_a, l: string) => l.toUpperCase())
+        .replace(/ ?, \{nome\}([.!?,])/g, '$1')
+        .replace(/\{nome\}([.!?]) ?/g, '')
+        .replace(/\{nome\} ?/g, '');
+  return base.replace(/\{([a-z_]+)\}/gi, (all, key: string) => values[key.toLowerCase()] ?? all);
 }
 
 /** Campos entre chaves que ainda precisam ser preenchidos antes de enviar. */
