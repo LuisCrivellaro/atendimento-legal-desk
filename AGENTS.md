@@ -18,7 +18,7 @@
 - Human approvals are server-validated against `user_roles` and a material revision hash in `legal_approvals`; why: editing a case invalidates approval and clients cannot forge approval records.
 - Checklist and draft approval use authenticated database functions and database advancement triggers; why: direct client writes cannot bypass legal gates and material changes invalidate approval.
 - Office-wide dashboard reads run through a server function restricted to senior lawyers or admins, other users read only owned cases; why: aggregate visibility must not weaken owner RLS on editable records.
-- Uploaded legal prompt texts are source-controlled server-only guidance, applied by practice area; why: preserves the supplied methodology without sending office prompts to the browser.
+- Legal prompt texts are server-only guidance applied by practice area; Drive organization guidance (`organizacao-drive.txt`) stays server-side, never in Ana's prompt. Why: Ana does not operate Drive.
 - Draft review scheduling lives separately from legal material, with authenticated database functions for scoped queue reads and validated lawyer assignment; why: scheduling must not invalidate approvals or grant cross-owner material edits/approvals.
 - Client directory and quick search project saved cases into CPF-grouped client records, with authenticated role-scoped reads and owner-scoped case creation/history; why: keeps dashboard and client records consistent without duplicating case ownership or bypassing legal gates.
 - Connection probes are senior/admin-only and read-only, never activate workflows. Why: no silent legal-data or financial actions.
