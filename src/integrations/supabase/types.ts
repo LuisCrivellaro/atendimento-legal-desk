@@ -112,6 +112,7 @@ export type Database = {
       }
       casos: {
         Row: {
+          ana_estado: Json | null
           created_at: string
           dados: Json
           etapa: string
@@ -122,6 +123,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ana_estado?: Json | null
           created_at?: string
           dados?: Json
           etapa?: string
@@ -132,6 +134,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ana_estado?: Json | null
           created_at?: string
           dados?: Json
           etapa?: string

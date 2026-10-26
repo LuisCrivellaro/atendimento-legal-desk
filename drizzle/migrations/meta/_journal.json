@@ -64,6 +64,13 @@
       "when": 1792607228742,
       "tag": "0008_grant_service_role_canal_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793040035545,
+      "tag": "0009_migration",
+      "breakpoints": true
     }
   ]
 }
