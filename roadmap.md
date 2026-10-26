@@ -1,8 +1,8 @@
 # Construção dos módulos Manager ADV
 
 ## Claude direto para a Ana — 26/10/2026
-- [ ] Substituir apenas a inferência da Ana pela API Anthropic usando o adaptador do pacote enviado, sem trocar regras de agenda, WhatsApp, revisão ou análise jurídica.
-- [ ] Executar testes do pacote e do atendimento e validar acesso real à API, sem enviar mensagem ao cliente nem criar compromisso.
+- [x] Substituir apenas a inferência da Ana pela API Anthropic usando o adaptador do pacote enviado, sem trocar regras de agenda, WhatsApp, revisão ou análise jurídica; Telegram continua aposentado.
+- [x] 251 testes aprovados e compilação limpa; modelos e resposta real no contrato da Ana validados pela chave Anthropic, sem enviar mensagem ao cliente nem criar compromisso.
 - [ ] Disponibilizar no site publicado — depende de publicação autorizada e teste pelo WhatsApp.
 
 ## Início automático e novo teste — 24/10/2026
