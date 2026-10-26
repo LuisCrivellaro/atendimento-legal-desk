@@ -85,7 +85,7 @@ export function resumoEnvio(canal: string, contatoExterno: string, telefoneFicti
 /** Ações do Atendimento que passam pelo canal; as demais seguem simuladas. */
 export const acoesMensagem = ['enviarMensagem', 'enviarHorarios', 'solicitarDocumentos', 'solicitarFaltantes', 'enviarListaProvas', 'lembrete'] as const;
 
-export function etiquetaAcao(acao: string, config: CanalConfig): 'Real (WhatsApp)' | 'Simulado' {
+export function etiquetaAcao(acao: string, config: CanalConfig): 'Real (WhatsApp)' | 'Real (Telegram)' | 'Simulado' {
   if (!(acoesMensagem as readonly string[]).includes(acao)) return 'Simulado';
   return config.canal_ativo === 'ultramsg' ? 'Real (WhatsApp)' : config.canal_ativo === 'telegram' ? 'Real (Telegram)' : 'Simulado';
 }

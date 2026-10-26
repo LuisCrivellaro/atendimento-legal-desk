@@ -44,14 +44,14 @@ describe('permissões e configuração', () => {
     expect(podeGerenciarCanal(['advogada_senior'])).toBe(true);
     expect(podeGerenciarCanal(['admin'])).toBe(true);
   });
-  it('configuração antiga do Telegram desliga o agente', () => {
+  it('Telegram reativado como canal de teste, sempre em modo teste', () => {
     const c = sanitizarConfig({ canal_ativo: 'telegram', modo_teste: false, agente_ativo: true, fonte_sugestoes: 'agente' });
-    expect(c).toEqual({ canal_ativo: 'desligado', modo_teste: false, agente_ativo: false, fonte_sugestoes: 'agente' });
+    expect(c).toEqual({ canal_ativo: 'telegram', modo_teste: true, agente_ativo: true, fonte_sugestoes: 'agente' });
     expect(sanitizarConfig({canal_ativo:'desligado',agente_ativo:true}).agente_ativo).toBe(false);
     expect(sanitizarConfig({ canal_ativo: 'ultramsg' }).canal_ativo).toBe('ultramsg');
   });
-  it('etiquetas das ações: real apenas no WhatsApp', () => {
-    expect(etiquetaAcao('enviarMensagem', telegram)).toBe('Simulado');
+  it('etiquetas das ações: real no WhatsApp e no Telegram', () => {
+    expect(etiquetaAcao('enviarMensagem', telegram)).toBe('Real (Telegram)');
     expect(etiquetaAcao('enviarMensagem', { ...configPadrao, canal_ativo: 'ultramsg' })).toBe('Real (WhatsApp)');
     expect(etiquetaAcao('gerarCobranca', telegram)).toBe('Simulado');
     expect(etiquetaAcao('enviarMensagem', configPadrao)).toBe('Simulado');
