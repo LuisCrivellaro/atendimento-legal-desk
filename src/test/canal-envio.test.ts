@@ -12,8 +12,8 @@ describe('decisão de envio', () => {
   it('canal desligado não faz chamada externa (simulado)', () => {
     expect(decidirEnvio(configPadrao, null)).toEqual({ permitido: true, simulado: true });
   });
-  it('Telegram descontinuado bloqueia inclusive contato liberado', () => {
-    expect(decidirEnvio(telegram, liberado)).toEqual({ permitido: false, simulado: false, motivo: 'Telegram descontinuado. Utilize WhatsApp.' });
+  it('Telegram envia só para contato liberado', () => {
+    expect(decidirEnvio(telegram, liberado)).toEqual({ permitido: true, simulado: false });
     expect(decidirEnvio(telegram, null).permitido).toBe(false);
   });
   it('WhatsApp envia só para contato liberado', () => {
