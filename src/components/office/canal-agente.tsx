@@ -72,6 +72,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig }: {
               <SelectContent>
                 <SelectItem value="desligado">Desligado (demonstração)</SelectItem>
                 <SelectItem value="ultramsg" disabled={!config.data?.segredos.ultramsg}>WhatsApp (UltraMsg)</SelectItem>
+                <SelectItem value="telegram" disabled={!config.data?.segredos.telegram}>Telegram (bot de teste)</SelectItem>
               </SelectContent>
             </Select>
           </label>
