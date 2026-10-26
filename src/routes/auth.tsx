@@ -8,16 +8,10 @@ import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 
-const destinoSeguro = (r?: string) => {
-  if (!r) return "/";
-  try {
-    const u = new URL(r, window.location.origin);
-    return u.origin === window.location.origin ? u.pathname + u.search : "/";
-  } catch {
-    return "/";
-  }
-};
+const destinoSeguro = (r?: string) => oauthReturnPath(r);
+const urlRetorno = (r?: string) => new URL(destinoSeguro(r), window.location.origin).href;
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -68,7 +62,7 @@ function AuthPage() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password: senha,
-          options: { emailRedirectTo: window.location.origin, data: { full_name: nome } },
+          options: { emailRedirectTo: urlRetorno(redirect), data: { full_name: nome } },
         });
         if (error) throw error;
         if (!data.session) setConfirmar(true);
@@ -82,7 +76,7 @@ function AuthPage() {
   };
 
   const social = async (p: "google" | "lovable") => {
-    const r = await lovable.auth.signInWithOAuth(p, { redirect_uri: window.location.origin });
+    const r = await lovable.auth.signInWithOAuth(p, { redirect_uri: urlRetorno(redirect) });
     if (r.error) toast.error("Não foi possível entrar. Tente novamente.");
   };
 
