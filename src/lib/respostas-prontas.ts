@@ -92,7 +92,7 @@ export function fillReply(texto: string, c: Pick<Conversa, 'nome' | 'atendimento
     documentos_faltantes: faltantes.length ? faltantes.join(', ') : 'nenhum documento pendente',
     atendimento: c.atendimento,
   };
-  const primeiro = values.nome?.trim() ?? '';
+  const primeiro = values['nome']?.trim() ?? '';
   // Sem nome conhecido: tira {nome} e a vírgula ao redor, sem deixar a frase quebrada.
   const base = primeiro && !/^novo contato$/i.test(c.nome.trim())
     ? texto
