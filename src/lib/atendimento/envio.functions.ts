@@ -17,6 +17,7 @@ import {
 } from './canal-envio';
 import { normalizarTelefone } from './telefone';
 import { ultramsgAdapter } from './canais/ultramsg';
+import { enviarTextoTelegram } from './canais/telegram';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
 
 type Db = SupabaseClient<Database>;
@@ -97,7 +98,25 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     return { ok: true as const, simulado: true as const, canal: 'simulador' as const };
   }
 
-  if (config.canal_ativo === 'telegram') throw new Error('Telegram descontinuado. Utilize WhatsApp.');
+  if (config.canal_ativo === 'telegram') {
+    const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio').eq('conversa_id', entrada.conversaId).eq('canal', 'telegram').eq('status', 'liberado').maybeSingle();
+    if (destino.error) throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
+    const contato = destino.data;
+    if (!contato) {
+      await auditar(supabase, ator, entrada.acao, 'Envio recusado: contato Telegram não liberado', 'bloqueado');
+      throw new Error('Contato de Telegram não liberado para esta conversa. Nada foi enviado.');
+    }
+    const token = process.env['TELEGRAM_BOT_TOKEN'];
+    if (!token) throw new Error('Telegram não configurado. Nada foi enviado.');
+    // Texto puro, sem parse_mode nem botões.
+    const resultado = await enviarTextoTelegram(lerDestinoTelegram(contato.contato_externo).chatId, entrada.texto, token);
+    if (!resultado.ok) {
+      await auditar(supabase, ator, entrada.acao, 'Falha no envio pelo Telegram', 'erro', resultado.erro);
+      throw new Error('O envio pelo Telegram não foi concluído. Nada foi registrado como enviado.');
+    }
+    await auditar(supabase, ator, entrada.acao, resumoEnvio('telegram', contato.contato_externo, contato.telefone_ficticio, entrada.texto.length), 'sucesso');
+    return { ok: true as const, simulado: false as const, canal: 'telegram' as const, idExterno: resultado.idExterno };
+  }
 
   if (config.canal_ativo === 'ultramsg') {
     const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','ultramsg').eq('status','liberado').maybeSingle();
@@ -139,6 +158,11 @@ export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: st
   );
 }
 
+/** Ponto único de envio ao cliente pelo sistema: escolhe o canal ativo (hoje Telegram, depois UltraMsg). */
+export async function enviarAoCliente(supabase: Db, conversaId: string, texto: string) {
+  return enviarComRegras(supabase, { nome: 'Ana', perfil: 'sistema' }, { conversaId, acao: 'sistema:ana', texto });
+}
+
 export const lerConfigCanal = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -158,11 +182,12 @@ export const lerConfigCanal = createServerFn({ method: 'GET' })
 export const salvarConfigCanal = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({
-    canal_ativo: z.enum(['desligado', 'ultramsg']),
+    canal_ativo: z.enum(['desligado', 'ultramsg', 'telegram']),
     fonte_sugestoes: z.enum(['ia_manager', 'agente']),
     agente_ativo: z.boolean().optional(),
   }))
   .handler(async ({ data, context }) => {
+    if (data.canal_ativo === 'telegram' && !process.env['TELEGRAM_BOT_TOKEN']) throw new Error('Token do bot do Telegram ausente.');
     if (data.canal_ativo === 'ultramsg' && (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID'])) throw new Error('Credenciais do UltraMsg ausentes.');
     const ator = await exigirGestor(context.supabase, context.userId);
     const atual = await carregarConfig(context.supabase);
@@ -198,7 +223,7 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
   .inputValidator(z.object({
     id: z.string().uuid().optional(),
     bot: z.enum(['principal', 'segundo']).default('principal'),
-    canal: z.enum(['ultramsg']).default('ultramsg'),
+    canal: z.enum(['ultramsg', 'telegram']).default('ultramsg'),
     contatoExterno: z.string().max(120).optional(),
     nome: z.string().max(120).default(''),
     telefoneFicticio: z.string().max(20),
@@ -303,4 +328,39 @@ export const verificarUltramsg = createServerFn({ method: 'GET' })
     const corpo = (await r.json().catch(() => undefined)) as { status?: { accountStatus?: { status?: string; substatus?: string } }; error?: unknown } | undefined;
     if (!r.ok || !corpo?.status) throw new Error(`Não foi possível verificar o WhatsApp (HTTP ${r.status}).`);
     return { status: corpo.status.accountStatus?.status ?? 'desconhecido', substatus: corpo.status.accountStatus?.substatus ?? '' };
+  });
+
+/** Registra no Telegram o endereço que recebe as mensagens do bot. Só sênior/admin. */
+export const registrarWebhookTelegram = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ator = await exigirGestor(context.supabase, context.userId);
+    const token = process.env['TELEGRAM_BOT_TOKEN'], secret = process.env['TELEGRAM_WEBHOOK_SECRET'];
+    if (!token || !secret) throw new Error('Credenciais do Telegram ausentes.');
+    const base = process.env['PUBLIC_APP_URL'] ?? 'https://atendimento-legal-desk.lovable.app';
+    const r = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: `${base}/api/public/atendimento/telegram`, secret_token: secret, allowed_updates: ['message'] }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const corpo = (await r.json().catch(() => undefined)) as { ok?: boolean } | undefined;
+    if (!r.ok || corpo?.ok !== true) {
+      await auditar(context.supabase, ator, 'registrarWebhookTelegram', 'Falha ao registrar webhook', 'erro', `HTTP ${r.status}`);
+      throw new Error(`O Telegram não confirmou o registro (HTTP ${r.status}).`);
+    }
+    await auditar(context.supabase, ator, 'registrarWebhookTelegram', 'Webhook Telegram registrado', 'sucesso');
+    return { ok: true as const, descricao: 'Recebimento de mensagens do Telegram registrado.' };
+  });
+
+export const verificarTelegram = createServerFn({ method: 'GET' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirGestor(context.supabase, context.userId);
+    const token = process.env['TELEGRAM_BOT_TOKEN'];
+    if (!token) throw new Error('Token do bot do Telegram ausente.');
+    const r = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`, { signal: AbortSignal.timeout(15000) });
+    const corpo = (await r.json().catch(() => undefined)) as { ok?: boolean; result?: { url?: string; pending_update_count?: number; last_error_message?: string } } | undefined;
+    if (!r.ok || !corpo?.ok) throw new Error(`Não foi possível verificar o Telegram (HTTP ${r.status}).`);
+    const url = corpo.result?.url ?? '';
+    return { registrado: url.endsWith('/api/public/atendimento/telegram'), pendentes: corpo.result?.pending_update_count ?? 0, erro: (corpo.result?.last_error_message ?? '').slice(0, 200) };
   });
