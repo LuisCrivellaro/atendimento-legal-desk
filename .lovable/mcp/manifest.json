@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "sdk_version": "3.3.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://codjqbnopmgmscthwdcq.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "atendimento-legal-desk",
+      "version": "0.1.0",
+      "title": "Atendimento Legal Desk"
+    },
+    "tools": [
+      {
+        "name": "listar_casos",
+        "title": "Listar casos",
+        "description": "Lista os casos do usuário conectado (nome, etapa e data de atualização), com busca opcional pelo nome.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "busca": {
+              "description": "Trecho do nome do cliente para filtrar.",
+              "type": "string",
+              "maxLength": 100
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "ver_checklist_caso",
+        "title": "Ver checklist do caso",
+        "description": "Mostra os itens do checklist de documentos de um caso do usuário conectado, indicando recebidos e pendentes.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "caso_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "ID do caso, obtido em listar_casos."
+            }
+          },
+          "required": [
+            "caso_id"
+          ],
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

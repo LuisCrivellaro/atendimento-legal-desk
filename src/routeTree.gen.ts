@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as McpRouteImport } from './routes/mcp'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAndamentosRouteImport } from './routes/_authenticated/andamentos'
 import { Route as AuthenticatedAprovacoesRouteImport } from './routes/_authenticated/aprovacoes'
@@ -22,6 +24,7 @@ import { Route as AuthenticatedIntegracoesRouteImport } from './routes/_authenti
 import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticated/producao'
 import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authenticated/protocolo'
 import { Route as AuthenticatedTreinamentoRouteImport } from './routes/_authenticated/treinamento'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicAtendimentoTelegramRouteImport } from './routes/api/public/atendimento/telegram'
 import { Route as ApiPublicAtendimentoWhatsappRouteImport } from './routes/api/public/atendimento/whatsapp'
 
@@ -34,6 +37,17 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -93,6 +107,11 @@ const AuthenticatedTreinamentoRoute =
     path: '/treinamento',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicAtendimentoTelegramRoute =
   ApiPublicAtendimentoTelegramRouteImport.update({
     id: '/api/public/atendimento/telegram',
@@ -109,6 +128,8 @@ const ApiPublicAtendimentoWhatsappRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/andamentos': typeof AuthenticatedAndamentosRoute
   '/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/atendimento': typeof AuthenticatedAtendimentoRoute
@@ -119,11 +140,14 @@ export interface FileRoutesByFullPath {
   '/producao': typeof AuthenticatedProducaoRoute
   '/protocolo': typeof AuthenticatedProtocoloRoute
   '/treinamento': typeof AuthenticatedTreinamentoRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/andamentos': typeof AuthenticatedAndamentosRoute
   '/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/atendimento': typeof AuthenticatedAtendimentoRoute
@@ -135,6 +159,7 @@ export interface FileRoutesByTo {
   '/protocolo': typeof AuthenticatedProtocoloRoute
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/': typeof AuthenticatedIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -142,6 +167,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/mcp': typeof McpRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/andamentos': typeof AuthenticatedAndamentosRoute
   '/_authenticated/aprovacoes': typeof AuthenticatedAprovacoesRoute
   '/_authenticated/atendimento': typeof AuthenticatedAtendimentoRoute
@@ -153,6 +180,7 @@ export interface FileRoutesById {
   '/_authenticated/protocolo': typeof AuthenticatedProtocoloRoute
   '/_authenticated/treinamento': typeof AuthenticatedTreinamentoRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -161,6 +189,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/andamentos'
     | '/aprovacoes'
     | '/atendimento'
@@ -171,11 +201,14 @@ export interface FileRouteTypes {
     | '/producao'
     | '/protocolo'
     | '/treinamento'
+    | '/.lovable/oauth/consent'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/andamentos'
     | '/aprovacoes'
     | '/atendimento'
@@ -187,12 +220,15 @@ export interface FileRouteTypes {
     | '/protocolo'
     | '/treinamento'
     | '/'
+    | '/.lovable/oauth/consent'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
+    | '/mcp'
+    | '/.well-known/oauth-protected-resource'
     | '/_authenticated/andamentos'
     | '/_authenticated/aprovacoes'
     | '/_authenticated/atendimento'
@@ -204,6 +240,7 @@ export interface FileRouteTypes {
     | '/_authenticated/protocolo'
     | '/_authenticated/treinamento'
     | '/_authenticated/'
+    | '/.lovable/oauth/consent'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   fileRoutesById: FileRoutesById
@@ -211,6 +248,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  McpRoute: typeof McpRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicAtendimentoTelegramRoute: typeof ApiPublicAtendimentoTelegramRoute
   ApiPublicAtendimentoWhatsappRoute: typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -229,6 +269,20 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/': {
@@ -308,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTreinamentoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/atendimento/telegram': {
       id: '/api/public/atendimento/telegram'
       path: '/api/public/atendimento/telegram'
@@ -359,6 +420,10 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  McpRoute: McpRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicAtendimentoTelegramRoute: ApiPublicAtendimentoTelegramRoute,
   ApiPublicAtendimentoWhatsappRoute: ApiPublicAtendimentoWhatsappRoute,
 }

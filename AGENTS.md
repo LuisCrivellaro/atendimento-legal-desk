@@ -38,3 +38,4 @@
 - National Brazilian public holidays are checked using date-holidays; local office closures remain Calendar busy blocks until a location-specific policy is supplied. Why: avoid inventing municipal holiday jurisdiction.
 - Trato feito rules (base docs, AC/RT folder, phase, production notice) live in src/lib/atendimento/trato-feito.ts with tests; Production start stays manual; why: future automation must respect legal gates.
 - WhatsApp via UltraMsg is the only active real attendance channel; Telegram endpoints are retired and history preserved: sending through `canais/ultramsg.ts`, receiving at `/api/public/atendimento/whatsapp` (query secret + instance check), only released contacts linked to one conversation; why: keeps the same legal and test-contact gates as before.
+- Subdirectories may have their own `AGENTS.md`; read it before changing files there.
