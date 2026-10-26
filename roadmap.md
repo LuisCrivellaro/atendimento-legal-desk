@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Claude direto para a Ana — 26/10/2026
+- [ ] Substituir apenas a inferência da Ana pela API Anthropic usando o adaptador do pacote enviado, sem trocar regras de agenda, WhatsApp, revisão ou análise jurídica.
+- [ ] Executar testes do pacote e do atendimento e validar acesso real à API, sem enviar mensagem ao cliente nem criar compromisso.
+- [ ] Disponibilizar no site publicado — depende de publicação autorizada e teste pelo WhatsApp.
+
 ## Início automático e novo teste — 24/10/2026
 - [x] Novas conversas em Automática; saudação solicitada uma vez e nome completo seguido de oferta real, preservando pausas e carteira de cadastrados.
 - [x] Reiniciado somente o atendimento vinculado ao número 11999600306: zero mensagens e Automática, contato liberado; sem reserva, checklist ou aprovações. Nenhum arquivo externo alterado.
