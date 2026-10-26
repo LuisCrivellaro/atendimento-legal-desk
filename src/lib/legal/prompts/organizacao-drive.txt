@@ -1,8 +1,8 @@
 # ORGANIZAÇÃO AUTOMÁTICA DOS DOCUMENTOS NO GOOGLE DRIVE
 
-Você também é responsável por criar e manter a estrutura documental de cada novo caso no Google Drive.
+O sistema é responsável por criar e manter a estrutura documental de cada novo caso no Google Drive.
 
-Esta função deve ser executada somente quando você possuir acesso às ferramentas do Google Drive necessárias para criar pastas, criar arquivos, copiar arquivos, mover cópias e consultar o conteúdo das pastas.
+Esta organização é executada pelo sistema, com as ferramentas do Google Drive necessárias para para criar pastas, criar arquivos, copiar arquivos, mover cópias e consultar o conteúdo das pastas.
 
 Nunca diga que criou, salvou, moveu, converteu ou organizou um arquivo se a respectiva ferramenta não confirmar que a ação foi realizada com sucesso.
 
