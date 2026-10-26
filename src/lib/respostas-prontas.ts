@@ -30,19 +30,31 @@ export const VARIABLES = [
   { key: 'nome_completo', label: 'Nome completo' },
   { key: 'documentos_faltantes', label: 'Documentos faltantes' },
   { key: 'atendimento', label: 'Nº do atendimento' },
+  { key: 'data_horario', label: 'Data e horário (preencher)' },
 ] as const;
 
 export const DEFAULT_REPLIES: QuickReply[] = [
-  { id: 'ola', titulo: 'Saudação', categoria: 'Boas-vindas', atalho: 'ola', etapas: ['inicial'], texto: 'Olá, {nome}! Aqui é a assessora da Dra. Carolina Santos. Como posso ajudar?' },
-  { id: 'entender', titulo: 'Entender o caso', categoria: 'Boas-vindas', atalho: 'caso', etapas: ['inicial'], texto: '{nome}, para entendermos melhor, pode me contar em poucas palavras o que aconteceu e desde quando?' },
-  { id: 'recebido', titulo: 'Documento recebido', categoria: 'Documentos', atalho: 'recebido', etapas: ['documentos'], texto: 'Recebemos seu documento, {nome}. Vamos conferir o conteúdo e avisamos se faltar algo.' },
-  { id: 'faltam', titulo: 'Lembrar documentos faltantes', categoria: 'Documentos', atalho: 'faltam', etapas: ['documentos'], texto: '{nome}, ainda precisamos destes documentos: {documentos_faltantes}. Pode enviar por aqui mesmo, em foto ou PDF.' },
-  { id: 'foto', titulo: 'Foto ilegível', categoria: 'Documentos', atalho: 'foto', texto: '{nome}, a imagem ficou difícil de ler. Pode enviar novamente com boa iluminação, mostrando o documento inteiro?' },
-  { id: 'horario-ok', titulo: 'Horário anotado', categoria: 'Agendamento', atalho: 'anotado', texto: 'Perfeito, {nome}! Vou confirmar o horário com a advogada e já retorno.' },
-  { id: 'andamento', titulo: 'Consultar andamento', categoria: 'Processo', atalho: 'andamento', etapas: ['ativo'], texto: '{nome}, vou consultar o andamento do seu processo e retorno em breve.' },
+  {"id": "ola", "titulo": "Saudação", "categoria": "Boas-vindas", "atalho": "ola", "texto": "Olá, {nome}! Tudo bem?\n\nAqui é da equipe da Dra. Carolina Santos, da CS Lawyers | Advocacia. Como podemos te ajudar?", "etapas": ["inicial"]},
+  {"id": "entender", "titulo": "Entender o caso", "categoria": "Boas-vindas", "atalho": "caso", "texto": "{nome}, para entendermos melhor a sua situação e conseguirmos te orientar da forma adequada, pode nos contar brevemente o que aconteceu?\n\nSe puder, inclua as principais informações e quando isso ocorreu.", "etapas": ["inicial"]},
+  {"id": "cs-boas-vindas", "titulo": "Boas-vindas e consulta", "categoria": "Boas-vindas", "atalho": "bemvindo", "texto": "Olá, {nome}! Seja muito bem-vindo(a).\n\nA Dra. Carolina realiza uma consulta online de aproximadamente 30 minutos, pelo Google Meet, para entender melhor o seu caso e esclarecer suas principais dúvidas.\n\nA consulta inicial é gratuita. Se quiser, podemos verificar os horários disponíveis para você.", "etapas": ["inicial"]},
+  {"id": "recebido", "titulo": "Documento recebido", "categoria": "Documentos", "atalho": "recebido", "texto": "Recebemos o seu documento, {nome}.\n\nVamos deixá-lo registrado para conferência da equipe. Caso seja necessário algum documento ou informação adicional, entraremos em contato por aqui.", "etapas": ["documentos"]},
+  {"id": "faltam", "titulo": "Solicitar documentos faltantes", "categoria": "Documentos", "atalho": "faltam", "texto": "{nome}, para conseguirmos dar continuidade à análise, ainda precisamos dos seguintes documentos:\n\n{documentos_faltantes}\n\nQuando puder, pode nos enviar por aqui mesmo.", "etapas": ["documentos"]},
+  {"id": "foto", "titulo": "Foto ou documento ilegível", "categoria": "Documentos", "atalho": "foto", "texto": "{nome}, recebemos o arquivo, mas a imagem ficou um pouco difícil de ler.\n\nQuando puder, poderia enviar novamente uma foto mais nítida, de preferência com boa iluminação e mostrando o documento inteiro?"},
+  {"id": "agendar", "titulo": "Oferecer agendamento", "categoria": "Agendamento", "atalho": "agendar", "texto": "{nome}, podemos agendar uma conversa com a Dra. Carolina para que ela entenda melhor o seu caso.\n\nSe quiser, posso verificar os próximos horários disponíveis para você.", "etapas": ["inicial"]},
+  {"id": "confirmado", "titulo": "Consulta confirmada", "categoria": "Agendamento", "atalho": "confirmado", "texto": "Pronto, {nome}! Sua consulta com a Dra. Carolina está confirmada para:\n\n{data_horario}\n\nA consulta será online, pelo Google Meet. O link será enviado para o e-mail informado no agendamento."},
+  {"id": "lembrar", "titulo": "Lembrete de consulta", "categoria": "Agendamento", "atalho": "lembrar", "texto": "Olá, {nome}! Passando para lembrar que sua consulta com a Dra. Carolina está marcada para {data_horario}.\n\nSe surgir algum imprevisto e você precisar remarcar, é só nos avisar por aqui."},
+  {"id": "remarcar", "titulo": "Remarcar consulta", "categoria": "Agendamento", "atalho": "remarcar", "texto": "Claro, {nome}. Sem problema.\n\nPodemos verificar um novo horário para a sua consulta com a Dra. Carolina. Qual dia ou período costuma ser melhor para você?"},
+  {"id": "cancelar", "titulo": "Confirmar cancelamento", "categoria": "Agendamento", "atalho": "cancelar", "texto": "Claro, {nome}.\n\nSó para confirmarmos antes de cancelar: você realmente deseja cancelar sua consulta marcada para {data_horario}?"},
+  {"id": "cancelado", "titulo": "Cancelamento confirmado", "categoria": "Agendamento", "atalho": "cancelado", "texto": "Pronto, {nome}. Sua consulta foi cancelada.\n\nSe quiser marcar uma nova data futuramente, estaremos à disposição por aqui."},
+  {"id": "verificar", "titulo": "Equipe verificando", "categoria": "Geral", "atalho": "aguarde", "texto": "Entendi, {nome}.\n\nVou deixar essa informação registrada para a equipe verificar com atenção. Assim que tivermos um retorno, continuaremos o atendimento por aqui.", "etapas": ["inicial", "documentos", "ativo"]},
+  {"id": "documentos", "titulo": "Envio de documentos", "categoria": "Documentos", "atalho": "documentos", "texto": "Pode enviar os documentos por aqui mesmo, {nome}.\n\nA equipe fará a conferência e, caso seja necessário complementar alguma informação, avisaremos você por esta conversa.", "etapas": ["documentos"]},
+  {"id": "andamento", "titulo": "Dúvida sobre processo em andamento", "categoria": "Processo", "atalho": "processo", "texto": "{nome}, recebemos sua mensagem.\n\nComo essa dúvida envolve o andamento do seu processo, vou deixar o pedido registrado para que a equipe responsável verifique e retorne para você por aqui.", "etapas": ["ativo"]},
+  {"id": "honorarios", "titulo": "Dúvida sobre honorários", "categoria": "Geral", "atalho": "honorarios", "texto": "{nome}, as condições de honorários dependem da análise de cada caso.\n\nA Dra. Carolina poderá explicar tudo com clareza durante a consulta, depois de entender melhor a sua situação."},
+  {"id": "valor", "titulo": "Pergunta sobre valor da causa ou indenização", "categoria": "Geral", "atalho": "valor", "texto": "Entendo a sua dúvida, {nome}.\n\nPara estimar qualquer valor, a Dra. Carolina precisa primeiro analisar os detalhes e documentos do caso. Ela poderá esclarecer isso com você durante a consulta."},
+  {"id": "presencial", "titulo": "Atendimento presencial", "categoria": "Geral", "atalho": "presencial", "texto": "{nome}, a consulta inicial é realizada online, pelo Google Meet.\n\nSe houver necessidade de atendimento presencial posteriormente, a equipe poderá verificar isso com você."},
+  {"id": "finalizar", "titulo": "Encerramento cordial", "categoria": "Geral", "atalho": "finalizar", "texto": "Perfeito, {nome}.\n\nSe precisar de qualquer outra informação ou tiver alguma dúvida, pode nos chamar por aqui. Ficamos à disposição."},
+  {"id": "obrigada", "titulo": "Agradecimento", "categoria": "Geral", "atalho": "obrigado", "texto": "Nós que agradecemos pelo contato, {nome}.\n\nFicamos à disposição sempre que precisar."},
   { id: 'sem-novidades', titulo: 'Sem novidades no processo', categoria: 'Processo', atalho: 'novidades', etapas: ['ativo'], texto: '{nome}, conferimos o seu processo e ainda não há novidades. Assim que houver qualquer movimentação, avisamos você por aqui.' },
-  { id: 'verificar', titulo: 'Vou verificar com a advogada', categoria: 'Geral', atalho: 'verificar', etapas: ['inicial', 'documentos', 'ativo'], texto: '{nome}, vou verificar com a advogada responsável e retorno em breve.' },
-  { id: 'cs-boas-vindas', titulo: 'Boas-vindas e consulta gratuita', categoria: 'Boas-vindas', atalho: 'bemvindo', etapas: ['inicial'], texto: 'Olá, {nome}!\n\nSeja bem-vindo(a) 😊\n\nEquipe CS Advocacia\nwww.carolinasantos.com.br\n\nVou te ajudar!\n\nNossa primeira consulta é on-line e gratuita.\n\nTemos horários amanhã, {horario_1} ou {horario_2}.\n\nO que fica melhor para você?' },
   { id: 'cs-orcamento', titulo: 'Orçamento (Tabela OAB/SP)', categoria: 'Processo', atalho: 'orcamento', texto: 'Oi, {nome} 😊\n\nConforme solicitado, segue o orçamento dos serviços jurídicos:\n\n📌 Para o seu caso, vamos fazer o valor mínimo previsto na Tabela da OAB/SP.\n\n📋 Item {item_tabela} – *{tipo_acao}*\nValor mínimo da Tabela OAB/SP: R$ {valor_total}.\n\n✅ Para pagamento à vista (PIX), conseguimos conceder 10% de desconto.\n\n📌 O valor também pode ser parcelado em até *10x de R$ {valor_parcela}* no cartão.\n\n📌 Caso prefira, também é possível realizar uma entrada e parcelar o restante. Nessa modalidade, conseguimos manter os 10% de desconto sobre o valor total.\n\nAssim que você aprovar, já encaminhamos o link de pagamento e a documentação necessária para iniciarmos a demanda 😊\n\nFicamos à disposição para qualquer dúvida! Orçamento válido por 5 dias!\n\nEquipe CS Lawyers ⚖️ 🩵' },
   { id: 'cs-audiencia', titulo: 'Lembrete de audiência presencial', categoria: 'Processo', atalho: 'audiencia', etapas: ['ativo'], texto: 'Oi, {nome}! 😊\n\nEstamos passando para te lembrar da sua audiência, que será realizada PRESENCIALMENTE, no dia {data} às {hora} - {tipo_audiencia}.\n\n📌 Processo: {processo}\n\n📌 Vara: {vara}\n\n📍 Local da audiência:\n{endereco}\n\n📌 Solicitamos que você compareça ao local com uma hora de antecedência, portando um documento oficial com foto.\n\n📌 Caso possua testemunha, peço que a informe sobre a data, horário e local da audiência, para que ela também possa se organizar com antecedência. Por gentileza, nos envie um print do aviso da testemunha.\n\nQualquer dúvida, estou à disposição! 🩵\n\nEquipe CS Lawyers ⚖️' },
   { id: 'cs-reagendar', titulo: 'Reagendar consulta', categoria: 'Agendamento', atalho: 'reagendar', texto: 'Oi, {nome}! Tudo bem? 😊\n\nFique tranquilo(a), sabemos que imprevistos acontecem.\n\nEstou passando para reagendarmos sua consulta e garantir que você receba a orientação necessária sobre o seu caso com calma e atenção.\n\nHoje temos disponibilidade às {horario_1} ou às {horario_2}.\n\nQual desses horários fica melhor para você?' },
@@ -56,7 +68,6 @@ export const DEFAULT_REPLIES: QuickReply[] = [
   { id: 'cs-docs-curto', titulo: 'Documentos para contrato (curto)', categoria: 'Documentos', atalho: 'rgcpf', texto: '📥📄 Vamos dar seguimento ao início da sua ação e, para que eu possa elaborar o seu contrato, peço, por gentileza, que me encaminhe os seguintes documentos:\n\n- RG;\n- CPF;\n- Comprovante de residência atualizado.\n\nQualquer dúvida, fico à disposição para te auxiliar, tá bem?\n\nFico no aguardo 🩵' },
   { id: 'cs-fora-horario', titulo: 'Fora do horário de atendimento', categoria: 'Geral', atalho: 'forahorario', texto: 'Agradecemos seu contato! Deixe sua mensagem que, assim que possível, entraremos em contato.\n\nAtenciosamente,\n\nEquipe CS Advocacia ⚖️😊\n\nHorário de atendimento: das 9h às 18h' },
   { id: 'cs-lembrete-consulta', titulo: 'Lembrete da consulta de hoje', categoria: 'Agendamento', atalho: 'lembreteconsulta', texto: 'Oi, {nome}! Bom dia 😊\n\nPassando para lembrar que:\n\n📆 Sua consulta está confirmada para hoje, às {hora}. ✅\n\nCaso precise fazer alguma alteração, pedimos a gentileza de nos avisar com pelo menos 1 hora de antecedência.\n\nEstamos te aguardando!\n\nEquipe CS Advocacia\ncarolinasantos.com.br' },
-  { id: 'obrigada', titulo: 'Agradecer', categoria: 'Geral', atalho: 'obrigada', texto: 'Obrigada, {nome}! Estamos à disposição.' },
 ].map((r) => ({ ...r, padrao: true }) as QuickReply);
 
 export const emptySaved: SavedReplies = { itens: [], ocultas: [] };
@@ -81,7 +92,16 @@ export function fillReply(texto: string, c: Pick<Conversa, 'nome' | 'atendimento
     documentos_faltantes: faltantes.length ? faltantes.join(', ') : 'nenhum documento pendente',
     atendimento: c.atendimento,
   };
-  return texto.replace(/\{([a-z_]+)\}/gi, (all, key: string) => values[key.toLowerCase()] ?? all);
+  const primeiro = values['nome']?.trim() ?? '';
+  // Sem nome conhecido: tira {nome} e a vírgula ao redor, sem deixar a frase quebrada.
+  const base = primeiro && !/^novo contato$/i.test(c.nome.trim())
+    ? texto
+    : texto
+        .replace(/\{nome\}, (\p{Ll})/gu, (_a, l: string) => l.toUpperCase())
+        .replace(/ ?, \{nome\}([.!?,])/g, '$1')
+        .replace(/\{nome\}([.!?]) ?/g, '')
+        .replace(/\{nome\} ?/g, '');
+  return base.replace(/\{([a-z_]+)\}/gi, (all, key: string) => values[key.toLowerCase()] ?? all);
 }
 
 /** Campos entre chaves que ainda precisam ser preenchidos antes de enviar. */

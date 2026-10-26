@@ -13,6 +13,19 @@ describe('Mensagens prontas', () => {
     expect(fillReply('{documentos_faltantes}', helena)).toBe('nenhum documento pendente');
   });
 
+  it('sem nome do cliente, adapta a frase sem deixar {nome}', () => {
+    const sem = { ...mariana, nome: '' };
+    expect(fillReply('Olá, {nome}! Tudo bem?', sem)).toBe('Olá! Tudo bem?');
+    expect(fillReply('{nome}, recebemos sua mensagem.', sem)).toBe('Recebemos sua mensagem.');
+    expect(fillReply('Recebemos o seu documento, {nome}.', sem)).toBe('Recebemos o seu documento.');
+    expect(fillReply('Pronto, {nome}! Sua consulta', sem)).toBe('Pronto! Sua consulta');
+  });
+
+  it('/cancelado e /confirmado deixam a data para a equipe preencher', () => {
+    const r = mergeReplies().find((x) => x.atalho === 'confirmado')!;
+    expect(pendingFields(fillReply(r.texto, mariana))).toEqual(['data_horario']);
+  });
+
   it('aponta campos que ainda precisam ser preenchidos', () => {
     expect(pendingFields('Sua perícia será em {data} às {hora}. {data}')).toEqual(['data', 'hora']);
     expect(pendingFields('Sem campos')).toEqual([]);
