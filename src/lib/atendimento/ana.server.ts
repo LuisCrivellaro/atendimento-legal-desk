@@ -119,9 +119,9 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         if(!reserva||reserva.inicio!==current.consultaAgendada)throw new Error('Consulta sem recibo verificável; equipe deve conferir antes de cancelar.');
         const {cancelarGoogleCalendar}=await import('./google-calendar.server');
         await assumirAlteracao(db,id,messageId,reserva.id,'cancelar');
-        await cancelarGoogleCalendar(id,reserva,true);
-        r.mensagem=`Sua consulta de ${formatarHorarioCliente(reserva.inicio)} foi cancelada.`;
-        r.proximo_passo='Consulta cancelada com autorização do cliente.';
+        const resultado=await cancelarGoogleCalendar(id,reserva,true);
+        r.mensagem=`Pronto. Sua consulta de ${formatarHorarioCliente(reserva.inicio)} foi cancelada.\n\nSe quiser marcar uma nova data, é só me chamar por aqui.`;
+        r.proximo_passo=resultado==='ausente'?'Consulta retirada do atendimento; o compromisso já não estava na agenda conectada. Equipe: conferir outras agendas.':'Consulta cancelada com autorização do cliente.';
         await atualizarConversa(db,id,x=>({...x,consultaAgendada:undefined,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:undefined,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],agendaReal:false,resultado:r,proximoPasso:r.proximo_passo},timeline:[...x.timeline,{data:new Date().toISOString(),evento:r.proximo_passo}]}));
         await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'cancelarCalendar',p_resumo:r.proximo_passo,p_status:'sucesso'});
       }
@@ -174,7 +174,10 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(audit.error)throw new Error('Falha ao registrar auditoria.');
   } catch(error) {
     const e=error as {statusCode?:number;responseBody?:string;message?:string};
+    console.error('Ana interrompida',error);
     let safe='Não foi possível concluir a resposta da Ana; atendimento encaminhado para a equipe.';
+    // Mensagens internas curtas (sem corpo de provedor) ajudam a equipe a saber o motivo real.
+    if(e.message&&!e.responseBody&&!/\[\d{3}\]/.test(e.message))safe=`${safe} Motivo: ${e.message}`;
     try {const body=JSON.parse(e.responseBody??'{}');safe=body.message??body.error?.message??safe;}catch {/* Não exibir corpo bruto. */}
     safe=safe.slice(0,400);
     const pause=e.statusCode===402||e.statusCode===403||e.statusCode===404||e.statusCode===401;
