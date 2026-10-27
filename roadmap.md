@@ -1,9 +1,9 @@
 # Construção dos módulos Manager ADV
 
 ## UltraMsg restrito — 27/10/2026
-- [ ] Retirar Telegram dos controles e recebimento; preservar históricos e Claude.
-- [ ] Restringir entrada e envio UltraMsg a 11999600306 e 11942074361, mantendo entrada geral fechada.
-- [ ] Vincular os dois contatos à conta da Dra., ativar UltraMsg e verificar configuração e testes sem enviar mensagens fictícias.
+- [x] Retirar Telegram dos controles e recebimento (410); recebimento removido no Telegram, contato antigo bloqueado, históricos e Claude preservados.
+- [x] Restringir entrada, liberação e envio UltraMsg a 11999600306 e 11942074361; entrada geral fechada e outros contatos bloqueados. 357 testes aprovados e compilação limpa.
+- [x] Ambos vinculados à conta da Dra.; UltraMsg e Ana ativos, recebimento registrado HTTP 200 e instância authenticated, sem envio fictício.
 - [ ] Disponibilizar alterações publicadas e confirmar nova mensagem real — publicação e mensagem externa pendentes.
 
 ## Atualização do GitHub — 27/10/2026
