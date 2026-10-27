@@ -102,6 +102,7 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio').eq('conversa_id', entrada.conversaId).eq('canal', 'telegram').eq('status', 'liberado').maybeSingle();
     if (destino.error) throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
     const contato = destino.data;
+    if (entrada.contatoEsperado && contato?.contato_externo !== entrada.contatoEsperado) throw new Error('Vínculo do contato alterado; envio interrompido.');
     if (!contato) {
       await auditar(supabase, ator, entrada.acao, 'Envio recusado: contato Telegram não liberado', 'bloqueado');
       throw new Error('Contato de Telegram não liberado para esta conversa. Nada foi enviado.');

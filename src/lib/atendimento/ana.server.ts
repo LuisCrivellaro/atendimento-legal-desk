@@ -5,7 +5,8 @@ import { defaultState, type OfficeState } from '../office';
 import { defaultAutomations, newMessage, chosenSlot, formatarHorarioCliente } from '../atendimento';
 import { escolherReservaAna } from './calendar-booking';
 import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, horariosLivresAna, priorizarAgendamentoAna } from './ana-rules';
-import { etiquetaConversa, identificarTipoCliente, telefoneCanalAgenda } from './intake-rules';
+import { etiquetaConversa, identificarTipoCliente } from './intake-rules';
+import { telefoneRemetenteAna } from './telegram-intake';
 import { horarioPermitido } from './schedule-rules';
 import { decidirAlteracaoConsulta, operacaoExpirada } from './appointment-management';
 import { solicitarEmailPendente } from './email-rules';
@@ -37,11 +38,11 @@ export async function atualizarConversa(db:Db,id:string,fn:(c:Conversa)=>Convers
 }
 
 export async function processarAna(db:Db,id:string,messageId:string,request:Request) {
-  const [row,config,remetente]=await Promise.all([db.from('casos').select('owner_id,dados').eq('id',id).single(),db.from('atendimento_canal_config').select('*').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo').eq('conversa_id',id).eq('canal','ultramsg').eq('status','liberado').maybeSingle()]);
-  if(row.error||config.error||!config.data.agente_ativo||config.data.canal_ativo!=='ultramsg')return;
-  const telefone=telefoneCanalAgenda(remetente.data?.contato_externo,messageId);
+  const canal = messageId.startsWith('telegram:') ? 'telegram' as const : 'ultramsg' as const;
+  const [row,config,remetente]=await Promise.all([db.from('casos').select('owner_id,dados').eq('id',id).single(),db.from('atendimento_canal_config').select('*').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio').eq('conversa_id',id).eq('canal',canal).eq('status','liberado').maybeSingle()]);
+  if(row.error||config.error||!config.data.agente_ativo||config.data.canal_ativo!==canal)return;
+  const telefone=telefoneRemetenteAna(canal,remetente.data??undefined,messageId);
   if(remetente.error||!telefone)return;
-  const canal='ultramsg' as const;
   const c=row.data.dados as unknown as Conversa;
   const ws=await db.from('office_workspace').select('dados').eq('owner_id',row.data.owner_id).maybeSingle();
   if(ws.error)throw new Error('Treinamento indisponível.');
