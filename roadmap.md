@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Prompt Ana v7 — 27/10/2026
+- [ ] Substituir identidade ativa e restrições pelo anexo, preservando Claude, contrato JSON e Treinamento; conferir conflitos salvos sem alterar instruções da equipe.
+- [ ] Remover saudação fixa; aplicar intenção estrita, passagem humana e horários numerados, específicos e por período com disponibilidade revalidada.
+- [ ] Executar testes e validar fluxo sem enviar mensagens externas; publicação depende de autorização.
+
 ## Teste temporário Telegram — 27/10/2026
 - [x] Reativar recebimento/envio seguro no Telegram com Claude e conversa Teste Whatsapp, preservando controles de agenda e contatos liberados; contato Telegram existente vinculado pela conta da Dra.
 - [x] Pausar UltraMsg pelo canal global sem excluir credenciais/configuração; configuração relida com Telegram ativo e Ana ligada.
