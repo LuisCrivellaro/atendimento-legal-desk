@@ -73,7 +73,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       expect(mocks.gerar.mock.calls[0]?.[1].telefone_informado).toBe('5511999600306');
       if(cenario==='reservar') {expect(mocks.reservar).toHaveBeenCalledWith('caso-teste', inicio, expect.any(Date), { nome: 'Maria Teste', telefone: '5511999600306', tipo: 'novo' });expect(saved.consultaAgendada).toBe(inicio);}
       if(cenario==='perguntar'){expect(mocks.reservar).not.toHaveBeenCalled();expect(mocks.cancelar).not.toHaveBeenCalled();expect(saved.consultaAgendada).toBe(anterior.inicio);}
-      if(cenario==='cancelar'){expect(mocks.cancelar).toHaveBeenCalledWith('caso-teste',anterior,true);expect(saved.consultaAgendada).toBeUndefined();expect(saved.agenteAna?.horariosTeste).toEqual([]);expect(saved.agenteAna?.reservaCalendar).toBeUndefined();}
+      if(cenario==='cancelar'){expect(mocks.cancelar).not.toHaveBeenCalled();expect(saved.consultaAgendada).toBe(anterior.inicio);expect(saved.agenteAna?.confirmacaoCancelamento?.eventoId).toBe(anterior.id);}
       if(cenario==='remarcar'){expect(mocks.remarcar).toHaveBeenCalledWith('caso-teste',anterior,inicio,true,expect.any(Date),{nome:'Maria Teste',telefone,tipo:'novo'});expect(saved.consultaAgendada).toBe(inicio);}
       if(cenario==='ofertar'||cenario==='nome'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste).not.toContain(inicio);expect(saved.agenteAna?.horariosTeste).toHaveLength(3);expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='nome'){expect(saved.agenteAna?.dados?.nome).toBe('Maria Silva Souza');expect(saved.agenteAna?.agendaReal).toBe(true);expect(saved.agenteAna?.tipoCliente).toBe('novo');}

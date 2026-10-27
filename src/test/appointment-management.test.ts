@@ -1,5 +1,5 @@
 import {describe,it,expect,vi,afterEach} from 'vitest';
-import {decidirAlteracaoConsulta,operacaoExpirada} from '@/lib/atendimento/appointment-management';
+import {decidirAlteracaoConsulta,decidirCancelamentoAna,operacaoExpirada} from '@/lib/atendimento/appointment-management';
 import {cancelarGoogleCalendar,remarcarGoogleCalendar,ocupadosGoogleCalendar} from '@/lib/atendimento/google-calendar.server';
 const inicio='2026-10-26T12:00:00.000Z',fim='2026-10-26T12:30:00.000Z';
 const novaInicio='2026-10-27T12:00:00.000Z',novaFim='2026-10-27T12:30:00.000Z';
@@ -10,6 +10,10 @@ const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status}
 function setup(){vi.stubEnv('LOVABLE_API_KEY','test');vi.stubEnv('GOOGLE_CALENDAR_API_KEY','test');const f=vi.fn();vi.stubGlobal('fetch',f);return f;}
 afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
 describe('alteração autorizada da consulta',()=>{
+ it.each(['quero cancelar','cancela minha consulta','desmarcar','não vou poder ir'])('Ana pergunta antes de cancelar: %s',texto=>expect(decidirCancelamentoAna(texto)).toBe('pedir'));
+ it.each(['sim','pode','cancela'])('Ana só aceita confirmação posterior: %s',texto=>{expect(decidirCancelamentoAna(texto,true)).toBe('confirmar');expect(decidirCancelamentoAna(texto,false)).not.toBe('confirmar');});
+ it.each(['não','não, vou manter','deixa','vou manter'])('desistência preserva consulta: %s',texto=>expect(decidirCancelamentoAna(texto,true)).toBe('manter'));
+ it('notifica convites existentes pelo Google ao cancelar',async()=>{const f=setup().mockResolvedValueOnce(json(original)).mockResolvedValueOnce(new Response(null,{status:204}));await cancelarGoogleCalendar('caso-1',reserva,true);expect(f.mock.calls[1]?.[0]).toContain('sendUpdates=all');});
  it('novo pedido com consulta existente pergunta antes de alterar',()=>expect(decidirAlteracaoConsulta('Quero agendar uma consulta',true)).toBe('perguntar'));
  it('cancelamento explícito autoriza cancelar',()=>expect(decidirAlteracaoConsulta('Quero cancelar minha consulta',true)).toBe('cancelar'));
  it('remarcação explícita autoriza remarcar',()=>expect(decidirAlteracaoConsulta('Quero remarcar minha consulta',true)).toBe('remarcar'));
