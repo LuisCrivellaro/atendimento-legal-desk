@@ -74,7 +74,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     raw.dados_coletados.email=email;
     const alteracao=decidirAlteracaoConsulta(m.texto,!!c.consultaAgendada,c.agenteAna?.alteracaoConsulta);
     if(alteracao||c.agenteAna?.alteracaoConsulta==='remarcar')raw.intencao='agendamento';
-    const bloqueada=bloqueiaAgenda(m.texto,raw.intencao)||pedidoHumano(m.texto)||raw.encaminhar_humano&&raw.intencao==='outro'&&!/agendar|marcar|consulta/i.test(m.texto);
+    const bloqueada=bloqueiaAgenda(m.texto,raw.intencao)||pedidoHumano(m.texto);
     if(!bloqueada&&(escolherHorarioAna(c.agenteAna?.horariosTeste??[],m.texto)??chosenSlot(c.agenteAna?.horariosTeste??[],m.texto)))raw.intencao='agendamento';
     const teste=config.data.modo_teste===true;
     const previous=c.mensagens.filter(m=>m.canal===canal&&m.de==='escritorio').at(-1)?.texto??'';

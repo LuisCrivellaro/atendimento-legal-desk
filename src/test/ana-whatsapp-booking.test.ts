@@ -63,6 +63,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='nome')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Vou consultar os horários.',motivo_aprovacao:'',intencao:'agendamento',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'Maria Silva Souza',cpf:'',assunto:'',email:''},proximo_passo:''});
       if(cenario==='inicio')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Olá! Sou a Ana, assistente virtual da CS Lawyers | Advocacia.\nComo posso te ajudar hoje?',motivo_aprovacao:'',intencao:'duvida_geral',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''});
       if(['especifico','aceite','tarde','numero'].includes(cenario))mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Vou verificar.',motivo_aprovacao:'',intencao:'agendamento',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''});
+      if(cenario==='recusa')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Sem problema! Como posso ajudar?',motivo_aprovacao:'',intencao:'duvida_geral',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''});
       mocks.reservar.mockResolvedValue({ id: 'evento-teste', inicio });
       mocks.remarcar.mockResolvedValue({id:'evento-teste',inicio});
       mocks.cancelar.mockResolvedValue(undefined);
@@ -81,7 +82,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='especifico'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horarioPendente).toBe('2026-10-26T19:00:00.000Z');expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='aceite'||cenario==='numero'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBe(inicio);}
       if(cenario==='tarde'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste?.every(s=>new Date(s).getUTCHours()>=16)).toBe(true);}
-      expect(saved.agenteAna).toMatchObject({ humano: cenario==='humano'||cenario==='recusa' });
+      expect(saved.agenteAna).toMatchObject({ humano: cenario==='humano' });
       expect(mocks.enviar).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
       expect(saved.mensagens.at(-1)?.canal).toBe(canal);
