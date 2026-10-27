@@ -106,7 +106,7 @@ export async function cancelarGoogleCalendar(conversaId:string,reserva:ReservaCa
   if(!reservaDoAtendimento(event,conversaId,reserva))throw new Error('Compromisso não pertence a este atendimento.');
   // Sem If-Match: o ETag repassado pelo gateway não coincide com o do Google e gerava 412 em todo cancelamento.
   // A propriedade do compromisso já foi validada acima pelo recibo da conversa.
-  const deleted=await calendarRequest(`${path}?sendUpdates=none`,{method:'DELETE'});
+  const deleted=await calendarRequest(`${path}?sendUpdates=all`,{method:'DELETE'});
   if(deleted.status===410||deleted.status===404)return 'ausente' as const;
   if(!deleted.ok)return erroCalendar(deleted);
   return 'cancelado' as const;

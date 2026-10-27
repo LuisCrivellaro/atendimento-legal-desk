@@ -1,6 +1,16 @@
 import type { ReservaCalendar } from './calendar-booking';
 
 export type AlteracaoConsulta = 'cancelar' | 'remarcar';
+/** Ana exige um segundo turno de confirmação; a autorização manual da equipe permanece independente. */
+export function decidirCancelamentoAna(texto:string,pendente=false) {
+  const t=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  if(pendente&&/^(?:nao\b|deixa\b|vou manter\b)|\b(?:vou manter|deixa como esta|nao quero cancelar)\b/.test(t))return 'manter' as const;
+  if(/\b(?:remarcar|reagendar|remarca|remarque)\b/.test(t)&&! /\bnao\b/.test(t))return 'remarcar' as const;
+  if(/\b(?:nao quero cancelar|nao cancele|nao cancela|talvez)\b|\?/.test(t))return undefined;
+  if(pendente&&/^(?:sim(?:\s+(?:pode|por favor|cancela))?|pode(?:\s+(?:sim|cancelar))?|cancela|cancele|cancelar|confirmo|autorizo)[.!\s]*$/.test(t))return 'confirmar' as const;
+  if(/\b(?:cancelar|cancele|cancela|desmarcar|cancelamento)\b|nao vou poder ir/.test(t))return 'pedir' as const;
+  return undefined;
+}
 /** Autorizações vêm do texto atual, não da classificação livre do modelo. */
 export function decidirAlteracaoConsulta(texto:string,existente:boolean,pendente?:AlteracaoConsulta):AlteracaoConsulta|'perguntar'|undefined {
   if(!existente)return undefined;
