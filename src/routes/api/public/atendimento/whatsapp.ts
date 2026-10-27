@@ -128,9 +128,14 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         const numero = numeroWhatsApp(manual ? data.to ?? '' : data.from);
         const lerContatos = async () => {
           const lista = await supabaseAdmin.from('atendimento_contatos_teste').select('id,conversa_id,contato_externo,status').eq('canal', 'ultramsg');
+          if (lista.error) throw new Error('Não foi possível verificar os contatos e bloqueios.');
           return (lista.data ?? []).find(c => chaveTelefone(c.contato_externo) === chaveTelefone(numero));
         };
-        let contato = await lerContatos();
+        let contato: Awaited<ReturnType<typeof lerContatos>>;
+        try { contato = await lerContatos(); } catch {
+          await auditar('mensagemRecebida', 'Contatos indisponíveis; entrada interrompida sem liberar números', 'erro');
+          return Response.json({ error: 'Contatos indisponíveis' }, { status: 503 });
+        }
         if (manual) return registrarRespostaManual(supabaseAdmin, contato, data, auditar);
 
         // Celular próprio do escritório: com a entrada aberta, quem escrever ganha conversa; bloqueados nunca.
@@ -145,7 +150,10 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
             // Outra mensagem do mesmo número pode ter aberto a conversa ao mesmo tempo: a releitura abaixo decide.
             await auditar('novoContatoWhatsApp', `Conversa não aberta nesta mensagem · ${mascararContato(numero)}`, 'erro');
           }
-          contato = await lerContatos();
+          try { contato = await lerContatos(); } catch {
+            await auditar('mensagemRecebida', 'Não foi possível conferir o vínculo do contato', 'erro');
+            return Response.json({ error: 'Contatos indisponíveis' }, { status: 503 });
+          }
         }
         if (!contato || contato.status !== 'liberado' || !contato.conversa_id) {
           await auditar('mensagemRecebida', decisao === 'bloqueado' ? `Contato WhatsApp bloqueado · ${mascararContato(numero)}` : `Contato WhatsApp não liberado · ${mascararContato(numero)}${dona.motivo ? ` · ${dona.motivo}` : ''}`, 'bloqueado');

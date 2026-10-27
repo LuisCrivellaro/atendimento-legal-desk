@@ -32,7 +32,7 @@ describe('regras da entrada do WhatsApp do escritório', () => {
   });
 });
 
-const mocks = vi.hoisted(() => ({ ana: vi.fn(), save: vi.fn(), dona: vi.fn(), abrir: vi.fn(), contatos: [] as Record<string, unknown>[], conversa: { mensagens: [] as Record<string, unknown>[], timeline: [] as unknown[], agenteAna: {} as Record<string, unknown> }, rpc: vi.fn() }));
+const mocks = vi.hoisted(() => ({ ana: vi.fn(), save: vi.fn(), dona: vi.fn(), abrir: vi.fn(), erroContatos: false, contatos: [] as Record<string, unknown>[], conversa: { mensagens: [] as Record<string, unknown>[], timeline: [] as unknown[], agenteAna: {} as Record<string, unknown> }, rpc: vi.fn() }));
 vi.mock('@/lib/atendimento/email.server', () => ({ registrarEmailConversa: vi.fn() }));
 vi.mock('@tanstack/react-router', () => ({ createFileRoute: () => (options: unknown) => options }));
 vi.mock('@/lib/atendimento/ana.server', () => ({ atualizarConversa: mocks.save, processarAna: mocks.ana }));
@@ -40,7 +40,7 @@ vi.mock('@/lib/atendimento/entrada-whatsapp.server', () => ({ donaEntradaWhatsAp
 vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: {
   rpc: mocks.rpc,
   from: (table: string) => {
-    const value = () => ({ error: null, data: table === 'atendimento_canal_config' ? { canal_ativo: 'ultramsg' } : table === 'atendimento_contatos_teste' ? mocks.contatos : table === 'casos' ? { id: 'caso', owner_id: 'dona', dados: mocks.conversa } : null });
+    const value = () => ({ error: table === 'atendimento_contatos_teste' && mocks.erroContatos ? { message: 'unavailable' } : null, data: table === 'atendimento_canal_config' ? { canal_ativo: 'ultramsg' } : table === 'atendimento_contatos_teste' ? mocks.contatos : table === 'casos' ? { id: 'caso', owner_id: 'dona', dados: mocks.conversa } : null });
     const q: Record<string, unknown> = { select: () => q, eq: () => q, maybeSingle: async () => value(), then: (resolve: (v: unknown) => unknown) => Promise.resolve(value()).then(resolve) };
     return q;
   },
@@ -51,12 +51,22 @@ const post = (Route as unknown as { server: { handlers: { POST: (args: { request
 const enviar = (corpo: unknown) => post({ request: new Request('http://localhost:8080/api/public/atendimento/whatsapp?s=segredo', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corpo) }) });
 
 describe('webhook do WhatsApp do escritório', () => {
-  afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); mocks.contatos = []; mocks.conversa = { mensagens: [], timeline: [], agenteAna: {} }; });
+  afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks(); mocks.erroContatos = false; mocks.contatos = []; mocks.conversa = { mensagens: [], timeline: [], agenteAna: {} }; });
   const preparar = () => {
     vi.stubEnv('ULTRAMSG_WEBHOOK_SECRET', 'segredo'); vi.stubEnv('ULTRAMSG_INSTANCE_ID', 'inst'); vi.stubEnv('WHATSAPP_ESPERA_MANUAL_MS', '0');
     mocks.rpc.mockResolvedValue({ error: null });
     mocks.save.mockImplementation(async (_db: unknown, _id: string, fn: (x: unknown) => typeof mocks.conversa) => { mocks.conversa = fn(mocks.conversa); return mocks.conversa; });
   };
+
+  it('falha ao ler bloqueios não cria nem libera contatos ou aciona Ana', async () => {
+    preparar();
+    mocks.erroContatos = true;
+    const r = await enviar({ event_type: 'message_received', data: { id: 'falha', from: '5511999990002@c.us', body: 'oi' } });
+    expect(r.status).toBe(503);
+    expect(mocks.dona).not.toHaveBeenCalled();
+    expect(mocks.abrir).not.toHaveBeenCalled();
+    expect(mocks.ana).not.toHaveBeenCalled();
+  });
 
   it('número novo com a entrada aberta ganha conversa e a Ana responde', async () => {
     preparar();
