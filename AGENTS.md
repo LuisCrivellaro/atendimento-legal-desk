@@ -37,5 +37,5 @@
 - Pure intake rules default new chats to automatic without overriding explicit modes or pauses; greeting precedes name and live availability, respecting client policy and released sender. Why: avoid manual activation and unsafe bookings.
 - National Brazilian public holidays are checked using date-holidays; local office closures remain Calendar busy blocks until a location-specific policy is supplied. Why: avoid inventing municipal holiday jurisdiction.
 - Trato feito rules (base docs, AC/RT folder, phase, production notice) live in src/lib/atendimento/trato-feito.ts with tests; Production start stays manual; why: future automation must respect legal gates.
-- Ana WhatsApp inference uses `ana.functions.ts` with the uploaded `claudeComoSample` adapter; existing server orchestration validates training, scheduling, consent and sends only to released linked UltraMsg contacts. Telegram stays retired. Why: changing provider must not replace operational safety rules.
+- Ana inference uses `ana.functions.ts` with the uploaded `claudeComoSample` adapter; Telegram and UltraMsg share channel-validated orchestration, consent and released conversation-owned destinations, with only one active channel. Why: temporary channel testing must preserve operational safety and provider billing.
 - Subdirectories may have their own `AGENTS.md`; read it before changing files there.
