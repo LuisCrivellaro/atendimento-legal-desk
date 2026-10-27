@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Atualização do GitHub — 27/10/2026
+- [ ] Importar as correções recentes do repositório LuisCrivellaro/ManagerADV preservando segredos e configuração hospedada.
+- [ ] Conferir alterações, executar testes relevantes e verificar o Atendimento autenticado.
+- [ ] Solicitar publicação após conferência de segurança; teste externo depende de nova mensagem da Dra.
+
 ## Continuação no Claude — 27/10/2026
 - [x] Preparar ZIP v4 de 27/10/2026 sem segredos, com código atual, prompts, testes, regras, conectores e instruções de configuração/continuação.
 - [x] Fonte limpa inspecionada e verificação de literais sensíveis sem achados; dados, contas, documentos e credenciais hospedados não fazem parte do ZIP. Configuração hospedada e metadados privados excluídos.
