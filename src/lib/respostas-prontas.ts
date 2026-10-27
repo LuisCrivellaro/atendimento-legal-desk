@@ -92,7 +92,6 @@ export function pendingFields(texto: string): string[] {
 
 /** Até `limit` sugestões para a conversa: primeiro o que combina com a última mensagem, depois com a etapa. */
 export function suggestedReplies(c: Pick<Conversa, 'etapa' | 'mensagens' | 'documentos'>, replies: QuickReply[], limit = 4): QuickReply[] {
-  const last = c.mensagens.at(-1);
   const first: string[] = [];
   const picked = [
     ...first.map((id) => replies.find((r) => r.id === id)),

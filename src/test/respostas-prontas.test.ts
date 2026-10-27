@@ -21,9 +21,21 @@ describe('Mensagens prontas', () => {
     expect(fillReply('Pronto, {nome}! Sua consulta', sem)).toBe('Pronto! Sua consulta');
   });
 
-  it('/cancelado e /confirmado deixam a data para a equipe preencher', () => {
-    const r = mergeReplies().find((x) => x.atalho === 'confirmado')!;
-    expect(pendingFields(fillReply(r.texto, mariana))).toEqual(['data_horario']);
+  it('/consulta deixa os horários para a equipe preencher', () => {
+    const r = mergeReplies().find((x) => x.atalho === 'consulta')!;
+    expect(pendingFields(fillReply(r.texto, mariana))).toEqual(['horario1', 'horario2']);
+  });
+
+  it('cadastra exatamente os 12 atalhos oficiais, com texto idêntico', () => {
+    const rows = JSON.parse(require('node:fs').readFileSync('src/test/fixtures/mensagens-oficiais.json', 'utf8')) as { atalho: string; texto: string }[];
+    const all = mergeReplies();
+    expect(all.map((r) => r.atalho).sort()).toEqual(rows.map((r) => r.atalho).sort());
+    for (const row of rows) expect(all.find((r) => r.atalho === row.atalho)?.texto).toBe(row.texto);
+  });
+
+  it('ajustes salvos de mensagens antigas não voltam a aparecer', () => {
+    const antiga = { id: 'ola', titulo: 'Saudação', texto: 'Olá', categoria: 'Geral' as const, atalho: 'oficial-boasvindas' };
+    expect(mergeReplies({ itens: [antiga], ocultas: [] }).some((r) => r.id === 'ola')).toBe(false);
   });
 
   it('aponta campos que ainda precisam ser preenchidos', () => {
@@ -31,24 +43,15 @@ describe('Mensagens prontas', () => {
     expect(pendingFields('Sem campos')).toEqual([]);
   });
 
-  it('sugere por etapa e prioriza documento recebido', () => {
-    const all = mergeReplies();
-    expect(suggestedReplies(rogerio, all).map((r) => r.id)).toEqual(['ola', 'entender', 'cs-boas-vindas', 'cs-docs-contrato']);
-    const comArquivo = { ...mariana, mensagens: [...mariana.mensagens, { id: 'x', de: 'cliente' as const, texto: '', arquivo: 'ctps.pdf', hora: '' }] };
-    expect(suggestedReplies(comArquivo, all)[0]?.id).toBe('recebido');
-    expect(suggestedReplies(helena, all).map((r) => r.id)).toContain('andamento');
-  });
-
-  it('não sugere lembrar faltantes quando a checklist está completa', () => {
-    const completa = { ...mariana, documentos: mariana.documentos.map((d) => ({ ...d, recebido: true })) };
-    expect(suggestedReplies(completa, mergeReplies()).some((r) => r.id === 'faltam')).toBe(false);
+  it('sugere por etapa', () => {
+    expect(suggestedReplies(rogerio, mergeReplies()).map((r) => r.id)).toEqual(['oficial-boasvindas', 'oficial-consulta', 'oficial-docsiniciais']);
   });
 
   it('busca por atalho, título e texto, sem acentos', () => {
     const all = mergeReplies();
-    expect(searchReplies(all, '/ola')[0]?.id).toBe('ola');
-    expect(searchReplies(all, 'saudacao')[0]?.id).toBe('ola');
-    expect(searchReplies(all, 'ilumina').map((r) => r.id)).toEqual(['foto']);
+    expect(searchReplies(all, '/ata')[0]?.id).toBe('oficial-ata');
+    expect(searchReplies(all, 'orcamento')[0]?.id).toBe('oficial-orcamento');
+    expect(searchReplies(all, 'GOV Assinaturas').map((r) => r.id)).toEqual(['oficial-contrato']);
     expect(searchReplies(all, '')).toHaveLength(all.length);
   });
 
@@ -57,11 +60,11 @@ describe('Mensagens prontas', () => {
     let saved = upsertReply(emptySaved, nova);
     expect(mergeReplies(saved).some((r) => r.id === 'n1')).toBe(true);
     saved = upsertReply(saved, { ...DEFAULT_REPLIES[0]!, texto: 'Bom dia, {nome}!' });
-    expect(mergeReplies(saved).find((r) => r.id === 'ola')?.texto).toBe('Bom dia, {nome}!');
-    saved = restoreDefault(saved, 'ola');
-    expect(mergeReplies(saved).find((r) => r.id === 'ola')?.texto).toBe(DEFAULT_REPLIES[0]!.texto);
-    saved = removeReply(saved, 'ola');
-    expect(mergeReplies(saved).some((r) => r.id === 'ola')).toBe(false);
+    expect(mergeReplies(saved).find((r) => r.id === 'oficial-boasvindas')?.texto).toBe('Bom dia, {nome}!');
+    saved = restoreDefault(saved, 'oficial-boasvindas');
+    expect(mergeReplies(saved).find((r) => r.id === 'oficial-boasvindas')?.texto).toBe(DEFAULT_REPLIES[0]!.texto);
+    saved = removeReply(saved, 'oficial-boasvindas');
+    expect(mergeReplies(saved).some((r) => r.id === 'oficial-boasvindas')).toBe(false);
     saved = removeReply(saved, 'n1');
     expect(saved.itens).toHaveLength(0);
   });
@@ -69,8 +72,8 @@ describe('Mensagens prontas', () => {
   it('valida nome, texto e atalho único', () => {
     const all = mergeReplies();
     expect(validateReply({ id: 'x', titulo: '', texto: '', atalho: '' }, all)).toHaveLength(3);
-    expect(validateReply({ id: 'x', titulo: 'A', texto: 'B', atalho: 'ola' }, all)).toEqual(['O atalho /ola já está em uso.']);
-    expect(validateReply({ id: 'ola', titulo: 'A', texto: 'B', atalho: 'ola' }, all)).toEqual([]);
+    expect(validateReply({ id: 'x', titulo: 'A', texto: 'B', atalho: 'boasvindas' }, all)).toEqual(['O atalho /boasvindas já está em uso.']);
+    expect(validateReply({ id: 'oficial-boasvindas', titulo: 'A', texto: 'B', atalho: 'boasvindas' }, all)).toEqual([]);
     expect(cleanShortcut('/Bom Diá!')).toBe('bomdia');
   });
 });
