@@ -1,9 +1,10 @@
 # Construção dos módulos Manager ADV
 
 ## Horários e cancelamento Ana — 27/10/2026
-- [ ] Aplicar ofertas com marcadores, histórico sem repetição, filtros e variedade em 15 dias úteis, sem trocar Claude/prompt/JSON.
-- [ ] Exigir confirmação posterior de cancelamento, manter ao desistir e encaminhar falhas sem alegar sucesso; preservar remarcação segura e auditoria.
-- [ ] Rodar todos os testes e entregar arquivos alterados e exemplos; teste externo depende de publicação autorizada e mensagem da Dra.
+- [x] Aplicar ofertas com marcadores, histórico sem repetição, filtros e variedade em 15 dias úteis, sem trocar Claude/prompt/JSON; “mais tarde” filtra tarde.
+- [x] Exigir confirmação posterior após envio da pergunta, manter ao desistir e encaminhar falhas sem alegar sucesso; preservar remarcação segura e auditoria.
+- [x] Todos os 338 testes aprovados em 44 arquivos; exemplos e arquivos em docs/ana-horarios-cancelamento.md. Compilação limpa. Fluxos de consentimento exercitados nos dois canais com serviços substituídos, sem eventos ou mensagens reais.
+- [ ] Publicar e verificar mensagem real na conversa de teste — depende de autorização de publicação e mensagem da Dra.; conta conectada na prévia não mostra Teste WhatsApp. Atendimento abriu autenticado sem erros.
 
 ## Prompt Ana v7 — 27/10/2026
 - [x] Substituir identidade ativa e restrições pelas Partes A/B exatas do anexo, preservando Claude, contrato JSON e Treinamento; instrução salva não contém saudação antiga e permaneceu intacta.
