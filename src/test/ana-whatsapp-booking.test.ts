@@ -12,7 +12,8 @@ vi.mock('@/lib/atendimento/google-calendar.server', () => ({ reservarGoogleCalen
 vi.mock('@/lib/atendimento/envio.functions', () => ({ enviarMensagemSistema: mocks.enviar }));
 
 describe('reserva WhatsApp com telefone do canal', () => {
-  it.each(['reservar','perguntar','cancelar','remarcar','ofertar','inicio','nome'] as const)('fluxo WhatsApp: %s com telefone do remetente', async (cenario) => {
+  it.each(['ultramsg','telegram'] as const)('fluxos com canal %s e UltraMsg pausado no teste Telegram', async (canal) => {
+  for (const cenario of ['reservar','perguntar','cancelar','remarcar','ofertar','inicio','nome'] as const) {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-23T04:06:00Z'));
@@ -21,7 +22,8 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if (!fixture) throw new Error('Fixture missing');
       const telefone = '5511999600306';
       const inicio = '2026-10-26T12:00:00.000Z';
-      const messageId = `ultramsg:${telefone}:escolha-1`;
+      const externo = canal === 'telegram' ? '839854097' : telefone;
+      const messageId = `${canal}:${externo}:escolha-1`;
       const anterior={id:'anavelho',inicio:'2026-10-27T12:00:00.000Z',fim:'2026-10-27T12:30:00.000Z'};
       const texto=cenario==='inicio'?'Olá':cenario==='nome'?'Maria Silva Souza':cenario==='cancelar'?'Quero cancelar minha consulta':cenario==='perguntar'?'Quero agendar uma consulta':cenario==='ofertar'?'Quero agendar uma consulta':'26/10 às 9h';
       let saved:Conversa = {
@@ -29,11 +31,11 @@ describe('reserva WhatsApp com telefone do canal', () => {
         agenteAna: { apresentado: true, agendaReal: true, horariosTeste: [inicio], dados: { nome: 'Maria Teste', cpf: '', assunto: 'Consulta', email: '' } },
         ...(['perguntar','cancelar','remarcar'].includes(cenario)?{consultaAgendada:anterior.inicio,agenteAna:{apresentado:true,agendaReal:true,horariosTeste:[inicio],dados:{nome:'Maria Teste',cpf:'',assunto:'Consulta',email:''},reservaCalendar:anterior,...(cenario==='remarcar'?{alteracaoConsulta:'remarcar' as const,autorizacaoRemarcacao:{eventoId:anterior.id,inicio:anterior.inicio,contato:telefone,expira:'2026-10-23T05:06:00Z'}}:{})}}:{}),
         ...(['inicio','nome'].includes(cenario)?{etapa:'inicial' as const,agenteAna:{apresentado:cenario==='nome',dados:{nome:'',cpf:'',assunto:'',email:''}}}:{}),
-        mensagens: [{ id: messageId, de: 'cliente', canal: 'ultramsg', texto, hora: '01:06' }],
+        mensagens: [{ id: messageId, de: 'cliente', canal, texto, hora: '01:06' }],
       };
       if(cenario==='inicio'||cenario==='nome')delete saved.tipoClienteAgenda;
-      const config = { agente_ativo: true, canal_ativo: 'ultramsg', modo_teste: true };
-      const contato = { contato_externo: telefone, status: 'liberado' };
+      const config = { agente_ativo: true, canal_ativo: canal, modo_teste: true };
+      const contato = { contato_externo: externo, telefone_ficticio: telefone, status: 'liberado' };
       const db = {
         from(table: string) {
           let patch: { dados: typeof saved } | undefined;
@@ -74,8 +76,10 @@ describe('reserva WhatsApp com telefone do canal', () => {
       expect(saved.agenteAna).toMatchObject({ humano: false });
       expect(mocks.enviar).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
+      expect(saved.mensagens.at(-1)?.canal).toBe(canal);
     } finally {
       vi.useRealTimers();
     }
+  }
   });
 });
