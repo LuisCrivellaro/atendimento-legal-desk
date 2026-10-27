@@ -46,11 +46,13 @@ describe('Dados reais para mensagens prontas', () => {
     expect(r.horarios).toEqual(['2026-10-30T16:30:00.000Z', '2026-10-30T17:00:00.000Z']);
   });
   it('carteira não identificada não assume regras', async () => {
-    const d = deps(); const r = await resolveReplyCalendar({ ...c, tipoClienteAgenda: undefined, agenteAna: undefined }, 'consulta', d, now);
+    const d = deps(); const semCarteira = { ...c }; delete semCarteira.tipoClienteAgenda; delete semCarteira.agenteAna;
+    const r = await resolveReplyCalendar(semCarteira, 'consulta', d, now);
     expect(r.horarios).toBeUndefined(); expect(d.busy).not.toHaveBeenCalled();
   });
   it('sem recibo não usa nome ou consulta local para confirmar', async () => {
-    const d = deps(); const r = await resolveReplyCalendar({ ...c, consultaAgendada: receipt.inicio, agenteAna: undefined }, 'confirmar', d, now);
+    const d = deps(); const semRecibo = { ...c, consultaAgendada: receipt.inicio }; delete semRecibo.agenteAna;
+    const r = await resolveReplyCalendar(semRecibo, 'confirmar', d, now);
     expect(r.reserva).toBeUndefined(); expect(d.read).not.toHaveBeenCalled();
   });
   it('consulta passada não é confirmada nem consultada', async () => {
@@ -77,5 +79,10 @@ describe('Dados reais para mensagens prontas', () => {
   it('offsets diferentes representam o mesmo instante e bloqueiam intervalo', () => {
     expect(diaSP('2026-10-28T01:00:00Z')).toBe('2026-10-27');
     expect(gerarHorarios([{ start: '2026-10-28T08:10:00-04:00', end: '2026-10-28T08:40:00-04:00' }], now, 'novo', 2)).toEqual(['2026-10-28T13:00:00.000Z', '2026-10-28T13:30:00.000Z']);
+  });
+  it('não substitui variáveis com instantes inválidos ou passados', () => {
+    const texto = '{horario1} / {horario2} / {vara}';
+    expect(fillCalendarReply(texto, { horarios: ['invalid', '2026-10-26T12:00:00Z'] }, now)).toBe(texto);
+    expect(fillCalendarReply('{horario} {data}', { reserva: receipt }, new Date('2026-10-29T12:00:00Z'))).toBe('{horario} {data}');
   });
 });
