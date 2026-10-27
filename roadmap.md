@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Atualização do GitHub — 27/10/2026
+- [x] Importar os 24 arquivos da revisão ca32e590 do repositório LuisCrivellaro/ManagerADV; conteúdo conferido pelos hashes do GitHub, preservando segredos e configuração hospedada.
+- [x] 353 testes do projeto, 1 do simulador e 10 testes de entrada (incluindo nova proteção de leitura de bloqueios) aprovados; compilação automática limpa. Atendimento, Canal e Agente e histórico Teste WhatsApp conferidos com login da Dra., sem envio externo.
+- [x] Segurança conferida antes da solicitação de publicação; Telegram ativo, UltraMsg e entrada de novos números desligados. Solicitar publicação nesta entrega.
+- [ ] Confirmar nova resposta real da Ana no Telegram — depende de mensagem da Dra. após a publicação; reconhecimento de respostas do celular pelo texto exige teste antes de ativar UltraMsg.
+
 ## Continuação no Claude — 27/10/2026
 - [x] Preparar ZIP v4 de 27/10/2026 sem segredos, com código atual, prompts, testes, regras, conectores e instruções de configuração/continuação.
 - [x] Fonte limpa inspecionada e verificação de literais sensíveis sem achados; dados, contas, documentos e credenciais hospedados não fazem parte do ZIP. Configuração hospedada e metadados privados excluídos.
