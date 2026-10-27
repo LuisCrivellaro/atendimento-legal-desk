@@ -46,7 +46,7 @@ describe('Dados reais para mensagens prontas', () => {
     expect(r.horarios).toEqual(['2026-10-30T16:30:00.000Z', '2026-10-30T17:00:00.000Z']);
   });
   it('carteira não identificada não assume regras', async () => {
-    const d = deps(); const semCarteira = { ...c }; delete semCarteira.tipoClienteAgenda; delete semCarteira.agenteAna;
+    const d = deps(); const { tipoClienteAgenda: _tipo, agenteAna: _ana, ...semCarteira } = c;
     const r = await resolveReplyCalendar(semCarteira, 'consulta', d, now);
     expect(r.horarios).toBeUndefined(); expect(d.busy).not.toHaveBeenCalled();
   });
