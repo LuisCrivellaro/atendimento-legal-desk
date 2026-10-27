@@ -1,5 +1,7 @@
 # Preparação das integrações do Manager ADV
 
+> Documento histórico de preparação. O estado atual de 27/10/2026 está em `CONTINUAR-NO-CLAUDE.md`: Ana usa Anthropic direto; Calendar e Drive têm conectores reais; Telegram é teste temporário e UltraMsg está pausado. As descrições de inatividade abaixo não prevalecem sobre o código atual.
+
 ## Estado desta entrega
 
 Configurações consulta apenas a presença de credenciais, sem devolver seus valores. Nenhum serviço novo foi ativado; a IA existente e as simulações n8n permanecem inalteradas. Os contratos em `src/services/integration-contracts.ts` são referências para futura implementação, não clientes executáveis. Não existem novos webhooks publicados.
