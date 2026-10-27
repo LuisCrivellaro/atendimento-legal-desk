@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Teste temporário Telegram — 27/10/2026
+- [ ] Reativar recebimento/envio seguro no Telegram com Claude e conversa Teste Whatsapp, preservando controles de agenda e contatos liberados.
+- [ ] Pausar UltraMsg sem excluir credenciais/configuração e registrar webhook de teste.
+- [ ] Verificar canal e conversa; teste de mensagem real depende do envio da Dra. ao bot.
+
 ## Mensagens prontas com agenda real — 27/10/2026
 - [x] Preencher /consulta e /reagendar com opções reais, e confirmações/lembretes com recibo futuro verificado; preservar mensagens oficiais e envio manual.
 - [x] Agenda principal chamanalei@gmail.com verificada (CalendarList/freeBusy 200); opções owner-scoped em tempo real por 14 dias, America/Sao_Paulo, reuniões de 30 min e regras existentes por carteira/feriados/bloqueios. /reagendar inclui restante de hoje; /consulta começa amanhã. Carteira ausente exige conferência manual.
