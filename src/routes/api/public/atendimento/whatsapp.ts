@@ -10,6 +10,7 @@ import { textoEscolhaHorario } from '@/lib/atendimento/botoes-horario';
 import { iniciarAtendimentoAutomatico } from '@/lib/atendimento/initial-attendance';
 import { decidirEntradaWhatsApp, destinoIgnoradoWhatsApp, mensagemDoSistema } from '@/lib/atendimento/entrada-whatsapp';
 import type { Conversa } from '@/lib/mock-data';
+import { numeroUltraMsgPermitido } from '@/lib/atendimento/production-channel';
 
 function seguroIgual(a: string, b: string) {
   const ba = Buffer.from(a), bb = Buffer.from(b);
@@ -126,6 +127,10 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         if (config.data?.canal_ativo !== 'ultramsg') { await auditar('mensagemRecebida', 'WhatsApp desligado · mensagem ignorada', 'bloqueado'); return Response.json({ ok: true, ignorado: true }); }
 
         const numero = numeroWhatsApp(manual ? data.to ?? '' : data.from);
+        if (!numeroUltraMsgPermitido(numero)) {
+          await auditar('mensagemRecebida', 'Número fora da lista autorizada; nenhuma mensagem processada', 'bloqueado');
+          return Response.json({ ok: true, ignorado: true });
+        }
         const lerContatos = async () => {
           const lista = await supabaseAdmin.from('atendimento_contatos_teste').select('id,conversa_id,contato_externo,status').eq('canal', 'ultramsg');
           if (lista.error) throw new Error('Não foi possível verificar os contatos e bloqueios.');
