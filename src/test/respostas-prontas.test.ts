@@ -44,7 +44,7 @@ describe('Mensagens prontas', () => {
   });
 
   it('sugere por etapa', () => {
-    expect(suggestedReplies(rogerio, mergeReplies()).map((r) => r.id)).toEqual(['oficial-boasvindas', 'oficial-consulta', 'oficial-docsiniciais']);
+    expect(suggestedReplies(rogerio, mergeReplies()).map((r) => r.id)).toEqual(['oficial-boasvindas', 'oficial-docsiniciais', 'oficial-consulta']);
   });
 
   it('busca por atalho, título e texto, sem acentos', () => {
