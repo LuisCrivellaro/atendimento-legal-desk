@@ -90,7 +90,7 @@ O `.env.example` do ZIP só contém campos vazios. Segredos de servidor nunca us
 | URL pública | `PUBLIC_APP_URL` | Base de webhook do destino, HTTPS público; não trocar sem autorização |
 | Futuro | `ZAPSIGN_API_TOKEN`, `MERCADOPAGO_ACCESS_TOKEN` | Deixar vazios enquanto inativos |
 
-Outros adaptadores paralelos têm campos próprios, como `ANA_CONVITE_EMAIL`, `ANA_GOOGLE_CLIENT_ID`, `ANA_GOOGLE_CLIENT_SECRET` e `ANA_GOOGLE_REFRESH_TOKEN` (confirmar nomes no módulo antes de uso). Não são necessários para a agenda ativa via conector. Não ativar o motor paralelo só porque ele veio no pacote.
+Outros adaptadores paralelos têm campos próprios, como `ANA_CONVITE_EMAIL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN` e `GOOGLE_CALENDAR_ID`. Não são necessários para a agenda ativa via conector. Não ativar o motor paralelo só porque ele veio no pacote.
 
 ## 6. Continuar na Lovable ou mudar hospedagem
 
