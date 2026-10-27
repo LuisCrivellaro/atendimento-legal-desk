@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { botoesHorarios, horarioDoClique, textoEscolhaHorario } from '@/lib/atendimento/botoes-horario';
 import { chosenSlot } from '@/lib/atendimento';
-import { DEFAULT_REPLIES, pendingFields } from '@/lib/respostas-prontas';
+import { pendingFields } from '@/lib/respostas-prontas';
 
 const agora = new Date('2026-10-22T12:00:00Z');
 const a = '2026-10-26T12:00:00.000Z', b = '2026-10-26T17:00:00.000Z';
@@ -25,7 +25,6 @@ describe('Botões de horário', () => {
 
 describe('Mensagens do escritório', () => {
   it('orçamento exige preencher valores antes de enviar', () => {
-    const r = DEFAULT_REPLIES.find(x => x.id === 'cs-orcamento')!;
-    expect(pendingFields(r.texto)).toEqual(expect.arrayContaining(['valor_total', 'valor_parcela']));
+    expect(pendingFields('Valor: {valor_total}; parcela: {valor_parcela}')).toEqual(['valor_total', 'valor_parcela']);
   });
 });

@@ -84,6 +84,16 @@ export async function ocupadosGoogleCalendar(now = new Date(), dias = 14): Promi
 }
 
 /** Nenhum ID enviado pelo modelo é aceito; o recibo salvo deve pertencer à conversa. */
+export async function lerReservaGoogleCalendar(conversaId: string, reserva: ReservaCalendar): Promise<ReservaCalendar | undefined> {
+  const response = await calendarRequest(`/calendars/primary/events/${encodeURIComponent(reserva.id)}`);
+  if (response.status === 404 || response.status === 410) return undefined;
+  if (!response.ok) return erroCalendar(response);
+  const event = await response.json() as CalendarEvent;
+  if (event.status === 'cancelled' || !reservaDoAtendimento(event, conversaId, reserva)) return undefined;
+  return validarReserva(event, conversaId, reserva.inicio, reserva.fim);
+}
+
+/** Nenhum ID enviado pelo modelo é aceito; o recibo salvo deve pertencer à conversa. */
 export async function cancelarGoogleCalendar(conversaId:string,reserva:ReservaCalendar,autorizado:boolean) {
   if(!autorizado)throw new Error('Cancelamento exige autorização explícita.');
   const path=`/calendars/primary/events/${encodeURIComponent(reserva.id)}`;

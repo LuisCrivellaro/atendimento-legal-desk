@@ -31,7 +31,7 @@
 - Optional operational case fields can invalidate draft approval under the unchanged database revision function; why: preserving the existing legal gate takes priority over bypassing reapproval without a migration.
 - Attendance details open inline at ≥1024px or in a drawer below. Staff changes use owner-authenticated functions, verified receipts and confirmation before notification. New Calendar events request Meet and expose only returned HTTPS links; why: prevent unauthorized changes and false meeting claims.
 - Attendance ProJuris details project only the selected case and its owner-scoped workspace; local records and simulated sync markers never imply a provider import; why: prevents cross-client mixing and misleading integration claims.
-- Quick replies use pure rules and owner workspace overrides outside case material; why: no approval changes. Unfilled braces block sends.
+- Quick replies use owner overrides, authenticated Calendar reads and verified receipts; locks never send/store offers and braces block sends. Why: safe live drafts.
 - Attendance channel management is directly accessible from the list header with existing senior/admin permissions; why: channel setup must not depend on selecting a conversation.
 
 - Pure intake rules default new chats to automatic without overriding explicit modes or pauses; greeting precedes name and live availability, respecting client policy and released sender. Why: avoid manual activation and unsafe bookings.

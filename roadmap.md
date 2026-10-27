@@ -1,8 +1,10 @@
 # Construção dos módulos Manager ADV
 
 ## Mensagens prontas com agenda real — 27/10/2026
-- [ ] Preencher /consulta e /reagendar com opções reais, e confirmações/lembretes com recibo futuro verificado; preservar mensagens oficiais e envio manual.
-- [ ] Verificar conexão, regras, cenários obrigatórios e fluxo autenticado sem criar eventos ou enviar WhatsApp.
+- [x] Preencher /consulta e /reagendar com opções reais, e confirmações/lembretes com recibo futuro verificado; preservar mensagens oficiais e envio manual.
+- [x] Agenda principal chamanalei@gmail.com verificada (CalendarList/freeBusy 200); opções owner-scoped em tempo real por 14 dias, America/Sao_Paulo, reuniões de 30 min e regras existentes por carteira/feriados/bloqueios. /reagendar inclui restante de hoje; /consulta começa amanhã. Carteira ausente exige conferência manual.
+- [x] Fluxo autenticado no Atendimento: /consulta preencheu 09h00/09h30 de amanhã; /confirmar sem recibo manteve variável; nenhuma mensagem enviada ou evento criado. 277 testes passaram, incluindo indisponibilidade, um/zero/dois horários, sobreposição parcial, offsets, passado, isolamento e cliques repetidos; compilação limpa.
+- Audiência, perícia e julgamento permanecem manuais: não existe fonte vinculada verificável para esses campos. Ana, WhatsApp, mensagens oficiais e integração de reserva preservados. Atualização ainda não publicada nesta entrega.
 
 ## Claude direto para a Ana — 26/10/2026
 - [x] Substituir apenas a inferência da Ana pela API Anthropic usando o adaptador do pacote enviado, sem trocar regras de agenda, WhatsApp, revisão ou análise jurídica; Telegram continua aposentado.
