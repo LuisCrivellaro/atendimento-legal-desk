@@ -1,5 +1,9 @@
 # Construção dos módulos Manager ADV
 
+## Mensagens prontas com agenda real — 27/10/2026
+- [ ] Preencher /consulta e /reagendar com opções reais, e confirmações/lembretes com recibo futuro verificado; preservar mensagens oficiais e envio manual.
+- [ ] Verificar conexão, regras, cenários obrigatórios e fluxo autenticado sem criar eventos ou enviar WhatsApp.
+
 ## Claude direto para a Ana — 26/10/2026
 - [x] Substituir apenas a inferência da Ana pela API Anthropic usando o adaptador do pacote enviado, sem trocar regras de agenda, WhatsApp, revisão ou análise jurídica; Telegram continua aposentado.
 - [x] 251 testes aprovados e compilação limpa; modelos e resposta real no contrato da Ana validados pela chave Anthropic, sem enviar mensagem ao cliente nem criar compromisso.
