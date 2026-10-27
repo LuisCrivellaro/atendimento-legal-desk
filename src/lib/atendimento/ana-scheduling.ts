@@ -9,7 +9,7 @@ export function partesAgenda(iso:string) {
 const dias = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
 export function pedidoHumano(texto:string) {
   const t=fold(texto);
-  return /(?:falar|conversar|passa\w*|atendimento).{0,65}(?:alguem|pessoa|humano|equipe|advogad|carolina|doutora|\bdra\b|responsavel|atendente)|(?:quero|preciso).{0,20}(?:atendente|responsavel|pessoa de verdade)|(?:pessoa|humano).{0,25}(?:falar|atender)/.test(t);
+  return /pessoa de verdade|(?:falar|conversar|passa\w*|atendimento).{0,65}(?:alguem|pessoa|humano|equipe|advogad|carolina|doutora|\bdra\b|responsavel|atendente)|(?:quero|preciso).{0,20}(?:atendente|responsavel|pessoa de verdade)|(?:pessoa|humano).{0,25}(?:falar|atender)/.test(t);
 }
 export function bloqueiaAgenda(texto:string,intencao:string) {
   const t=fold(texto).trim();

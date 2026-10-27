@@ -74,7 +74,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     raw.dados_coletados.email=email;
     const alteracao=decidirAlteracaoConsulta(m.texto,!!c.consultaAgendada,c.agenteAna?.alteracaoConsulta);
     if(alteracao||c.agenteAna?.alteracaoConsulta==='remarcar')raw.intencao='agendamento';
-    const bloqueada=bloqueiaAgenda(m.texto,raw.intencao)||pedidoHumano(m.texto);
+    const bloqueada=bloqueiaAgenda(m.texto,raw.intencao)||pedidoHumano(m.texto)||raw.encaminhar_humano&&raw.intencao==='outro'&&!/agendar|marcar|consulta/i.test(m.texto);
     if(!bloqueada&&(escolherHorarioAna(c.agenteAna?.horariosTeste??[],m.texto)??chosenSlot(c.agenteAna?.horariosTeste??[],m.texto)))raw.intencao='agendamento';
     const teste=config.data.modo_teste===true;
     const previous=c.mensagens.filter(m=>m.canal===canal&&m.de==='escritorio').at(-1)?.texto??'';
@@ -114,7 +114,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const perguntar=gerenciar&&!cancelar&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar'&&r.intencao==='agendamento';
     if(perguntar){r.mensagem=`Você já tem uma consulta marcada para ${formatarHorarioCliente(c.consultaAgendada??'')}. Deseja remarcar ou cancelar esse agendamento?`;r.proximo_passo='Aguardar autorização do cliente para cancelar ou remarcar.';}
     if(cancelar){r.mensagem='';r.proximo_passo='Cancelar consulta somente após validar o recibo do atendimento.';}
-    const agenda=!horarioPendente&&!bloqueada&&!perguntar&&!cancelar&&teste&&tipoCliente&&nome&&telefone&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,horarios,new Date(),agendaReal,tipoCliente,/🗓️ Horários livres/.test(previous)):undefined;
+    const agenda=!horarioPendente&&!bloqueada&&!perguntar&&!cancelar&&teste&&tipoCliente&&telefone&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,horarios,new Date(),agendaReal,tipoCliente,/🗓️ Horários livres/.test(previous)):undefined;
     let accepted=false;
     await atualizarConversa(db,id,current=>{
       accepted=false;

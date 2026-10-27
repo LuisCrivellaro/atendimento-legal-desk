@@ -13,7 +13,7 @@ vi.mock('@/lib/atendimento/envio.functions', () => ({ enviarMensagemSistema: moc
 
 describe('reserva WhatsApp com telefone do canal', () => {
   it.each(['ultramsg','telegram'] as const)('fluxos com canal %s e UltraMsg pausado no teste Telegram', async (canal) => {
-  for (const cenario of ['reservar','perguntar','cancelar','remarcar','ofertar','inicio','nome'] as const) {
+  for (const cenario of ['reservar','perguntar','cancelar','remarcar','ofertar','inicio','nome','recusa','humano','especifico','aceite','tarde','numero'] as const) {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-23T04:06:00Z'));
@@ -25,7 +25,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       const externo = canal === 'telegram' ? '839854097' : telefone;
       const messageId = `${canal}:${externo}:escolha-1`;
       const anterior={id:'anavelho',inicio:'2026-10-27T12:00:00.000Z',fim:'2026-10-27T12:30:00.000Z'};
-      const texto=cenario==='inicio'?'Olá':cenario==='nome'?'Maria Silva Souza':cenario==='cancelar'?'Quero cancelar minha consulta':cenario==='perguntar'?'Quero agendar uma consulta':cenario==='ofertar'?'Quero agendar uma consulta':'26/10 às 9h';
+      const texto=cenario==='inicio'?'Olá':cenario==='nome'?'Maria Silva Souza':cenario==='recusa'?'Mas eu não quero agendar.':cenario==='humano'?'Poderia me passar para eu falar com alguém por favor':cenario==='especifico'?'tem segunda às 16h?':cenario==='aceite'?'sim':cenario==='tarde'?'e à tarde?':cenario==='numero'?'1':cenario==='cancelar'?'Quero cancelar minha consulta':cenario==='perguntar'?'Quero agendar uma consulta':cenario==='ofertar'?'Quero agendar uma consulta':'26/10 às 9h';
       let saved:Conversa = {
         ...fixture, consultaAgendada: undefined, modoIA: 'Automática', tipoClienteAgenda: 'novo',
         agenteAna: { apresentado: true, agendaReal: true, horariosTeste: [inicio], dados: { nome: 'Maria Teste', cpf: '', assunto: 'Consulta', email: '' } },
@@ -34,6 +34,8 @@ describe('reserva WhatsApp com telefone do canal', () => {
         mensagens: [{ id: messageId, de: 'cliente', canal, texto, hora: '01:06' }],
       };
       if(cenario==='inicio'||cenario==='nome')delete saved.tipoClienteAgenda;
+      if(cenario==='aceite')saved.agenteAna={...saved.agenteAna,horarioPendente:inicio,horarioPendenteDesde:'2026-10-23T04:00:00Z'};
+      if(cenario==='tarde')saved.mensagens.unshift({id:'lista',de:'escritorio',canal,texto:'🗓️ Horários livres:',hora:'01:00'});
       const config = { agente_ativo: true, canal_ativo: canal, modo_teste: true };
       const contato = { contato_externo: externo, telefone_ficticio: telefone, status: 'liberado' };
       const db = {
@@ -60,6 +62,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       mocks.gerar.mockResolvedValue({ acao: 'enviar', mensagem: 'Sua solicitação ficou registrada como prioridade para a equipe, que retorna no próximo dia útil a partir das 8h.', motivo_aprovacao: '', intencao: 'outro', urgente: false, encaminhar_humano: true, dados_coletados: { nome: '', cpf: '', assunto: '', email: '' }, proximo_passo: '' });
       if(cenario==='nome')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Vou consultar os horários.',motivo_aprovacao:'',intencao:'agendamento',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'Maria Silva Souza',cpf:'',assunto:'',email:''},proximo_passo:''});
       if(cenario==='inicio')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Olá! Sou a Ana, assistente virtual da CS Lawyers | Advocacia.\nComo posso te ajudar hoje?',motivo_aprovacao:'',intencao:'duvida_geral',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''});
+      if(['especifico','aceite','tarde','numero'].includes(cenario))mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Vou verificar.',motivo_aprovacao:'',intencao:'agendamento',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''});
       mocks.reservar.mockResolvedValue({ id: 'evento-teste', inicio });
       mocks.remarcar.mockResolvedValue({id:'evento-teste',inicio});
       mocks.cancelar.mockResolvedValue(undefined);
@@ -74,7 +77,11 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='ofertar'||cenario==='nome'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste).not.toContain(inicio);expect(saved.agenteAna?.horariosTeste).toHaveLength(3);expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='nome'){expect(saved.agenteAna?.dados?.nome).toBe('Maria Silva Souza');expect(saved.agenteAna?.agendaReal).toBe(true);expect(saved.agenteAna?.tipoCliente).toBe('novo');}
       if(cenario==='inicio'){expect(saved.agenteAna?.apresentado).toBe(true);expect(saved.agenteAna?.resultado?.intencao).toBe('duvida_geral');expect(saved.agenteAna?.dados?.nome).toBe('');expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();}
-      expect(saved.agenteAna).toMatchObject({ humano: false });
+      if(cenario==='recusa'||cenario==='humano'){expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();expect(saved.agenteAna?.resultado?.intencao).not.toBe('agendamento');}
+      if(cenario==='especifico'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horarioPendente).toBe('2026-10-26T19:00:00.000Z');expect(mocks.reservar).not.toHaveBeenCalled();}
+      if(cenario==='aceite'||cenario==='numero'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBe(inicio);}
+      if(cenario==='tarde'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste?.every(s=>new Date(s).getUTCHours()>=16)).toBe(true);}
+      expect(saved.agenteAna).toMatchObject({ humano: cenario==='humano'||cenario==='recusa' });
       expect(mocks.enviar).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
       expect(saved.mensagens.at(-1)?.canal).toBe(canal);
