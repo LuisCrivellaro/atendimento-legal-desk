@@ -58,7 +58,8 @@ describe('reserva WhatsApp com telefone do canal', () => {
         rpc: async () => ({ error: null }),
       };
       mocks.gerar.mockResolvedValue({ acao: 'enviar', mensagem: 'Sua solicitação ficou registrada como prioridade para a equipe, que retorna no próximo dia útil a partir das 8h.', motivo_aprovacao: '', intencao: 'outro', urgente: false, encaminhar_humano: true, dados_coletados: { nome: '', cpf: '', assunto: '', email: '' }, proximo_passo: '' });
-      if(cenario==='nome')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Qual o assunto?',motivo_aprovacao:'',intencao:'outro',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'Maria Silva Souza',cpf:'',assunto:'',email:''},proximo_passo:''});
+      if(cenario==='nome')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Vou consultar os horários.',motivo_aprovacao:'',intencao:'agendamento',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'Maria Silva Souza',cpf:'',assunto:'',email:''},proximo_passo:''});
+      if(cenario==='inicio')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Olá! Sou a Ana, assistente virtual da CS Lawyers | Advocacia.\nComo posso te ajudar hoje?',motivo_aprovacao:'',intencao:'duvida_geral',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''});
       mocks.reservar.mockResolvedValue({ id: 'evento-teste', inicio });
       mocks.remarcar.mockResolvedValue({id:'evento-teste',inicio});
       mocks.cancelar.mockResolvedValue(undefined);
@@ -72,7 +73,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='remarcar'){expect(mocks.remarcar).toHaveBeenCalledWith('caso-teste',anterior,inicio,true,expect.any(Date),{nome:'Maria Teste',telefone,tipo:'novo'});expect(saved.consultaAgendada).toBe(inicio);}
       if(cenario==='ofertar'||cenario==='nome'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste).not.toContain(inicio);expect(saved.agenteAna?.horariosTeste).toHaveLength(3);expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='nome'){expect(saved.agenteAna?.dados?.nome).toBe('Maria Silva Souza');expect(saved.agenteAna?.agendaReal).toBe(true);expect(saved.agenteAna?.tipoCliente).toBe('novo');}
-      if(cenario==='inicio'){expect(saved.agenteAna?.apresentado).toBe(true);expect(saved.agenteAna?.resultado?.intencao).toBe('agendamento');expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();}
+      if(cenario==='inicio'){expect(saved.agenteAna?.apresentado).toBe(true);expect(saved.agenteAna?.resultado?.intencao).toBe('duvida_geral');expect(saved.agenteAna?.dados?.nome).toBe('');expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();}
       expect(saved.agenteAna).toMatchObject({ humano: false });
       expect(mocks.enviar).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
