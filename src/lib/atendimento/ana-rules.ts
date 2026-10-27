@@ -4,6 +4,7 @@ import { forbiddenTopics, normalized, chosenSlot, formatarHorarioCliente } from 
 import { gerarHorarios } from './schedule-rules';
 import type { TipoCliente } from './intake-rules';
 import { validarTextoEnvio } from './canal-envio';
+import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, listaHorariosAna } from './ana-scheduling';
 
 export const anaSchema = z.object({
   acao: z.enum(['enviar', 'rascunho', 'nenhuma']), mensagem: z.string(), motivo_aprovacao: z.string(),
@@ -18,6 +19,7 @@ export interface AnaState {
   apresentado?: boolean; humano?: boolean; urgente?: boolean; motivo?: string; proximoPasso?: string;
   dados?: AnaResult['dados_coletados']; resultado?: AnaResult; erro?: string | undefined; pausa?: boolean;
   horariosTeste?: string[]; consultaTeste?: string | undefined; agendaReal?: boolean;
+  horarioPendente?: string | undefined; horarioPendenteDesde?: string | undefined;
    reservaCalendar?: import('./calendar-booking').ReservaCalendar | undefined;
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;
   autorizacaoRemarcacao?: {eventoId:string;inicio:string;contato:string;expira:string} | undefined;
@@ -29,11 +31,11 @@ export function horariosTesteAna(now = new Date(), tipo: TipoCliente = 'novo') {
 export function horariosLivresAna(ocupados: {start:string;end:string}[], now = new Date(), tipo: TipoCliente = 'novo', quantidade = 3) {
  return gerarHorarios(ocupados, now, tipo, quantidade);
 }
-export function respostaAgendaTeste(texto:string,offered:string[],now=new Date(),real=false,tipo:TipoCliente='novo'){
- const selected=chosenSlot(offered,texto);
+export function respostaAgendaTeste(texto:string,offered:string[],now=new Date(),real=false,tipo:TipoCliente='novo',repetida=false){
+ const selected=escolherHorarioAna(offered,texto)??chosenSlot(offered,texto);
  const slots=real?offered:offered.length?offered:horariosTesteAna(now,tipo);
  if(real&&!slots.length)return {slots,selected:undefined,mensagem:'Não há horários livres permitidos nos próximos 14 dias. Deixei o pedido para a equipe verificar outras datas.'};
-  if(real)return {slots,selected,mensagem:selected?`Vou verificar e reservar ${formatarHorarioCliente(selected)} na agenda.`:`Tenho estes horários livres na agenda:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere?`};
+  if(real)return {slots,selected,mensagem:selected?`Vou verificar e reservar ${formatarHorarioCliente(selected)} na agenda.`:listaHorariosAna(slots,now,repetida)};
  return {slots,selected,mensagem:selected?`Para este teste, ficou combinado ${formatarHorarioCliente(selected)}. É uma simulação: não há reserva real no Google Calendar.`:`Podemos simular estes horários:\n${slots.map(s=>`• ${formatarHorarioCliente(s)}`).join('\n')}\nQual prefere? São horários fictícios de teste, sem reserva real.`};
 }
 function perguntaKey(s:string){
@@ -56,7 +58,7 @@ export function mensagemBreveAna(texto:string,ultimaResposta=''){
  });
  const result:string[]=[];let length=0;
  for(const s of kept){if(length+s.length>420)break;result.push(s);length+=s.length+1;}
- return result.join(' ').trim();
+ return result.join('\n').trim();
 }
 export function aceitarRespostaAna(messageId:string,lastId:string|undefined,state:AnaState|undefined){
   return lastId===messageId&&!state?.humano&&!state?.pausa;
@@ -73,26 +75,27 @@ export function mensagemSemResposta(texto: string, arquivo = false) {
 /** A disponibilidade da Ana não depende do expediente da equipe. */
 export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=false):AnaResult {
   const folded=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const pedido=/\bagend(?:ar|amento)\b|\bmarcar\b.{0,30}\b(?:consulta|reuniao|horario)\b|\bconsulta\b/.test(folded);
-  const continuidade=emAgendamento&&['outro','duvida_geral'].includes(r.intencao);
-  return pedido||r.intencao==='novo_caso'||continuidade?{...r,intencao:'agendamento'}:r;
+  if(bloqueiaAgenda(texto,r.intencao))return {...r,intencao:pedidoHumano(texto)?'outro':r.intencao==='agendamento'?'duvida_geral':r.intencao};
+  const pedido=/\b(?:quero|gostaria|preciso|podemos|vamos)\b.{0,35}\b(?:agendar|marcar|consulta)\b|\b(?:quais|tem|outros?)\b.{0,25}\bhorarios?\b|\b(?:remarcar|cancelar|reagendar)\b/.test(folded);
+  const continuidade=emAgendamento&&!!r.dados_coletados.nome.trim();
+  return pedido||continuidade?{...r,intencao:'agendamento'}:r;
 }
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const humano = /(?:falar|conversar|atendimento).{0,35}(?:pessoa|humano|equipe|advogad|carolina)|(?:pessoa|humano).{0,25}(?:falar|atender)/.test(folded);
+  const humano = pedidoHumano(texto)||(r.encaminhar_humano&&r.intencao==='outro'&&!/agendar|marcar|consulta/.test(folded));
   const etico = /honorari|ganhar|chance|vitoria|tenho direito|prescri|recorrer|estrategia|desistir|parte contraria|devo assinar/.test(folded);
   const urgent = /(?:risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo|citacao|oficial de justica|carta do forum|prazo.{0,25}(?:venc|amanha|hoje)|demitid.{0,30}(?:hoje|ontem|semana)|audiencia.{0,35}(?:hoje|amanha|semana))/.test(folded);
   const prohibited = etico || forbiddenTopics(texto,proibidos).length > 0 || forbiddenTopics(r.mensagem,proibidos).length > 0;
   // Tema delicado pede revisão, não uma tomada humana completa da conversa.
   if(prohibited||r.intencao==='reclamacao')result={...result,acao:'enviar',mensagem:'Entendo. Deixei essa questão registrada para a equipe avaliar com cuidado. Posso continuar anotando as informações do seu atendimento.',encaminhar_humano:false,motivo_aprovacao:'Questão delicada registrada para avaliação humana; nenhuma orientação jurídica enviada.',proximo_passo:'Equipe: revisar a questão delicada registrada; Ana continua apenas acolhimento e coleta.'};
   else if(!humano)result.encaminhar_humano=false;
-  if(humano)result={...result,acao:'enviar',mensagem:'Claro. Seu pedido ficou registrado para a equipe continuar o atendimento.',encaminhar_humano:true};
+  if(humano){const now=options.now??new Date();const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Sao_Paulo',weekday:'short',hour:'numeric',hourCycle:'h23'}).formatToParts(now).map(x=>[x.type,x.value]));const dentro=expedienteAna(now)&&Number(p['hour'])<17;result={...result,acao:'enviar',intencao:'outro',mensagem:`Claro! Já passei sua conversa para a equipe.\n${dentro?'Alguém responsável te responde por aqui ainda hoje.':'Alguém responsável te responde no próximo dia útil, a partir das 8h.'}`,encaminhar_humano:true,motivo_aprovacao:'',proximo_passo:'Equipe assume a conversa; Ana pausada até devolução.'};}
   result.urgente ||= urgent;
   const perigo=/risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo/.test(folded);
-  const testAgenda=options.teste&&r.intencao==='agendamento'&&!prohibited&&!humano;
+  const testAgenda=options.teste&&r.intencao==='agendamento'&&!prohibited&&!humano&&!bloqueiaAgenda(texto,r.intencao);
   const dadosAgenda = testAgenda && (options.tipoCliente === undefined || !options.nome?.trim() || !options.telefone);
-  if(testAgenda&&!dadosAgenda){const ag=respostaAgendaTeste(texto,options.horarios??[],options.now,options.agendaReal,options.tipoCliente);result={...result,acao:'enviar',mensagem:ag.mensagem,encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:options.agendaReal?(ag.selected?'Equipe: confirmar reserva do horário escolhido no Google Calendar.':'Horários livres reais oferecidos pelo Google Calendar.'):'Agenda fictícia de teste; nenhuma reserva real.'};}
+  if(testAgenda&&!dadosAgenda){const ag=respostaAgendaTeste(texto,options.horarios??[],options.now,options.agendaReal,options.tipoCliente,/🗓️ Horários livres/.test(options.ultimaResposta??''));const fala=mensagemBreveAna(r.mensagem,options.ultimaResposta);result={...result,acao:'enviar',mensagem:ag.selected?ag.mensagem:[fala,ag.mensagem].filter(Boolean).join('\n\n'),encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:options.agendaReal?(ag.selected?'Equipe: confirmar reserva do horário escolhido no Google Calendar.':'Horários livres reais oferecidos pelo Google Calendar.'):'Agenda fictícia de teste; nenhuma reserva real.'};}
   if(dadosAgenda)result={...result,acao:'enviar',mensagem:options.tipoCliente===undefined?'É seu primeiro contato ou você já é cliente do escritório?':!options.nome?.trim()?'Qual é seu nome completo?':'Não consegui identificar o contato da conversa para o agendamento. Deixei a situação registrada para a equipe verificar.',encaminhar_humano:!!options.tipoCliente&&!!options.nome?.trim()&&!options.telefone,motivo_aprovacao:'',proximo_passo:'Coletar carteira, nome e telefone do canal antes de oferecer ou reservar horários.'};
   if(/cpf/i.test(result.mensagem)&&/\?/.test(result.mensagem)){result.mensagem='Para o agendamento não precisamos de CPF. Qual é seu nome completo?';}
   const sensitive = !prohibited&&!humano&&r.intencao!=='reclamacao'&&(['processo'].includes(r.intencao)||r.intencao==='agendamento'&&!testAgenda||/documentos? (?:faltantes|pendentes)/i.test(result.mensagem));
@@ -100,7 +103,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   if(options.emailPendente&&!humano&&!prohibited&&!urgent&&['documento','outro','duvida_geral'].includes(r.intencao)&&!perguntaKey(options.ultimaResposta??'').includes('email'))result={...result,acao:'enviar',mensagem:'Para completar seu cadastro, qual é o seu e-mail? Pode escrevê-lo aqui, sem anexar documento.',motivo_aprovacao:'',intencao:'documento',proximo_passo:'Aguardar e-mail do cliente para cadastro e checklist.'};
   if (mode==='Sugerir' && result.mensagem.trim()) result.acao='rascunho';
   if (mode==='Desligada') result = {...result,acao:'nenhuma',mensagem:''};
-  if(!testAgenda)result.mensagem=mensagemBreveAna(result.mensagem,options.ultimaResposta);
+  if(!testAgenda&&!humano)result.mensagem=mensagemBreveAna(result.mensagem,options.ultimaResposta);
   if(perigo&&mode!=='Desligada'&&!result.mensagem.includes('190'))result.mensagem=mensagemBreveAna(`Se houver perigo imediato, ligue 190. ${result.mensagem}`,options.ultimaResposta);
   if(!result.mensagem.trim())result.acao='nenhuma';
   // Nunca exibir CPF completo, inclusive um CPF recém-coletado.
