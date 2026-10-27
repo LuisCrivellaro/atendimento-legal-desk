@@ -1,8 +1,8 @@
 # Construção dos módulos Manager ADV
 
 ## Continuação no Claude — 27/10/2026
-- [ ] Preparar ZIP versionado sem segredos, com código atual, prompts, testes, regras, conectores e instruções de configuração/continuação.
-- [ ] Inspecionar conteúdo e segurança do pacote antes da entrega; dados, contas, documentos e credenciais hospedados não fazem parte do ZIP.
+- [x] Preparar ZIP v4 de 27/10/2026 sem segredos, com código atual, prompts, testes, regras, conectores e instruções de configuração/continuação.
+- [x] Fonte limpa inspecionada e verificação de literais sensíveis sem achados; dados, contas, documentos e credenciais hospedados não fazem parte do ZIP. Configuração hospedada e metadados privados excluídos.
 
 ## Horários e cancelamento Ana — 27/10/2026
 - [x] Aplicar ofertas com marcadores, histórico sem repetição, filtros e variedade em 15 dias úteis, sem trocar Claude/prompt/JSON; “mais tarde” filtra tarde.
