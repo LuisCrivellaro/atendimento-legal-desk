@@ -94,8 +94,6 @@ export function pendingFields(texto: string): string[] {
 export function suggestedReplies(c: Pick<Conversa, 'etapa' | 'mensagens' | 'documentos'>, replies: QuickReply[], limit = 4): QuickReply[] {
   const last = c.mensagens.at(-1);
   const first: string[] = [];
-  if (last?.de === 'cliente' && last.arquivo) first.push('recebido');
-  if (last?.de === 'cliente' && /obrigad/i.test(last.texto)) first.push('obrigada');
   const picked = [
     ...first.map((id) => replies.find((r) => r.id === id)),
     ...replies.filter((r) => r.etapas?.includes(c.etapa)),
