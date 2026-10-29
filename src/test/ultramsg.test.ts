@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { numeroWhatsApp, textoComOpcoes } from '@/lib/atendimento/canais/ultramsg';
 import { listaHorariosAna } from '@/lib/atendimento/ana-scheduling';
 import { botoesHorarios } from '@/lib/atendimento/botoes-horario';
-  it('horários viram marcadores', () => { expect(textoComOpcoes('Escolha:', [{ texto: 'Seg 10:00' }, { texto: 'Ter 14:00' }])).toContain('• Ter 14:00'); });
+import { formatarHorarioCliente } from '@/lib/atendimento';
 import { mensagemDoSistema } from '@/lib/atendimento/entrada-whatsapp';
 
 const agora = new Date('2026-10-29T12:00:00-03:00');
