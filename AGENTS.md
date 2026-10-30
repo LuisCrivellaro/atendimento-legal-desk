@@ -39,3 +39,4 @@
 - Subdirectories may have their own `AGENTS.md`; read it before changing files there.
 - Process news reuses consulta-processo.ts with server-only ports; requests live in conversation JSON, owner code reservations use workspace CAS, decisions claim before channel sends, and privileged cross-owner review requires senior/admin authorization. Why: preserve one flow, confidentiality and replay safety without migrations.
 - WhatsApp production uses the shared temporary allowlist before intake, contact release and sends; general entry stays closed until authorized. Contacts remain released and owner-scoped. Office `message_create` pauses Ana unless matched to a system send. Why: restrict rollout and avoid speaking over staff.
+- WhatsApp history import is senior/admin-only, read-only on UltraMsg, reuses webhook conversation opening and message IDs, pauses Ana and never downloads media or sends anything; why: bring in past conversations without replies or duplicates.
