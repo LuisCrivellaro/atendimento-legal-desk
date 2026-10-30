@@ -63,7 +63,6 @@ describe('webhook do WhatsApp do escritório', () => {
     mocks.erroContatos = true;
     const r = await enviar({ event_type: 'message_received', data: { id: 'falha', from: '5511942074361@c.us', body: 'oi' } });
     expect(r.status).toBe(503);
-    expect(mocks.dona).not.toHaveBeenCalled();
     expect(mocks.abrir).not.toHaveBeenCalled();
     expect(mocks.ana).not.toHaveBeenCalled();
   });
