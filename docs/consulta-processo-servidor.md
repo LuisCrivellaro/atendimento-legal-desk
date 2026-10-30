@@ -30,3 +30,33 @@ São 288 verificações por dia; o cliente aguarda no máximo cinco minutos extr
 - CAS reserva códigos por proprietário, impede consultas simultâneas na mesma conversa e disputa decisões/lembretes.
 - Pedidos são salvos antes da notificação à revisora para não perder resposta imediata. Falha de notificação mantém o pedido disponível no Manager.
 - Destino aprovado é relido e comparado ao telefone do pedido. Auditoria registra somente categorias técnicas, nunca conteúdo ou nomes/telefones/processos.
+
+## Arquivos alterados e criados
+
+- `src/lib/atendimento/ana.server.ts`
+- `src/lib/atendimento/ana-rules.ts` (campos opcionais, sem alterar textos oficiais)
+- `src/lib/atendimento/consulta-processo.server.ts`
+- `src/lib/atendimento/consulta-processo.functions.ts`
+- `src/lib/atendimento/processo-redacao.server.ts`
+- `src/lib/atendimento/canais/ultramsg.ts`
+- `src/lib/projuris/indice.server.ts`
+- `src/lib/casos.ts`
+- `src/lib/office-store.ts`
+- `src/routes/api/public/atendimento/whatsapp.ts`
+- `src/routes/api/public/atendimento/pendencias-processo.ts`
+- `src/routes/_authenticated/atendimento.tsx`
+- `src/routes/_authenticated/aprovacoes.tsx`
+- `src/components/office/approvals.tsx`
+- `src/components/office/process-reviews.tsx`
+- `src/test/ana-consulta-processo-servidor.test.ts`
+- `src/test/projuris-indice-servidor.test.ts`
+- `src/test/whatsapp-entrada.test.ts`
+- `src/test/production-channel.test.ts` (asserções antigas corrigidas para os três números já autorizados e equivalência com/sem nono dígito, sem alterar lista)
+- `AGENTS.md`, `src/lib/atendimento/AGENTS.md`, `roadmap.md`
+- `docs/consulta-processo-servidor.md`
+
+## Verificação e limites
+
+A suíte completa inclui `src/test/ana-bateria-regressao.test.ts`. Foram exercitados consulta, pedido persistido, espera, hash alterado, aprovação, correção, recusa, replay, terceiros, autorização, cache e lembretes com provedores e persistência substituídos em testes.
+
+Na prévia, a sessão real autorizada abriu Aprovações e consultou a fila autenticada: zero pedidos pendentes. O endpoint de lembretes recusou chamada sem autorização com 401. A navegação inicial apresentou avisos recuperáveis de hidratação; a seção de revisões apareceu normalmente. Nenhum cliente/processo fictício foi inserido no escritório e nenhuma mensagem externa foi enviada. Portanto, consulta e decisão reais pelo WhatsApp ainda não foram confirmadas ponta a ponta. Não foi publicado nem agendado.
