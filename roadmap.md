@@ -1,5 +1,12 @@
 # Construção dos módulos Manager ADV
 
+## Consulta processual no servidor real — 30/10/2026
+- [x] Conferir os sete arquivos exigidos e o projeto completo (355 arquivos).
+- [ ] Ligar o fluxo existente ao ProJuris e Claude, com pedidos na conversa e aprovação obrigatória.
+- [ ] Receber comandos da revisora e disponibilizar Aprovar/Corrigir/Recusar para sênior/admin.
+- [ ] Preparar lembretes protegidos e instruções de execução a cada cinco minutos, sem agendar/publicar.
+- [ ] Rodar suíte completa e verificar o fluxo; listar arquivos alterados e limites da verificação.
+
 ## Envio completo ao GitHub — 30/10/2026
 - [x] Sincronizar os 358 arquivos do projeto em LuisCrivellaro/ManagerADV (main): 301 novos, 7 atualizados, nenhuma remoção; revisão 47537a161ba25fa2b5ec9920bc55d02dc999d7b1.
 - [x] Cópia conferida arquivo por arquivo pelo hash do GitHub: 358/358 iguais, sem ausentes, diferentes ou extras.
