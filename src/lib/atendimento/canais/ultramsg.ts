@@ -40,6 +40,18 @@ export function textoComOpcoes(texto: string, botoes?: { texto: string; dados?: 
 
 export async function enviarTextoUltramsg(numero: string, texto: string, cred: { instancia: string; token: string }): Promise<ResultadoEnvio> {
   if (!numeroUltraMsgPermitido(numero)) return { ok: false, erro: 'Número não autorizado nesta fase de produção.' };
+  return enviarTextoPermitido(numero, texto, cred);
+}
+
+/** Única exceção: destino fixo da revisora, resolvido exclusivamente no servidor. Nunca recebe um destino do chamador. */
+export async function enviarTextoRevisora(texto: string): Promise<ResultadoEnvio> {
+  const { respostaAutorizada } = await import('../consulta-processo');
+  const numero = process.env['REVISORA_WHATSAPP'];
+  if (!numero || !respostaAutorizada({ canal: 'whatsapp', contato: numero }, numero)) return { ok: false, erro: 'Revisora não configurada.' };
+  return enviarTextoPermitido(numero, texto, { instancia: process.env['ULTRAMSG_INSTANCE_ID'] ?? '', token: process.env['ULTRAMSG_TOKEN'] ?? '' });
+}
+
+async function enviarTextoPermitido(numero: string, texto: string, cred: { instancia: string; token: string }): Promise<ResultadoEnvio> {
   if (!cred.instancia || !cred.token) return { ok: false, erro: 'WhatsApp não configurado.' };
   const ctrl = new AbortController();
   const limite = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
