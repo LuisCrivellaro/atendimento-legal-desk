@@ -16,7 +16,7 @@ import {
   type ContatoTeste,
 } from './canal-envio';
 import { normalizarTelefone } from './telefone';
-import { numeroUltraMsgPermitido } from './production-channel';
+import { numeroWhatsAppAtendido } from './production-channel';
 import { ultramsgAdapter } from './canais/ultramsg';
 import { enviarTextoTelegram } from './canais/telegram';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
@@ -128,9 +128,10 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
       await auditar(supabase, ator, entrada.acao, 'Envio recusado: contato WhatsApp não liberado', 'bloqueado');
       throw new Error('Contato de WhatsApp não liberado para esta conversa. Nada foi enviado.');
     }
-    if (!numeroUltraMsgPermitido(contato.contato_externo)) throw new Error('Número não autorizado nesta fase de produção.');
+    const entradaAberta = await entradaWhatsAppAberta();
+    if (!numeroWhatsAppAtendido(contato.contato_externo, entradaAberta)) throw new Error('Número não autorizado nesta fase de produção.');
     if (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID']) throw new Error('WhatsApp não configurado. Nada foi enviado.');
-    const resultado = await ultramsgAdapter.enviarTexto(contato.contato_externo, entrada.texto, entrada.horarios?.length ? { botoes: botoesHorarios(entrada.horarios) } : undefined);
+    const resultado = await ultramsgAdapter.enviarTexto(contato.contato_externo, entrada.texto, { ...(entrada.horarios?.length ? { botoes: botoesHorarios(entrada.horarios) } : {}), entradaAberta });
     if (!resultado.ok) {
       await auditar(supabase, ator, entrada.acao, 'Falha no envio pelo WhatsApp', 'erro', resultado.erro);
       throw new Error('O envio pelo WhatsApp não foi concluído. Nada foi registrado como enviado.');
