@@ -103,7 +103,7 @@ export function fatoDe(p: ProcessoPJ, andamentos: AndamentoLegivel[]): FatoProce
 export function fatosParaRedacao(nome: string, fatos: FatoProcesso[]) {
   return {
     primeiro_nome: nome.trim().split(/\s+/)[0] ?? '',
-    processos: fatos.map(f => f.segredo ? { segredo_de_justica: true } : { numero: f.numero ?? '', assunto: f.assunto ?? '', movimentacoes: f.andamentos.map(a => ({ data: a.data, ...(a.hora ? { hora: a.hora } : {}), ...(a.tipo ? { tipo: a.tipo } : {}), descricao: a.descricao })) }),
+    processos: fatos.map(f => f.segredo ? { segredo_de_justica: true } : { numero: f.numero ?? '', assunto: f.assunto ?? '', movimentacoes: f.andamentos.map(a => ({ data: a.data, ...(a.hora ? { hora: a.hora } : {}), ...(a.tipo ? { tipo: a.tipo } : {}), descricao: a.descricao, ...(a.simplificacao ? { simplificacao_projuris: a.simplificacao } : {}) })) }),
   };
 }
 
@@ -127,16 +127,25 @@ export function validarRascunho(texto: string, fatos: FatoProcesso[]): { ok: boo
   return { ok: problemas.length === 0, problemas };
 }
 
-/** Rascunho determinístico, usado quando a redação falha ou não passa na validação. */
+export const SAUDACAO_ANDAMENTO = (nome: string) => `Olá, ${nome}! 😊\n\nConsultei seu processo em nosso sistema e trouxe uma atualização para você.`;
+export const FECHAMENTO_ANDAMENTO = 'Nossa equipe continua acompanhando seu processo e, caso haja alguma novidade ou providência necessária, entraremos em contato.\n\nSe tiver alguma dúvida, estou à disposição para ajudar!\n\nAtenciosamente,\nEquipe CS Advocacia\nwww.carolinasantos.com.br';
+export const SEM_MOVIMENTACAO = 'Ainda não há movimentação registrada.';
+export const AVISO_SEGREDO = 'Sobre um dos seus processos, nossa equipe vai entrar em contato com você.';
+/** Explicação neutra do rascunho padrão quando o ProJuris não traz simplificação; a revisora confere. */
+export const EXPLICACAO_PADRAO = 'Esta é a movimentação mais recente registrada no seu processo. Se quiser, nossa equipe explica com mais detalhes.';
+
+/** Rascunho determinístico no modelo oficial de andamento; usado quando a redação falha ou não passa na validação. */
 export function rascunhoPadrao(nome: string, fatos: FatoProcesso[]): string {
-  const primeiro = nome.trim().split(/\s+/)[0];
-  const partes = fatos.map(f => {
-    if (f.segredo) return 'Sobre um dos seus processos, a equipe vai entrar em contato com você.';
-    const titulo = `Processo ${f.numero ?? ''}${f.assunto ? ` (${f.assunto})` : ''}`.replace(/\s+/g, ' ').trim();
-    if (!f.andamentos.length) return `${titulo}: não há movimentação nova registrada até o momento.`;
-    return `${titulo}, últimas movimentações registradas:\n${f.andamentos.map(a => `• ${a.data}${a.tipo ? ` · ${a.tipo}` : ''}: ${a.descricao}`).join('\n')}`;
+  const primeiro = nome.trim().split(/\s+/)[0] || 'cliente';
+  const varios = fatos.length > 1;
+  const blocos = fatos.map(f => {
+    if (f.segredo) return AVISO_SEGREDO;
+    const titulo = `📄 Andamento do processo${varios && f.assunto ? ` (${f.assunto})` : ''}:`;
+    const a = f.andamentos[0];
+    if (!a) return `${titulo}\n${SEM_MOVIMENTACAO}`;
+    return `${titulo}\n${a.descricao}\n\n📅 Última movimentação:\n${a.data}\n\nO que isso significa?\n${a.simplificacao ?? EXPLICACAO_PADRAO}`;
   });
-  return `${primeiro ? `${primeiro}, a` : 'A'}qui estão as informações registradas:\n\n${partes.join('\n\n')}\n\nSe quiser entender o que alguma movimentação significa, a equipe explica.`;
+  return `${SAUDACAO_ANDAMENTO(primeiro)}\n\n${blocos.join('\n\n')}\n\n${FECHAMENTO_ANDAMENTO}`;
 }
 
 // ---------- Pedido de aprovação ----------
