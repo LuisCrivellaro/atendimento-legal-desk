@@ -32,7 +32,8 @@ describe('regras da entrada do WhatsApp do escritório', () => {
   });
 });
 
-const mocks = vi.hoisted(() => ({ ana: vi.fn(), save: vi.fn(), dona: vi.fn(), abrir: vi.fn(), erroContatos: false, contatos: [] as Record<string, unknown>[], conversa: { mensagens: [] as Record<string, unknown>[], timeline: [] as unknown[], agenteAna: {} as Record<string, unknown> }, rpc: vi.fn() }));
+const mocks = vi.hoisted(() => ({ revisora: vi.fn(), ana: vi.fn(), save: vi.fn(), dona: vi.fn(), abrir: vi.fn(), erroContatos: false, contatos: [] as Record<string, unknown>[], conversa: { mensagens: [] as Record<string, unknown>[], timeline: [] as unknown[], agenteAna: {} as Record<string, unknown> }, rpc: vi.fn() }));
+vi.mock('@/lib/atendimento/consulta-processo.server', () => ({ receberRevisora: mocks.revisora }));
 vi.mock('@/lib/atendimento/email.server', () => ({ registrarEmailConversa: vi.fn() }));
 vi.mock('@tanstack/react-router', () => ({ createFileRoute: () => (options: unknown) => options }));
 vi.mock('@/lib/atendimento/ana.server', () => ({ atualizarConversa: mocks.save, processarAna: mocks.ana }));
@@ -67,6 +68,13 @@ describe('webhook do WhatsApp do escritório', () => {
     expect(mocks.abrir).not.toHaveBeenCalled();
     expect(mocks.ana).not.toHaveBeenCalled();
   });
+  it('revisora passa antes da lista permitida, sem criar conversa nem acionar Ana', async () => {
+    preparar(); vi.stubEnv('REVISORA_WHATSAPP', '5511988887777'); mocks.revisora.mockResolvedValue(true);
+    const r = await enviar({ event_type: 'message_received', data: { id: 'revisao', from: '5511988887777@c.us', body: 'ok AND-0001' } });
+    expect(await r.json()).toMatchObject({ revisora: true });
+    expect(mocks.revisora).toHaveBeenCalledWith(expect.anything(), '5511988887777', 'ok AND-0001');
+    expect(mocks.ana).not.toHaveBeenCalled(); expect(mocks.dona).not.toHaveBeenCalled(); expect(mocks.abrir).not.toHaveBeenCalled();
+  });
 
   it('número novo com a entrada aberta ganha conversa e a Ana responde', async () => {
     preparar();
@@ -79,7 +87,7 @@ describe('webhook do WhatsApp do escritório', () => {
 
   it('número fora da lista não abre conversa nem chama Ana mesmo com entrada aberta', async () => {
     preparar(); mocks.dona.mockResolvedValue({ ownerId: 'dona' });
-    await enviar({ event_type: 'message_received', data: { id: 'fora', from: '5566999844549@c.us', body: 'oi' } });
+    await enviar({ event_type: 'message_received', data: { id: 'fora', from: '5566999844550@c.us', body: 'oi' } });
     expect(mocks.dona).not.toHaveBeenCalled(); expect(mocks.abrir).not.toHaveBeenCalled(); expect(mocks.ana).not.toHaveBeenCalled();
   });
 
