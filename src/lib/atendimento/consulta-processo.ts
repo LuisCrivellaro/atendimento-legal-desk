@@ -2,6 +2,7 @@
 // da revisora. Módulo único para o servidor (ProJuris real) e para o simulador (ProJuris fictício): a lógica é a
 // mesma e só mudam as portas (consulta, redação, envio, registro, relógio). Regras de prazo: REGRAS-DA-DOUTORA.md.
 import { feriadoNacional } from './schedule-rules';
+import { cpfNoTexto, pessoaPorCpf, TEXTOS_VINCULO, vinculoPendentePorCpf, vinculoPorTelefone, type PessoaCpf, type VinculoProjuris } from '../projuris/vinculo';
 import { podeDetalhar, identificacaoProcesso, type AndamentoLegivel, type ProcessoPJ } from '../projuris/processos';
 import type { Identificacao } from '../projuris/identificacao';
 import { mesmoTelefone } from '../projuris/telefone';
@@ -300,15 +301,19 @@ export interface PortasConsulta {
   enviarRevisora(texto: string): Promise<void>;
   /** Auditoria técnica, sem dados pessoais. */
   registrar(evento: string, detalhe?: string): Promise<void>;
+  /** Busca por CPF no ProJuris (só leitura). Sem esta porta, telefone não encontrado segue o fluxo antigo. */
+  buscarPorCpf?(cpf: string): Promise<PessoaCpf[]>;
 }
 export type ResultadoConsulta =
   | { tipo: 'nao_cliente' }
   | { tipo: 'perguntar_assunto'; mensagem: string; codigoPessoa: number }
   | { tipo: 'equipe'; mensagem: string; motivo: string }
-  | { tipo: 'pedido'; pedido: PedidoProcesso };
+  | { tipo: 'pedir_cpf'; mensagem: string }
+  | { tipo: 'vinculo_pendente'; mensagem: string; vinculo: VinculoProjuris }
+  | { tipo: 'pedido'; pedido: PedidoProcesso; vinculo?: VinculoProjuris };
 
 export async function iniciarConsultaProcesso(
-  e: { conversaId: string; telefone: string; nomeContato: string; textoCliente: string; assuntoJaPerguntado: boolean },
+  e: { conversaId: string; telefone: string; nomeContato: string; textoCliente: string; assuntoJaPerguntado: boolean; vinculo?: VinculoProjuris; aguardandoCpf?: boolean; perguntaOriginal?: string },
   portas: PortasConsulta,
   cfg: ConfigConsultaProcesso = CONFIG_CONSULTA_PADRAO,
 ): Promise<ResultadoConsulta> {
@@ -316,27 +321,47 @@ export async function iniciarConsultaProcesso(
   if (!cfg.aprovacao_processo) return equipe('envio sem aprovação ainda não liberado');
   if (cfg.verificacao_processo) return equipe('verificação extra ligada, mas ainda não implementada');
   try {
-    const id = await portas.identificar(e.telefone);
-    if (id.tipo === 'telefone_invalido' || id.tipo === 'nao_encontrado') { await portas.registrar('consulta_processo_nao_cliente', id.tipo); return { tipo: 'nao_cliente' }; }
-    if (id.tipo === 'duplicado') return equipe(`telefone principal em ${id.codigos.length} pessoas`);
-    const ativos = await portas.processosAtivos(id.pessoa.codigo);
+    let pessoa: { codigo: number; nome: string };
+    let novoVinculo: VinculoProjuris | undefined;
+    let identificadoPor = 'telefone principal no ProJuris (cadastro único)';
+    if (e.vinculo?.status === 'pendente') return { tipo: 'vinculo_pendente', mensagem: TEXTOS_VINCULO.pendente, vinculo: e.vinculo };
+    if (e.vinculo?.status === 'confirmado') {
+      pessoa = { codigo: e.vinculo.codigoPessoa, nome: e.vinculo.nome };
+      identificadoPor = e.vinculo.origem === 'cpf' ? 'vínculo por CPF confirmado pela equipe' : 'vínculo gravado na conversa (telefone principal)';
+    } else if (e.aguardandoCpf && portas.buscarPorCpf) {
+      const cpf = cpfNoTexto(e.textoCliente);
+      if (!cpf) return { tipo: 'pedir_cpf', mensagem: TEXTOS_VINCULO.pedirCpf };
+      const achada = pessoaPorCpf(cpf, await portas.buscarPorCpf(cpf));
+      if (!achada) { await portas.registrar('consulta_processo_nao_cliente', 'cpf sem cadastro único'); return { tipo: 'nao_cliente' }; }
+      await portas.registrar('vinculo_cpf_pendente');
+      return { tipo: 'vinculo_pendente', mensagem: TEXTOS_VINCULO.pendente, vinculo: vinculoPendentePorCpf(achada, cpf, portas.agora()) };
+    } else {
+      const id = await portas.identificar(e.telefone);
+      if (id.tipo !== 'unico' && portas.buscarPorCpf) { await portas.registrar('consulta_processo_pedir_cpf', id.tipo); return { tipo: 'pedir_cpf', mensagem: TEXTOS_VINCULO.pedirCpf }; }
+      if (id.tipo === 'telefone_invalido' || id.tipo === 'nao_encontrado') { await portas.registrar('consulta_processo_nao_cliente', id.tipo); return { tipo: 'nao_cliente' }; }
+      if (id.tipo === 'duplicado') return equipe(`telefone principal em ${id.codigos.length} pessoas`);
+      pessoa = id.pessoa;
+      novoVinculo = vinculoPorTelefone(id.pessoa, portas.agora());
+    }
+    const textoEscolha = e.perguntaOriginal?.trim() || e.textoCliente;
+    const ativos = await portas.processosAtivos(pessoa.codigo);
     if (!ativos.length) return equipe('nenhum processo ativo como cliente');
-    const escolha = escolherProcessos(ativos, e.textoCliente);
-    if (escolha.criterio === 'indefinido' && !e.assuntoJaPerguntado) return { tipo: 'perguntar_assunto', mensagem: TEXTOS_CONSULTA.perguntaAssunto, codigoPessoa: id.pessoa.codigo };
+    const escolha = escolherProcessos(ativos, e.assuntoJaPerguntado ? e.textoCliente : textoEscolha);
+    if (escolha.criterio === 'indefinido' && !e.assuntoJaPerguntado) return { tipo: 'perguntar_assunto', mensagem: TEXTOS_CONSULTA.perguntaAssunto, codigoPessoa: pessoa.codigo };
     if (escolha.escolhidos.every(p => !podeDetalhar(p))) return equipe('segredo de justiça');
     await portas.avisarCliente(TEXTOS_CONSULTA.aviso);
     const fatos: FatoProcesso[] = [];
     for (const p of escolha.escolhidos) fatos.push(fatoDe(p, podeDetalhar(p) ? await portas.ultimosAndamentos(p.codigo) : []));
     let texto = '';
     let padrao = false;
-    try { texto = (await portas.redigir(fatosParaRedacao(id.pessoa.nome, fatos))).trim(); } catch { texto = ''; }
+    try { texto = (await portas.redigir(fatosParaRedacao(pessoa.nome, fatos))).trim(); } catch { texto = ''; }
     const validacao = validarRascunho(texto, fatos);
-    if (!validacao.ok) { await portas.registrar('rascunho_substituido', validacao.problemas.join('; ')); texto = rascunhoPadrao(id.pessoa.nome, fatos); padrao = true; }
+    if (!validacao.ok) { await portas.registrar('rascunho_substituido', validacao.problemas.join('; ')); texto = rascunhoPadrao(pessoa.nome, fatos); padrao = true; }
     const pedido: PedidoProcesso = {
       codigo: proximoCodigo(await portas.codigosExistentes()),
       conversaId: e.conversaId,
-      contato: { nome: id.pessoa.nome, telefone: e.telefone },
-      identificadoPor: 'telefone principal no ProJuris (cadastro único)',
+      contato: { nome: pessoa.nome, telefone: e.telefone },
+      identificadoPor,
       processos: fatos,
       textoProposto: texto,
       hash: await hashTexto(texto),
@@ -347,7 +372,7 @@ export async function iniciarConsultaProcesso(
     };
     await portas.enviarRevisora(mensagemRevisora(pedido));
     await portas.registrar('pedido_aprovacao_criado', `${pedido.codigo} · ${fatos.length} processo(s) · ${escolha.criterio}`);
-    return { tipo: 'pedido', pedido };
+    return { tipo: 'pedido', pedido, ...(novoVinculo ? { vinculo: novoVinculo } : {}) };
   } catch (erro) {
     const tipo = erro instanceof Error && 'tipo' in erro ? String((erro as { tipo: unknown }).tipo) : 'falha';
     return equipe(`falha na consulta ao ProJuris (${tipo})`);
