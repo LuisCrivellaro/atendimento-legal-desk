@@ -127,6 +127,19 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         if (config.data?.canal_ativo !== 'ultramsg') { await auditar('mensagemRecebida', 'WhatsApp desligado · mensagem ignorada', 'bloqueado'); return Response.json({ ok: true, ignorado: true }); }
 
         const numero = numeroWhatsApp(manual ? data.to ?? '' : data.from);
+        const { respostaAutorizada } = await import('@/lib/atendimento/consulta-processo');
+        if (respostaAutorizada({ canal: 'whatsapp', contato: numero }, process.env['REVISORA_WHATSAPP'])) {
+          // Ecos de envio à revisora nunca pausam uma conversa; comandos nunca passam à Ana.
+          if (manual) return Response.json({ ok: true, revisora: true });
+          try {
+            const { receberRevisora } = await import('@/lib/atendimento/consulta-processo.server');
+            await receberRevisora(supabaseAdmin, numero, data.body);
+            return Response.json({ ok: true, revisora: true });
+          } catch {
+            await auditar('comandoRevisora', 'Comando não concluído; conferir revisão no Manager ADV', 'erro');
+            return Response.json({ error: 'Revisão não concluída' }, { status: 503 });
+          }
+        }
         if (!numeroUltraMsgPermitido(numero)) {
           await auditar('mensagemRecebida', 'Número fora da lista autorizada; nenhuma mensagem processada', 'bloqueado');
           return Response.json({ ok: true, ignorado: true });
