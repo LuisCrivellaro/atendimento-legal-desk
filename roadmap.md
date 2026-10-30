@@ -2,10 +2,11 @@
 
 ## Consulta processual no servidor real — 30/10/2026
 - [x] Conferir os sete arquivos exigidos e o projeto completo (355 arquivos).
-- [ ] Ligar o fluxo existente ao ProJuris e Claude, com pedidos na conversa e aprovação obrigatória.
-- [ ] Receber comandos da revisora e disponibilizar Aprovar/Corrigir/Recusar para sênior/admin.
-- [ ] Preparar lembretes protegidos e instruções de execução a cada cinco minutos, sem agendar/publicar.
-- [ ] Rodar suíte completa e verificar o fluxo; listar arquivos alterados e limites da verificação.
+- [x] Ligar o fluxo existente ao ProJuris e Claude, com pedidos na conversa e aprovação obrigatória.
+- [x] Receber comandos da revisora e disponibilizar Aprovar/Corrigir/Recusar para sênior/admin; número no cofre.
+- [x] Preparar lembretes protegidos e instruções de execução a cada cinco minutos, sem agendar/publicar.
+- [x] Suíte completa e bateria verificadas; página autenticada e cron sem autorização 401; arquivos e limites no relatório.
+- [ ] Confirmar consulta, decisão e leitura real no WhatsApp — depende de mensagem de cliente após publicação autorizada; não há pedidos reais pendentes e nenhum dado/mensagem fictício foi inserido/enviado.
 
 ## Envio completo ao GitHub — 30/10/2026
 - [x] Sincronizar os 358 arquivos do projeto em LuisCrivellaro/ManagerADV (main): 301 novos, 7 atualizados, nenhuma remoção; revisão 47537a161ba25fa2b5ec9920bc55d02dc999d7b1.

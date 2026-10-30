@@ -60,13 +60,13 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     return {...current,mensagens:current.mensagens.map(m=>m.id===messageId?{...m,iaProcessada:true}:m)};
   });
   if(!claimed)return;
+  try {
   if(mode==='Automática'&&canal==='ultramsg'&&c.agenteAna?.pedidosProcesso?.some(p=>p.status==='pendente')&&apenasInsistencia(m.texto)) {
     const { enviarAvisoProcesso } = await import('./consulta-processo.server');
     await enviarAvisoProcesso(db,id,TEXTOS_CONSULTA.emConferencia,remetente.data?.contato_externo??'');
     return;
   }
   if(mensagemSemResposta(m.texto,!!m.arquivo))return;
-  try {
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
     const history=c.mensagens.filter(m=>m.canal===canal).slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
@@ -127,6 +127,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       const { fluxoProcessoReal } = await import('./consulta-processo.server');
       if(await fluxoProcessoReal(db,{conversa:c,owner:row.data.owner_id,telefone,contato:remetente.data?.contato_externo??'',texto:m.texto,intencao:raw.intencao,messageId}))return;
     }
+    // Caminhos excluídos ou outros modos nunca liberam conteúdo processual produzido pelo modelo.
+    if(raw.intencao==='consulta_processo'&&!r.encaminhar_humano){r.acao='rascunho';r.motivo_aprovacao='Notícia processual exige revisão individual.';}
     if(agendaReal&&!selecionado&&!horarioPendente&&!gerenciarExistente&&r.acao==='enviar'&&r.intencao==='agendamento'&&!r.motivo_aprovacao){
       r.mensagem=listaHorariosAna(horarios,new Date(),repetida);
       if(frustracaoHorariosAna(m.texto)&&horarios.length)r.mensagem=r.mensagem.replace(/^[^\n]+/,'Desculpe! Aqui vão opções diferentes:');

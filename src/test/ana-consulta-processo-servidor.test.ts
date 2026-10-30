@@ -97,6 +97,11 @@ describe('Consulta processual real, com provedores substituídos', () => {
     const h = setup(); m.identificar.mockResolvedValue({ tipo: 'duplicado', codigos: [1, 2] }); await h.message('Como está meu processo?');
     expect(m.processos).not.toHaveBeenCalled(); expect(h.saved.agenteAna?.humano).toBe(true); expect(h.saved.agenteAna?.pedidosProcesso).toBeUndefined();
   });
+  it('pedido sobre terceiro não consulta nem envia a redação do modelo', async () => {
+    const h = setup(); await h.message('Como está o processo do meu irmão?');
+    expect(m.identificar).not.toHaveBeenCalled(); expect(m.enviar).not.toHaveBeenCalled();
+    expect(h.saved.agenteAna?.resultado?.acao).toBe('rascunho');
+  });
   it('sênior/admin autorizam; júnior, atendente e operações não autorizam', () => {
     for (const role of ['admin', 'advogada_senior']) expect(respostaAutorizada({ canal: 'manager', papeis: [role] }, undefined)).toBe(true);
     for (const role of ['advogado_junior', 'atendente', 'operacoes']) expect(respostaAutorizada({ canal: 'manager', papeis: [role] }, undefined)).toBe(false);

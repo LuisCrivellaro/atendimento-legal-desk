@@ -27,6 +27,8 @@ async function destino(db: Db, id: string, telefone?: string) {
   return r.data.contato_externo;
 }
 export async function enviarAvisoProcesso(db: Db, id: string, texto: string, contato: string) {
+  const cfg = await db.from('atendimento_canal_config').select('canal_ativo').eq('id', true).maybeSingle();
+  if (cfg.error || cfg.data?.canal_ativo !== 'ultramsg' || !contato) throw new Error('Canal ou destino alterado; envio bloqueado.');
   const sent = await enviarMensagemSistema({ supabase: db, conversaId: id, texto, contatoEsperado: contato, motivo: 'consulta_processo' });
   if (sent.simulado) throw new Error('Canal desligado; nada enviado.');
   await atualizarConversa(db, id, c => ({ ...c, agenteAna: { ...c.agenteAna, apresentado: true }, mensagens: [...c.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada' })] }));
@@ -112,7 +114,7 @@ export async function decidirPedidoProcesso(db: Db, id: string, comando: Comando
   const row = await db.from('casos').select('dados').eq('id', id).single();
   const p = (row.data?.dados as unknown as Conversa | undefined)?.agenteAna?.pedidosProcesso?.find(p => p.codigo === comando.codigo);
   if (row.error || !p || p.conversaId !== id || hashEsperado && p.hash !== hashEsperado) throw new Error('Pedido alterado; atualize a revisão.');
-  const contato = await destino(db, id, p.contato.telefone);
+  const contato = comando.acao === 'recusar' ? '' : await destino(db, id, p.contato.telefone);
   const d = await aplicarDecisao(p, comando, por, canal, new Date());
   let claimed = false;
   await atualizarConversa(db, id, c => {
