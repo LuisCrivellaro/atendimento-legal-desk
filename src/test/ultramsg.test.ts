@@ -61,3 +61,10 @@ describe('UltraMsg', () => {
     expect(mensagemDoSistema(eco, conversa, new Date('2026-10-29T15:00:00Z'))).toBe(true);
   });
 });
+
+import { numeroUltraMsgPermitido as permitidoNono } from '@/lib/atendimento/production-channel';
+import { it as itNono, expect as expectNono } from 'vitest';
+itNono('aceita número liberado enviado pelo WhatsApp sem o nono dígito', () => {
+  expectNono(permitidoNono('556699844549@c.us')).toBe(true);
+  expectNono(permitidoNono('556699844548@c.us')).toBe(false);
+});
