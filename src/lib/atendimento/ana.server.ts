@@ -10,7 +10,7 @@ import { telefoneRemetenteAna } from './telegram-intake';
 import { horarioPermitido } from './schedule-rules';
 import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } from './appointment-management';
 import { solicitarEmailPendente } from './email-rules';
-import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna } from './ana-scheduling';
+import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna, mensagemConfirmacaoAna } from './ana-scheduling';
 import { apenasInsistencia, TEXTOS_CONSULTA } from './consulta-processo';
 type Db=SupabaseClient<Database>;
 
@@ -198,7 +198,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
               await assumirAlteracao(db,id,messageId,current.agenteAna.reservaCalendar.id,'remarcar');
             }
             const reserva=current.consultaAgendada&&current.agenteAna?.reservaCalendar?await remarcarGoogleCalendar(id,current.agenteAna.reservaCalendar,escolhido,true,new Date(),cliente):await reservarGoogleCalendar(id,escolhido,new Date(),cliente);
-            r.mensagem=`Sua consulta está confirmada para ${formatarHorarioCliente(reserva.inicio)}.${reserva.meetUrl?`\nAcesse a reunião: ${reserva.meetUrl}`:''}`;
+            r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl);
             r.proximo_passo='Consulta reservada automaticamente no Google Calendar.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
             await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],horarioPendente:undefined,horarioPendenteDesde:undefined,consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada no Google Calendar · ${formatarHorarioCliente(reserva.inicio)}`}]}));
