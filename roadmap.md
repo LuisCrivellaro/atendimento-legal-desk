@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Envio completo ao GitHub — 30/10/2026
+- [x] Sincronizar os 358 arquivos do projeto em LuisCrivellaro/ManagerADV (main): 301 novos, 7 atualizados, nenhuma remoção; revisão 47537a161ba25fa2b5ec9920bc55d02dc999d7b1.
+- [x] Cópia conferida arquivo por arquivo pelo hash do GitHub: 358/358 iguais, sem ausentes, diferentes ou extras.
+- [x] Varredura de credenciais no conteúdo enviado sem achados; `.env`, `.lovable`, `node_modules` e arquivos de cache fora do repositório.
+
 ## ProJuris ADV, etapas 2 e 3: consulta com aprovação e bateria automática — 29/10/2026
 - [x] Ana: três trechos autorizados e intenção `consulta_processo`; arquivo de redação; módulo único de consulta e aprovação (prazos com feriado, assunto, validação do rascunho, AND-xxxx com hash, comandos da revisora, lembretes, em conferência).
 - [x] Simulador com ProJuris fictício, central da revisora e registro de ferramentas; 42 cenários na suíte (regressão) e tela "Bateria de testes da Ana" com Ana real, avaliação de 12 critérios e reteste só dos que falharam.
