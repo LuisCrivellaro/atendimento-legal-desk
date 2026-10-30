@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { conversas, type Conversa } from '@/lib/mock-data';
 import { defaultState } from '@/lib/office';
 import { processarAna } from '@/lib/atendimento/ana.server';
 import { decidirPedidoProcesso, executarPendenciasProcesso, receberRevisora } from '@/lib/atendimento/consulta-processo.server';
-import { hashTexto, respostaAutorizada, TEXTOS_CONSULTA } from '@/lib/atendimento/consulta-processo';
+import { respostaAutorizada, TEXTOS_CONSULTA } from '@/lib/atendimento/consulta-processo';
 
 const m = vi.hoisted(() => ({ gerar: vi.fn(), identificar: vi.fn(), processos: vi.fn(), andamentos: vi.fn(), redigir: vi.fn(), enviar: vi.fn(), revisora: vi.fn() }));
 vi.mock('@/lib/atendimento/ana.functions', () => ({ gerarRespostaAna: m.gerar }));
@@ -46,6 +46,7 @@ beforeEach(() => {
   m.redigir.mockResolvedValue('Seu processo tem movimentação pública registrada.');
   m.enviar.mockResolvedValue({ simulado: false, idExterno: 'envio' }); m.revisora.mockResolvedValue({ ok: true });
 });
+afterEach(() => vi.unstubAllEnvs());
 
 describe('Consulta processual real, com provedores substituídos', () => {
   it('consulta, registra pedido na conversa e não envia nenhum fato sem aprovação', async () => {

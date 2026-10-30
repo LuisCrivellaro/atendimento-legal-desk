@@ -15,7 +15,7 @@ export const anaSchema = z.object({
 });
 export type AnaResult = z.infer<typeof anaSchema>;
 export interface AnaState {
-  pedidosProcesso?: import('./consulta-processo').PedidoProcesso[];
+  pedidosProcesso?: import('./consulta-processo').PedidoProcesso[] | undefined;
   aguardandoAssuntoProcesso?: boolean;
   consultaProcessoEmCurso?: { mensagemId: string; desde: string } | undefined;
   tipoCliente?: TipoCliente | undefined; telefone?: string | undefined;
