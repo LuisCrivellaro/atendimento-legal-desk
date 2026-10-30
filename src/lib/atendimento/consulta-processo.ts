@@ -313,7 +313,7 @@ export type ResultadoConsulta =
   | { tipo: 'pedido'; pedido: PedidoProcesso; vinculo?: VinculoProjuris };
 
 export async function iniciarConsultaProcesso(
-  e: { conversaId: string; telefone: string; nomeContato: string; textoCliente: string; assuntoJaPerguntado: boolean; vinculo?: VinculoProjuris; aguardandoCpf?: boolean; perguntaOriginal?: string },
+  e: { conversaId: string; telefone: string; nomeContato: string; textoCliente: string; assuntoJaPerguntado: boolean; vinculo?: VinculoProjuris | undefined; aguardandoCpf?: boolean; perguntaOriginal?: string | undefined },
   portas: PortasConsulta,
   cfg: ConfigConsultaProcesso = CONFIG_CONSULTA_PADRAO,
 ): Promise<ResultadoConsulta> {

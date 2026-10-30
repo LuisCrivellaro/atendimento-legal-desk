@@ -50,7 +50,7 @@ export function ProcessReviews({ conversaId }: { conversaId?: string }) {
   </section>;
 }
 /** Vínculo por CPF aguardando a equipe: mostra a pessoa encontrada e libera a consulta só depois da confirmação. */
-export function VinculoPendente({ conversaId, vinculo }: { conversaId: string; vinculo?: import('@/lib/projuris/vinculo').VinculoProjuris }) {
+export function VinculoPendente({ conversaId, vinculo }: { conversaId: string; vinculo?: import('@/lib/projuris/vinculo').VinculoProjuris | undefined }) {
   const { user } = AuthRoute.useRouteContext();
   const roles = useQuery({ queryKey: ['attendance-roles', user.id], queryFn: async () => {
     const r = await supabase.from('user_roles').select('role').eq('user_id', user.id);
