@@ -30,3 +30,12 @@ export const revisarPedidoProcesso = createServerFn({ method: 'POST' })
     const comando = data.acao === 'corrigir' ? { acao: data.acao, codigo: data.codigo, texto: data.texto ?? '' } : { acao: data.acao, codigo: data.codigo };
     return decidirPedidoProcesso(supabaseAdmin, data.conversaId, comando, context.userId, 'manager', data.hash);
   });
+export const confirmarVinculoProjuris = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ conversaId: z.string().uuid() }))
+  .handler(async ({ context, data }) => {
+    await exigirRevisor(context);
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { confirmarVinculoProcesso } = await import('./consulta-processo.server');
+    return confirmarVinculoProcesso(supabaseAdmin, data.conversaId, context.userId);
+  });

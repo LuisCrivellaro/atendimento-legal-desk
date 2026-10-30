@@ -9,7 +9,7 @@ import { pedidoHumano } from './ana-scheduling';
 import { criarConsultasProjuris } from '../projuris/consultas.server';
 import { identificarClienteProjuris } from '../projuris/indice.server';
 import { redigirNoticiaProcesso } from './processo-redacao.server';
-import { aplicarDecisao, deveConsultarProcesso, iniciarConsultaProcesso, interpretarRespostaRevisora, mensagemNaoCliente, pendencias, proximoCodigo, respostaAutorizada, respostaDuranteEspera, TEXTOS_CONSULTA, type ComandoRevisora, type PedidoProcesso } from './consulta-processo';
+import { aplicarDecisao, deveConsultarProcesso, pedidoNoticiaProcesso, iniciarConsultaProcesso, interpretarRespostaRevisora, mensagemNaoCliente, pendencias, proximoCodigo, respostaAutorizada, respostaDuranteEspera, TEXTOS_CONSULTA, type ComandoRevisora, type PedidoProcesso } from './consulta-processo';
 
 type Db = SupabaseClient<Database>;
 type Comando = Extract<ComandoRevisora, { acao: 'aprovar' | 'corrigir' | 'recusar' }>;
@@ -75,7 +75,7 @@ export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: 
     await enviarAvisoProcesso(db, c.id, resposta, e.contato);
     return true;
   }
-  if (!deveConsultarProcesso({ texto: e.texto, intencao: e.intencao, encaminharHumano: pedidoHumano(e.texto), aguardandoAssunto: !!c.agenteAna?.aguardandoAssuntoProcesso })) return false;
+  if (!deveConsultarProcesso({ texto: e.texto, intencao: e.intencao, encaminharHumano: pedidoHumano(e.texto), aguardandoAssunto: !!c.agenteAna?.aguardandoAssuntoProcesso || !!c.agenteAna?.aguardandoCpfProcesso || c.agenteAna?.vinculoProjuris?.status === 'pendente' && pedidoNoticiaProcesso(e.texto) })) return false;
   let claimed = false;
   await atualizarConversa(db, c.id, current => {
     claimed = false;
@@ -87,7 +87,7 @@ export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: 
   try {
     const consultas = criarConsultasProjuris();
     let notificacao = '';
-    const result = await iniciarConsultaProcesso({ conversaId: c.id, telefone: e.telefone, nomeContato: c.nome, textoCliente: e.texto, assuntoJaPerguntado: !!c.agenteAna?.aguardandoAssuntoProcesso }, {
+    const result = await iniciarConsultaProcesso({ conversaId: c.id, telefone: e.telefone, nomeContato: c.nome, textoCliente: e.texto, assuntoJaPerguntado: !!c.agenteAna?.aguardandoAssuntoProcesso, vinculo: c.agenteAna?.vinculoProjuris, aguardandoCpf: !!c.agenteAna?.aguardandoCpfProcesso, perguntaOriginal: c.agenteAna?.perguntaProcessoPendente }, {
       agora: () => new Date(), identificar: identificarClienteProjuris,
       processosAtivos: consultas.processosAtivos, ultimosAndamentos: consultas.ultimosAndamentos,
       redigir: redigirNoticiaProcesso, codigosExistentes: () => reservarCodigo(db, e.owner),
@@ -95,13 +95,19 @@ export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: 
       // Persistir antes do envio externo permite receber uma resposta imediata e não perder pedidos em falhas.
       enviarRevisora: async t => { if (!process.env['REVISORA_WHATSAPP']) throw new Error('Revisora ausente.'); notificacao = t; },
       registrar: ev => auditarProcesso(db, ev),
+      buscarPorCpf: consultas.pessoasPorCpf,
     });
-    await atualizarConversa(db, c.id, current => ({ ...current, agenteAna: { ...current.agenteAna, consultaProcessoEmCurso: undefined, aguardandoAssuntoProcesso: result.tipo === 'perguntar_assunto', ...(result.tipo === 'pedido' ? { pedidosProcesso: [...(current.agenteAna?.pedidosProcesso ?? []), result.pedido], proximoPasso: 'Notícia processual aguardando revisão.' } : {}) } }));
+    await atualizarConversa(db, c.id, current => ({ ...current, agenteAna: { ...current.agenteAna, consultaProcessoEmCurso: undefined, aguardandoAssuntoProcesso: result.tipo === 'perguntar_assunto',
+      aguardandoCpfProcesso: result.tipo === 'pedir_cpf',
+      perguntaProcessoPendente: result.tipo === 'pedir_cpf' ? (current.agenteAna?.perguntaProcessoPendente ?? e.texto) : result.tipo === 'vinculo_pendente' ? current.agenteAna?.perguntaProcessoPendente : undefined,
+      ...(result.tipo === 'vinculo_pendente' ? { vinculoProjuris: result.vinculo, proximoPasso: 'Equipe: confirmar vínculo do cliente no ProJuris.' } : {}),
+      ...(result.tipo === 'pedido' && result.vinculo ? { vinculoProjuris: result.vinculo } : {}),
+      ...(result.tipo === 'pedido' ? { pedidosProcesso: [...(current.agenteAna?.pedidosProcesso ?? []), result.pedido], proximoPasso: 'Notícia processual aguardando revisão.' } : {}) } }));
     if (result.tipo === 'pedido') {
       try { await notificarRevisora(notificacao); } catch { await auditarProcesso(db, 'notificacao_revisora_pendente'); }
     } else {
       await enviarAvisoProcesso(db, c.id, result.tipo === 'nao_cliente' ? mensagemNaoCliente(new Date()) : result.mensagem, e.contato);
-      if (result.tipo !== 'perguntar_assunto') await atualizarConversa(db, c.id, current => ({ ...current, agenteAna: { ...current.agenteAna, humano: true, proximoPasso: 'Equipe: conferir consulta processual.' } }));
+      if (result.tipo !== 'perguntar_assunto' && result.tipo !== 'pedir_cpf' && result.tipo !== 'vinculo_pendente') await atualizarConversa(db, c.id, current => ({ ...current, agenteAna: { ...current.agenteAna, humano: true, proximoPasso: 'Equipe: conferir consulta processual.' } }));
     }
     return true;
   } finally {
@@ -169,4 +175,23 @@ export async function executarPendenciasProcesso(db: Db, agora = new Date()) {
     } catch { await auditarProcesso(db, 'pendencia_processo_envio_nao_confirmado'); }
   }
   return { processados };
+}
+/** Confirmação do vínculo por CPF (sênior/admin, já verificado na função). Depois a consulta continua no fluxo normal. */
+export async function confirmarVinculoProcesso(db: Db, id: string, por: string) {
+  const { confirmarVinculo } = await import('../projuris/vinculo');
+  let confirmado: import('../projuris/vinculo').VinculoProjuris | undefined;
+  await atualizarConversa(db, id, c => {
+    confirmado = confirmarVinculo(c.agenteAna?.vinculoProjuris, por, new Date());
+    return { ...c, agenteAna: { ...c.agenteAna, vinculoProjuris: confirmado, proximoPasso: 'Vínculo confirmado; consulta de processo liberada.' } };
+  });
+  await auditarProcesso(db, 'vinculo_cpf_confirmado');
+  const row = await db.from('casos').select('owner_id,dados').eq('id', id).single();
+  const c = row.data?.dados as unknown as Conversa | undefined;
+  const pergunta = c?.agenteAna?.perguntaProcessoPendente;
+  if (row.error || !c || !pergunta) return { confirmado: true, consultaRetomada: false };
+  const contato = await destino(db, id);
+  const ultima = c.mensagens.at(-1)?.id ?? '';
+  await atualizarConversa(db, id, x => ({ ...x, agenteAna: { ...x.agenteAna, perguntaProcessoPendente: undefined } }));
+  await fluxoProcessoReal(db, { conversa: { ...c, agenteAna: { ...c.agenteAna, perguntaProcessoPendente: undefined } }, owner: row.data.owner_id, telefone: contato, contato, texto: pergunta, intencao: 'consulta_processo', messageId: ultima });
+  return { confirmado: true, consultaRetomada: true };
 }
