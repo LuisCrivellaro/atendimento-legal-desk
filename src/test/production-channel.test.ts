@@ -5,7 +5,7 @@ import { enviarTextoUltramsg } from '@/lib/atendimento/canais/ultramsg';
 afterEach(() => vi.unstubAllGlobals());
 describe('UltraMsg restrito até segunda ordem', () => {
   it('libera exatamente os dois números informados', () => {
-    expect(numerosUltraMsgPermitidos).toEqual(['5511999600306', '5511942074361']);
+    expect(numerosUltraMsgPermitidos).toEqual(['5511999600306', '5511942074361', '5566999844549']);
     expect(numeroUltraMsgPermitido('11999600306')).toBe(true);
     expect(numeroUltraMsgPermitido('+55 (11) 94207-4361')).toBe(true);
     expect(numeroUltraMsgPermitido('5511999600306@c.us')).toBe(true);
