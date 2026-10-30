@@ -18,6 +18,7 @@ import {
 import { normalizarTelefone } from './telefone';
 import { numeroUltraMsgPermitido } from './production-channel';
 import { ultramsgAdapter } from './canais/ultramsg';
+import { enviarTextoTelegram } from './canais/telegram';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
 
 type Db = SupabaseClient<Database>;
@@ -98,6 +99,26 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     return { ok: true as const, simulado: true as const, canal: 'simulador' as const };
   }
 
+  if (config.canal_ativo === 'telegram') {
+    const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio').eq('conversa_id', entrada.conversaId).eq('canal', 'telegram').eq('status', 'liberado').maybeSingle();
+    if (destino.error) throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
+    const contato = destino.data;
+    if (entrada.contatoEsperado && contato?.contato_externo !== entrada.contatoEsperado) throw new Error('Vínculo do contato alterado; envio interrompido.');
+    if (!contato) {
+      await auditar(supabase, ator, entrada.acao, 'Envio recusado: contato Telegram não liberado', 'bloqueado');
+      throw new Error('Contato de Telegram não liberado para esta conversa. Nada foi enviado.');
+    }
+    const token = process.env['TELEGRAM_BOT_TOKEN'];
+    if (!token) throw new Error('Telegram não configurado. Nada foi enviado.');
+    const resultado = await enviarTextoTelegram(lerDestinoTelegram(contato.contato_externo).chatId, entrada.texto, token);
+    if (!resultado.ok) {
+      await auditar(supabase, ator, entrada.acao, 'Falha no envio pelo Telegram', 'erro', resultado.erro);
+      throw new Error('O envio pelo Telegram não foi concluído. Nada foi registrado como enviado.');
+    }
+    await auditar(supabase, ator, entrada.acao, resumoEnvio('telegram', contato.contato_externo, contato.telefone_ficticio, entrada.texto.length), 'sucesso');
+    return { ok: true as const, simulado: false as const, canal: 'telegram' as const, idExterno: resultado.idExterno };
+  }
+
   if (config.canal_ativo === 'ultramsg') {
     const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','ultramsg').eq('status','liberado').maybeSingle();
     if (destino.error) throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
@@ -168,7 +189,7 @@ export const salvarConfigCanal = createServerFn({ method: 'POST' })
     agente_ativo: z.boolean().optional(),
   }))
   .handler(async ({ data, context }) => {
-    if (data.canal_ativo === 'telegram') throw new Error('Telegram retirado do atendimento.');
+    if (data.canal_ativo === 'telegram' && !process.env['TELEGRAM_BOT_TOKEN']) throw new Error('Token do bot do Telegram ausente.');
     if (data.canal_ativo === 'ultramsg' && (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID'])) throw new Error('Credenciais do UltraMsg ausentes.');
     const ator = await exigirGestor(context.supabase, context.userId);
     const atual = await carregarConfig(context.supabase);
