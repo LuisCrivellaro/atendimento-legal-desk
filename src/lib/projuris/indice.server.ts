@@ -1,37 +1,43 @@
+// Índice dos telefones principais do ProJuris, só no servidor: fica na memória da instância por 30 minutos e
+// guarda apenas código, nome e telefones principais. Nunca vai ao navegador nem a logs.
 import { criarConsultasProjuris } from './consultas.server';
-import { identificarPorTelefone, indiceTelefonesPrincipais, type PessoaComTelefones } from './identificacao';
-import { chaveTelefone } from './telefone';
+import { identificarPorTelefone, type Identificacao, type PessoaComTelefones } from './identificacao';
 
-export const VALIDADE_INDICE_MS = 30 * 60000;
-/** Índice privado em memória; uma falha nunca publica índice parcial nem usa cache vencido. */
-export function criarIndiceServidor(consultas = criarConsultasProjuris(), agora = Date.now) {
-  let cache: { pessoas: Map<number, PessoaComTelefones>; indice: Map<string, number[]>; ate: number } | undefined;
-  let carregando: Promise<void> | undefined;
-  async function carregar() {
-    const pessoas: PessoaComTelefones[] = [];
-    let quantidade = 0;
-    for (let pagina = 0; pagina < 1000; pagina++) {
-      const lote = await consultas.pessoasCompletas(pagina, 100);
-      pessoas.push(...lote.pessoas);
-      quantidade += lote.pessoas.length;
-      if (quantidade >= lote.total || lote.pessoas.length < 100) {
-        cache = { pessoas: new Map(pessoas.map(p => [p.codigo, p])), indice: indiceTelefonesPrincipais(pessoas), ate: agora() + VALIDADE_INDICE_MS };
-        return;
-      }
+const VALIDADE_MS = 30 * 60000;
+const POR_PAGINA = 100;
+const MAX_PAGINAS = 200;
+
+type Consultas = Pick<ReturnType<typeof criarConsultasProjuris>, 'pessoasCompletas'>;
+
+let cache: { pessoas: PessoaComTelefones[]; ate: number } | undefined;
+let carregando: Promise<PessoaComTelefones[]> | undefined;
+
+/** Lê todas as páginas de pessoas e mantém só quem tem telefone principal. */
+export async function carregarIndiceProjuris(consultas: Consultas = criarConsultasProjuris()): Promise<PessoaComTelefones[]> {
+  const pessoas: PessoaComTelefones[] = [];
+  let lidos = 0;
+  for (let pagina = 0; pagina < MAX_PAGINAS; pagina++) {
+    const { pessoas: lote, total } = await consultas.pessoasCompletas(pagina, POR_PAGINA);
+    lidos += lote.length;
+    for (const p of lote) {
+      const principais = p.telefones.filter(t => t.principal);
+      if (principais.length) pessoas.push({ codigo: p.codigo, nome: p.nome, telefones: principais });
     }
-    throw new Error('Índice ProJuris incompleto.');
+    if (!lote.length || lote.length < POR_PAGINA || lidos >= total) break;
   }
-  return async (telefone: string) => {
-    const chave = chaveTelefone(telefone);
-    if (!chave) return identificarPorTelefone(telefone, []);
-    if (!cache || agora() >= cache.ate) {
-      carregando ??= carregar().finally(() => { carregando = undefined; });
-      await carregando;
-    }
-    const atual = cache;
-    if (!atual) throw new Error('Índice ProJuris indisponível.');
-    const candidatos = (atual.indice.get(chave) ?? []).flatMap(c => { const p = atual.pessoas.get(c); return p ? [p] : []; });
-    return identificarPorTelefone(telefone, candidatos);
-  };
+  return pessoas;
 }
-export const identificarClienteProjuris = criarIndiceServidor();
+
+async function indice(agora: number, consultas?: Consultas): Promise<PessoaComTelefones[]> {
+  if (cache && agora < cache.ate) return cache.pessoas;
+  carregando ??= carregarIndiceProjuris(consultas).then(p => { cache = { pessoas: p, ate: Date.now() + VALIDADE_MS }; return p; }).finally(() => { carregando = undefined; });
+  return carregando;
+}
+
+/** Identificação pelo telefone principal (único, nenhum ou duplicado), com o índice em cache. */
+export async function identificarClienteProjuris(telefone: string, consultas?: Consultas): Promise<Identificacao> {
+  return identificarPorTelefone(telefone, await indice(Date.now(), consultas));
+}
+
+/** Para testes e para forçar nova leitura depois de um cadastro ou atualização de telefone. */
+export function limparIndiceProjuris() { cache = undefined; }
