@@ -84,7 +84,7 @@ export const importarConversasWhatsApp = createServerFn({ method: 'POST' })
           const jaPausada = c.agenteAna?.humano === true;
           return {
             ...c, mensagens: todas,
-            agenteAna: { ...c.agenteAna, humano: true, proximoPasso: jaPausada ? c.agenteAna?.proximoPasso : AVISO },
+            agenteAna: { ...c.agenteAna, humano: true, proximoPasso: jaPausada ? c.agenteAna?.proximoPasso ?? AVISO : AVISO },
             timeline: jaPausada ? c.timeline : [...(c.timeline ?? []), { data: new Date().toISOString(), evento: AVISO }],
           };
         });
