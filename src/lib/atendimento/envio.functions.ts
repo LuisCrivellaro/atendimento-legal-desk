@@ -92,6 +92,8 @@ interface EnvioBase {
   contatoEsperado?: string;
   /** Horários ofertados viram botões clicáveis no Telegram. */
   horarios?: string[] | undefined;
+  /** Conta da Dra. (e-mail verificado no login): envia a qualquer contato liberado, sem a lista de números. */
+  contaMaster?: boolean;
 }
 
 /** Núcleo do envio: vale para mensagens da equipe e do sistema. O destino é sempre buscado no servidor. */
@@ -140,7 +142,7 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
       await auditar(supabase, ator, entrada.acao, 'Envio recusado: contato WhatsApp não liberado', 'bloqueado');
       throw new Error('Contato de WhatsApp não liberado para esta conversa. Nada foi enviado.');
     }
-    const entradaAberta = await entradaWhatsAppAberta();
+    const entradaAberta = entrada.contaMaster === true || await entradaWhatsAppAberta();
     if (!numeroWhatsAppAtendido(contato.contato_externo, entradaAberta)) throw new Error('Número não autorizado nesta fase de produção.');
     if (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID']) throw new Error('WhatsApp não configurado. Nada foi enviado.');
     const resultado = await ultramsgAdapter.enviarTexto(contato.contato_externo, entrada.texto, { ...(entrada.horarios?.length ? { botoes: botoesHorarios(entrada.horarios) } : {}), entradaAberta });
@@ -161,7 +163,8 @@ export const enviarMensagemCanal = createServerFn({ method: 'POST' })
   .inputValidator(z.object({ conversaId: z.string().uuid(), acao: z.string().min(1).max(60), texto: z.string().max(16000), horarios: z.array(z.string().datetime()).max(8).optional() }))
   .handler(async ({ data, context }) => {
     const ator = await atorDoUsuario(context.supabase, context.userId);
-    return enviarComRegras(context.supabase, ator, data);
+    const email = String((context.claims as { email?: unknown } | undefined)?.email ?? '').trim().toLowerCase();
+    return enviarComRegras(context.supabase, ator, { ...data, contaMaster: email === 'chamanalei@gmail.com' });
   });
 
 /** Envio pelo sistema (agente/lembretes): só chamável no servidor, pronto para a fase 3. Ainda não usado. */
