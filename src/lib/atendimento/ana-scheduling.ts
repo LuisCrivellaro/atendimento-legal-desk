@@ -45,7 +45,7 @@ export function linhaHorarioAna(iso:string,now=new Date()) {
 }
 export function listaHorariosAna(slots:string[],now=new Date(),repetida=false) {
   if(!slots.length)return 'Não encontrei novas opções livres nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
-  return `${repetida?'Tenho estas outras opções:':'Claro! Seguem os horários livres para a sua consulta online e gratuita:'}\n\n${repetida?'🗓️ Outras opções':'🗓️ Consulta online'} (30 min, horário de Brasília):\n${slots.map(s=>`• ${linhaHorarioAna(s,now)}`).join('\n')}\n\nQual fica melhor para você? Se preferir, me diga outro dia ou horário.`;
+  return `${repetida?'Tenho estas outras opções:':'Claro! Seguem os horários livres para a sua consulta online e gratuita:'}\n\n${repetida?'🗓️ Outras opções':'🗓️ Consulta online'} (30 min, horário de Brasília):\n${slots.map((s,i)=>`${i+1}. ${linhaHorarioAna(s,now)}`).join('\n')}\n\nQual fica melhor para você? Se preferir, me diga outro dia ou horário.`;
 }
 export function frustracaoHorariosAna(texto:string){return /(?:mesmos?\s+horarios?|de novo esses|esses.{0,15}nao servem|nao.{0,15}servem esses)/.test(fold(texto));}
 export function pedidoOutrasOpcoesAna(texto:string){return frustracaoHorariosAna(texto)||/(?:outr[oa]s?.{0,25}(?:horario|opco|dia)|nenhum.{0,20}serve|nao posso nesses|mais tarde|mais cedo|\b(?:a|de|pela)\s+(?:tarde|manha)\b)/.test(fold(texto));}

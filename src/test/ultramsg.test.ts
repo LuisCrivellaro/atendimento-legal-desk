@@ -17,7 +17,8 @@ describe('UltraMsg', () => {
     const enviado = textoComOpcoes(texto, botoesHorarios(slots));
     expect(enviado).toBe(texto);
     expect(enviado.match(/03\/11/g)).toHaveLength(1);
-    expect(semNumeros(enviado)).toBe(true);
+    expect(enviado).toContain('1. Ter, 03/11 · 9h30 às 10h');
+    expect(enviado).not.toMatch(/Responda com o número/);
   });
 
   it('horários de hoje e de amanhã também são reconhecidos no texto da Ana', () => {
