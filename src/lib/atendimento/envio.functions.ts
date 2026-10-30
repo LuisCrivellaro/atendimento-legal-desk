@@ -73,6 +73,18 @@ async function exigirGestor(supabase: Db, userId: string): Promise<Ator> {
   return atorDoUsuario(supabase, userId);
 }
 
+/** Entrada do WhatsApp aberta? Lida no servidor com o cliente privilegiado; qualquer falha fecha (só a lista vale). */
+async function entradaWhatsAppAberta(): Promise<boolean> {
+  try {
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { donaEntradaWhatsApp } = await import('./entrada-whatsapp.server');
+    const dona = await donaEntradaWhatsApp(supabaseAdmin);
+    return !!dona.ownerId;
+  } catch {
+    return false;
+  }
+}
+
 interface EnvioBase {
   conversaId: string;
   acao: string;
@@ -245,7 +257,7 @@ export const salvarContatoTeste = createServerFn({ method: 'POST' })
     if (data.status === 'liberado') {
       const atual = data.id ? await context.supabase.from('atendimento_contatos_teste').select('contato_externo,canal').eq('id', data.id).maybeSingle() : undefined;
       const destino = atual?.data?.contato_externo ?? data.contatoExterno ?? '';
-      if (atual?.error || (atual?.data && atual.data.canal !== 'ultramsg') || !numeroUltraMsgPermitido(destino)) throw new Error('Número não autorizado nesta fase de produção.');
+      if (atual?.error || (atual?.data && atual.data.canal !== 'ultramsg') || !numeroWhatsAppAtendido(destino, await entradaWhatsAppAberta())) throw new Error('Número não autorizado nesta fase de produção.');
     }
     if (telefone.length < 12) throw new Error('Informe o telefone fictício com DDD.');
     if (!data.id && !(data.contatoExterno ?? '').trim()) throw new Error(data.canal === 'ultramsg' ? 'Informe o número de WhatsApp.' : 'Informe o chat_id do Telegram.');
@@ -360,7 +372,6 @@ export const salvarEntradaWhatsApp = createServerFn({ method: 'POST' })
   .inputValidator(z.object({ ativa: z.boolean() }))
   .handler(async ({ data, context }) => {
     const ator = await exigirGestor(context.supabase, context.userId);
-    if (data.ativa) throw new Error('Entrada geral fechada: atendimento restrito aos números autorizados.');
     const entradaWhatsApp = { ativa: data.ativa, atualizadoEm: new Date().toISOString() };
     for (let tentativa = 0; tentativa < 5; tentativa++) {
       const row = await context.supabase.from('office_workspace').select('dados,updated_at').eq('owner_id', context.userId).maybeSingle();
