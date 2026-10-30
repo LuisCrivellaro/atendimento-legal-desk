@@ -143,7 +143,7 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         // Checagem única de produção: entrada aberta atende qualquer número; fechada ou indisponível, só a lista.
         const { donaEntradaWhatsApp, abrirConversaWhatsApp } = await import('@/lib/atendimento/entrada-whatsapp.server');
         let dona: { ownerId?: string; motivo?: string } = {};
-        try { dona = await donaEntradaWhatsApp(supabaseAdmin); } catch { /* falha ao ler a configuração: entrada fechada, só a lista vale */ }
+        try { dona = (await donaEntradaWhatsApp(supabaseAdmin)) ?? {}; } catch { /* falha ao ler a configuração: entrada fechada, só a lista vale */ }
         if (!numeroWhatsAppAtendido(numero, !!dona.ownerId)) {
           await auditar('mensagemRecebida', 'Número fora da lista autorizada; nenhuma mensagem processada', 'bloqueado');
           return Response.json({ ok: true, ignorado: true });
