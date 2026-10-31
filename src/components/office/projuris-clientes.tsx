@@ -5,14 +5,13 @@ import { Search, RefreshCw, ChevronLeft, ChevronRight, Loader2, Copy } from 'luc
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
 import { listarClientesProjuris } from '@/lib/projuris-clientes.functions';
 import type { ClienteProjurisDiretorio } from '@/lib/projuris/diretorio';
 import { Empty } from './shared';
 import { dataHoraCurta } from '@/lib/atendimento';
 import { ProjurisCadastro } from './projuris-cadastro';
 
-const dataBR = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v.split('-').reverse().join('/') : v);
 
 export function ProjurisClientes() {
   const listar = useServerFn(listarClientesProjuris);

@@ -1,7 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
-import type { ClienteProjurisDiretorio } from './projuris/diretorio';
 import { CAMPOS_CADASTRO, CAMPOS_ENDERECO, cadastroVisivel, registroCadastro } from './projuris/cadastro';
 import type { AlteracaoCadastro } from './projuris/cadastro';
 
@@ -41,7 +40,7 @@ export const obterClienteProjuris = createServerFn({ method: 'POST' })
     if (!cliente) throw new Error('Cliente fora da carteira elegível.');
     const cadastro = registroCadastro(await projuris.chamar('pessoa.obter', { parametros: { codigo: data.codigo } }));
     if (cadastro['codigoPessoa'] !== data.codigo) throw new Error('Cadastro não confirmado pelo ProJuris.');
-    return { cliente, cadastro: cadastroVisivel(cadastro) as Record<string, unknown>, processos: cadastroVisivel(carteira.porPessoa.get(data.codigo) ?? []) as Record<string, unknown>[], revisao: await revisaoCadastro(cadastro) };
+    return { cliente, cadastroJson: JSON.stringify(cadastroVisivel(cadastro)), processosJson: JSON.stringify(cadastroVisivel(carteira.porPessoa.get(data.codigo) ?? [])), revisao: await revisaoCadastro(cadastro) };
   });
 
 const campo = z.enum(Object.keys(CAMPOS_CADASTRO) as [keyof typeof CAMPOS_CADASTRO, ...(keyof typeof CAMPOS_CADASTRO)[]]);

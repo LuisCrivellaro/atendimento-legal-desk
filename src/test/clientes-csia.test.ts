@@ -3,7 +3,7 @@ import { acaoDoProcesso, dataCadastro, nomeClienteProjuris, pertenceCoorte } fro
 import { carregarCarteira } from '@/lib/projuris/carteira.server';
 import { prepararAlteracao, cadastroVisivel } from '@/lib/projuris/cadastro';
 import { atualizarCadastroVerificado, revisaoCadastro } from '@/lib/projuris/cadastro.server';
-import { criarClienteProjuris } from '@/lib/projuris/cliente.server';
+import { criarClienteProjuris, type ClienteProjuris } from '@/lib/projuris/cliente.server';
 
 describe('Clientes CS.IA', () => {
   it('inclui cadastro em 01/01/2025 e exclui anteriores ou sem data', () => {
@@ -29,7 +29,7 @@ describe('Clientes CS.IA', () => {
   it('importa só coorte com processo ativo e flagCliente; relaciona por ID e guarda outros processos', async () => {
     const pessoas = [1, 2, 3, 4, 5].map(codigoPessoa => ({ codigoPessoa, nome: 'Mesmo nome', dtInclusao: codigoPessoa === 2 ? '2024-12-31' : '2025-01-01' }));
     const processo = (id: number, pessoa: number, ativo: boolean, cliente: boolean, area = 'Trabalhista') => ({ codigoProcesso: id, area: { valor: area }, situacaoProcesso: { chave: ativo ? 7 : 9 }, processoEnvolvidoSimplificadoWs: [{ codigoPessoaEnvolvido: pessoa, flagCliente: cliente }] });
-    const chamar = (async (id: string) => id === 'tipo.consulta' ? [{ chave: 7, valor: 'Ativo' }] : id === 'pessoa.consulta' ? { totalRegistros: 5, pessoaConsulta: pessoas } : { totalRegistros: 6, processoDadosComunsType: [processo(91, 1, true, true), processo(92, 1, true, true, 'Cível'), processo(93, 1, false, true), processo(94, 2, true, true), processo(95, 3, false, true), processo(96, 4, true, false)] }) as Parameters<typeof carregarCarteira>[0] extends infer T ? NonNullable<T>['chamar'] : never;
+    const chamar = (async (id: string) => id === 'tipo.consulta' ? [{ chave: 7, valor: 'Ativo' }] : id === 'pessoa.consulta' ? { totalRegistros: 5, pessoaConsulta: pessoas } : { totalRegistros: 6, processoDadosComunsType: [processo(91, 1, true, true), processo(92, 1, true, true, 'Cível'), processo(93, 1, false, true), processo(94, 2, true, true), processo(95, 3, false, true), processo(96, 4, true, false)] }) as ClienteProjuris['chamar'];
     const c = await carregarCarteira({ chamar });
     expect(c.lista.map(p => [p.codigo, p.nomeExibicao, p.processosAtivos])).toEqual([[1, 'RT/AC 1 - Mesmo nome', 2]]);
     expect(c.porPessoa.get(1)?.length).toBe(3);

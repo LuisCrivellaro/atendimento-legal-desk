@@ -28,7 +28,7 @@ export function ProjurisCadastro({ codigo }: { codigo: number }) {
   const ler = useServerFn(obterClienteProjuris);
   const salvar = useServerFn(atualizarClienteProjuris);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['projuris-cadastro', codigo], queryFn: () => ler({ data: { codigo } }), retry: false });
+  const q = useQuery({ queryKey: ['projuris-cadastro', codigo], queryFn: async () => { const r = await ler({ data: { codigo } }); return { ...r, cadastro: registroCadastro(JSON.parse(r.cadastroJson)), processos: (JSON.parse(r.processosJson) as unknown[]).map(registroCadastro) }; }, retry: false });
   const [edicao, setEdicao] = useState<{ titulo: string; alteracao: AlteracaoCadastro } | null>(null);
   const [busy, setBusy] = useState(false);
   const d = q.data;
