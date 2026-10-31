@@ -1,10 +1,11 @@
 # Construção dos módulos Manager ADV
 
 ## Clientes CS.IA — 31/10/2026
-- [ ] Filtrar clientes por cadastro desde 01/01/2025 e processos ativos; expandir cadastro/processos respeitando confidencialidade.
-- [ ] Padronizar nomes RT/AC + código da pessoa ProJuris e exibir/copiar telefone na listagem e nome no Atendimento.
-- [ ] Habilitar atualização autenticada do cadastro no ProJuris com retorno verificável e sem migrações.
-- [ ] Verificar regras em testes e fluxo autenticado, sem publicação solicitada.
+- [x] Filtrar cadastro desde 01/01/2025 e processos ativos por flagCliente/código: 111 clientes reais, 110 com telefone; ficha com cadastro e processos, credenciais técnicas removidas.
+- [x] Nomes RT/AC por sinais verificáveis, RT/AC em casos mistos, telefone copiável; alias do Atendimento somente para vínculo confirmado, sem alterar nome legal nem mensagens. 13 classificações insuficientes ficam a conferir.
+- [x] Atualização sênior/admin de cadastro e contatos com versão fresca, campos preservados, PUT sem repetição automática e leitura posterior; sem migrações.
+- [x] 68 testes afetados aprovados, compilação automática limpa; conta da Dra. verificada na lista/ficha, copiar telefone, abrir/cancelar edição e processos; Atendimento carregou 26 conversas sem erro. Nenhuma mensagem/alteração real enviada e nenhuma publicação.
+- [ ] Confirmar escrita no ProJuris em alteração cadastral verdadeira autorizada pela Dra.; não alterado cadastro real só para teste. Permissão real de escrita e preservação concorrente no provedor ainda não verificadas.
 
 ## Envio completo ao GitHub — 30/10/2026 (noite)
 - [x] Sincronizar o projeto (373 arquivos) em LuisCrivellaro/ManagerADV (main): 3 novos, 18 atualizados, nenhuma remoção; `bun.lock` preservado do repositório; revisão da entrega a1a3117, seguida das notas do próprio roteiro.
