@@ -30,14 +30,17 @@ function relogio() {
 const token = (valor = 'tk-1', expires_in = 1500) => json(200, { access_token: valor, expires_in, token_type: 'Bearer' });
 
 describe('ProJuris · lista fechada de operações', () => {
-  it('só consultas: nenhuma operação de apagar, arquivos, financeiro, horas, comentários, tarefas, usuários ou configurações', () => {
+  it('só consultas e atualizações cadastrais autorizadas, sem operações destrutivas ou outros módulos', () => {
     const proibido = /remov|exclu|delet|arquivo|financ|receita|pagamento|apontamento|hora|comentario|solicitac|tarefa|atendimento|usuario|perfil|permiss|webhook|notificac|credencia|config/i;
     for (const [id, op] of Object.entries(OPERACOES_PROJURIS)) {
-      expect(['GET', 'POST'], id).toContain(op.metodo);
+      expect(['GET', 'POST', 'PUT'], id).toContain(op.metodo);
       // Agenda: só a consulta do calendário (leitura), autorizada pela Dra. em 30/10/2026.
-      if (op.caminho === 'tarefa/calendario/consulta-sem-paginacao') continue;
+      if (op.caminho === 'tarefa/calendario/consulta-sem-paginacao') { expect(op.somenteLeitura).toBe(true); continue; }
       expect(op.caminho, id).not.toMatch(proibido);
-      expect(op.somenteLeitura).toBe(true);
+      if (op.metodo === 'PUT') {
+        expect(['pessoa.atualizar', 'pessoa.telefoneAtualizar', 'pessoa.emailAtualizar', 'pessoa.enderecoAtualizar']).toContain(id);
+        expect(op.somenteLeitura).toBe(false);
+      } else expect(op.somenteLeitura).toBe(true);
     }
   });
   it('o cliente não expõe função para caminho livre nem para gravar', () => {
