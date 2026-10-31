@@ -2,20 +2,24 @@
 // lista, nunca um caminho livre. Não há (e não deve haver) operação para apagar, ler arquivos ou documentos,
 // financeiro, horas, comentários, solicitações, criar ou alterar tarefas, audiências e atendimentos, nem para
 // usuários, perfis, configurações, webhooks ou notificações, mesmo que a API permita.
-// Etapa atual: só consultas. Os cadastros feitos pela equipe entram em etapa própria, com conferência.
+// Atualização cadastral autorizada: apenas pessoa e seus contatos, com conferência no Manager.
 
 export interface OperacaoProjuris {
-  metodo: 'GET' | 'POST';
+  metodo: 'GET' | 'POST' | 'PUT';
   /** Caminho relativo a /adv-service/, com {parametro} numérico. */
   caminho: string;
   /** POST de consulta não grava nada: só filtra. */
-  somenteLeitura: true;
+  somenteLeitura: boolean;
   descricao: string;
 }
 
 export const OPERACOES_PROJURIS = {
   'tipo.consulta': { metodo: 'GET', caminho: 'tipo', somenteLeitura: true, descricao: 'Consultas tipo (ex.: situações de processo)' },
   'pessoa.obter': { metodo: 'GET', caminho: 'pessoa/{codigo}', somenteLeitura: true, descricao: 'Dados de uma pessoa' },
+  'pessoa.atualizar': { metodo: 'PUT', caminho: 'pessoa', somenteLeitura: false, descricao: 'Atualização cadastral da pessoa autorizada pela equipe' },
+  'pessoa.telefoneAtualizar': { metodo: 'PUT', caminho: 'pessoa/{codigo}/telefone', somenteLeitura: false, descricao: 'Atualização de telefone cadastrado' },
+  'pessoa.emailAtualizar': { metodo: 'PUT', caminho: 'pessoa/{codigo}/email', somenteLeitura: false, descricao: 'Atualização de e-mail cadastrado' },
+  'pessoa.enderecoAtualizar': { metodo: 'PUT', caminho: 'pessoa/{codigo}/endereco', somenteLeitura: false, descricao: 'Atualização de endereço cadastrado' },
   'pessoa.consulta': { metodo: 'GET', caminho: 'pessoa/consulta', somenteLeitura: true, descricao: 'Busca por nome, e-mail ou CPF/CNPJ' },
   'pessoa.consultaCompleta': { metodo: 'POST', caminho: 'pessoa/consulta-completa', somenteLeitura: true, descricao: 'Busca com dados completos (telefones)' },
   'processo.consultaCompleta': { metodo: 'POST', caminho: 'processo/consulta-completa', somenteLeitura: true, descricao: 'Processos por envolvido e situação' },

@@ -43,7 +43,7 @@ export function pessoaDe(r: Obj): PessoaComTelefones | undefined {
   const codigo = num(r['codigoPessoa'] ?? r['codigo']);
   const nome = txt(r['nomePessoa'] ?? r['nome'] ?? r['razaoSocial']);
   if (!codigo || !nome) return undefined;
-  const lista = registros(r['telefones'] ?? r['pessoaTelefoneWs'] ?? r['pessoaTelefones'], ['pessoaTelefoneWs', 'telefones']);
+  const lista = registros(r['pessoaTelefonesWs'] ?? r['telefones'] ?? r['pessoaTelefoneWs'] ?? r['pessoaTelefones'], ['pessoaTelefoneWs', 'telefones']);
   const telefones: TelefonePessoa[] = [];
   for (const t of lista) {
     const tel = ehObj(t['telefone']) ? t['telefone'] : t;
@@ -59,14 +59,14 @@ export function processoDe(r: Obj): ProcessoPJ | undefined {
   const numeros = r['processoNumeroWs'];
   const lista = Array.isArray(numeros) ? numeros.filter(ehObj) : [];
   const n = lista.length ? lista.find(x => x['principal'] === true) ?? lista[0] : numeros;
-  const numero = ehObj(n) ? txt(n['numeroProcesso'] ?? n['numero']) : txt(n);
+  const numero = ehObj(n) ? txt(n['numeroDoProcesso'] ?? n['numeroProcesso'] ?? n['numero']) : txt(n);
   const sit = r['situacaoProcesso'];
   const codigoSituacao = ehObj(sit) ? num(sit['chave'] ?? sit['codigo'] ?? sit['codigoSituacao']) : num(r['codigoSituacao'] ?? sit);
   const situacao = ehObj(sit) ? txt(sit['valor'] ?? sit['nome']) : undefined;
   const envolvidos: EnvolvidoPJ[] = [];
   for (const e of registros(r['processoEnvolvidoSimplificadoWs'] ?? r['envolvidos'], ['processoEnvolvidoSimplificadoWs'])) {
     const pessoa = e['pessoa'];
-    const codigoPessoa = num(e['codigoPessoa'] ?? (ehObj(pessoa) ? pessoa['chave'] ?? pessoa['codigo'] : undefined));
+    const codigoPessoa = num(e['codigoPessoaEnvolvido'] ?? e['codigoPessoa'] ?? (ehObj(pessoa) ? pessoa['chave'] ?? pessoa['codigo'] : undefined));
     if (codigoPessoa) envolvidos.push({ codigoPessoa, cliente: e['flagCliente'] === true });
   }
   const orgao = txt(r['orgaoJudicial']), vara = txt(r['vara']), assunto = txt(r['assunto']);
