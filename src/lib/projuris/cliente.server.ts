@@ -49,9 +49,10 @@ export function criarClienteProjuris(o: OpcoesClienteProjuris = {}) {
   async function vaga() {
     for (;;) {
       const t = agora();
-      while (janela.length && t - janela[0]! >= 60000) janela.shift();
+      while (janela[0] !== undefined && t - janela[0] >= 60000) janela.shift();
       if (janela.length < limite) { janela.push(t); return; }
-      await esperar(Math.max(1, 60000 - (t - janela[0]!)));
+      const primeiro = janela[0];
+      if (primeiro !== undefined) await esperar(Math.max(1, 60000 - (t - primeiro)));
     }
   }
 
@@ -124,6 +125,7 @@ export function criarClienteProjuris(o: OpcoesClienteProjuris = {}) {
   /** Executa uma operação da lista fechada e devolve o JSON da resposta (null quando vazia). */
   async function chamar<T = unknown>(id: IdOperacaoProjuris, c: ChamadaProjuris = {}): Promise<T> {
     const op = OPERACOES_PROJURIS[id];
+    const maxTentativas = op.somenteLeitura ? tentativas : 1;
     if (op.metodo === 'GET' && c.corpo !== undefined) throw new ErroProjuris('resposta', 'Consulta inválida para o ProJuris.');
     const url = new URL(caminhoOperacao(id, c.parametros), URL_SERVICOS_PROJURIS);
     for (const [k, v] of Object.entries(c.consulta ?? {})) url.searchParams.set(k, String(v));
@@ -137,10 +139,10 @@ export function criarClienteProjuris(o: OpcoesClienteProjuris = {}) {
         r = await requisitar(url.toString(), {
           method: op.metodo,
           headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: t.esquema ? `${t.esquema} ${t.valor}` : t.valor },
-          ...(op.metodo === 'POST' ? { body: JSON.stringify(c.corpo ?? {}) } : {}),
+          ...(op.metodo !== 'GET' ? { body: JSON.stringify(c.corpo ?? {}) } : {}),
         });
       } catch (e) {
-        if (tentativa < tentativas) { await esperar(espera(tentativa)); tentativa++; continue; }
+        if (tentativa < maxTentativas) { await esperar(espera(tentativa)); tentativa++; continue; }
         throw e;
       }
       if (r.ok) {
@@ -153,7 +155,7 @@ export function criarClienteProjuris(o: OpcoesClienteProjuris = {}) {
       if (r.status === 401 && !renovado) { renovado = true; await tokenValido(true); continue; }
       if (r.status === 401) throw new ErroProjuris('autenticacao', 'Credencial recusada pelo ProJuris.', 401);
       if (r.status === 403) throw new ErroProjuris('sem_permissao', 'O usuário da integração não tem permissão para esta consulta no ProJuris.', 403);
-      if ((r.status === 429 || r.status >= 500) && tentativa < tentativas) {
+      if ((r.status === 429 || r.status >= 500) && tentativa < maxTentativas) {
         await esperar(espera(tentativa, r.headers.get('Retry-After')));
         tentativa++;
         continue;

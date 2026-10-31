@@ -15,11 +15,43 @@ export interface ClienteProjurisDiretorio {
   classificacoes: string | null;
   habilitado: boolean;
   incluidoEm: string | null;
+  nomeExibicao?: string;
+  acoes?: string;
+  processosAtivos?: number;
 }
 
 type Obj = Record<string, unknown>;
 const txt = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : typeof v === 'number' && Number.isFinite(v) ? String(v) : null);
-const data = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? new Date(v).toISOString().slice(0, 10) : txt(v));
+export function dataCadastro(v: unknown): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    const d = new Date(`${v}T12:00:00Z`);
+    return Number.isFinite(d.getTime()) && d.toISOString().slice(0, 10) === v ? v : null;
+  }
+  const d = new Date(typeof v === 'number' ? v : String(v));
+  if (!Number.isFinite(d.getTime())) return null;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d).map(p => [p.type, p.value]));
+  return `${parts['year']}-${parts['month']}-${parts['day']}`;
+}
+const data = dataCadastro;
+
+export const INICIO_COORTE = '2025-01-01';
+export const pertenceCoorte = (c: Pick<ClienteProjurisDiretorio, 'incluidoEm'>) => !!c.incluidoEm && c.incluidoEm >= INICIO_COORTE;
+
+/** Somente sinais explícitos da API. Justiça estadual sozinha não comprova ação cível. */
+export function acaoDoProcesso(r: Obj): 'RT' | 'AC' | undefined {
+  const valor = (v: unknown): string => typeof v === 'string' ? v : v && typeof v === 'object' ? valor((v as Obj)['valor'] ?? (v as Obj)['nome']) : '';
+  const s = fold([r['area'], r['tipoJustica'], r['classeCnj'], r['assunto']].map(valor).join(' '));
+  if (/trabalh|reclamacao trabalhista/.test(s)) return 'RT';
+  if (/\bcivel\b|\bcivil\b|acao de alimentos|alimentos|indenizacao|consumidor/.test(s)) return 'AC';
+  return undefined;
+}
+
+export function nomeClienteProjuris(codigo: number, nome: string, acoes: Iterable<string>): string {
+  const set = new Set(acoes);
+  const prefixo = ['RT', 'AC'].filter(a => set.has(a)).join('/');
+  return `${prefixo ? `${prefixo} ` : ''}${codigo} - ${nome.trim()}`;
+}
 
 export function clienteDiretorioDe(r: Obj): ClienteProjurisDiretorio | undefined {
   const codigo = r['codigoPessoa'];
@@ -45,7 +77,7 @@ export function filtrarDiretorio(lista: ClienteProjurisDiretorio[], busca: strin
   const b = fold(busca.trim());
   const d = digitos(busca);
   const achados = !b ? lista : lista.filter(c =>
-    fold([c.nome, c.email, c.cidade].filter(Boolean).join(' ')).includes(b) ||
+    fold([c.nome, c.nomeExibicao, c.email, c.cidade].filter(Boolean).join(' ')).includes(b) ||
     (d.length >= 3 && [c.cpfCnpj, c.telefone].some(v => v && digitos(v).includes(d))));
   const ordenados = [...achados].sort((a, z) => a.nome.localeCompare(z.nome, 'pt-BR'));
   const inicio = Math.max(0, pagina) * porPagina;
