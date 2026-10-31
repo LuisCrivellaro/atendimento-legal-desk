@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Clientes CS.IA — 31/10/2026
+- [ ] Filtrar clientes por cadastro desde 01/01/2025 e processos ativos; expandir cadastro/processos respeitando confidencialidade.
+- [ ] Padronizar nomes RT/AC + código da pessoa ProJuris e exibir/copiar telefone na listagem e nome no Atendimento.
+- [ ] Habilitar atualização autenticada do cadastro no ProJuris com retorno verificável e sem migrações.
+- [ ] Verificar regras em testes e fluxo autenticado, sem publicação solicitada.
+
 ## Envio completo ao GitHub — 30/10/2026 (noite)
 - [x] Sincronizar o projeto (373 arquivos) em LuisCrivellaro/ManagerADV (main): 3 novos, 18 atualizados, nenhuma remoção; `bun.lock` preservado do repositório; revisão da entrega a1a3117, seguida das notas do próprio roteiro.
 - [x] Cópia conferida arquivo por arquivo pelo hash do GitHub: 374/374 iguais (373 do projeto + `bun.lock`), sem ausentes, diferentes ou extras.
