@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { acaoDoProcesso, dataCadastro, nomeClienteProjuris, pertenceCoorte } from '@/lib/projuris/diretorio';
 import { carregarCarteira } from '@/lib/projuris/carteira.server';
-import { prepararAlteracao, cadastroVisivel } from '@/lib/projuris/cadastro';
+import { prepararAlteracao, cadastroVisivel, vinculosConfirmados } from '@/lib/projuris/cadastro';
 import { atualizarCadastroVerificado, revisaoCadastro } from '@/lib/projuris/cadastro.server';
 import { criarClienteProjuris, type ClienteProjuris } from '@/lib/projuris/cliente.server';
 
@@ -25,6 +25,13 @@ describe('Clientes CS.IA', () => {
     expect(acaoDoProcesso({ tipoJustica: { valor: 'Justiça do Trabalho' } })).toBe('RT');
     expect(acaoDoProcesso({ area: { valor: 'Cível' } })).toBe('AC');
     expect(acaoDoProcesso({ tipoJustica: { valor: 'Justiça dos Estados' } })).toBeUndefined();
+  });
+  it('nomes de conversas usam apenas código de vínculo confirmado, nunca nomes iguais ou vínculo pendente', () => {
+    expect(vinculosConfirmados([
+      { id: 'confirmado', dados: { nome: 'Mesmo nome', agenteAna: { vinculoProjuris: { codigoPessoa: 114, status: 'confirmado' } } } },
+      { id: 'pendente', dados: { nome: 'Mesmo nome', agenteAna: { vinculoProjuris: { codigoPessoa: 230, status: 'pendente' } } } },
+      { id: 'sem-vinculo', dados: { nome: 'Mesmo nome' } },
+    ])).toEqual([{ id: 'confirmado', codigo: 114 }]);
   });
   it('importa só coorte com processo ativo e flagCliente; relaciona por ID e guarda outros processos', async () => {
     const pessoas = [1, 2, 3, 4, 5].map(codigoPessoa => ({ codigoPessoa, nome: 'Mesmo nome', dtInclusao: codigoPessoa === 2 ? '2024-12-31' : '2025-01-01' }));

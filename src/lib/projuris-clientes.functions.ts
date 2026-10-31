@@ -80,11 +80,8 @@ export const nomesConversasProjuris = createServerFn({ method: 'POST' })
   .handler(async ({ context }) => {
     const casos = await context.supabase.from('casos').select('id,dados').eq('owner_id', context.userId);
     if (casos.error) throw new Error('Não foi possível consultar os vínculos das conversas.');
-    const vinculos = casos.data.flatMap(r => {
-      const dados = registroCadastro(r.dados);
-      const v = registroCadastro(registroCadastro(dados['agenteAna'])['vinculoProjuris']);
-      return v['status'] === 'confirmado' && typeof v['codigoPessoa'] === 'number' ? [{ id: r.id, codigo: v['codigoPessoa'] }] : [];
-    });
+    const { vinculosConfirmados } = await import('./projuris/cadastro');
+    const vinculos = vinculosConfirmados(casos.data);
     if (!vinculos.length) return {} as Record<string, string>;
     const { carteiraProjuris } = await import('./projuris/carteira.server');
     const carteira = await carteiraProjuris();

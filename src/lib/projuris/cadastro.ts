@@ -17,6 +17,13 @@ export type AlteracaoCadastro =
   | { tipo: 'endereco'; codigo: number; campo: keyof typeof CAMPOS_ENDERECO; valor: string };
 
 export const registroCadastro = (v: unknown): RegistroCadastro => v && typeof v === 'object' && !Array.isArray(v) ? v as RegistroCadastro : {};
+export function vinculosConfirmados(casos: { id: string; dados: unknown }[]): { id: string; codigo: number }[] {
+  return casos.flatMap(r => {
+    const v = registroCadastro(registroCadastro(registroCadastro(r.dados)['agenteAna'])['vinculoProjuris']);
+    const codigo = v['codigoPessoa'];
+    return v['status'] === 'confirmado' && typeof codigo === 'number' && Number.isSafeInteger(codigo) && codigo > 0 ? [{ id: r.id, codigo }] : [];
+  });
+}
 export function colecaoCadastro(r: RegistroCadastro, grupo: string, lista: string): RegistroCadastro[] {
   const v = registroCadastro(r[grupo])[lista];
   return Array.isArray(v) ? v.map(registroCadastro) : [];
