@@ -43,7 +43,7 @@ describe('Clientes CS.IA', () => {
   });
   it('importa só coorte com processo ativo e flagCliente; relaciona por ID e guarda outros processos', async () => {
     const pessoas = [1, 2, 3, 4, 5].map(codigoPessoa => ({ codigoPessoa, nome: 'Mesmo nome', dtInclusao: codigoPessoa === 2 ? '2024-12-31' : '2025-01-01' }));
-    const processo = (id: number, pessoa: number, ativo: boolean, cliente: boolean, area = 'Trabalhista') => ({ codigoProcesso: id, area: { valor: area }, situacaoProcesso: { chave: ativo ? 7 : 9 }, processoEnvolvidoSimplificadoWs: [{ codigoPessoaEnvolvido: pessoa, flagCliente: cliente }] });
+    const processo = (id: number, pessoa: number, ativo: boolean, cliente: boolean, area = 'Trabalhista') => ({ codigoProcesso: id, identificador: `PRO.${String(id).padStart(7, '0')}`, area: { valor: area }, situacaoProcesso: { chave: ativo ? 7 : 9 }, processoEnvolvidoSimplificadoWs: [{ codigoPessoaEnvolvido: pessoa, flagCliente: cliente }] });
     const chamar = (async (id: string) => id === 'tipo.consulta' ? [{ chave: 7, valor: 'Ativo' }] : id === 'pessoa.consulta' ? { totalRegistros: 5, pessoaConsulta: pessoas } : { totalRegistros: 6, processoDadosComunsType: [processo(91, 1, true, true), processo(92, 1, true, true, 'Cível'), processo(93, 1, false, true), processo(94, 2, true, true), processo(95, 3, false, true), processo(96, 4, true, false)] }) as ClienteProjuris['chamar'];
     const c = await carregarCarteira({ chamar });
     expect(c.lista.map(p => [p.codigo, p.nomeExibicao, p.processosAtivos])).toEqual([[1, 'RT/AC 1 - Mesmo nome', 2]]);
