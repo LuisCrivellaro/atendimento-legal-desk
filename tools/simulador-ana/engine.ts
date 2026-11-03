@@ -261,7 +261,7 @@ export class SimuladorAna {
           horarios = opcoes.slots; semPeriodo = opcoes.semPeriodo;
         }
       }
-      const r = saudacaoClienteNovo(aplicarRegrasAna(raw, mode, m.texto, state.training.proibidos, { teste, horarios, ultimaResposta: previous, agendaReal, tipoCliente, nome, telefone, emailPendente: c.etapa === 'documentos' && solicitarEmailPendente(lista as never, email) }), m.texto, { apresentado: !primeiroContato, tipoCliente, horarios, agendaReal });
+      const r = saudacaoClienteNovo(aplicarRegrasAna(raw, mode, primeiroContato?'':m.texto, state.training.proibidos, { teste, horarios, ultimaResposta: previous, agendaReal, tipoCliente, nome, telefone, emailPendente: c.etapa === 'documentos' && solicitarEmailPendente(lista as never, email) }), m.texto, { apresentado: !primeiroContato, tipoCliente, horarios, agendaReal });
       // Consulta de processo (fase de testes, com aprovação): mesmo módulo do servidor, ProJuris fictício.
       if (await this.fluxoProcesso(m.texto, raw.intencao, r, turno)) return;
       const saudou=pediuNomeInicialAna(r.mensagem);

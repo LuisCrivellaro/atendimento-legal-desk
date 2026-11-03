@@ -129,7 +129,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         horarios=opcoes.slots;semPeriodo=opcoes.semPeriodo;
       }
     }
-    const r=saudacaoClienteNovo(aplicarRegrasAna(raw,mode,m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal,tipoCliente,nome,telefone,emailPendente:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email)}),m.texto,{apresentado:!primeiroContato,tipoCliente,horarios,agendaReal});
+    const r=saudacaoClienteNovo(aplicarRegrasAna(raw,mode,primeiroContato?'':m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal,tipoCliente,nome,telefone,emailPendente:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email)}),m.texto,{apresentado:!primeiroContato,tipoCliente,horarios,agendaReal});
     if(canal==='ultramsg'&&mode==='Automática') {
       const { fluxoProcessoReal } = await import('./consulta-processo.server');
       if(await fluxoProcessoReal(db,{conversa:c,owner:row.data.owner_id,telefone,contato:remetente.data?.contato_externo??'',texto:m.texto,intencao:raw.intencao,messageId}))return;
