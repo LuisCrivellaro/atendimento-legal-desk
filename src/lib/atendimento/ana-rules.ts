@@ -106,6 +106,7 @@ export function pediuNomeInicialAna(texto:string) {
 export function nomePrimeiroContatoAna(texto:string,anterior:string) {
   if(!pediuNomeInicialAna(anterior)||apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
   const nome=texto.trim().replace(/^(?:sou\s+(?:a|o)\s+|me chamo\s+|meu nome (?:é|e)\s+)/i,'');
+  if(/\b(?:quero|preciso|gostaria|consulta|agendar|marcar|horário|horarios|obrigad[oa])\b/i.test(nome))return '';
   return nome.length<=80&&/^[A-Za-zÀ-ÿ'´`-]+(?:\s+[A-Za-zÀ-ÿ'´`-]+){0,7}$/.test(nome)&&!/^não\b/i.test(nome)?nome:'';
 }
 
