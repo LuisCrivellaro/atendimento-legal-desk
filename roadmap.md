@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Reinício de cinco testes e retomada — 03/11/2026
+- [ ] Reiniciar somente os cinco telefones indicados, sem enviar mensagens ou cancelar eventos externos.
+- [ ] Saudação exata de retorno para identificados, preservar contexto e continuar pedido sem nome ou oferta automática.
+- [ ] Testes de retomada e bateria; verificar registros e prévia.
+
 ## Primeira mensagem com agenda — 03/11/2026
 - [x] Consultar disponibilidade antes da saudação fixa; oferecer até 3 próximos horários numerados e salvar o contexto.
 - [x] Armazenar nome sem repetir oferta; revalidar escolha antes de reservar e buscar novas opções se ocupado.
