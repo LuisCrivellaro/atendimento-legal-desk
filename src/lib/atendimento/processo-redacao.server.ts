@@ -11,7 +11,7 @@ export async function redigirNoticiaProcesso(fatos: EntradaRedacao): Promise<str
     import('./ana-prompt.txt?raw'),
     import('./ana-redacao-processo.txt?raw'),
   ]);
-  const sample = claudeComoSample({ apiKey: key, ...(process.env['ANA_MODELO'] ? { modelo: process.env['ANA_MODELO'] } : {}) });
+  const sample = claudeComoSample({ apiKey: key, orcamento: await (await import('./ia-orcamento.server')).orcamentoIA(), ...(process.env['ANA_MODELO'] ? { modelo: process.env['ANA_MODELO'] } : {}) });
   const r = await sample([{ role: 'user', content: `${identidade}\n\n${redacao}` }, { role: 'user', content: JSON.stringify({ fatos }) }]);
   return r.text.trim();
 }
