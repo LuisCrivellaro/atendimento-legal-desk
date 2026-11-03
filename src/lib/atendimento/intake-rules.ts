@@ -1,7 +1,31 @@
 import type { Conversa } from '../mock-data';
+import type { Identificacao } from '../projuris/identificacao';
 
 export type EtiquetaAcao = 'AC' | 'RT' | 'sem';
 export type TipoCliente = 'novo' | 'cadastrado';
+export type FonteClassificacao = 'manual' | 'cadastro' | 'autodeclaracao' | 'contexto' | 'padrao_lead';
+export interface ClassificacaoAgenda { tipo?: TipoCliente; fonte: FonteClassificacao | 'duvida'; confirmada: boolean }
+
+/**
+ * Ordem oficial (Dra. Carolina, 03/11/2026): confirmação da equipe > cadastro ativo na base local >
+ * autodeclaração > contexto anterior > lead novo. Cliente ativo só com cadastro que confirme o vínculo;
+ * telefone duplicado na base nunca é classificado por conta própria — vai para confirmação da equipe.
+ */
+export function classificarAgenda(opts: {
+  persistida?: TipoCliente;
+  local?: Identificacao;
+  autodeclaracao?: TipoCliente;
+  contexto?: TipoCliente;
+  padraoLead?: boolean;
+}): ClassificacaoAgenda {
+  if (opts.persistida) return { tipo: opts.persistida, fonte: 'manual', confirmada: true };
+  if (opts.local?.tipo === 'unico') return { tipo: 'cadastrado', fonte: 'cadastro', confirmada: true };
+  if (opts.local?.tipo === 'duplicado') return { fonte: 'duvida', confirmada: false };
+  if (opts.autodeclaracao) return { tipo: opts.autodeclaracao, fonte: 'autodeclaracao', confirmada: false };
+  if (opts.contexto) return { tipo: opts.contexto, fonte: 'contexto', confirmada: false };
+  if (opts.padraoLead) return { tipo: 'novo', fonte: 'padrao_lead', confirmada: false };
+  return { fonte: 'duvida', confirmada: false };
+}
 export const etiquetasAcao = { AC: 'AC · Ação Civil / Família', RT: 'RT · Relação trabalhista', sem: 'Sem etiqueta' };
 function normalizar(texto: string) { return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
 export function detectarOrigem(texto: string): Exclude<EtiquetaAcao, 'sem'> | undefined {
