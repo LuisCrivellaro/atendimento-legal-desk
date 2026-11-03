@@ -62,7 +62,6 @@ describe('UltraMsg', () => {
 
 import { numeroUltraMsgPermitido as permitidoNono } from '@/lib/atendimento/production-channel';
 import { it as itNono, expect as expectNono } from 'vitest';
-itNono('aceita número liberado enviado pelo WhatsApp sem o nono dígito', () => {
-  expectNono(permitidoNono('556699844549@c.us')).toBe(true);
-  expectNono(permitidoNono('556699844548@c.us')).toBe(false);
+itNono('sem lista de teste, nenhum número é liberado pela lista (só a entrada aberta)', () => {
+  expectNono(permitidoNono('556699844549@c.us')).toBe(false);
 });
