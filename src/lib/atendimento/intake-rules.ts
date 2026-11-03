@@ -12,11 +12,11 @@ export interface ClassificacaoAgenda { tipo?: TipoCliente; fonte: FonteClassific
  * telefone duplicado na base nunca é classificado por conta própria — vai para confirmação da equipe.
  */
 export function classificarAgenda(opts: {
-  persistida?: TipoCliente;
-  local?: Identificacao;
-  autodeclaracao?: TipoCliente;
-  contexto?: TipoCliente;
-  padraoLead?: boolean;
+  persistida?: TipoCliente | undefined;
+  local?: Identificacao | undefined;
+  autodeclaracao?: TipoCliente | undefined;
+  contexto?: TipoCliente | undefined;
+  padraoLead?: boolean | undefined;
 }): ClassificacaoAgenda {
   if (opts.persistida) return { tipo: opts.persistida, fonte: 'manual', confirmada: true };
   if (opts.local?.tipo === 'unico') return { tipo: 'cadastrado', fonte: 'cadastro', confirmada: true };
