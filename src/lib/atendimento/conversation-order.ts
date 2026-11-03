@@ -18,7 +18,8 @@ export function previaMensagem(m: Mensagem | undefined, userId?: string) {
   if (m.apagadaParaTodos || userId && m.ocultaPara?.includes(userId)) return 'Mensagem apagada';
   const media = m.tipo === 'audio' ? '[áudio]' : m.tipo === 'imagem' ? '[imagem]' : m.tipo === 'video' ? '[vídeo]' : m.tipo === 'documento' || m.arquivo ? '[documento]' : '';
   const autor = m.de === 'cliente' ? 'Cliente' : /ana|ia|assistente/i.test(m.autor ?? '') ? 'ANA' : 'Equipe';
-  return `${autor}: ${media}${media && m.texto ? ' ' : ''}${m.texto || (!media ? m.arquivo ?? '' : '')}`;
+  const texto = media && /^\[(?:audio|áudio|imagem|documento|arquivo|video|vídeo)/i.test(m.texto) ? '' : m.texto;
+  return `${autor}: ${media}${media && texto ? ' ' : ''}${texto || (!media ? m.arquivo ?? '' : '')}`;
 }
 export function timestampWhatsApp(valor: unknown, agora = new Date()): string {
   const n = typeof valor === 'number' || typeof valor === 'string' && /^\d+$/.test(valor) ? Number(valor) : NaN;
