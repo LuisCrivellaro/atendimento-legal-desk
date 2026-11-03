@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Apagar mensagens da Ana — 03/11/2026
+- [x] Menu da Ana: apagar para esta conta e para todos (sênior/admin), confirmação e proprietário verificados no servidor.
+- [x] UltraMsg resolve mensagem enviada no contato vinculado; só confirma exclusão após resposta positiva, preservando texto/auditoria e sem cancelar agenda.
+- [x] 544 testes aprovados; menu e confirmação conferidos na conta da Dra., ação cancelada sem apagar mensagens reais.
+- [ ] Exclusão real no WhatsApp e publicação: aguardam autorização e mensagem escolhida para teste; resposta real do provedor ainda não verificada.
+
 ## Reinício de cinco testes e retomada — 03/11/2026
 - [x] Cinco registros reiniciados, liberados e automáticos; histórico anterior arquivado no registro; nenhum envio ou cancelamento externo.
 - [x] Saudação exata de retorno para identificados, preservar contexto e continuar pedido sem nome ou oferta automática.
