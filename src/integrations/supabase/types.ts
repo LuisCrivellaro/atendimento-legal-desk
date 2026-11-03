@@ -117,6 +117,7 @@ export type Database = {
           dados: Json
           etapa: string
           id: string
+          last_message_at: string | null
           nome: string
           ordem: number
           owner_id: string
@@ -128,6 +129,7 @@ export type Database = {
           dados?: Json
           etapa?: string
           id?: string
+          last_message_at?: string | null
           nome: string
           ordem?: number
           owner_id: string
@@ -139,6 +141,7 @@ export type Database = {
           dados?: Json
           etapa?: string
           id?: string
+          last_message_at?: string | null
           nome?: string
           ordem?: number
           owner_id?: string
@@ -305,6 +308,105 @@ export type Database = {
         }
         Relationships: []
       }
+      projuris_base: {
+        Row: {
+          carteira: Json
+          erro: string | null
+          lease_ate: string | null
+          lease_token: string | null
+          owner_id: string
+          sincronizado_em: string | null
+        }
+        Insert: {
+          carteira?: Json
+          erro?: string | null
+          lease_ate?: string | null
+          lease_token?: string | null
+          owner_id: string
+          sincronizado_em?: string | null
+        }
+        Update: {
+          carteira?: Json
+          erro?: string | null
+          lease_ate?: string | null
+          lease_token?: string | null
+          owner_id?: string
+          sincronizado_em?: string | null
+        }
+        Relationships: []
+      }
+      projuris_movimento_versoes: {
+        Row: {
+          codigo_andamento: number
+          codigo_processo: number
+          dados: Json
+          hash: string
+          id: string
+          identificado_em: string
+          origem: string
+          owner_id: string
+        }
+        Insert: {
+          codigo_andamento: number
+          codigo_processo: number
+          dados: Json
+          hash: string
+          id?: string
+          identificado_em?: string
+          origem?: string
+          owner_id: string
+        }
+        Update: {
+          codigo_andamento?: number
+          codigo_processo?: number
+          dados?: Json
+          hash?: string
+          id?: string
+          identificado_em?: string
+          origem?: string
+          owner_id?: string
+        }
+        Relationships: []
+      }
+      projuris_sync_processos: {
+        Row: {
+          atuais: Json
+          codigo_processo: number
+          erro: string | null
+          falhas: number
+          lease_ate: string | null
+          lease_token: string | null
+          owner_id: string
+          retry_em: string | null
+          tentativa_em: string | null
+          ultimo_sucesso: string | null
+        }
+        Insert: {
+          atuais?: Json
+          codigo_processo: number
+          erro?: string | null
+          falhas?: number
+          lease_ate?: string | null
+          lease_token?: string | null
+          owner_id: string
+          retry_em?: string | null
+          tentativa_em?: string | null
+          ultimo_sucesso?: string | null
+        }
+        Update: {
+          atuais?: Json
+          codigo_processo?: number
+          erro?: string | null
+          falhas?: number
+          lease_ate?: string | null
+          lease_token?: string | null
+          owner_id?: string
+          retry_em?: string | null
+          tentativa_em?: string | null
+          ultimo_sucesso?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -332,6 +434,8 @@ export type Database = {
         Args: { p_case: string; p_kind: string }
         Returns: undefined
       }
+      caso_timestamp_mensagem: { Args: { v: string }; Returns: string }
+      caso_ultima_mensagem: { Args: { d: Json }; Returns: string }
       destino_canal: {
         Args: { p_conversa: string }
         Returns: {
@@ -358,6 +462,28 @@ export type Database = {
         Returns: string
       }
       material_status: { Args: { p_case: string }; Returns: Json }
+      projuris_claim: {
+        Args: { p_codigo: number; p_owner: string; p_token: string }
+        Returns: boolean
+      }
+      projuris_commit_movimentos: {
+        Args: {
+          p_codigo: number
+          p_movimentos: Json
+          p_owner: string
+          p_token: string
+        }
+        Returns: number
+      }
+      projuris_salvar_ficha: {
+        Args: {
+          p_codigo: number
+          p_ficha: Json
+          p_owner: string
+          p_revisao: string
+        }
+        Returns: undefined
+      }
       registrar_audit_log: {
         Args: {
           p_acao: string

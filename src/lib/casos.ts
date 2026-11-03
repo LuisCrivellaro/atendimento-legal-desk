@@ -1,27 +1,31 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Conversa, DocItem } from "@/lib/mock-data";
-import type { Json } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 
 // Casos e checklist do usuário logado (RLS garante que cada um vê só os seus).
 export async function listarCasos(): Promise<Conversa[]> {
-  const [casos, itens] = await Promise.all([
-    supabase.from("casos").select("id, dados, etapa, nome").order("ordem"),
-    supabase.from("checklist_itens").select("id, caso_id, nome, recebido, ordem").order("ordem"),
-  ]);
-  if (casos.error) throw casos.error;
-  if (itens.error) throw itens.error;
-  return casos.data.map((c) => ({
+  const casos: Pick<Database['public']['Tables']['casos']['Row'],'id'|'dados'|'etapa'|'nome'|'last_message_at'>[] = []; const itens: Pick<Database['public']['Tables']['checklist_itens']['Row'],'id'|'caso_id'|'nome'|'recebido'|'ordem'>[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const r = await supabase.from("casos").select("id,dados,etapa,nome,last_message_at").order('last_message_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).range(offset, offset + 499);
+    if (r.error) throw r.error; casos.push(...r.data); if (r.data.length < 500) break;
+  }
+  for (let offset = 0; ; offset += 500) {
+    const r = await supabase.from('checklist_itens').select('id,caso_id,nome,recebido,ordem').order('ordem').order('id').range(offset, offset + 499);
+    if (r.error) throw r.error; itens.push(...r.data); if (r.data.length < 500) break;
+  }
+  return casos.map((c) => ({
     ...(c.dados as unknown as Omit<Conversa, "id" | "documentos" | "naoLidas">),
     id: c.id,
     nome: c.nome,
     etapa: c.etapa as Conversa["etapa"],
+    lastMessageAt: c.last_message_at,
     naoLidas: 0,
-    documentos: itens.data.filter((i) => i.caso_id === c.id).map<DocItem>((i) => ({ id: i.id, nome: i.nome, recebido: i.recebido })),
+    documentos: itens.filter((i) => i.caso_id === c.id).map<DocItem>((i) => ({ id: i.id, nome: i.nome, recebido: i.recebido })),
   }));
 }
 
 export async function salvarCaso(antes: Conversa, depois: Conversa) {
-  const { id, documentos, naoLidas: _n, ...dados } = depois;
+  const { id, documentos, naoLidas: _n, lastMessageAt: _last, ...dados } = depois;
   const novos = documentos.filter(d => !d.id);
   if (novos.length) {
     const owner = await supabase.from('casos').select('owner_id').eq('id', id).single();
@@ -44,7 +48,8 @@ export async function salvarCaso(antes: Conversa, depois: Conversa) {
     const current=row.data.dados as unknown as Conversa;
     const incoming=new Map((current.mensagens??[]).map(m=>[m.id,m]));
     const merged=depois.mensagens.map(m=>{const original=antes.mensagens.find(x=>x.id===m.id);const fresh=incoming.get(m.id);incoming.delete(m.id);return original&&fresh&&JSON.stringify(original)===JSON.stringify(m)?fresh:m;});
-    const data={...dados,...(antes.email===depois.email?{email:current.email}:{}),mensagens:[...merged,...incoming.values()],agenteAna:{...(JSON.stringify(antes.agenteAna)===JSON.stringify(depois.agenteAna)?current.agenteAna:depois.agenteAna),pedidosProcesso:current.agenteAna?.pedidosProcesso,aguardandoAssuntoProcesso:current.agenteAna?.aguardandoAssuntoProcesso,consultaProcessoEmCurso:current.agenteAna?.consultaProcessoEmCurso,vinculoProjuris:current.agenteAna?.vinculoProjuris,aguardandoCpfProcesso:current.agenteAna?.aguardandoCpfProcesso,perguntaProcessoPendente:current.agenteAna?.perguntaProcessoPendente},...(antes.iaRetida===depois.iaRetida?{iaRetida:current.iaRetida}:{})};
+    const lidoAte=[current.lidoAte,depois.lidoAte].filter((v):v is string=>!!v&&Number.isFinite(Date.parse(v))).sort((a,b)=>Date.parse(b)-Date.parse(a))[0];
+    const data={...dados,lidoAte,...(antes.email===depois.email?{email:current.email}:{}),mensagens:[...merged,...incoming.values()],agenteAna:{...(JSON.stringify(antes.agenteAna)===JSON.stringify(depois.agenteAna)?current.agenteAna:depois.agenteAna),pedidosProcesso:current.agenteAna?.pedidosProcesso,aguardandoAssuntoProcesso:current.agenteAna?.aguardandoAssuntoProcesso,consultaProcessoEmCurso:current.agenteAna?.consultaProcessoEmCurso,vinculoProjuris:current.agenteAna?.vinculoProjuris,aguardandoCpfProcesso:current.agenteAna?.aguardandoCpfProcesso,perguntaProcessoPendente:current.agenteAna?.perguntaProcessoPendente},...(antes.iaRetida===depois.iaRetida?{iaRetida:current.iaRetida}:{})};
     const r=await supabase.from('casos').update({dados:JSON.parse(JSON.stringify(data)) as Json,etapa:depois.etapa,nome:depois.nome,updated_at:new Date().toISOString()}).eq('id',id).eq('updated_at',row.data.updated_at).select('id');
     if(r.error)throw r.error;
     if(r.data?.length){saved=true;break;}

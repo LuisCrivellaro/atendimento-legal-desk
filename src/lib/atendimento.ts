@@ -1,14 +1,15 @@
 import type { Conversa, Mensagem } from './mock-data';
 import { gerarHorarios, horarioPermitido } from './atendimento/schedule-rules';
+import { ultimaMensagem, ordenarConversas } from './atendimento/conversation-order';
 export type AIMode = 'Desligada' | 'Sugerir' | 'Automática';
 export interface AutomationSettings { identificarDocumentos:boolean; criarPasta:boolean; pedirDocumentos:boolean; lembreteContrato:boolean; lembreteFaltantes:boolean; lembreteConsulta:boolean; foraHorario:boolean; vendedor:boolean; modoIA:AIMode }
 export const defaultAutomations:AutomationSettings={identificarDocumentos:true,criarPasta:true,pedirDocumentos:true,lembreteContrato:true,lembreteFaltantes:true,lembreteConsulta:true,foraHorario:false,vendedor:false,modoIA:'Sugerir'};
 export function normalized(s:string){return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');}
-export function needsReply(c:Pick<Conversa,'mensagens'>){const m=c.mensagens.at(-1);return Boolean(m?.de==='cliente'&&(m.arquivo||!['ok','obrigado','obrigada','recebi','beleza','certo','perfeito','combinado'].includes(normalized(m.texto))));}
-export function unread(c:Pick<Conversa,'mensagens'|'lidoAte'>){return c.mensagens.filter(m=>m.de==='cliente'&&m.dataHora&&(!c.lidoAte||m.dataHora>c.lidoAte)).length;}
+export function needsReply(c:Pick<Conversa,'mensagens'>){const m=ultimaMensagem(c.mensagens);return Boolean(m?.de==='cliente'&&(m.arquivo||!['ok','obrigado','obrigada','recebi','beleza','certo','perfeito','combinado'].includes(normalized(m.texto))));}
+export function unread(c:Pick<Conversa,'mensagens'|'lidoAte'>){const seen=Date.parse(c.lidoAte??'')||0;return new Set(c.mensagens.filter(m=>m.de==='cliente'&&Number.isFinite(Date.parse(m.dataHora??''))&&Date.parse(m.dataHora??'')>seen).map(m=>m.id)).size;}
 export function waitingMinutes(c:Pick<Conversa,'mensagens'>,now=new Date()){const t=c.mensagens.at(-1)?.dataHora;return t?Math.max(0,(now.getTime()-Date.parse(t))/60000):null;}
 export function waitTone(minutes:number|null){return minutes===null?'muted':minutes<=60?'primary':minutes<=240?'pending':'destructive';}
-export function replyQueue(cases:Conversa[]){return cases.filter(needsReply).sort((a,b)=>(a.mensagens.at(-1)?.dataHora??'').localeCompare(b.mensagens.at(-1)?.dataHora??''));}
+export function replyQueue(cases:Conversa[]){return cases.filter(needsReply).sort(ordenarConversas);}
 export function matchesConversation(c:Conversa,s:string){return [c.nome,c.telefone,c.cpf].some(v=>normalized(v).includes(normalized(s)));}
 export function forbiddenTopics(text:string,topics:string[]){return topics.filter(t=>t.trim()&&normalized(text).includes(normalized(t)));}
 export type StepAction='revisar'|'confirmar'|'lembrete'|'contrato'|'registrarContrato'|'projuris'|'video'|'horarios'|'faltantes'|'producao'|'ia';

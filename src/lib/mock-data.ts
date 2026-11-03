@@ -14,7 +14,7 @@ export interface Mensagem {
   canal?: string; idExterno?: string | undefined; respostaAnaDe?: string;
   id: string; de: "cliente" | "escritorio" | "sistema"; texto: string; hora: string;
   iaProcessada?: boolean; automacaoKey?: string; dataHora?: string | undefined; autor?: string | undefined; tipoIdentificado?: string | undefined; confirmarTipo?: boolean | undefined; path?: string | undefined; driveUrl?: string | undefined;
-  tipo?: "texto" | "documento" | "audio" | "imagem"; arquivo?: string | undefined; salvoStart?: boolean | undefined;
+  tipo?: "texto" | "documento" | "audio" | "imagem" | "video"; arquivo?: string | undefined; salvoStart?: boolean | undefined;
   /** Situação da mensagem do escritório no canal: simulada (canal desligado), enviada, entregue ou lida. Só avança com confirmação do canal. */
   status?: StatusMensagem | undefined;
 }
@@ -22,6 +22,7 @@ export type StatusMensagem = "simulada" | "enviada" | "entregue" | "lida";
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }
 export interface DocItem { id?: string | undefined; nome: string; recebido: boolean }
 export interface Conversa {
+  lastMessageAt?: string | null;
   email?: string | undefined;
   etiquetaAcao?: import('./atendimento/intake-rules').EtiquetaAcao | undefined;
   pastaDrive?: { id: string; url: string } | undefined;

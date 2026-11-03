@@ -12,18 +12,17 @@ export const listarClientesProjuris = createServerFn({ method: 'POST' })
     const roles = await context.supabase.from('user_roles').select('role').eq('user_id', context.userId);
     if (roles.error || !roles.data.some(r => r.role === 'admin' || r.role === 'advogada_senior'))
       return { ok: false as const, erro: 'Consulta ao ProJuris reservada à advogada sênior ou administração.' };
-    const { ErroProjuris } = await import('./projuris/cliente.server');
-    const { carteiraProjuris } = await import('./projuris/carteira.server');
+    const { lerBase, sincronizarBase } = await import('./projuris/base.server');
     const { filtrarDiretorio } = await import('./projuris/diretorio');
-    try {
-      const cache = await carteiraProjuris(data.atualizar);
-      const r = filtrarDiretorio(cache.lista, data.busca, data.pagina, 50);
-      return { ok: true as const, ...r, totalProjuris: cache.lista.length, semData: cache.semData, atualizadoEm: new Date(cache.em).toISOString() };
-    } catch (e) {
-      const tipo = e instanceof ErroProjuris ? e.tipo : 'resposta';
-      console.error('ProJuris clientes:', tipo, e instanceof ErroProjuris ? e.status : '');
-      return { ok: false as const, erro: tipo === 'sem_permissao' ? 'O ProJuris não liberou a lista de pessoas para este acesso.' : tipo === 'configuracao' ? 'Chaves do ProJuris não salvas.' : 'Não foi possível consultar o ProJuris agora. Tente novamente.' };
+    let { base, estado } = await lerBase(context.supabase, context.userId);
+    if (data.atualizar) {
+      const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+      try { base = await sincronizarBase(supabaseAdmin, context.userId); }
+      catch (e) { if (!base) return { ok: false as const, erro: e instanceof Error ? e.message : 'Sincronização indisponível.' }; }
+      estado = (await lerBase(context.supabase, context.userId)).estado;
     }
+    if (!base) return { ok: false as const, erro: 'Base ainda não sincronizada. Use Sincronizar cadastros.' };
+    return { ok: true as const, ...filtrarDiretorio(base.lista, data.busca, data.pagina, 50), totalProjuris: base.lista.length, semData: base.semData, atualizadoEm: base.em, erroSync: estado?.erro ?? null };
   });
 
 export const obterClienteProjuris = createServerFn({ method: 'POST' })
@@ -32,15 +31,21 @@ export const obterClienteProjuris = createServerFn({ method: 'POST' })
   .handler(async ({ context, data }) => {
     const roles = await context.supabase.from('user_roles').select('role').eq('user_id', context.userId);
     if (roles.error || !roles.data.some(r => r.role === 'admin' || r.role === 'advogada_senior')) throw new Error('Acesso restrito à advogada sênior ou administração.');
-    const { carteiraProjuris } = await import('./projuris/carteira.server');
-    const { projuris } = await import('./projuris/cliente.server');
+    const { lerBase, salvarFicha } = await import('./projuris/base.server');
+    const { base, estado } = await lerBase(context.supabase, context.userId);
+    const cliente = base?.lista.find(c => c.codigo === data.codigo);
+    if (!base || !cliente) throw new Error('Cliente fora da carteira desta conta.');
+    const fichas = registroCadastro(registroCadastro(estado?.carteira)['fichas']);
+    let cadastro = registroCadastro(fichas[String(data.codigo)]);
+    if (cadastro['codigoPessoa'] !== data.codigo) {
+      const { projuris } = await import('./projuris/cliente.server');
+      cadastro = registroCadastro(await projuris.chamar('pessoa.obter', { parametros: { codigo: data.codigo } }));
+      if (cadastro['codigoPessoa'] !== data.codigo) throw new Error('Cadastro não confirmado pelo ProJuris.');
+      const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+      await salvarFicha(supabaseAdmin, context.userId, data.codigo, cadastro);
+    }
     const { revisaoCadastro } = await import('./projuris/cadastro.server');
-    const carteira = await carteiraProjuris();
-    const cliente = carteira.lista.find(c => c.codigo === data.codigo);
-    if (!cliente) throw new Error('Cliente fora da carteira elegível.');
-    const cadastro = registroCadastro(await projuris.chamar('pessoa.obter', { parametros: { codigo: data.codigo } }));
-    if (cadastro['codigoPessoa'] !== data.codigo) throw new Error('Cadastro não confirmado pelo ProJuris.');
-    return { cliente, cadastroJson: JSON.stringify(cadastroVisivel(cadastro)), processosJson: JSON.stringify(cadastroVisivel(carteira.porPessoa.get(data.codigo) ?? [])), revisao: await revisaoCadastro(cadastro) };
+    return { cliente, cadastroJson: JSON.stringify(cadastroVisivel(cadastro)), processosJson: JSON.stringify(cadastroVisivel(base.processos[String(data.codigo)] ?? [])), revisao: typeof registroCadastro(registroCadastro(estado?.carteira)['revisoes'])[String(data.codigo)] === 'string' ? String(registroCadastro(registroCadastro(estado?.carteira)['revisoes'])[String(data.codigo)]) : await revisaoCadastro(cadastro) };
   });
 
 const campo = z.enum(Object.keys(CAMPOS_CADASTRO) as [keyof typeof CAMPOS_CADASTRO, ...(keyof typeof CAMPOS_CADASTRO)[]]);
@@ -59,16 +64,17 @@ export const atualizarClienteProjuris = createServerFn({ method: 'POST' })
     const roles = await context.supabase.from('user_roles').select('role').eq('user_id', context.userId);
     if (roles.error || !roles.data.some(r => r.role === 'admin' || r.role === 'advogada_senior')) throw new Error('Acesso restrito à advogada sênior ou administração.');
     if (data.alteracao.tipo === 'cadastro' && data.alteracao.campo === 'nomePessoa' && data.alteracao.valor.trim().length < 3) throw new Error('Informe o nome completo.');
-    const { carteiraProjuris, invalidarCarteira } = await import('./projuris/carteira.server');
-    if (!(await carteiraProjuris()).lista.some(c => c.codigo === data.codigo)) throw new Error('Cliente fora da carteira elegível.');
+    const { lerBase, salvarFicha } = await import('./projuris/base.server');
+    const { base } = await lerBase(context.supabase, context.userId);
+    if (!base?.lista.some(c => c.codigo === data.codigo)) throw new Error('Cliente fora da carteira elegível.');
     const { atualizarCadastroVerificado } = await import('./projuris/cadastro.server');
     const { ErroProjuris } = await import('./projuris/cliente.server');
     try {
-      await atualizarCadastroVerificado(data.codigo, data.revisao, data.alteracao as AlteracaoCadastro);
-      invalidarCarteira();
+      const depois = await atualizarCadastroVerificado(data.codigo, data.revisao, data.alteracao as AlteracaoCadastro);
+      const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+      await salvarFicha(supabaseAdmin, context.userId, data.codigo, depois);
       return { ok: true as const };
     } catch (e) {
-      invalidarCarteira();
       if (e instanceof ErroProjuris) throw new Error(e.tipo === 'sem_permissao' ? 'O ProJuris não autorizou esta alteração cadastral.' : 'Não foi possível confirmar a alteração no ProJuris. Atualize a ficha antes de tentar novamente.');
       throw e;
     }
@@ -83,7 +89,9 @@ export const nomesConversasProjuris = createServerFn({ method: 'POST' })
     const { vinculosConfirmados } = await import('./projuris/cadastro');
     const vinculos = vinculosConfirmados(casos.data);
     if (!vinculos.length) return {} as Record<string, string>;
-    const { carteiraProjuris } = await import('./projuris/carteira.server');
-    const carteira = await carteiraProjuris();
-    return Object.fromEntries(vinculos.flatMap(v => { const nome = carteira.nomes.get(v.codigo); return nome ? [[v.id, nome]] : []; })) as Record<string, string>;
+    const { lerBase } = await import('./projuris/base.server');
+    const roles = await context.supabase.from('user_roles').select('role').eq('user_id', context.userId);
+    if (roles.error || !roles.data.some(r => r.role === 'admin' || r.role === 'advogada_senior')) return {} as Record<string, string>;
+    const { base } = await lerBase(context.supabase, context.userId);
+    return Object.fromEntries(vinculos.flatMap(v => { const nome = base?.nomes[String(v.codigo)]; return nome ? [[v.id, nome]] : []; })) as Record<string, string>;
   });

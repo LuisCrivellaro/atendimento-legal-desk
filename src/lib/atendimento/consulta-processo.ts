@@ -1,6 +1,7 @@
 // Consulta de processo pela Ana na fase de testes: nenhuma informação de processo vai ao cliente sem aprovação
 // da revisora. Módulo único para o servidor (ProJuris real) e para o simulador (ProJuris fictício): a lógica é a
 // mesma e só mudam as portas (consulta, redação, envio, registro, relógio). Regras de prazo: REGRAS-DA-DOUTORA.md.
+import { respostaFactual } from '../projuris/base';
 import { feriadoNacional } from './schedule-rules';
 import { cpfNoTexto, pessoaPorCpf, TEXTOS_VINCULO, vinculoPendentePorCpf, vinculoPorTelefone, type PessoaCpf, type VinculoProjuris } from '../projuris/vinculo';
 import { podeDetalhar, identificacaoProcesso, type AndamentoLegivel, type ProcessoPJ } from '../projuris/processos';
@@ -303,8 +304,10 @@ export interface PortasConsulta {
   registrar(evento: string, detalhe?: string): Promise<void>;
   /** Busca por CPF no ProJuris (só leitura). Sem esta porta, telefone não encontrado segue o fluxo antigo. */
   buscarPorCpf?(cpf: string): Promise<PessoaCpf[]>;
+  estadoLocal?(codigo: number): { sincronizadoEm: string | null; falha: boolean };
 }
 export type ResultadoConsulta =
+  | { tipo: 'factual'; mensagem: string; vinculo?: VinculoProjuris }
   | { tipo: 'nao_cliente' }
   | { tipo: 'perguntar_assunto'; mensagem: string; codigoPessoa: number }
   | { tipo: 'equipe'; mensagem: string; motivo: string }
@@ -318,7 +321,7 @@ export async function iniciarConsultaProcesso(
   cfg: ConfigConsultaProcesso = CONFIG_CONSULTA_PADRAO,
 ): Promise<ResultadoConsulta> {
   const equipe = async (motivo: string): Promise<ResultadoConsulta> => { await portas.registrar('consulta_processo_equipe', motivo); return { tipo: 'equipe', mensagem: TEXTOS_CONSULTA.equipe(portas.agora()), motivo }; };
-  if (!cfg.aprovacao_processo) return equipe('envio sem aprovação ainda não liberado');
+  if (!cfg.aprovacao_processo && !portas.estadoLocal) return equipe('base factual local indisponível');
   if (cfg.verificacao_processo) return equipe('verificação extra ligada, mas ainda não implementada');
   try {
     let pessoa: { codigo: number; nome: string };
@@ -352,6 +355,12 @@ export async function iniciarConsultaProcesso(
     await portas.avisarCliente(TEXTOS_CONSULTA.aviso);
     const fatos: FatoProcesso[] = [];
     for (const p of escolha.escolhidos) fatos.push(fatoDe(p, podeDetalhar(p) ? await portas.ultimosAndamentos(p.codigo) : []));
+    const estadoLocal = portas.estadoLocal;
+    if (!cfg.aprovacao_processo && estadoLocal) {
+      const mensagem = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime());
+      await portas.registrar('consulta_factual_local');
+      return { tipo: 'factual', mensagem, ...(novoVinculo ? { vinculo: novoVinculo } : {}) };
+    }
     let texto = '';
     let padrao = false;
     try { texto = (await portas.redigir(fatosParaRedacao(pessoa.nome, fatos))).trim(); } catch { texto = ''; }
