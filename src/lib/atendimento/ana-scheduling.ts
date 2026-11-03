@@ -44,9 +44,17 @@ export function linhaHorarioAna(iso:string,now=new Date()) {
   const label=data===today?`Hoje (${short}, ${date})`:data===tomorrow?`Amanhã (${short}, ${date})`:`${short.charAt(0).toUpperCase()+short.slice(1)}, ${date}`;
   return `${label} · ${hora(iso)} às ${hora(new Date(Date.parse(iso)+30*60000).toISOString())}`;
 }
-export function listaHorariosAna(slots:string[],now=new Date(),repetida=false) {
+/** "Segunda-feira, 09/11, às 14h" — formato do fluxo oficial de primeiro contato (Dra. Carolina, 03/11/2026). */
+export function opcaoHorarioAna(iso:string) {
+  const p=partesAgenda(iso),dia=new Date(`${dataAgenda(iso)}T12:00:00Z`).getUTCDay();
+  const nome=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'][dia]??'';
+  return `${nome}, ${p['day']}/${p['month']}, às ${hora(iso)}`;
+}
+/** Modelo obrigatório: marcadores, "Qual prefere?", lista numerada e pedido do número. Mesmo formato para novas opções. */
+export function listaHorariosAna(slots:string[],_now=new Date(),_repetida=false) {
   if(!slots.length)return 'Não encontrei novas opções livres nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
-  return `${repetida?'Tenho estas outras opções:':'Claro! Seguem os horários livres para a sua consulta online e gratuita:'}\n\n${repetida?'🗓️ Outras opções':'🗓️ Consulta online'} (30 min, horário de Brasília):\n${slots.map((s,i)=>`${i+1}. ${linhaHorarioAna(s,now)}`).join('\n')}\n\nQual fica melhor para você? Se preferir, me diga outro dia ou horário.`;
+  const linhas=slots.map(opcaoHorarioAna);
+  return `Tenho estes horários livres na agenda:\n\n${linhas.map(l=>`• ${l}`).join('\n')}\n\nQual prefere?\n\n${linhas.map((l,i)=>`${i+1}. ${l}`).join('\n')}\n\nResponda com o número do horário escolhido.`;
 }
 export function frustracaoHorariosAna(texto:string){return /(?:mesmos?\s+horarios?|de novo esses|esses.{0,15}nao servem|nao.{0,15}servem esses)/.test(fold(texto));}
 export function pedidoOutrasOpcoesAna(texto:string){return frustracaoHorariosAna(texto)||/(?:outr[oa]s?.{0,25}(?:horario|opco|dia)|nenhum.{0,20}serve|nao posso nesses|mais tarde|mais cedo|\b(?:a|de|pela)\s+(?:tarde|manha)\b)/.test(fold(texto));}
