@@ -27,7 +27,9 @@ describe('regras da entrada do WhatsApp do escritório', () => {
     expect(mensagemDoSistema('Claro! Seguem os horários livres para a sua consulta online e gratuita:\n\n🗓️ Consulta online\n\n1. Qua\n\nResponda com o número do horário escolhido.', conversa, agora)).toBe(true);
     expect(mensagemDoSistema('Claro', conversa, agora)).toBe(false);
     expect(mensagemDoSistema('Oi Maria, aqui é a Dra. Carolina. Posso te ligar?', conversa, agora)).toBe(false);
-    expect(mensagemDoSistema('Resposta em preparo', { mensagens: [], agenteAna: { resultado: { mensagem: 'Resposta em preparo' } } }, agora)).toBe(true);
+    expect(mensagemDoSistema('Resposta em preparo', { mensagens: [], agenteAna: { envioAna: { texto: 'Resposta em preparo', desde: agora.toISOString() } } }, agora)).toBe(true);
+    expect(mensagemDoSistema('', { mensagens: [] }, agora)).toBe(false);
+    expect(mensagemDoSistema('Resposta em preparo', { mensagens: [], agenteAna: { resultado: { mensagem: 'Resposta em preparo' } } }, agora)).toBe(false);
     expect(mensagemDoSistema('Claro! Seguem os horários livres para a sua consulta online e gratuita:\n\n🗓️ Consulta online', conversa, new Date('2026-10-27T22:00:00Z'))).toBe(false);
   });
 });

@@ -70,7 +70,6 @@ async function guardarMidia(admin: any, url: string, nomeOriginal: string | unde
 }
 
 type Admin = Parameters<typeof import('@/lib/atendimento/ana.server').atualizarConversa>[0];
-const esperar = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Resposta digitada no celular do escritório: registra na conversa e pausa a Ana só ali.
@@ -87,16 +86,13 @@ async function registrarRespostaManual(admin: Admin, contato: { conversa_id: str
   let conversa = await ler();
   if (!conversa || conversa.mensagens.some(m => m.id === msgId)) return Response.json({ ok: true, ignorado: true });
   if (sistema(conversa)) return Response.json({ ok: true, sistema: true });
-  await esperar(Number(process.env['WHATSAPP_ESPERA_MANUAL_MS'] || 4000));
-  conversa = await ler();
-  if (!conversa || sistema(conversa)) return Response.json({ ok: true, sistema: true });
   const { atualizarConversa } = await import('@/lib/atendimento/ana.server');
   const agora = new Date(timestampWhatsApp(data.timestamp));
   const aviso = 'Equipe respondeu pelo celular do escritório; Ana pausada nesta conversa. Use "Retomar Ana" para devolver.';
   await atualizarConversa(admin, conversaId, c => c.mensagens.some(m => m.id === msgId) ? c : {
     ...c,
     mensagens: [...c.mensagens, { id: msgId, de: 'escritorio', texto: texto || '[arquivo enviado pelo celular do escritório]', hora: agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }), dataHora: agora.toISOString(), canal: 'ultramsg', idExterno: data.id, autor: 'Equipe · celular do escritório', status: 'enviada' }],
-    agenteAna: { ...c.agenteAna, humano: true, proximoPasso: aviso },
+    agenteAna: { ...c.agenteAna, humano: true, controleHumanoEm: new Date().toISOString(), proximoPasso: aviso },
     timeline: [...(c.timeline ?? []), { data: agora.toISOString(), evento: aviso }],
   });
   await auditar('respostaManualWhatsApp', 'Resposta pelo celular do escritório; Ana pausada na conversa', 'sucesso');
@@ -182,11 +178,13 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           return Response.json({ ok: true, ignorado: true });
         }
         const caso = await supabaseAdmin.from('casos').select('id,owner_id,dados').eq('id', contato.conversa_id).maybeSingle();
-        if (caso.error || !caso.data) return Response.json({ ok: true, ignorado: true });
+        if (caso.error || !caso.data) return Response.json({ error: 'Conversa indisponível' }, { status: 503 });
         const mensagens = (caso.data.dados as unknown as { mensagens?: Mensagem[] }).mensagens ?? [];
         if (mensagens.some(m => m.id === `ultramsg:${contato.contato_externo}:${data.id}`)) {
           const { registrarEmailConversa } = await import('@/lib/atendimento/email.server');
           await registrarEmailConversa(supabaseAdmin, caso.data.id, caso.data.owner_id, `ultramsg:${contato.contato_externo}:${data.id}`);
+          const { processarAna } = await import('@/lib/atendimento/ana.server');
+          await processarAna(supabaseAdmin, caso.data.id, `ultramsg:${contato.contato_externo}:${data.id}`, request);
           return Response.json({ ok: true, repetido: true });
         }
 

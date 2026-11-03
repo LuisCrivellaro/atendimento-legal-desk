@@ -116,3 +116,8 @@ describe('retomada de identificados',()=>{
   h.patch(c=>({...c,modoIA:'Automática',agenteAna:{...c.agenteAna,humano:true}}));await h.message('oi');expect(mocks.enviar).not.toHaveBeenCalled();
  });
 });
+
+ describe('recuperação de geração e intervenção humana',()=>{
+ it('falha temporária gera nova tentativa persistente sem assumir atendimento humano',async()=>{const h=setup('ultramsg',false);mocks.gerar.mockRejectedValueOnce(Object.assign(new Error('Indisponível'),{retryable:true}));await h.message('quero agendar');expect(h.saved.mensagens.at(-1)?.iaExecucao?.estado).toBe('aguardando');expect(h.saved.agenteAna?.humano).not.toBe(true);expect(mocks.enviar).not.toHaveBeenCalled();});
+ it('equipe assume durante geração e bloqueia resposta',async()=>{const h=setup('ultramsg',false);mocks.gerar.mockImplementationOnce(async()=>{h.patch(c=>({...c,agenteAna:{...c.agenteAna,humano:true,controleHumanoEm:'assumido'}}));return {acao:'enviar',mensagem:'Olá',intencao:'duvida_geral',encaminhar_humano:false,motivo_aprovacao:'',urgente:false,dados_coletados:{nome:'',cpf:'',email:'',assunto:''},proximo_passo:''};});await h.message('oi');expect(mocks.enviar).not.toHaveBeenCalled();expect(h.saved.agenteAna?.humano).toBe(true);});
+});

@@ -10,5 +10,5 @@ export async function gerarRespostaAna(request:Request, contexto:unknown, instru
   const { default: restricoes } = await import('./ana-restrictions.txt?raw');
   const identidadeCompleta = `${identidade}\n\n${restricoes}\n${instrucoes}`;
   const contrato = `Responda somente com um objeto JSON válido neste schema: ${JSON.stringify(anaSchema.toJSONSchema())}. Não execute ferramentas; as operações são validadas pelo servidor.`;
-  return anaSchema.parse(await sample.json([{role:'user',content:`${identidadeCompleta}\n\n${contrato}`},{role:'user',content:JSON.stringify(contexto)}]));
+  return anaSchema.parse(await sample.json([{role:'user',content:`${identidadeCompleta}\n\n${contrato}`},{role:'user',content:JSON.stringify(contexto)}], { signal: AbortSignal.timeout(25000) }));
 }

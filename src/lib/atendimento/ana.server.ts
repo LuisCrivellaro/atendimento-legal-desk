@@ -13,6 +13,7 @@ import { solicitarEmailPendente } from './email-rules';
 import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna, mensagemConfirmacaoAna } from './ana-scheduling';
 import { apenasInsistencia, TEXTOS_CONSULTA } from './consulta-processo';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from './ana-retomada';
+import { podeExecutarAna } from './ana-execution';
 type Db=SupabaseClient<Database>;
 
 async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
@@ -52,18 +53,22 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   const mode=c.modoIA??state.automations?.modoIA??defaultAutomations.modoIA;
   const retomada=retornoIdentificadoAna(c,messageId,canal);
   const m=c.mensagens.find(m=>m.id===messageId);
-  if(!m||m.iaProcessada||c.agenteAna?.humano||c.agenteAna?.pausa||state.anaPausa?.ativa)return;
+  if(!m||!podeExecutarAna(m)||c.agenteAna?.humano||c.agenteAna?.pausa||state.anaPausa?.ativa)return;
   let claimed=false;
   await atualizarConversa(db,id,current=>{
     claimed=false;
     const target=current.mensagens.find(m=>m.id===messageId);
-    if(!target||target.iaProcessada||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.humano||current.agenteAna?.pausa)return current;
+    if(!target||!podeExecutarAna(target)||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.humano||current.agenteAna?.pausa)return current;
     claimed=true;
-    return {...current,mensagens:current.mensagens.map(m=>m.id===messageId?{...m,iaProcessada:true}:m)};
+    return {...current,mensagens:current.mensagens.map(m=>m.id===messageId?{...m,iaProcessada:true,iaExecucao:{estado:'executando' as const,tentativas:(m.iaExecucao?.tentativas??0)+1,desde:new Date().toISOString()}}:m)};
   });
   if(!claimed)return;
+  let efeitosIniciados=false;
+  const marcarEfeito=()=>atualizarConversa(db,id,x=>({...x,mensagens:x.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:'enviando' as const}}:m)}));
   try {
   if(mode==='Automática'&&canal==='ultramsg'&&c.agenteAna?.pedidosProcesso?.some(p=>p.status==='pendente')&&apenasInsistencia(m.texto)) {
+    efeitosIniciados=true;
+    await marcarEfeito();
     const { enviarAvisoProcesso } = await import('./consulta-processo.server');
     await enviarAvisoProcesso(db,id,TEXTOS_CONSULTA.emConferencia,remetente.data?.contato_externo??'');
     return;
@@ -141,7 +146,10 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const r=saudacaoClienteNovo(aplicarRegrasAna(primeiroContato?{...raw,intencao:'duvida_geral'}:raw,mode,m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal,tipoCliente,nome,telefone,emailPendente:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email)}),m.texto,{apresentado:!primeiroContato,tipoCliente,horarios,agendaReal});
     if(canal==='ultramsg'&&mode==='Automática') {
       const { fluxoProcessoReal } = await import('./consulta-processo.server');
+      efeitosIniciados=true;
+      await marcarEfeito();
       if(await fluxoProcessoReal(db,{conversa:c,owner:row.data.owner_id,telefone,contato:remetente.data?.contato_externo??'',texto:m.texto,intencao:raw.intencao,messageId}))return;
+      efeitosIniciados=false;
     }
     // Caminhos excluídos ou outros modos nunca liberam conteúdo processual produzido pelo modelo.
     if(raw.intencao==='consulta_processo'&&!r.encaminhar_humano){r.acao='rascunho';r.motivo_aprovacao='Notícia processual exige revisão individual.';}
@@ -181,6 +189,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       if(fresh.error||cfg.error||contact.error||freshWorkspace.error||!contact.data||!current||cfg.data?.canal_ativo!==canal||!cfg.data.agente_ativo||(current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||currentState.anaPausa?.ativa||current.agenteAna?.humano&&!r.encaminhar_humano||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
       if(!messageId.startsWith(`${canal}:${contact.data.contato_externo}:`))return;
       if(cancelar){
+        efeitosIniciados=true;
+        await marcarEfeito();
         try {
         const reserva=current.agenteAna?.reservaCalendar;
         if(!reserva||reserva.inicio!==current.consultaAgendada)throw new Error('Consulta sem recibo verificável; equipe deve conferir antes de cancelar.');
@@ -203,6 +213,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       const ofertasEquipe=(current.horariosOfertados??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
       const escolhido=escolherReservaAna({texto:m.texto,selecionado,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:bloqueada||consultaEspecifica||cancelar||perguntar||!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
       if(escolhido){
+        efeitosIniciados=true;
+        await marcarEfeito();
         if(current.consultaAgendada&&current.agenteAna?.alteracaoConsulta!=='remarcar'){
           r.mensagem=`Você já tem uma consulta marcada para ${formatarHorarioCliente(current.consultaAgendada)}. Deseja remarcar ou cancelar esse agendamento?`;
           r.proximo_passo='Aguardar autorização para alteração da consulta.';
@@ -232,7 +244,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
               r.mensagem=`Esse horário acabou de ser ocupado.\n\n${listaHorariosAna(novas)}`;
               r.proximo_passo='Aguardar escolha das novas opções verificadas.';
               const {enviarMensagemSistema}=await import('./envio.functions');
-              const envio=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,...(novas.length?{horarios:novas}:{})});
+              const envio=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,mensagemOrigem:messageId,controleHumanoEm:c.agenteAna?.controleHumanoEm,...(novas.length?{horarios:novas}:{})});
               if(envio.simulado)throw new Error('Novas opções não enviadas.');
               await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,operacaoConsulta:undefined,horariosTeste:novas,agendaReal:true,resultado:r,horariosApresentados:[...new Set([...(x.agenteAna?.horariosApresentados??[]),...novas])],listasHorarios:(x.agenteAna?.listasHorarios??0)+1},mensagens:[...x.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal,idExterno:envio.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
               return;
@@ -257,23 +269,38 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       if(!saudou)r.mensagem=limitarNomeAna(r.mensagem,nome,c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').slice(-2).map(x=>x.texto));
       const novosOferecidos=!escolhido&&!cancelar&&!perguntar&&!semConsulta&&agendaReal&&!agenda?.selected?(horarioPendente?[horarioPendente]:agenda?.slots??[]):[];
       if(retomada&&!r.urgente)r.mensagem=mensagemRetornoAna(m.texto,r.mensagem);
-      const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,...(novosOferecidos.length&&!horarioPendente?{horarios:novosOferecidos}:{})});
+      efeitosIniciados=true;
+      const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,mensagemOrigem:messageId,controleHumanoEm:c.agenteAna?.controleHumanoEm,permitirEncaminhamento:r.encaminhar_humano,...(novosOferecidos.length&&!horarioPendente?{horarios:novosOferecidos}:{})});
       if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');
       await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true,...(gerenciar&&decisaoCancel==='pedir'&&current.agenteAna?.reservaCalendar?.id===c.agenteAna?.reservaCalendar?.id&&current.agenteAna?.reservaCalendar?{confirmacaoCancelamento:{eventoId:current.agenteAna.reservaCalendar.id,inicio:current.agenteAna.reservaCalendar.inicio,contato:telefone,expira:new Date(Date.now()+30*60000).toISOString()}}:{}),...(novosOferecidos.length?{horariosApresentados:[...new Set([...(current.agenteAna?.horariosApresentados??[]),...historicoHorarios,...novosOferecidos])],listasHorarios:(current.agenteAna?.listasHorarios??0)+1,pedidosOutrasOpcoes:pedidosOutras}:{})},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal,idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
     }
+    await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,envioAna:undefined},mensagens:x.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:'concluida' as const}}:m)}));
     const audit=await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'agenteAna',p_resumo:`${mode} · ${r.acao} · ${r.intencao}${r.urgente?' · urgente':''}`,p_status:'sucesso'});
     if(audit.error)throw new Error('Falha ao registrar auditoria.');
   } catch(error) {
-    const e=error as {statusCode?:number;responseBody?:string;message?:string};
+    const e=error as {statusCode?:number;responseBody?:string;message?:string;retryable?:boolean;code?:string;name?:string};
+    if(e.code==='ana_envio_bloqueado')return;
     console.error('Ana interrompida',error);
+    const temporaria=!efeitosIniciados&&(e.retryable===true||e.code==='cancelled'||e.name==='TimeoutError');
+    if(temporaria){
+      let agendada=false;
+      await atualizarConversa(db,id,x=>{
+        const target=x.mensagens.find(m=>m.id===messageId);
+        agendada=false;
+        if(!target?.iaExecucao||target.iaExecucao.tentativas>=3||x.agenteAna?.humano||x.agenteAna?.pausa)return x;
+        agendada=true;
+        return {...x,agenteAna:{...x.agenteAna,erro:'Falha temporária; nova tentativa automática pendente.'},mensagens:x.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:'aguardando' as const,retryEm:new Date(Date.now()+m.iaExecucao.tentativas*60000).toISOString()}}:m)};
+      });
+      if(agendada){await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'anaRetry',p_resumo:'Geração temporariamente indisponível; recuperação agendada',p_status:'erro'});return;}
+    }
     let safe='Não foi possível concluir a resposta da Ana; atendimento encaminhado para a equipe.';
     // Mensagens internas curtas (sem corpo de provedor) ajudam a equipe a saber o motivo real.
     if(e.message&&!e.responseBody&&!/\[\d{3}\]/.test(e.message))safe=`${safe} Motivo: ${e.message}`;
     try {const body=JSON.parse(e.responseBody??'{}');safe=body.message??body.error?.message??safe;}catch {/* Não exibir corpo bruto. */}
     safe=safe.slice(0,400);
-    const pause=e.statusCode===402||e.statusCode===403||e.statusCode===404||e.statusCode===401;
+    const pause=e.code==='chave_invalida'||e.statusCode===402||e.statusCode===403||e.statusCode===404||e.statusCode===401;
     // Libera a operação de agenda travada pela falha; sem isso a conversa ficaria impedida de cancelar/remarcar para sempre.
-    await atualizarConversa(db,id,current=>({...current,agenteAna:{...current.agenteAna,humano:true,pausa:pause,erro:safe,operacaoConsulta:undefined,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
+    await atualizarConversa(db,id,current=>({...current,mensagens:current.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:efeitosIniciados?'incerta' as const:'concluida' as const}}:m),agenteAna:{...current.agenteAna,humano:true,pausa:pause||current.agenteAna?.pausa===true,erro:safe,operacaoConsulta:undefined,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
     if(pause) {
       // Pausa durável para todos os atendimentos do proprietário. Sem probes/retries.
       for(let attempt=0;attempt<5;attempt++){
