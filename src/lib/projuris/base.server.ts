@@ -24,10 +24,8 @@ export async function sincronizarBase(db: Db, owner: string) {
   try {
     const c = await carregarCarteira();
     const elegiveis = new Set(c.lista.map(p => p.codigo));
-    const base: BaseProjuris = { lista: c.lista, processos: Object.fromEntries([...c.porPessoa].filter(([id]) => elegiveis.has(id)).map(([id, ps]) => [String(id), ps.filter(p => processoDe(p)?.situacao?.toLowerCase() === 'ativo')])), nomes: Object.fromEntries(c.nomes), semData: c.semData, em: new Date().toISOString() };
-    // carregarCarteira já encontrou o código Ativo oficial; selecionar pela carteira elegível e pelo código, não pelo rótulo.
     const ativo = await import('./consultas.server').then(m => m.criarConsultasProjuris().codigoSituacaoAtivo());
-    base.processos = Object.fromEntries([...c.porPessoa].filter(([id]) => elegiveis.has(id)).map(([id, ps]) => [String(id), ps.filter(p => processoDe(p)?.codigoSituacao === ativo)]));
+    const base: BaseProjuris = { lista: c.lista, processos: Object.fromEntries([...c.porPessoa].filter(([id]) => elegiveis.has(id)).map(([id, ps]) => [String(id), ps.filter(p => processoDe(p)?.codigoSituacao === ativo)])), nomes: Object.fromEntries(c.nomes), semData: c.semData, em: new Date().toISOString() };
     const r = await db.from('projuris_base').update({ carteira: json(base), sincronizado_em: base.em, erro: null, lease_token: null, lease_ate: null }).eq('owner_id', owner).eq('lease_token', token).select('owner_id');
     if (r.error || !r.data?.length) throw new Error('Sincronização não persistida.');
     await db.rpc('registrar_audit_log', { p_ator: owner, p_perfil: 'sistema', p_acao: 'projuris_base_sincronizada', p_resumo: `${base.lista.length} cadastros sincronizados`, p_status: 'sucesso' });
@@ -98,9 +96,6 @@ export async function portasLocais(db: Db, owner: string) {
   };
 }
 export async function salvarFicha(db: Db, owner: string, codigo: number, ficha: Record<string, unknown>) {
-  const { base, estado } = await lerBase(db, owner);
-  if (!base || !estado) throw new Error('Sincronize os cadastros primeiro.');
-  const armazenada = { ...base, fichas: { ...((estado.carteira as Record<string, Json>)['fichas'] as object ?? {}), [String(codigo)]: cadastroVisivel(ficha) } };
-  const r = await db.from('projuris_base').update({ carteira: json(armazenada) }).eq('owner_id', owner).eq('sincronizado_em', estado.sincronizado_em ?? '').is('lease_token', null).select('owner_id');
-  if (r.error || !r.data?.length) throw new Error('Ficha alterada durante sincronização; recarregue.');
+  const r = await db.rpc('projuris_salvar_ficha', { p_owner: owner, p_codigo: codigo, p_ficha: json(cadastroVisivel(ficha)), p_revisao: await revisaoCadastro(ficha) });
+  if (r.error) throw new Error('Ficha não persistida; recarregue.');
 }

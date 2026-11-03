@@ -45,7 +45,7 @@ export const obterClienteProjuris = createServerFn({ method: 'POST' })
       await salvarFicha(supabaseAdmin, context.userId, data.codigo, cadastro);
     }
     const { revisaoCadastro } = await import('./projuris/cadastro.server');
-    return { cliente, cadastroJson: JSON.stringify(cadastroVisivel(cadastro)), processosJson: JSON.stringify(cadastroVisivel(base.processos[String(data.codigo)] ?? [])), revisao: await revisaoCadastro(cadastro) };
+    return { cliente, cadastroJson: JSON.stringify(cadastroVisivel(cadastro)), processosJson: JSON.stringify(cadastroVisivel(base.processos[String(data.codigo)] ?? [])), revisao: typeof registroCadastro(registroCadastro(estado?.carteira)['revisoes'])[String(data.codigo)] === 'string' ? String(registroCadastro(registroCadastro(estado?.carteira)['revisoes'])[String(data.codigo)]) : await revisaoCadastro(cadastro) };
   });
 
 const campo = z.enum(Object.keys(CAMPOS_CADASTRO) as [keyof typeof CAMPOS_CADASTRO, ...(keyof typeof CAMPOS_CADASTRO)[]]);

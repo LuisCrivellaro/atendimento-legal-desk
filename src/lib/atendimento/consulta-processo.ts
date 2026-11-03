@@ -355,8 +355,9 @@ export async function iniciarConsultaProcesso(
     await portas.avisarCliente(TEXTOS_CONSULTA.aviso);
     const fatos: FatoProcesso[] = [];
     for (const p of escolha.escolhidos) fatos.push(fatoDe(p, podeDetalhar(p) ? await portas.ultimosAndamentos(p.codigo) : []));
-    if (!cfg.aprovacao_processo && portas.estadoLocal) {
-      const mensagem = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...portas.estadoLocal(p.codigo) })), portas.agora().getTime());
+    const estadoLocal = portas.estadoLocal;
+    if (!cfg.aprovacao_processo && estadoLocal) {
+      const mensagem = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime());
       await portas.registrar('consulta_factual_local');
       return { tipo: 'factual', mensagem, ...(novoVinculo ? { vinculo: novoVinculo } : {}) };
     }
