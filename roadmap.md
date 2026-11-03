@@ -1,8 +1,8 @@
 # Construção dos módulos Manager ADV
 
 ## Produção real da Ana — 03/11/2026
-- [ ] Auditar execução, UltraMsg/webhook, persistência, Claude/treinamento/contexto e Calendar; corrigir somente falhas necessárias.
-- [ ] Verificar controle humano por conversa, revalidação pré-envio, concorrência, duplicação e recuperação temporária.
+- [x] Auditados execução, UltraMsg/webhook, persistência, Claude/treinamento/contexto e Calendar; UltraMsg authenticated/connected, endereço publicado e segredo corretos, received/create ativos; oito envios reais confirmados como sent no provedor.
+- [x] Controle humano por conversa, revisão pré-envio, CAS, deduplicação/reentrega e recuperação persistente de geração temporária; sem repetição automática de envios ou alterações de agenda incertos. Suíte: 564 testes aprovados e mais dois cenários de recuperação/tomada humana aprovados; compilação limpa.
 - [ ] Publicar e conferir configuração externa e evidências reais de WhatsApp.
 - [ ] Validar entrada/resposta, contexto/treinamento, assumir/reativar, histórico e duas conversas simultâneas; não declarar sucesso sem evidência externa.
 
