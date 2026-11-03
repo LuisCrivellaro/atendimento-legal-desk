@@ -86,28 +86,31 @@ export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: 
   if (!claimed) return true;
   try {
     const consultas = criarConsultasProjuris();
+    const { portasLocais } = await import('../projuris/base.server');
+    const local = await portasLocais(db, e.owner);
     let notificacao = '';
     const result = await iniciarConsultaProcesso({ conversaId: c.id, telefone: e.telefone, nomeContato: c.nome, textoCliente: e.texto, assuntoJaPerguntado: !!c.agenteAna?.aguardandoAssuntoProcesso, vinculo: c.agenteAna?.vinculoProjuris, aguardandoCpf: !!c.agenteAna?.aguardandoCpfProcesso, perguntaOriginal: c.agenteAna?.perguntaProcessoPendente }, {
-      agora: () => new Date(), identificar: identificarClienteProjuris,
-      processosAtivos: consultas.processosAtivos, ultimosAndamentos: consultas.ultimosAndamentos,
+      agora: () => new Date(), identificar: local?.identificar ?? identificarClienteProjuris,
+      processosAtivos: local?.processosAtivos ?? consultas.processosAtivos, ultimosAndamentos: local?.ultimosAndamentos ?? consultas.ultimosAndamentos,
+      ...(local ? { estadoLocal: local.estado } : {}),
       redigir: redigirNoticiaProcesso, codigosExistentes: () => reservarCodigo(db, e.owner),
       avisarCliente: t => enviarAvisoProcesso(db, c.id, t, e.contato),
       // Persistir antes do envio externo permite receber uma resposta imediata e não perder pedidos em falhas.
       enviarRevisora: async t => { if (!process.env['REVISORA_WHATSAPP']) throw new Error('Revisora ausente.'); notificacao = t; },
       registrar: ev => auditarProcesso(db, ev),
       buscarPorCpf: consultas.pessoasPorCpf,
-    });
+    }, local ? { aprovacao_processo: false, verificacao_processo: false, lembreteMin: 30, maxLembretes: 3, avisoRetornoMin: 60 } : undefined);
     await atualizarConversa(db, c.id, current => ({ ...current, agenteAna: { ...current.agenteAna, consultaProcessoEmCurso: undefined, aguardandoAssuntoProcesso: result.tipo === 'perguntar_assunto',
       aguardandoCpfProcesso: result.tipo === 'pedir_cpf',
       perguntaProcessoPendente: result.tipo === 'pedir_cpf' ? (current.agenteAna?.perguntaProcessoPendente ?? e.texto) : result.tipo === 'vinculo_pendente' ? current.agenteAna?.perguntaProcessoPendente : undefined,
       ...(result.tipo === 'vinculo_pendente' ? { vinculoProjuris: result.vinculo, proximoPasso: 'Equipe: confirmar vínculo do cliente no ProJuris.' } : {}),
-      ...(result.tipo === 'pedido' && result.vinculo ? { vinculoProjuris: result.vinculo } : {}),
+      ...((result.tipo === 'pedido' || result.tipo === 'factual') && result.vinculo ? { vinculoProjuris: result.vinculo } : {}),
       ...(result.tipo === 'pedido' ? { pedidosProcesso: [...(current.agenteAna?.pedidosProcesso ?? []), result.pedido], proximoPasso: 'Notícia processual aguardando revisão.' } : {}) } }));
     if (result.tipo === 'pedido') {
       try { await notificarRevisora(notificacao); } catch { await auditarProcesso(db, 'notificacao_revisora_pendente'); }
     } else {
       await enviarAvisoProcesso(db, c.id, result.tipo === 'nao_cliente' ? mensagemNaoCliente(new Date()) : result.mensagem, e.contato);
-      if (result.tipo !== 'perguntar_assunto' && result.tipo !== 'pedir_cpf' && result.tipo !== 'vinculo_pendente') await atualizarConversa(db, c.id, current => ({ ...current, agenteAna: { ...current.agenteAna, humano: true, proximoPasso: 'Equipe: conferir consulta processual.' } }));
+      if (result.tipo !== 'factual' && result.tipo !== 'perguntar_assunto' && result.tipo !== 'pedir_cpf' && result.tipo !== 'vinculo_pendente') await atualizarConversa(db, c.id, current => ({ ...current, agenteAna: { ...current.agenteAna, humano: true, proximoPasso: 'Equipe: conferir consulta processual.' } }));
     }
     return true;
   } finally {
