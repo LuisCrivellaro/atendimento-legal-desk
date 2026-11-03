@@ -2,9 +2,9 @@
 
 ## Produção real da Ana — 03/11/2026
 - [x] Auditados execução, UltraMsg/webhook, persistência, Claude/treinamento/contexto e Calendar; UltraMsg authenticated/connected, endereço publicado e segredo corretos, received/create ativos; oito envios reais confirmados como sent no provedor.
-- [x] Controle humano por conversa, revisão pré-envio, CAS, deduplicação/reentrega e recuperação persistente de geração temporária; sem repetição automática de envios ou alterações de agenda incertos. Suíte: 564 testes aprovados e mais dois cenários de recuperação/tomada humana aprovados; compilação limpa.
-- [ ] Publicar e conferir configuração externa e evidências reais de WhatsApp.
-- [ ] Validar entrada/resposta, contexto/treinamento, assumir/reativar, histórico e duas conversas simultâneas; não declarar sucesso sem evidência externa.
+- [x] Controle humano por conversa, revisão pré-envio, CAS, deduplicação/reentrega e recuperação persistente de geração temporária; sem repetição automática de envios ou alterações de agenda incertos. Suíte final: 566 testes aprovados; compilação limpa. Assumir/pausar/reativar conferidos na conversa vazia de teste e devolvidos à Automática, sem envio externo.
+- [x] Publicado: nova recuperação responde 401 sem autorização e 200 autenticada (zero pendentes); rotina gerenciada ativa a cada minuto, sem Inngest ou automação ProJuris. UltraMsg conectado com received/create e segredo corretos; oito mensagens anteriores confirmadas sent no provedor.
+- [ ] Validar sete cenários na versão nova com celulares: dependem de mensagens reais de dois números autorizados e intervenção da equipe; provas anteriores de envios não validam contexto, treinamento, celular humano nem simultaneidade após esta publicação. Nenhuma credencial faltante identificada.
 
 ## Ordenação e atualização das conversas — 03/11/2026
 - [x] Ordenação atômica no banco por última mensagem real; páginas de 500, filtros e conversa selecionada preservados.
