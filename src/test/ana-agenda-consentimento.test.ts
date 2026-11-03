@@ -44,7 +44,7 @@ describe.each(['telegram','ultramsg'] as const)('consentimento de agenda pelo %s
   await h.message('Mariana Souza Lima');
   const texto=String(mocks.enviar.mock.calls.at(-1)?.[0]?.texto??'');
   expect(texto.startsWith('Tenho estes horários livres na agenda:')).toBe(true);
-  expect(texto).toContain('🗓️ Consulta online');
+  expect(texto).toContain('Qual prefere?');
   expect(h.saved.agenteAna?.horariosTeste?.[0]).toBe('2026-10-27T12:00:00.000Z');
  });
  it('horários fictícios salvos antes da correção não contam como já oferecidos',async()=>{
