@@ -25,6 +25,7 @@ import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authenticated/protocolo'
 import { Route as AuthenticatedTreinamentoRouteImport } from './routes/_authenticated/treinamento'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiPublicAtendimentoMonitorarAnaRouteImport } from './routes/api/public/atendimento/monitorar-ana'
 import { Route as ApiPublicAtendimentoPendenciasProcessoRouteImport } from './routes/api/public/atendimento/pendencias-processo'
 import { Route as ApiPublicAtendimentoRecuperarAnaRouteImport } from './routes/api/public/atendimento/recuperar-ana'
 import { Route as ApiPublicAtendimentoTelegramRouteImport } from './routes/api/public/atendimento/telegram'
@@ -114,6 +115,12 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAtendimentoMonitorarAnaRoute =
+  ApiPublicAtendimentoMonitorarAnaRouteImport.update({
+    id: '/api/public/atendimento/monitorar-ana',
+    path: '/api/public/atendimento/monitorar-ana',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAtendimentoPendenciasProcessoRoute =
   ApiPublicAtendimentoPendenciasProcessoRouteImport.update({
     id: '/api/public/atendimento/pendencias-processo',
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/protocolo': typeof AuthenticatedProtocoloRoute
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
@@ -176,6 +184,7 @@ export interface FileRoutesByTo {
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
@@ -199,6 +208,7 @@ export interface FileRoutesById {
   '/_authenticated/treinamento': typeof AuthenticatedTreinamentoRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/protocolo'
     | '/treinamento'
     | '/.lovable/oauth/consent'
+    | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
     | '/api/public/atendimento/telegram'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '/treinamento'
     | '/'
     | '/.lovable/oauth/consent'
+    | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
     | '/api/public/atendimento/telegram'
@@ -265,6 +277,7 @@ export interface FileRouteTypes {
     | '/_authenticated/treinamento'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
+    | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
     | '/api/public/atendimento/telegram'
@@ -277,6 +290,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicAtendimentoMonitorarAnaRoute: typeof ApiPublicAtendimentoMonitorarAnaRoute
   ApiPublicAtendimentoPendenciasProcessoRoute: typeof ApiPublicAtendimentoPendenciasProcessoRoute
   ApiPublicAtendimentoRecuperarAnaRoute: typeof ApiPublicAtendimentoRecuperarAnaRoute
   ApiPublicAtendimentoTelegramRoute: typeof ApiPublicAtendimentoTelegramRoute
@@ -397,6 +411,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/atendimento/monitorar-ana': {
+      id: '/api/public/atendimento/monitorar-ana'
+      path: '/api/public/atendimento/monitorar-ana'
+      fullPath: '/api/public/atendimento/monitorar-ana'
+      preLoaderRoute: typeof ApiPublicAtendimentoMonitorarAnaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/atendimento/pendencias-processo': {
       id: '/api/public/atendimento/pendencias-processo'
       path: '/api/public/atendimento/pendencias-processo'
@@ -466,6 +487,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicAtendimentoMonitorarAnaRoute: ApiPublicAtendimentoMonitorarAnaRoute,
   ApiPublicAtendimentoPendenciasProcessoRoute:
     ApiPublicAtendimentoPendenciasProcessoRoute,
   ApiPublicAtendimentoRecuperarAnaRoute: ApiPublicAtendimentoRecuperarAnaRoute,
