@@ -19,6 +19,7 @@ import { downloadBlob } from '@/lib/office-store';
 import { PageHeader, Section, Empty, action } from './shared';
 import { dataHoraCurta } from '@/lib/atendimento';
 import { ProjurisClientes } from './projuris-clientes';
+import { ProjurisSync } from './projuris-sync';
 
 export function ClientsPage() {
   const {data,refetch,isFetching} = useSuspenseQuery(clientsQuery());
@@ -27,7 +28,7 @@ export function ClientsPage() {
   const client=data.clients.find(c=>c.id===selected||c.cases.some(k=>k.id===selected));
   const filtered=data.clients.filter(c=>matchesClient(c,search)&&(status==='todos'||c.active===(status==='ativo'))&&(source==='todos'||(source==='real'?c.cases.some(k=>k.real):c.cases.every(k=>!k.real))));
   const refresh=async()=>{await qc.invalidateQueries({queryKey:['clients-directory']});await qc.invalidateQueries({queryKey:['casos']});await qc.invalidateQueries({queryKey:['dashboard']});};
-  return <div className="mx-auto max-w-[1500px] p-4 md:p-8"><PageHeader title="Clientes"><Button variant="outline" onClick={()=>void refetch()} disabled={isFetching}><RefreshCw className={isFetching?'animate-spin':''}/>Atualizar</Button><Button onClick={()=>setForm(true)}><Plus/>Cadastrar cliente</Button></PageHeader><div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b pb-4"><p className="text-sm text-muted-foreground">{data.entireOffice?'Carteira ProJuris':'Meus clientes'}</p><Button asChild variant="outline" size="sm"><Link to="/integracoes"><Plug/>Integração ProJuris</Link></Button></div>{client?<ClientDetails key={client.id} client={client} refresh={refresh}/>:(data.entireOffice?<ProjurisClientes/>:<Empty text="A lista de clientes do ProJuris é exibida para a advogada sênior e a administração."/>)}<ClientForm open={form} setOpen={setForm} refresh={refresh}/></div>;
+  return <div className="mx-auto max-w-[1500px] p-4 md:p-8"><PageHeader title="Clientes"><Button variant="outline" onClick={()=>void refetch()} disabled={isFetching}><RefreshCw className={isFetching?'animate-spin':''}/>Atualizar</Button><Button onClick={()=>setForm(true)}><Plus/>Cadastrar cliente</Button></PageHeader><div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b pb-4"><p className="text-sm text-muted-foreground">{data.entireOffice?'Carteira ProJuris':'Meus clientes'}</p><Button asChild variant="outline" size="sm"><Link to="/integracoes"><Plug/>Integração ProJuris</Link></Button></div>{data.entireOffice&&<ProjurisSync/>}{client?<ClientDetails key={client.id} client={client} refresh={refresh}/>:(data.entireOffice?<ProjurisClientes/>:<Empty text="A lista de clientes do ProJuris é exibida para a advogada sênior e a administração."/>)}<ClientForm open={form} setOpen={setForm} refresh={refresh}/></div>;
 }
 function ClientDetails({client,refresh}:{client:ClientRecord;refresh:()=>Promise<void>}) {
  const [caseId,setCaseId]=useState(client.cases[0]?.id??''); const [note,setNote]=useState(''); const [busy,setBusy]=useState(false); const add=useServerFn(addClientHistory);const open=useServerFn(openClientDocument);const c=client.cases.find(k=>k.id===caseId);if(!c)return null;
