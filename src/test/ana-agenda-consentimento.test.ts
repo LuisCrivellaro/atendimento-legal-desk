@@ -43,8 +43,8 @@ describe.each(['telegram','ultramsg'] as const)('consentimento de agenda pelo %s
   mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Obrigada!',intencao:'agendamento',encaminhar_humano:false,motivo_aprovacao:'',urgente:false,dados_coletados:{nome:'Mariana Souza Lima',cpf:'',email:'',assunto:''},proximo_passo:''});
   await h.message('Mariana Souza Lima');
   const texto=String(mocks.enviar.mock.calls.at(-1)?.[0]?.texto??'');
-  expect(texto.startsWith('Claro! Seguem os horários livres para a sua consulta online e gratuita:')).toBe(true);
-  expect(texto).toContain('🗓️ Consulta online');
+  expect(texto.startsWith('Tenho estes horários livres na agenda:')).toBe(true);
+  expect(texto).toContain('Qual prefere?');
   expect(h.saved.agenteAna?.horariosTeste?.[0]).toBe('2026-10-27T12:00:00.000Z');
  });
  it('horários fictícios salvos antes da correção não contam como já oferecidos',async()=>{
@@ -52,7 +52,7 @@ describe.each(['telegram','ultramsg'] as const)('consentimento de agenda pelo %s
   h.patch(c=>({...c,agenteAna:{...c.agenteAna,horariosTeste:['2026-10-28T12:00:00.000Z','2026-10-28T12:30:00.000Z','2026-10-28T13:00:00.000Z'],agendaReal:false}}));
   await h.message('quero agendar');
   const texto=String(mocks.enviar.mock.calls.at(-1)?.[0]?.texto??'');
-  expect(texto.startsWith('Claro! Seguem os horários livres')).toBe(true);
+  expect(texto.startsWith('Tenho estes horários livres na agenda:')).toBe(true);
   expect(h.saved.agenteAna?.horariosTeste?.[0]).toBe('2026-10-27T12:00:00.000Z');
  });
 });

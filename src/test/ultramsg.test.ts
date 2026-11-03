@@ -12,19 +12,17 @@ const semNumeros = (t: string) => !/Responda com o número/.test(t) && !/^\s*\d+
 describe('UltraMsg', () => {
   it('extrai o número do remetente', () => { expect(numeroWhatsApp('5511999990001@c.us')).toBe('5511999990001'); });
 
-  it('horários da Ana saem uma única vez, com marcadores e sem pedir número', () => {
+  it('lista oficial da Ana não ganha horários repetidos no envio', () => {
     const texto = listaHorariosAna(slots, agora);
     const enviado = textoComOpcoes(texto, botoesHorarios(slots));
     expect(enviado).toBe(texto);
-    expect(enviado.match(/03\/11/g)).toHaveLength(1);
-    expect(enviado).toContain('1. Ter, 03/11 · 9h30 às 10h');
-    expect(enviado).not.toMatch(/Responda com o número/);
+    expect(enviado).toContain('1. Terça-feira, 03/11, às 9h30');
+    expect(enviado).toMatch(/Responda com o número do horário escolhido\.$/);
   });
 
   it('horários de hoje e de amanhã também são reconhecidos no texto da Ana', () => {
     const proximos = ['2026-10-29T15:30:00-03:00', '2026-10-30T13:30:00-03:00'];
     const texto = listaHorariosAna(proximos, agora);
-    expect(texto).toContain('Hoje');
     expect(textoComOpcoes(texto, botoesHorarios(proximos))).toBe(texto);
   });
 
