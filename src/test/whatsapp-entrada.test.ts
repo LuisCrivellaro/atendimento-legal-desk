@@ -60,6 +60,7 @@ describe('webhook do WhatsApp do escritório', () => {
 
   it('falha ao ler bloqueios não cria nem libera contatos ou aciona Ana', async () => {
     preparar();
+    mocks.dona.mockResolvedValue({ ownerId: 'dona' });
     mocks.erroContatos = true;
     const r = await enviar({ event_type: 'message_received', data: { id: 'falha', from: '5511942074361@c.us', body: 'oi' } });
     expect(r.status).toBe(503);
