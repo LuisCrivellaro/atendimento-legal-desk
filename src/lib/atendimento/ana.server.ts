@@ -77,13 +77,15 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
     const history=c.mensagens.filter(m=>m.canal===canal).slice(-24).map(m=>({de:m.de,texto:m.apagadaParaTodos?'[Mensagem apagada]':m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
-    const tipoCliente=c.tipoClienteAgenda??identificarTipoCliente(m.texto)??c.agenteAna?.tipoCliente??(c.etapa==='inicial'?'novo':undefined);
     const etiqueta=etiquetaConversa(c);
     const lista=await db.from('checklist_itens').select('nome,recebido').eq('caso_id',id).eq('owner_id',row.data.owner_id);
     if(lista.error)throw new Error('Checklist indisponível.');
     const email=c.email||c.agenteAna?.dados?.email||'';
     const { lerBase, identificarLocal } = await import('../projuris/base.server');
     const localIdentidade=await identificarLocal(db,row.data.owner_id,telefone);
+    // Vínculo ativo vem do cadastro (base local sincronizada), nunca do histórico da conversa.
+    const classificacao=classificarAgenda({persistida:c.tipoClienteAgenda,local:localIdentidade,autodeclaracao:identificarTipoCliente(m.texto),contexto:c.agenteAna?.tipoCliente,padraoLead:c.etapa==='inicial'});
+    const tipoCliente=classificacao.tipo;
     const clienteLocal=localIdentidade.tipo==='unico'?(await lerBase(db,row.data.owner_id)).base?.lista.find(p=>p.codigo===localIdentidade.pessoa.codigo):undefined;
     const gerada=await gerarRespostaAna(request,{checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:clienteLocal?{nome:clienteLocal.nome,telefone:clienteLocal.telefone,email:clienteLocal.email}:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
     const raw=priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada);
