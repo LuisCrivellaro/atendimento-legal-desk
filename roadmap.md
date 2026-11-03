@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Produção real da Ana — 03/11/2026
+- [ ] Auditar execução, UltraMsg/webhook, persistência, Claude/treinamento/contexto e Calendar; corrigir somente falhas necessárias.
+- [ ] Verificar controle humano por conversa, revalidação pré-envio, concorrência, duplicação e recuperação temporária.
+- [ ] Publicar e conferir configuração externa e evidências reais de WhatsApp.
+- [ ] Validar entrada/resposta, contexto/treinamento, assumir/reativar, histórico e duas conversas simultâneas; não declarar sucesso sem evidência externa.
+
 ## Ordenação e atualização das conversas — 03/11/2026
 - [x] Ordenação atômica no banco por última mensagem real; páginas de 500, filtros e conversa selecionada preservados.
 - [x] Prévia por remetente/mídia, leitura por timestamp observado e atualização Realtime owner-scoped sem mudança visual.
