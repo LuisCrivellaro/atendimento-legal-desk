@@ -6,7 +6,7 @@ import { newMessage, chosenSlot, formatarHorarioCliente } from '@/lib/atendiment
 import { escolherReservaAna, idReservaCalendar, intervaloLivre, type ReservaCalendar } from '@/lib/atendimento/calendar-booking';
 import { saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, type AnaResult } from '@/lib/atendimento/ana-rules';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from '@/lib/atendimento/ana-retomada';
-import { etiquetaConversa, identificarTipoCliente, classificarEntrada, telefoneAgenda, type TipoCliente } from '@/lib/atendimento/intake-rules';
+import { classificarAgenda, etiquetaConversa, identificarTipoCliente, classificarEntrada, telefoneAgenda, type TipoCliente } from '@/lib/atendimento/intake-rules';
 import { iniciarAtendimentoAutomatico } from '@/lib/atendimento/initial-attendance';
 import { horarioPermitido, DURACAO_REUNIAO } from '@/lib/atendimento/schedule-rules';
 import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } from '@/lib/atendimento/appointment-management';
@@ -205,7 +205,8 @@ export class SimuladorAna {
     if (mensagemSemResposta(m.texto, !!m.arquivo)) { turno.semResposta = 'Mensagem curta de confirmação ("ok", "obrigado"...): a Ana não responde.'; return; }
     try {
       const history = c.mensagens.filter(x => x.canal === canal).slice(-24).map(x => ({ de: x.de, texto: x.texto, arquivo: x.arquivo ?? '', autor: x.autor ?? '' }));
-      const tipoCliente = c.tipoClienteAgenda ?? identificarTipoCliente(m.texto) ?? c.agenteAna?.tipoCliente ?? (c.etapa === 'inicial' ? 'novo' : undefined);
+      // O simulador não acessa a base local; a produção classifica primeiro pelo cadastro ativo.
+      const tipoCliente = classificarAgenda({ persistida: c.tipoClienteAgenda, autodeclaracao: identificarTipoCliente(m.texto), contexto: c.agenteAna?.tipoCliente, padraoLead: c.etapa === 'inicial' }).tipo;
       const etiqueta = etiquetaConversa(c);
       const lista: { nome: string; recebido: boolean }[] = [];
       const email = c.email || c.agenteAna?.dados?.email || '';

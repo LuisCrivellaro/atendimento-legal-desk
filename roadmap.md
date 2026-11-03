@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Agendamento por tipo de cliente — 03/11/2026
+- [x] Classificação antes de oferecer horários: confirmação da equipe > cadastro ativo na base local (telefone principal) > autodeclaração > contexto > lead novo; novos seg–qui, ativos só sexta; telefone duplicado vai à equipe sem classificação própria; classificação confirmada pelo cadastro fica salva na conversa.
+- [x] Sete testes novos cobrem os seis cenários obrigatórios (dias por categoria, contato antigo sem vínculo, retorno identificado, duplicado, disponibilidade real); suíte completa: 573 aprovados.
+- [ ] Publicar e confirmar com mensagens reais de um lead novo e de um cliente ativo: depende de autorização de publicação e mensagens externas.
+
 ## Produção real da Ana — 03/11/2026
 - [x] Auditados execução, UltraMsg/webhook, persistência, Claude/treinamento/contexto e Calendar; UltraMsg authenticated/connected, endereço publicado e segredo corretos, received/create ativos; oito envios reais confirmados como sent no provedor.
 - [x] Controle humano por conversa, revisão pré-envio, CAS, deduplicação/reentrega e recuperação persistente de geração temporária; sem repetição automática de envios ou alterações de agenda incertos. Suíte final: 566 testes aprovados; compilação limpa. Assumir/pausar/reativar conferidos na conversa vazia de teste e devolvidos à Automática, sem envio externo.
