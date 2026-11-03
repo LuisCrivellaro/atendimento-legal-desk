@@ -92,6 +92,13 @@
       "when": 1793731790660,
       "tag": "0012_conversas_ultima_mensagem_realtime",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793736222292,
+      "tag": "0013_ana_monitoramento_consumo",
+      "breakpoints": true
     }
   ]
 }

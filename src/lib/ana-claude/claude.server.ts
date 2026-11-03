@@ -9,6 +9,8 @@ export interface ConfigClaude {
   maxTokens?: number;
   /** Para testes: substitui o fetch global. */
   fetch?: typeof fetch;
+  /** Limite de consumo: reserva antes de cada chamada e registra tokens depois. */
+  orcamento?: { reservar: () => Promise<boolean>; registrar: (entrada: number, saida: number) => Promise<void> };
 }
 
 type Bloco = { type: string; text?: string; id?: string; name?: string; input?: unknown; [k: string]: unknown };
@@ -31,6 +33,7 @@ export function claudeComoSample(cfg: ConfigClaude): SampleFn {
 
   async function chamar(corpo: Record<string, unknown>, signal?: AbortSignal): Promise<{ content: Bloco[]; stop_reason: string }> {
     let res: Response;
+    if (cfg.orcamento && !(await cfg.orcamento.reservar())) throw erro('limite_consumo', 'Limite diário de consumo de IA da Ana atingido; atendimento encaminhado à equipe.');
     try {
       res = await f('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -42,7 +45,11 @@ export function claudeComoSample(cfg: ConfigClaude): SampleFn {
       if ((e as Error).name === 'AbortError') throw erro('cancelled', 'Interrompido.');
       throw erro('server_unavailable', 'Não foi possível falar com a API do Claude.', true);
     }
-    if (res.ok) return (await res.json()) as { content: Bloco[]; stop_reason: string };
+    if (res.ok) {
+      const corpoRes = (await res.json()) as { content: Bloco[]; stop_reason: string; usage?: { input_tokens?: number; output_tokens?: number } };
+      await cfg.orcamento?.registrar(corpoRes.usage?.input_tokens ?? 0, corpoRes.usage?.output_tokens ?? 0).catch(() => {});
+      return corpoRes;
+    }
     // Nunca repassa o corpo do erro inteiro: pode trazer detalhes da conta.
     if (res.status === 401 || res.status === 403) throw erro('chave_invalida', 'A chave da API do Claude foi recusada. Confira ANTHROPIC_API_KEY.');
     if (res.status === 429) throw erro('rate_limited', 'Limite de uso da API do Claude atingido. Tente de novo em instantes.', true);

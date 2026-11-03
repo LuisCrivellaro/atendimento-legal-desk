@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      ana_consumo_ia: {
+        Row: {
+          atualizado_em: string
+          bloqueadas: number
+          chamadas: number
+          dia: string
+          tokens_entrada: number
+          tokens_saida: number
+        }
+        Insert: {
+          atualizado_em?: string
+          bloqueadas?: number
+          chamadas?: number
+          dia: string
+          tokens_entrada?: number
+          tokens_saida?: number
+        }
+        Update: {
+          atualizado_em?: string
+          bloqueadas?: number
+          chamadas?: number
+          dia?: string
+          tokens_entrada?: number
+          tokens_saida?: number
+        }
+        Relationships: []
+      }
+      ana_monitoramento: {
+        Row: {
+          estado: Json
+          id: string
+          verificado_em: string
+        }
+        Insert: {
+          estado?: Json
+          id: string
+          verificado_em?: string
+        }
+        Update: {
+          estado?: Json
+          id?: string
+          verificado_em?: string
+        }
+        Relationships: []
+      }
       atendimento_canal_config: {
         Row: {
           agente_ativo: boolean
@@ -430,6 +475,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ana_registrar_tokens: {
+        Args: { p_entrada: number; p_saida: number }
+        Returns: undefined
+      }
+      ana_reservar_chamada_ia: { Args: { p_limite: number }; Returns: boolean }
       approve_material: {
         Args: { p_case: string; p_kind: string }
         Returns: undefined
