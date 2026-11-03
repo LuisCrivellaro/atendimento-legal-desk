@@ -11,7 +11,8 @@ async function paginas(cliente: Pick<ClienteProjuris, 'chamar'>, processos: bool
   const todos = new Map<number, RegistroPJ>();
   for (let pagina = 0; pagina < 200; pagina++) {
     const raw = processos
-      ? await cliente.chamar('processo.consultaCompleta', { consulta: { pagina, 'quan-registros': 100 }, corpo: {} })
+      // Lotes pequenos: a consulta completa de processos fica lenta demais (>15 s) com 50–100 registros.
+      ? await cliente.chamar('processo.consultaCompleta', { consulta: { pagina, 'quan-registros': 20 }, corpo: {} })
       : await cliente.chamar('pessoa.consulta', { consulta: { pagina, 'quan-registros': 100 } });
     const chaves = processos ? CHAVES_PROCESSO : ['pessoaConsulta'];
     const lote = registros(raw, chaves);
