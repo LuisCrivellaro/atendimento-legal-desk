@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Apagar mensagens da Ana — 03/11/2026
+- [ ] Menu por mensagem com apagar interno e apagar para todos, confirmação e permissões verificadas.
+- [ ] Exclusão UltraMsg da mensagem verificada, sem cancelar agenda nem perder trilha de auditoria.
+- [ ] Testes e verificação na conversa sem apagar mensagens reais de clientes durante teste.
+
 ## Reinício de cinco testes e retomada — 03/11/2026
 - [x] Cinco registros reiniciados, liberados e automáticos; histórico anterior arquivado no registro; nenhum envio ou cancelamento externo.
 - [x] Saudação exata de retorno para identificados, preservar contexto e continuar pedido sem nome ou oferta automática.
