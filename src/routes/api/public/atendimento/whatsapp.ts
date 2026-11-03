@@ -211,11 +211,6 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           canal: 'ultramsg',
           idExterno: data.id,
         };
-        if ((tipo === 'imagem' || tipo === 'arquivo') && data.media) {
-          const salvo = await guardarMidia(supabaseAdmin, data.media, data.filename, tipo, caso.data as { id: string; owner_id: string; dados: unknown });
-          if (salvo) { nova.arquivo = salvo.nome; nova.path = salvo.path; nova.salvoStart = true; nova.tipo = salvo.imagem ? 'imagem' : 'documento'; nova.driveUrl = salvo.driveUrl; }
-          await auditar('anexoRecebido', salvo ? `Anexo WhatsApp guardado${salvo.driveUrl ? ' e copiado ao Google Drive' : ''}` : 'Anexo WhatsApp não pôde ser baixado', salvo ? 'sucesso' : 'erro');
-        }
         const { atualizarConversa, processarAna } = await import('@/lib/atendimento/ana.server');
         let inserida=false;
         try {
@@ -225,6 +220,12 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           return Response.json({ error: 'Falha ao registrar' }, { status: 500 });
         }
         if(!inserida)return Response.json({ok:true,repetido:true});
+        if ((tipo === 'imagem' || tipo === 'arquivo') && data.media) {
+          const salvo = await guardarMidia(supabaseAdmin, data.media, data.filename, tipo, caso.data as { id: string; owner_id: string; dados: unknown });
+          if (salvo) { nova.arquivo = salvo.nome; nova.path = salvo.path; nova.salvoStart = true; nova.tipo = salvo.imagem ? 'imagem' : 'documento'; nova.driveUrl = salvo.driveUrl; }
+          await auditar('anexoRecebido', salvo ? `Anexo WhatsApp guardado${salvo.driveUrl ? ' e copiado ao Google Drive' : ''}` : 'Anexo WhatsApp não pôde ser baixado', salvo ? 'sucesso' : 'erro');
+        }
+        if(nova.path)await atualizarConversa(supabaseAdmin,caso.data.id,c=>({...c,mensagens:c.mensagens.map(m=>m.id===nova.id?{...m,...nova}:m)}));
         await auditar('mensagemRecebida', `WhatsApp ← ${mascararContato(numero)} · ${tipo}`, 'sucesso');
         try {
           const { registrarEmailConversa } = await import('@/lib/atendimento/email.server');
