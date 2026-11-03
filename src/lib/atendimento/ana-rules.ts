@@ -121,7 +121,7 @@ export function apenasCumprimentoAna(texto:string):boolean {
  * Fica como agendamento para que a resposta com o nome dispare a consulta real da agenda.
  */
 export function saudacaoClienteNovo(r:AnaResult,_texto:string,o:{apresentado:boolean;tipoCliente?:TipoCliente | undefined;horarios?:string[];agendaReal?:boolean}):AnaResult {
-  if(o.apresentado||o.tipoCliente==='cadastrado'||r.acao!=='enviar'||r.encaminhar_humano)return r;
+  if(o.apresentado||o.tipoCliente==='cadastrado'||r.acao!=='enviar'||r.encaminhar_humano||r.urgente)return r;
   if(!o.agendaReal||!o.horarios?.length)return {...r,acao:'rascunho',mensagem:'',motivo_aprovacao:'Agenda sem disponibilidade verificada; nenhum horário oferecido.'};
   return {...r,mensagem:primeiraMensagemAna(o.horarios),intencao:'agendamento',proximo_passo:'Aguardar nome e escolha de um dos horários reais já oferecidos.'};
 }

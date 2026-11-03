@@ -1,9 +1,9 @@
 # Construção dos módulos Manager ADV
 
 ## Primeira mensagem com agenda — 03/11/2026
-- [ ] Consultar disponibilidade antes da saudação fixa; oferecer até 3 próximos horários numerados e salvar o contexto.
-- [ ] Armazenar nome sem repetir oferta; revalidar escolha antes de reservar e buscar novas opções se ocupado.
-- [ ] Executar testes afetados e conferir prévia sem enviar mensagens nem criar compromissos de teste.
+- [x] Consultar disponibilidade antes da saudação fixa; oferecer até 3 próximos horários numerados e salvar o contexto.
+- [x] Armazenar nome sem repetir oferta; revalidar escolha antes de reservar e buscar novas opções se ocupado.
+- [x] Testes afetados e simulador aprovados; prévia autenticada conferida sem mensagens ou eventos externos. Suíte completa: 530 aprovados.
 - [ ] Publicação e conversa real dependem de autorização e mensagem externa da Dra.
 
 ## Clientes CS.IA — 31/10/2026
