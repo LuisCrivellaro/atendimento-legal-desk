@@ -34,6 +34,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
         mensagens: [{ id: messageId, de: 'cliente', canal, texto, hora: '01:06' }],
       };
       if(cenario==='inicio'||cenario==='nome')delete saved.tipoClienteAgenda;
+      if(cenario==='nome'){saved.agenteAna={...saved.agenteAna,agendaReal:true,horariosTeste:[inicio],tipoCliente:'novo'};saved.mensagens.unshift({id:'primeira',de:'escritorio',canal,texto:'Olá,\n\nSeja bem vindo (a)😊\n\nHorários já oferecidos.\n\nQual o seu nome?',hora:'01:00'});}
       if(cenario==='aceite')saved.agenteAna={...saved.agenteAna,horarioPendente:inicio,horarioPendenteDesde:'2026-10-23T04:00:00Z'};
       if(cenario==='tarde')saved.mensagens.unshift({id:'lista',de:'escritorio',canal,texto:'🗓️ Horários livres:',hora:'01:00'});
       const config = { agente_ativo: true, canal_ativo: canal, modo_teste: true };
@@ -75,9 +76,9 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='perguntar'){expect(mocks.reservar).not.toHaveBeenCalled();expect(mocks.cancelar).not.toHaveBeenCalled();expect(saved.consultaAgendada).toBe(anterior.inicio);}
       if(cenario==='cancelar'){expect(mocks.cancelar).not.toHaveBeenCalled();expect(saved.consultaAgendada).toBe(anterior.inicio);expect(saved.agenteAna?.confirmacaoCancelamento?.eventoId).toBe(anterior.id);}
       if(cenario==='remarcar'){expect(mocks.remarcar).toHaveBeenCalledWith('caso-teste',anterior,inicio,true,expect.any(Date),{nome:'Maria Teste',telefone,tipo:'novo'});expect(saved.consultaAgendada).toBe(inicio);}
-      if(cenario==='ofertar'||cenario==='nome'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste).not.toContain(inicio);expect(saved.agenteAna?.horariosTeste).toHaveLength(3);expect(mocks.reservar).not.toHaveBeenCalled();}
-      if(cenario==='nome'){expect(saved.agenteAna?.dados?.nome).toBe('Maria Silva Souza');expect(saved.agenteAna?.agendaReal).toBe(true);expect(saved.agenteAna?.tipoCliente).toBe('novo');}
-      if(cenario==='inicio'){expect(saved.agenteAna?.apresentado).toBe(true);expect(saved.agenteAna?.resultado?.intencao).toBe('agendamento');expect(saved.agenteAna?.dados?.nome).toBe('');expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();}
+      if(cenario==='ofertar'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste).not.toContain(inicio);expect(saved.agenteAna?.horariosTeste).toHaveLength(3);expect(mocks.reservar).not.toHaveBeenCalled();}
+      if(cenario==='nome'){expect(mocks.ocupados).not.toHaveBeenCalled();expect(saved.agenteAna?.horariosTeste).toEqual([inicio]);expect(mocks.reservar).not.toHaveBeenCalled();expect(saved.agenteAna?.dados?.nome).toBe('Maria Silva Souza');expect(saved.agenteAna?.agendaReal).toBe(true);expect(saved.agenteAna?.tipoCliente).toBe('novo');}
+      if(cenario==='inicio'){expect(saved.agenteAna?.apresentado).toBe(true);expect(saved.agenteAna?.resultado?.intencao).toBe('agendamento');expect(saved.agenteAna?.dados?.nome).toBe('');expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste).toHaveLength(3);expect(mocks.ocupados.mock.invocationCallOrder[0]).toBeLessThan(mocks.enviar.mock.invocationCallOrder[0]??0);expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='recusa'||cenario==='humano'){expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();expect(saved.agenteAna?.resultado?.intencao).not.toBe('agendamento');}
       if(cenario==='especifico'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horarioPendente).toBe('2026-10-26T19:00:00.000Z');expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='aceite'||cenario==='numero'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBe(inicio);}
