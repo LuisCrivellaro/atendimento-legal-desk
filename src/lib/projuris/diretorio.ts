@@ -45,7 +45,7 @@ export function acaoDoProcesso(r: Obj): 'RT' | 'AC' | undefined {
   const valor = (v: unknown): string => typeof v === 'string' ? v : v && typeof v === 'object' ? valor((v as Obj)['valor'] ?? (v as Obj)['nome']) : '';
   const s = fold([r['area'], r['tipoJustica'], r['classeCnj'], r['assunto']].map(valor).join(' '));
   if (/trabalh|reclamacao trabalhista/.test(s)) return 'RT';
-  if (/\bcivel\b|\bcivil\b|acao de alimentos|alimentos|indenizacao|consumidor/.test(s)) return 'AC';
+  if (/\bcivel\b|\bcivil\b|acao de alimentos|alimentos|indeniza|consumidor/.test(s)) return 'AC';
   return undefined;
 }
 
