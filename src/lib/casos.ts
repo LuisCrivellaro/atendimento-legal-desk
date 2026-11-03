@@ -4,19 +4,23 @@ import type { Json } from "@/integrations/supabase/types";
 
 // Casos e checklist do usuário logado (RLS garante que cada um vê só os seus).
 export async function listarCasos(): Promise<Conversa[]> {
-  const [casos, itens] = await Promise.all([
-    supabase.from("casos").select("id, dados, etapa, nome").order("ordem"),
-    supabase.from("checklist_itens").select("id, caso_id, nome, recebido, ordem").order("ordem"),
-  ]);
-  if (casos.error) throw casos.error;
-  if (itens.error) throw itens.error;
-  return casos.data.map((c) => ({
+  const casos = []; const itens = [];
+  for (let offset = 0; ; offset += 500) {
+    const r = await supabase.from("casos").select("id,dados,etapa,nome,last_message_at").order('last_message_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).range(offset, offset + 499);
+    if (r.error) throw r.error; casos.push(...r.data); if (r.data.length < 500) break;
+  }
+  for (let offset = 0; ; offset += 500) {
+    const r = await supabase.from('checklist_itens').select('id,caso_id,nome,recebido,ordem').order('ordem').order('id').range(offset, offset + 499);
+    if (r.error) throw r.error; itens.push(...r.data); if (r.data.length < 500) break;
+  }
+  return casos.map((c) => ({
     ...(c.dados as unknown as Omit<Conversa, "id" | "documentos" | "naoLidas">),
     id: c.id,
     nome: c.nome,
     etapa: c.etapa as Conversa["etapa"],
+    lastMessageAt: c.last_message_at,
     naoLidas: 0,
-    documentos: itens.data.filter((i) => i.caso_id === c.id).map<DocItem>((i) => ({ id: i.id, nome: i.nome, recebido: i.recebido })),
+    documentos: itens.filter((i) => i.caso_id === c.id).map<DocItem>((i) => ({ id: i.id, nome: i.nome, recebido: i.recebido })),
   }));
 }
 
