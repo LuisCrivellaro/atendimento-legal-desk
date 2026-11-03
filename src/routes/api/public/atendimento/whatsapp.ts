@@ -1,3 +1,4 @@
+import { timestampWhatsApp } from '@/lib/atendimento/conversation-order';
 import { createFileRoute } from '@tanstack/react-router';
 import { timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
@@ -32,6 +33,7 @@ const Payload = z.object({
     media: z.string().max(2000).optional(),
     filename: z.string().max(300).optional(),
     fromMe: z.boolean().optional(),
+    timestamp: z.union([z.number(),z.string()]).optional(),
     pushname: z.string().max(200).optional(),
   }).passthrough(),
 }).passthrough();
@@ -75,7 +77,7 @@ const esperar = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * Mensagens do próprio sistema (Ana ou envio pelo Manager) também chegam aqui e são reconhecidas pelo texto;
  * como podem chegar antes de serem gravadas, a conferência é repetida uma vez após alguns segundos.
  */
-async function registrarRespostaManual(admin: Admin, contato: { conversa_id: string | null; contato_externo: string; status: string } | undefined, data: { id: string; body?: string; type?: string }, auditar: (acao: string, resumo: string, status: string) => unknown) {
+async function registrarRespostaManual(admin: Admin, contato: { conversa_id: string | null; contato_externo: string; status: string } | undefined, data: { id: string; body?: string; type?: string; timestamp?: string | number }, auditar: (acao: string, resumo: string, status: string) => unknown) {
   if (!contato || contato.status !== 'liberado' || !contato.conversa_id) return Response.json({ ok: true, ignorado: true });
   const conversaId = contato.conversa_id;
   const msgId = `ultramsg:${contato.contato_externo}:${data.id}`;
@@ -89,7 +91,7 @@ async function registrarRespostaManual(admin: Admin, contato: { conversa_id: str
   conversa = await ler();
   if (!conversa || sistema(conversa)) return Response.json({ ok: true, sistema: true });
   const { atualizarConversa } = await import('@/lib/atendimento/ana.server');
-  const agora = new Date();
+  const agora = new Date(timestampWhatsApp(data.timestamp));
   const aviso = 'Equipe respondeu pelo celular do escritório; Ana pausada nesta conversa. Use "Retomar Ana" para devolver.';
   await atualizarConversa(admin, conversaId, c => c.mensagens.some(m => m.id === msgId) ? c : {
     ...c,
@@ -196,11 +198,12 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         const escolhido = n ? ofertados[Number(n) - 1] : undefined;
         if (escolhido && Date.parse(escolhido) > Date.now()) texto = textoEscolhaHorario(escolhido);
 
-        const tipo = data.type === 'chat' ? 'texto' : data.type === 'ptt' || data.type === 'audio' ? 'audio' : data.type === 'image' ? 'imagem' : 'arquivo';
-        const agora = new Date();
+        const tipo = data.type === 'chat' ? 'texto' : data.type === 'ptt' || data.type === 'audio' ? 'audio' : data.type === 'image' ? 'imagem' : data.type === 'video' ? 'video' : 'arquivo';
+        const agora = new Date(timestampWhatsApp(data.timestamp));
         const nova: Mensagem = {
           id: `ultramsg:${contato.contato_externo}:${data.id}`,
           de: 'cliente',
+          tipo: tipo === 'arquivo' ? 'documento' : tipo,
           texto: tipo === 'texto' ? texto : data.body ?? '',
           arquivo: tipo === 'texto' ? undefined : `[${tipo} recebido pelo WhatsApp]`,
           hora: agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
@@ -214,12 +217,14 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           await auditar('anexoRecebido', salvo ? `Anexo WhatsApp guardado${salvo.driveUrl ? ' e copiado ao Google Drive' : ''}` : 'Anexo WhatsApp não pôde ser baixado', salvo ? 'sucesso' : 'erro');
         }
         const { atualizarConversa, processarAna } = await import('@/lib/atendimento/ana.server');
+        let inserida=false;
         try {
-          await atualizarConversa(supabaseAdmin, caso.data.id, c => c.mensagens.some(m => m.id === nova.id) ? c : classificarEntrada({ ...iniciarAtendimentoAutomatico(c), mensagens: [...c.mensagens, nova] }));
+          await atualizarConversa(supabaseAdmin, caso.data.id, c => {inserida=false;if(c.mensagens.some(m=>m.id===nova.id))return c;inserida=true;return classificarEntrada({...iniciarAtendimentoAutomatico(c),mensagens:[...c.mensagens,nova]});});
         } catch {
           await auditar('mensagemRecebida', 'Falha ao gravar mensagem WhatsApp', 'erro');
           return Response.json({ error: 'Falha ao registrar' }, { status: 500 });
         }
+        if(!inserida)return Response.json({ok:true,repetido:true});
         await auditar('mensagemRecebida', `WhatsApp ← ${mascararContato(numero)} · ${tipo}`, 'sucesso');
         try {
           const { registrarEmailConversa } = await import('@/lib/atendimento/email.server');
