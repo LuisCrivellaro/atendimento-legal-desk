@@ -5,6 +5,7 @@ import type { Conversa } from '@/lib/mock-data';
 import { newMessage, chosenSlot, formatarHorarioCliente } from '@/lib/atendimento';
 import { escolherReservaAna, idReservaCalendar, intervaloLivre, type ReservaCalendar } from '@/lib/atendimento/calendar-booking';
 import { saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, type AnaResult } from '@/lib/atendimento/ana-rules';
+import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from '@/lib/atendimento/ana-retomada';
 import { etiquetaConversa, identificarTipoCliente, classificarEntrada, telefoneAgenda, type TipoCliente } from '@/lib/atendimento/intake-rules';
 import { iniciarAtendimentoAutomatico } from '@/lib/atendimento/initial-attendance';
 import { horarioPermitido, DURACAO_REUNIAO } from '@/lib/atendimento/schedule-rules';
@@ -193,6 +194,7 @@ export class SimuladorAna {
     const c = this.conv;
     const state = { training: this.treino };
     const mode = c.modoIA ?? this.modoIA;
+    const retomada=retornoIdentificadoAna(c,messageId,canal);
     const m = c.mensagens.find(x => x.id === messageId);
     if (!m || m.iaProcessada) return;
     if (c.agenteAna?.humano || c.agenteAna?.pausa) { turno.semResposta = 'A conversa está com a equipe; a Ana fica em silêncio até ser devolvida.'; return; }
@@ -212,7 +214,8 @@ export class SimuladorAna {
       const g = await this.gerar(contexto, state.training.instrucoes, signal);
       turno.claude = JSON.parse(JSON.stringify(g.resultado)); turno.bruto = g.bruto; turno.modelo = g.modelo; turno.tier = g.tier;
       const gerada = g.resultado;
-      const raw = priorizarAgendamentoAna(gerada, m.texto, c.agenteAna?.resultado?.intencao === 'agendamento' && !c.consultaAgendada);
+      const raw = priorizarAgendamentoAna(gerada, m.texto, !retomada&&c.agenteAna?.resultado?.intencao === 'agendamento' && !c.consultaAgendada);
+      if(retomada){raw.dados_coletados.nome=c.agenteAna?.dados?.nome||c.nome;if(!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';}
       raw.dados_coletados.email = email;
       const consentCancel = c.agenteAna?.confirmacaoCancelamento;
       const pendenteCancel = !!consentCancel && consentCancel.eventoId === c.agenteAna?.reservaCalendar?.id && consentCancel.inicio === c.consultaAgendada && consentCancel.contato === telefone && Date.parse(consentCancel.expira) > Date.now();
@@ -221,7 +224,7 @@ export class SimuladorAna {
       const semConsulta = decisaoCancel === 'pedir' && !c.consultaAgendada;
       if (decisaoCancel && !pedidoHumano(m.texto)) { raw.intencao = 'agendamento'; raw.encaminhar_humano = false; }
       if (alteracao || c.agenteAna?.alteracaoConsulta === 'remarcar') raw.intencao = 'agendamento';
-      const primeiroContato = !c.agenteAna?.apresentado && tipoCliente === 'novo' && !c.consultaAgendada && !c.mensagens.some(x => x.canal === canal && x.de === 'escritorio') && mode === 'Automática' && !pedidoHumano(m.texto) && !raw.urgente;
+      const primeiroContato = !retomada&&!c.agenteAna?.dados?.nome?.trim()&&!c.agenteAna?.apresentado && tipoCliente === 'novo' && !c.consultaAgendada && !c.mensagens.some(x => x.canal === canal && x.de === 'escritorio') && mode === 'Automática' && !pedidoHumano(m.texto) && !raw.urgente;
       if(primeiroContato){raw.intencao='agendamento';raw.encaminhar_humano=false;}
       let bloqueada = !primeiroContato && bloqueiaAgenda(m.texto, raw.intencao) || pedidoHumano(m.texto);
       if (!bloqueada && (escolherHorarioAna(c.agenteAna?.horariosTeste ?? [], m.texto) ?? chosenSlot(c.agenteAna?.horariosTeste ?? [], m.texto))) raw.intencao = 'agendamento';
@@ -344,6 +347,7 @@ export class SimuladorAna {
         }
         if(!saudou)r.mensagem = limitarNomeAna(r.mensagem, nome, c.mensagens.filter(x => x.canal === canal && x.de === 'escritorio').slice(-2).map(x => x.texto));
         const novosOferecidos = !escolhido && !cancelar && !perguntar && !semConsulta && agendaReal && !agenda?.selected ? (horarioPendente ? [horarioPendente] : agenda?.slots ?? []) : [];
+        if(retomada&&!r.urgente)r.mensagem=mensagemRetornoAna(m.texto,r.mensagem);
         turno.enviada = r.mensagem;
         this.atualizar(cur => ({ ...cur, iaRetida: undefined, agenteAna: { ...cur.agenteAna, apresentado: true, ...(gerenciar && decisaoCancel === 'pedir' && cur.agenteAna?.reservaCalendar?.id === c.agenteAna?.reservaCalendar?.id && cur.agenteAna?.reservaCalendar ? { confirmacaoCancelamento: { eventoId: cur.agenteAna.reservaCalendar.id, inicio: cur.agenteAna.reservaCalendar.inicio, contato: telefone, expira: new Date(Date.now() + 30 * 60000).toISOString() } } : {}), ...(novosOferecidos.length ? { horariosApresentados: [...new Set([...(cur.agenteAna?.horariosApresentados ?? []), ...historicoHorarios, ...novosOferecidos])], listasHorarios: (cur.agenteAna?.listasHorarios ?? 0) + 1, pedidosOutrasOpcoes: pedidosOutras } : {}) }, mensagens: [...cur.mensagens, newMessage(r.mensagem, { autor: 'Ana · assistente virtual', canal, idExterno: `sim-${this.seq}`, respostaAnaDe: messageId, status: 'enviada' })] }));
       } else if (r.acao === 'rascunho') {
