@@ -85,6 +85,13 @@
       "when": 1793731707813,
       "tag": "0011_projuris_ficha_atomic",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793731790660,
+      "tag": "0012_conversas_ultima_mensagem_realtime",
+      "breakpoints": true
     }
   ]
 }

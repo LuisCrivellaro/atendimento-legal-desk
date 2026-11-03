@@ -117,6 +117,7 @@ export type Database = {
           dados: Json
           etapa: string
           id: string
+          last_message_at: string | null
           nome: string
           ordem: number
           owner_id: string
@@ -128,6 +129,7 @@ export type Database = {
           dados?: Json
           etapa?: string
           id?: string
+          last_message_at?: string | null
           nome: string
           ordem?: number
           owner_id: string
@@ -139,6 +141,7 @@ export type Database = {
           dados?: Json
           etapa?: string
           id?: string
+          last_message_at?: string | null
           nome?: string
           ordem?: number
           owner_id?: string
@@ -431,6 +434,8 @@ export type Database = {
         Args: { p_case: string; p_kind: string }
         Returns: undefined
       }
+      caso_timestamp_mensagem: { Args: { v: string }; Returns: string }
+      caso_ultima_mensagem: { Args: { d: Json }; Returns: string }
       destino_canal: {
         Args: { p_conversa: string }
         Returns: {

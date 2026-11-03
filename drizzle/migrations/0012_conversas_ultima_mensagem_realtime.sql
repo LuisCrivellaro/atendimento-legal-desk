@@ -1,0 +1,8 @@
+ALTER TABLE public.casos ADD COLUMN last_message_at timestamptz;
+CREATE FUNCTION public.caso_timestamp_mensagem(v text) RETURNS timestamptz LANGUAGE plpgsql IMMUTABLE SET search_path=public AS $$ BEGIN IF v IS NULL OR v !~ '^\d{4}-\d{2}-\d{2}T' THEN RETURN NULL; END IF; RETURN v::timestamptz; EXCEPTION WHEN OTHERS THEN RETURN NULL; END $$;
+CREATE FUNCTION public.caso_ultima_mensagem(d jsonb) RETURNS timestamptz LANGUAGE sql IMMUTABLE SET search_path=public AS $$ SELECT max(public.caso_timestamp_mensagem(m->>'dataHora')) FROM jsonb_array_elements(CASE WHEN jsonb_typeof(d->'mensagens')='array' THEN d->'mensagens' ELSE '[]'::jsonb END) m WHERE m->>'de' IN ('cliente','escritorio') AND coalesce(m->>'status','')<>'simulada' $$;
+CREATE FUNCTION public.caso_atualizar_ultima_mensagem() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$ BEGIN NEW.last_message_at=public.caso_ultima_mensagem(NEW.dados); RETURN NEW; END $$;
+CREATE TRIGGER caso_ultima_mensagem BEFORE INSERT OR UPDATE ON public.casos FOR EACH ROW EXECUTE FUNCTION public.caso_atualizar_ultima_mensagem();
+UPDATE public.casos SET last_message_at=public.caso_ultima_mensagem(dados);
+CREATE INDEX casos_ultima_mensagem ON public.casos(owner_id,last_message_at DESC NULLS LAST,id DESC);
+DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='casos') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.casos; END IF; END $$;
