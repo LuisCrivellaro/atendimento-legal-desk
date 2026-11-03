@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Download, FileText, Image as ImageIcon, Play } from 'lucide-react';
+import { Download, FileText, Image as ImageIcon, Play, MoreHorizontal, Trash2 } from 'lucide-react';
+import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from '@/components/ui/dropdown-menu';
+import {mensagemDoAgente,podeApagarParaTodos} from '@/lib/atendimento/apagar-mensagem';
 import { cn } from '@/lib/utils';
 import { agruparMensagens, horaMensagem, rotuloStatus } from '@/lib/atendimento';
 import { readFile } from '@/lib/office-store';
@@ -111,8 +113,8 @@ export function nomeEmissor(autor?: string) {
   if (!autor) return undefined;
   return /^(ana\b|ia\b)/i.test(autor.trim()) ? 'ANA' : autor;
 }
-export function ChatMessages({ c, arquivos = [] }: { c: Conversa; arquivos?: CaseFile[] | undefined }) {
-  const itens = agruparMensagens(c.mensagens);
+export function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete }: { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void }) {
+  const itens = agruparMensagens(c.mensagens.filter(m=>!userId||!m.ocultaPara?.includes(userId)));
   const porId = new Map(arquivos.map(a => [a.id, a]));
   return <div className="space-y-0.5">{itens.map(({ m, separador, inicio }) => {
     const sep = separador && <div className="flex justify-center py-2"><span className="zap-pill">{separador}</span></div>;
@@ -125,11 +127,13 @@ export function ChatMessages({ c, arquivos = [] }: { c: Conversa; arquivos?: Cas
     const meta = <span className="inline-flex items-center gap-1"><span>{horaMensagem(m)}</span>{status && <StatusTique status={status} />}</span>;
     const temMeta = !!(m.dataHora || m.hora || status);
     const emissor = out ? nomeEmissor(m.autor) : undefined;
+    if(m.apagadaParaTodos)return <div key={m.id}>{sep}<div data-message="true" className="flex justify-end py-2"><p className="zap-bubble zap-out px-3 py-2 text-sm italic text-muted-foreground">Mensagem apagada <span className="ml-2 text-2xs">{horaMensagem(m)}</span></p></div></div>;
     // Imagem sem legenda: horário vai por cima da foto, como no WhatsApp.
     const metaNaFoto = imagem && !m.texto && !!(m.path ?? arquivo?.path);
     return <div key={m.id}>{sep}<div data-message="true" className={cn('flex items-start gap-2', out ? 'justify-end' : 'justify-start', inicio ? 'pt-2' : 'pt-0.5')}>
       {!out && (inicio ? <ClienteAvatar nome={c.nome} className="mt-0.5" /> : <span className="w-8 shrink-0" aria-hidden="true" />)}
       <div className={cn('zap-bubble relative max-w-[78%] break-words text-sm leading-[1.45] lg:max-w-[65%]', imagem ? 'p-1' : 'px-2.5 pb-1.5 pt-1.5', out ? 'zap-out' : 'zap-in', inicio && 'zap-tail')}>
+        {onDelete&&mensagemDoAgente(m)&&<DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="float-right ml-2 size-6" aria-label="Opções da mensagem da Ana"><MoreHorizontal className="size-3.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={()=>onDelete(m,false)}><Trash2/>Apagar para mim</DropdownMenuItem>{canDeleteForEveryone&&<DropdownMenuItem disabled={!podeApagarParaTodos(m)} onSelect={()=>onDelete(m,true)}><Trash2/>Apagar para todos</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>}
         {emissor && <p className={cn('px-0.5 text-[13px] font-bold', emissor === 'ANA' ? 'text-primary' : 'text-foreground', imagem && 'px-1.5 pt-0.5')}>{emissor}</p>}
         {audio ? <Audio m={m} /> : imagem ? <Imagem m={m} arquivo={arquivo} meta={meta} /> : m.arquivo && <Documento m={m} arquivo={arquivo} />}
         {m.texto && <p className={cn('whitespace-pre-wrap px-0.5', m.arquivo && 'mt-1.5', imagem && 'px-1.5 pb-1')}>{m.texto}<span aria-hidden="true" className="invisible ml-3 inline-block text-2xs">{meta}</span></p>}
