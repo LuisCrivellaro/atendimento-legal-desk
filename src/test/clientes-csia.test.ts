@@ -16,10 +16,18 @@ describe('Clientes CS.IA', () => {
     expect(dataCadastro(Date.parse('2025-01-01T02:59:59Z'))).toBe('2024-12-31');
     expect(dataCadastro(Date.parse('2025-01-01T03:00:00Z'))).toBe('2025-01-01');
   });
-  it('nomenclatura usa ID da pessoa com RT e AC ou RT/AC', () => {
-    expect(nomeClienteProjuris(114, 'Elivania Souza', ['RT'])).toBe('RT 114 - Elivania Souza');
-    expect(nomeClienteProjuris(230, 'Simone Aparecida Souza', ['AC'])).toBe('AC 230 - Simone Aparecida Souza');
-    expect(nomeClienteProjuris(114, 'Elivania Souza', ['AC', 'RT', 'RT'])).toBe('RT/AC 114 - Elivania Souza');
+  it('nomenclatura usa o número identificador do processo com RT ou AC', () => {
+    const rt = (id: string) => ({ identificador: id, assunto: 'Reclamação Trabalhista', codigoProcesso: 999 });
+    const ac = (id: string) => ({ identificador: id, assunto: 'Indenizatória', codigoProcesso: 888 });
+    expect(nomeClienteProjuris('Luis Filipe', [rt('PRO.0000034')]).nome).toBe('RT - 00034 - LUIS FILIPE');
+    expect(nomeClienteProjuris('Simone Aparecida Souza', [ac('PRO.0000230')]).nome).toBe('AC - 00230 - SIMONE APARECIDA SOUZA');
+    expect(nomeClienteProjuris('Elivania Souza', [rt('PRO.0000114'), ac('PRO.0000150')]).nome).toBe('RT - 00114 / AC - 00150 - ELIVANIA SOUZA');
+  });
+  it('nunca usa o ID interno do ProJuris e sinaliza número faltando', () => {
+    const r = nomeClienteProjuris('Ana Lima', [{ assunto: 'Reclamação Trabalhista', codigoProcesso: 12345 }]);
+    expect(r.nome).toBe('ANA LIMA');
+    expect(r.pendencia).toMatch(/número identificador/);
+    expect(r.nome).not.toContain('12345');
   });
   it('classificação não transforma justiça estadual desconhecida em AC', () => {
     expect(acaoDoProcesso({ tipoJustica: { valor: 'Justiça do Trabalho' } })).toBe('RT');
@@ -35,10 +43,10 @@ describe('Clientes CS.IA', () => {
   });
   it('importa só coorte com processo ativo e flagCliente; relaciona por ID e guarda outros processos', async () => {
     const pessoas = [1, 2, 3, 4, 5].map(codigoPessoa => ({ codigoPessoa, nome: 'Mesmo nome', dtInclusao: codigoPessoa === 2 ? '2024-12-31' : '2025-01-01' }));
-    const processo = (id: number, pessoa: number, ativo: boolean, cliente: boolean, area = 'Trabalhista') => ({ codigoProcesso: id, area: { valor: area }, situacaoProcesso: { chave: ativo ? 7 : 9 }, processoEnvolvidoSimplificadoWs: [{ codigoPessoaEnvolvido: pessoa, flagCliente: cliente }] });
+    const processo = (id: number, pessoa: number, ativo: boolean, cliente: boolean, area = 'Trabalhista') => ({ codigoProcesso: id, identificador: `PRO.${String(id).padStart(7, '0')}`, area: { valor: area }, situacaoProcesso: { chave: ativo ? 7 : 9 }, processoEnvolvidoSimplificadoWs: [{ codigoPessoaEnvolvido: pessoa, flagCliente: cliente }] });
     const chamar = (async (id: string) => id === 'tipo.consulta' ? [{ chave: 7, valor: 'Ativo' }] : id === 'pessoa.consulta' ? { totalRegistros: 5, pessoaConsulta: pessoas } : { totalRegistros: 6, processoDadosComunsType: [processo(91, 1, true, true), processo(92, 1, true, true, 'Cível'), processo(93, 1, false, true), processo(94, 2, true, true), processo(95, 3, false, true), processo(96, 4, true, false)] }) as ClienteProjuris['chamar'];
     const c = await carregarCarteira({ chamar });
-    expect(c.lista.map(p => [p.codigo, p.nomeExibicao, p.processosAtivos])).toEqual([[1, 'RT/AC 1 - Mesmo nome', 2]]);
+    expect(c.lista.map(p => [p.codigo, p.nomeExibicao, p.processosAtivos])).toEqual([[1, 'RT - 00091 / AC - 00092 - MESMO NOME', 2]]);
     expect(c.porPessoa.get(1)?.length).toBe(3);
   });
   it('preserva os demais campos no PUT cadastral e nos contatos', () => {

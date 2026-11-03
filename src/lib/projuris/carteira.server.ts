@@ -47,10 +47,10 @@ export async function carregarCarteira(cliente: Pick<ClienteProjuris, 'chamar'> 
     if (!c) continue;
     const ativos = (porPessoa.get(c.codigo) ?? []).filter(p => processoDe(p)?.codigoSituacao === ativo);
     const acoes = [...new Set(ativos.map(acaoDoProcesso).filter((a): a is 'RT' | 'AC' => !!a))];
-    const nomeExibicao = nomeClienteProjuris(c.codigo, c.nome, acoes);
+    const { nome: nomeExibicao, pendencia: nomePendencia } = nomeClienteProjuris(c.nome, ativos);
     if (ativos.length) nomes.set(c.codigo, nomeExibicao);
     if (!c.incluidoEm) { semData++; continue; }
-    if (pertenceCoorte(c) && ativos.length) lista.push({ ...c, nomeExibicao, acoes: acoes.join('/'), processosAtivos: ativos.length });
+    if (pertenceCoorte(c) && ativos.length) lista.push({ ...c, nomeExibicao, acoes: acoes.join('/'), processosAtivos: ativos.length, ...(nomePendencia ? { nomePendencia } : {}) });
   }
   return { lista, porPessoa, nomes, semData, totalPessoas: pessoas.length, em: Date.now() };
 }

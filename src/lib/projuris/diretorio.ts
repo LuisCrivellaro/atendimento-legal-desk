@@ -17,6 +17,8 @@ export interface ClienteProjurisDiretorio {
   incluidoEm: string | null;
   nomeExibicao?: string;
   acoes?: string;
+  /** Motivo de nome incompleto (processo sem número identificador ou sem tipo RT/AC). */
+  nomePendencia?: string;
   processosAtivos?: number;
 }
 
@@ -43,14 +45,37 @@ export function acaoDoProcesso(r: Obj): 'RT' | 'AC' | undefined {
   const valor = (v: unknown): string => typeof v === 'string' ? v : v && typeof v === 'object' ? valor((v as Obj)['valor'] ?? (v as Obj)['nome']) : '';
   const s = fold([r['area'], r['tipoJustica'], r['classeCnj'], r['assunto']].map(valor).join(' '));
   if (/trabalh|reclamacao trabalhista/.test(s)) return 'RT';
-  if (/\bcivel\b|\bcivil\b|acao de alimentos|alimentos|indenizacao|consumidor/.test(s)) return 'AC';
+  if (/\bcivel\b|\bcivil\b|acao de alimentos|alimentos|indeniza|consumidor/.test(s)) return 'AC';
   return undefined;
 }
 
-export function nomeClienteProjuris(codigo: number, nome: string, acoes: Iterable<string>): string {
-  const set = new Set(acoes);
-  const prefixo = ['RT', 'AC'].filter(a => set.has(a)).join('/');
-  return `${prefixo ? `${prefixo} ` : ''}${codigo} - ${nome.trim()}`;
+/**
+ * Número identificador do processo (campo `identificador`, ex.: "PRO.0000149") com 5 dígitos: "00149".
+ * Nunca usa codigoProcesso/codigoPessoa. Sem número válido devolve undefined.
+ */
+export function numeroIdentificadorProcesso(r: Obj): string | undefined {
+  const id = typeof r['identificador'] === 'string' ? r['identificador'].trim() : '';
+  const m = /^(?:[A-Za-z]+\.)?(\d{1,12})$/.exec(id);
+  if (!m?.[1]) return undefined;
+  const d = m[1];
+  if (d.length <= 5) return d.padStart(5, '0');
+  return /^0+$/.test(d.slice(0, d.length - 5)) ? d.slice(-5) : d;
+}
+
+/** "RT - 00034 - NOME COMPLETO"; vários processos: "RT - 00149 / AC - 00150 - NOME". Partes sem número ou tipo não entram. */
+export function nomeClienteProjuris(nome: string, processosAtivos: Obj[]): { nome: string; pendencia?: string } {
+  const nomeMaiusculo = nome.trim().replace(/\s+/g, ' ').toLocaleUpperCase('pt-BR');
+  const partes: string[] = [];
+  let semNumero = 0, semTipo = 0;
+  for (const p of [...processosAtivos].sort((a, b) => String(a['identificador'] ?? '').localeCompare(String(b['identificador'] ?? '')))) {
+    const acao = acaoDoProcesso(p), numero = numeroIdentificadorProcesso(p);
+    if (!numero) { semNumero++; continue; }
+    if (!acao) { semTipo++; continue; }
+    const parte = `${acao} - ${numero}`;
+    if (!partes.includes(parte)) partes.push(parte);
+  }
+  const pend = [semNumero ? `${semNumero} processo(s) sem número identificador` : '', semTipo ? `${semTipo} processo(s) sem tipo RT/AC` : ''].filter(Boolean).join(' · ');
+  return { nome: partes.length ? `${partes.join(' / ')} - ${nomeMaiusculo}` : nomeMaiusculo, ...(pend || !partes.length ? { pendencia: pend || 'Falta o número identificador do processo' } : {}) };
 }
 
 export function clienteDiretorioDe(r: Obj): ClienteProjurisDiretorio | undefined {
