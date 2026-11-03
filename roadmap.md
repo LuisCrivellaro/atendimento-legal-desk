@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Reinício de cinco testes e retomada — 03/11/2026
+- [x] Cinco registros reiniciados, liberados e automáticos; histórico anterior arquivado no registro; nenhum envio ou cancelamento externo.
+- [x] Saudação exata de retorno para identificados, preservar contexto e continuar pedido sem nome ou oferta automática.
+- [x] 537 testes e simulador aprovados; cinco reinícios conferidos nos registros e conversa sem mensagens na prévia autenticada.
+- [ ] Publicar nova regra e confirmar WhatsApp real: dependem de autorização para publicação e mensagem externa.
+
 ## Primeira mensagem com agenda — 03/11/2026
 - [x] Consultar disponibilidade antes da saudação fixa; oferecer até 3 próximos horários numerados e salvar o contexto.
 - [x] Armazenar nome sem repetir oferta; revalidar escolha antes de reservar e buscar novas opções se ocupado.

@@ -4,6 +4,7 @@ import type { Database } from '@/integrations/supabase/types';
 import { processarAna } from '@/lib/atendimento/ana.server';
 import { conversas, type Conversa } from '@/lib/mock-data';
 import { defaultState } from '@/lib/office';
+import { SAUDACAO_RETORNO_ANA } from '@/lib/atendimento/ana-retomada';
 const mocks=vi.hoisted(()=>({gerar:vi.fn(),cancelar:vi.fn(),remarcar:vi.fn(),reservar:vi.fn(),ocupados:vi.fn(),enviar:vi.fn()}));
 vi.mock('@/lib/atendimento/ana.functions',()=>({gerarRespostaAna:mocks.gerar}));
 vi.mock('@/lib/atendimento/google-calendar.server',()=>({cancelarGoogleCalendar:mocks.cancelar,remarcarGoogleCalendar:mocks.remarcar,reservarGoogleCalendar:mocks.reservar,ocupadosGoogleCalendar:mocks.ocupados}));
@@ -22,7 +23,7 @@ function setup(canal:'telegram'|'ultramsg',marcada=true){
  mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Vou conferir.',intencao:'agendamento',encaminhar_humano:false,motivo_aprovacao:'',urgente:false,dados_coletados:{nome:'',cpf:'',email:'',assunto:''},proximo_passo:''});
  mocks.ocupados.mockResolvedValue([]);mocks.cancelar.mockResolvedValue('cancelado');mocks.enviar.mockResolvedValue({simulado:false,idExterno:'envio'});
  let n=0;
- return {get saved(){return saved;},reserva,audit,patch(fn:(c:Conversa)=>Conversa){saved=fn(saved);},async message(texto:string){const messageId=`${canal}:${contato}:${++n}`;saved={...saved,mensagens:[...saved.mensagens,{id:messageId,de:'cliente',canal,texto,hora:'08:00'}]};await processarAna(db as unknown as SupabaseClient<Database>,fixture.id,messageId,new Request('http://localhost:8080'));}};
+ return {get saved(){return saved;},reserva,audit,patch(fn:(c:Conversa)=>Conversa){saved=fn(saved);},async message(texto:string){const messageId=`${canal}:${contato}:${++n}`;saved={...saved,mensagens:[...saved.mensagens,{id:messageId,de:'cliente',canal,texto,hora:'08:00',dataHora:new Date().toISOString()}]};await processarAna(db as unknown as SupabaseClient<Database>,fixture.id,messageId,new Request('http://localhost:8080'));}};
 }
 describe.each(['telegram','ultramsg'] as const)('consentimento de agenda pelo %s',canal=>{
  it('pedido e sim cancelam apenas o recibo desta conversa e limpam consulta com auditoria',async()=>{const h=setup(canal);await h.message('quero cancelar');expect(mocks.cancelar).not.toHaveBeenCalled();expect(h.saved.agenteAna?.confirmacaoCancelamento?.eventoId).toBe(h.reserva.id);await h.message('sim');expect(mocks.cancelar).toHaveBeenCalledWith(h.saved.id,h.reserva,true);expect(h.saved.consultaAgendada).toBeUndefined();expect(h.saved.agenteAna?.reservaCalendar).toBeUndefined();expect(h.saved.agenteAna?.confirmacaoCancelamento).toBeUndefined();expect(h.saved.timeline).toHaveLength(1);expect(h.audit).toHaveBeenCalledWith('registrar_audit_log',expect.objectContaining({p_acao:'cancelarCalendar',p_status:'sucesso'}));});
@@ -89,5 +90,29 @@ describe('Primeiro contato completo',()=>{
   expect(mocks.reservar).toHaveBeenCalledOnce();expect(h.saved.consultaAgendada).toBeUndefined();
   expect(h.saved.agenteAna?.horariosTeste?.every(s=>!offered.includes(s))).toBe(true);
   expect(h.saved.agenteAna?.humano).toBe(false);
+ });
+});
+
+describe('retomada de identificados',()=>{
+ it('outro dia preserva nome, mensagens e consulta, sem consultar ou oferecer agenda',async()=>{
+  const h=setup('ultramsg');
+  h.patch(c=>({...c,mensagens:[{id:'old',de:'escritorio',canal:'ultramsg',hora:'08:00',dataHora:'2026-10-26T11:00:00Z',texto:'Consulta confirmada.'}]}));
+  await h.message('bom dia');
+  expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();
+  expect(h.saved.agenteAna?.dados?.nome).toBe('Maria Silva');expect(h.saved.consultaAgendada).toBe(h.reserva.inicio);
+  expect(h.saved.mensagens.map(m=>m.id)).toContain('old');expect(h.saved.mensagens.at(-1)?.texto).toBe(SAUDACAO_RETORNO_ANA);
+  await h.message('oi');expect(h.saved.mensagens.filter(m=>m.texto===SAUDACAO_RETORNO_ANA)).toHaveLength(1);
+ });
+ it('pedido de cancelamento no retorno mantém pergunta e exige confirmação posterior',async()=>{
+  const h=setup('ultramsg');h.patch(c=>({...c,mensagens:[{id:'old',de:'escritorio',canal:'ultramsg',hora:'08:00',dataHora:'2026-10-26T11:00:00Z',texto:'Consulta confirmada.'}]}));
+  await h.message('quero cancelar');expect(mocks.cancelar).not.toHaveBeenCalled();
+  expect(h.saved.agenteAna?.confirmacaoCancelamento?.eventoId).toBe(h.reserva.id);
+  expect(h.saved.mensagens.at(-1)?.texto.startsWith(SAUDACAO_RETORNO_ANA+'\n\n')).toBe(true);
+  await h.message('sim');expect(mocks.cancelar).toHaveBeenCalledOnce();
+ });
+ it('modo sugerir e pausa humana não enviam saudação',async()=>{
+  const h=setup('ultramsg');h.patch(c=>({...c,modoIA:'Sugerir',mensagens:[{id:'old',de:'escritorio',canal:'ultramsg',hora:'08:00',dataHora:'2026-10-26T11:00:00Z',texto:'Anterior'}]}));
+  await h.message('oi');expect(mocks.enviar).not.toHaveBeenCalled();
+  h.patch(c=>({...c,modoIA:'Automática',agenteAna:{...c.agenteAna,humano:true}}));await h.message('oi');expect(mocks.enviar).not.toHaveBeenCalled();
  });
 });

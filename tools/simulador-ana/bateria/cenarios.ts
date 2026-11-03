@@ -4,6 +4,7 @@
 import type { AnaResult } from '@/lib/atendimento/ana-rules';
 import { TEXTOS_CONSULTA, mensagemNaoCliente, type PedidoProcesso } from '@/lib/atendimento/consulta-processo';
 import { SAUDACAO_CLIENTE_NOVO } from '@/lib/atendimento/ana-rules';
+import { SAUDACAO_RETORNO_ANA } from '@/lib/atendimento/ana-retomada';
 import { TELEFONES_FICTICIOS as T, type FalhaFicticia, type ProjurisFicticio } from '@/lib/projuris/ficticio';
 import type { OrigemRevisora } from '../engine';
 import type { Categoria, Execucao, Verificacao } from './avaliacao';
@@ -263,6 +264,11 @@ export const CENARIOS: Cenario[] = [
     verificacoes: [anaNaoDiz(/Como podemos te ajudar\?$/, 'Não pergunta como pode ajudar quando o pedido já veio', 'prompt')],
   },
   // ---------- E. Falhas técnicas ----------
+  {
+    id:'D29c',bloco:'D',titulo:'Nome identificado retorna outro dia sem nova oferta',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
+    passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'Mariana Souza Lima',intencao:'agendamento'},{avancarMin:1440,cliente:'bom dia',intencao:'duvida_geral'}],esperado:'Saudação de retorno sem nome ou horários',permitidas:['retomar contexto'],proibidas:['nova lista automática','pedir nome conhecido'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Preservar nome e oferta anterior.',
+    verificacoes:[v('retorno-sem-oferta','Não renova oferta no retorno','regra',true,e=>anaDe(e).at(-1)===SAUDACAO_RETORNO_ANA?true:'Retorno não corresponde ao fluxo.')],
+  },
   ...([['E31a', 'ProJuris responde 403 (sem permissão)', { tipo: 'sem_permissao', status: 403 }], ['E31b', 'ProJuris responde 429 (limite)', { tipo: 'limite', status: 429 }],
     ['E31c', 'ProJuris não responde a tempo', { tipo: 'tempo' }], ['E31d', 'ProJuris fora do ar', { tipo: 'indisponivel', status: 503 }]] as const).map(([id, titulo, falha]): Cenario => ({
     id, bloco: 'E', titulo, conversas: { A: marina }, projuris: 'Falha simulada em todas as chamadas', falha, relogio: QUI_10H, passos: [{ cliente: 'como está meu processo?', intencao: 'consulta_processo' }],

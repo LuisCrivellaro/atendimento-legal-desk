@@ -24,6 +24,7 @@
 - Connection probes are senior/admin-only and read-only, never activate workflows. Why: no silent legal-data or financial actions.
 - Visual Law preview and DOCX share explicit block classification and document-layout roles; why: preserves source text and consistent formatting without importing area-specific legal claims.
 - Attendance and assessor rules are pure modules with tests; optional attendance fields stay in case JSON and automation settings stay at workspace root, without schema changes; why: preserves existing storage and legal gates.
+- Identified-client returns use the shared pure `ana-retomada` policy in server and simulator; same-day inactivity and São Paulo calendar-day boundaries suppress automatic reoffers while existing send guards and receipts persist the greeting with continuation. Why: retain identity, context and replay protection without changing legal gates.
 - Originals share server analysis; matched address receipt can retain review caveats. Saves use their original baseline and reload real rows; approved changes need confirmation. Why: prevent stale UI writes undoing receipts.
 - Drive uploads resolve Start; shared analysis creates append-only named PDF copies with type/description receipts and hash-based retry lookup. Originals stay unchanged. Why: organize evidence without implying legal approval.
 - Ana reads real checklist/training server-side; email intake uses owner-scoped validated client text, case email and checklist writes with approval checks. Why: no invented receipts or model-owned contact data.
