@@ -27,3 +27,12 @@ export const sincronizarProjurisManual = createServerFn({ method: 'POST' }).midd
     const b = await sincronizarBase(supabaseAdmin, context.userId);
     return { ok: true as const, novas: b.lista.length, total: b.lista.length };
   });
+
+export const historicoAndamentosProjuris = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ codigo: z.number().int().positive() })).handler(async ({ context, data }) => {
+    const roles = await context.supabase.from('user_roles').select('role').eq('user_id', context.userId);
+    if (roles.error || !roles.data.some(r => r.role === 'admin' || r.role === 'advogada_senior')) throw new Error('Histórico restrito.');
+    const r = await context.supabase.from('projuris_movimento_versoes').select('id,dados,identificado_em,origem').eq('owner_id', context.userId).eq('codigo_processo', data.codigo).order('identificado_em', { ascending: false }).limit(500);
+    if (r.error) throw new Error('Histórico indisponível.');
+    return r.data;
+  });
