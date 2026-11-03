@@ -1,12 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/integrations/supabase/types';
-import { baseDe, processosDaBase, type BaseProjuris } from './base';
+import { baseDe, identificarNaBase, processosDaBase, type BaseProjuris } from './base';
 import { carregarCarteira } from './carteira.server';
 import { projuris, ErroProjuris, type ClienteProjuris } from './cliente.server';
 import { andamentoDe, processoDe, registros, totalRegistros } from './mapeamento';
 import { revisaoCadastro } from './cadastro.server';
 import { cadastroVisivel } from './cadastro';
-import { identificarPorTelefone, type Identificacao } from './identificacao';
+import type { Identificacao } from './identificacao';
 import { ultimosAndamentosPublicos, type AndamentoPJ } from './processos';
 type Db = SupabaseClient<Database>;
 const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Json;
@@ -22,10 +22,11 @@ export async function sincronizarBase(db: Db, owner: string) {
   const claim = await db.rpc('projuris_claim', { p_owner: owner, p_codigo: 0, p_token: token });
   if (claim.error || !claim.data) throw new Error('Outra sincronização cadastral está em andamento.');
   try {
+    const anterior = await lerBase(db, owner);
     const c = await carregarCarteira();
     const elegiveis = new Set(c.lista.map(p => p.codigo));
     const ativo = await import('./consultas.server').then(m => m.criarConsultasProjuris().codigoSituacaoAtivo());
-    const base: BaseProjuris = { lista: c.lista, processos: Object.fromEntries([...c.porPessoa].filter(([id]) => elegiveis.has(id)).map(([id, ps]) => [String(id), ps.filter(p => processoDe(p)?.codigoSituacao === ativo)])), nomes: Object.fromEntries(c.nomes), semData: c.semData, em: new Date().toISOString() };
+    const base: BaseProjuris = { lista: c.lista, processos: Object.fromEntries([...c.porPessoa].filter(([id]) => elegiveis.has(id)).map(([id, ps]) => [String(id), ps.filter(p => processoDe(p)?.codigoSituacao === ativo)])), nomes: Object.fromEntries([...c.nomes].filter(([id]) => elegiveis.has(id))), semData: c.semData, em: new Date().toISOString(), fichas: anterior.base?.fichas ?? {}, revisoes: anterior.base?.revisoes ?? {} };
     const r = await db.from('projuris_base').update({ carteira: json(base), sincronizado_em: base.em, erro: null, lease_token: null, lease_ate: null }).eq('owner_id', owner).eq('lease_token', token).select('owner_id');
     if (r.error || !r.data?.length) throw new Error('Sincronização não persistida.');
     await db.rpc('registrar_audit_log', { p_ator: owner, p_perfil: 'sistema', p_acao: 'projuris_base_sincronizada', p_resumo: `${base.lista.length} cadastros sincronizados`, p_status: 'sucesso' });
@@ -80,7 +81,7 @@ export async function sincronizarProcesso(db: Db, owner: string, codigo: number)
 }
 export async function identificarLocal(db: Db, owner: string, telefone: string): Promise<Identificacao> {
   const { base } = await lerBase(db, owner);
-  return identificarPorTelefone(telefone, (base?.lista ?? []).map(p => ({ codigo: p.codigo, nome: p.nome, telefones: p.telefone ? [{ numero: p.telefone, principal: true }] : [] })));
+  return identificarNaBase(base, telefone);
 }
 export async function portasLocais(db: Db, owner: string) {
   const { base } = await lerBase(db, owner);

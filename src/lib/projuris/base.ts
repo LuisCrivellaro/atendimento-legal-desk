@@ -1,5 +1,6 @@
 import type { ClienteProjurisDiretorio } from './diretorio';
 import type { ProcessoPJ, AndamentoLegivel } from './processos';
+import { identificarPorTelefone } from './identificacao';
 
 export interface BaseProjuris {
   lista: ClienteProjurisDiretorio[];
@@ -7,6 +8,8 @@ export interface BaseProjuris {
   nomes: Record<string, string>;
   semData: number;
   em: string;
+  fichas?: Record<string, unknown>;
+  revisoes?: Record<string, string>;
 }
 export function baseDe(v: unknown): BaseProjuris | undefined {
   if (!v || typeof v !== 'object') return undefined;
@@ -15,6 +18,9 @@ export function baseDe(v: unknown): BaseProjuris | undefined {
 }
 export function processosDaBase(b: BaseProjuris): Record<string, unknown>[] {
   return [...new Map(Object.values(b.processos).flat().map(p => [Number(p['codigoProcesso']), p])).values()];
+}
+export function identificarNaBase(b: BaseProjuris | undefined, telefone: string) {
+  return identificarPorTelefone(telefone, (b?.lista ?? []).map(p => ({ codigo: p.codigo, nome: p.nome, telefones: p.telefone ? [{ numero: p.telefone, principal: true }] : [] })));
 }
 export function dadosDesatualizados(em: string | null | undefined, agora = Date.now()) {
   return !em || !Number.isFinite(Date.parse(em)) || agora - Date.parse(em) > 15 * 60000;

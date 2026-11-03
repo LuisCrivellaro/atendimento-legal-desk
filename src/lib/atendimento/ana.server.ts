@@ -77,6 +77,9 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const lista=await db.from('checklist_itens').select('nome,recebido').eq('caso_id',id).eq('owner_id',row.data.owner_id);
     if(lista.error)throw new Error('Checklist indisponível.');
     const email=c.email||c.agenteAna?.dados?.email||'';
+    const { lerBase, identificarLocal } = await import('../projuris/base.server');
+    const localIdentidade=await identificarLocal(db,row.data.owner_id,telefone);
+    const clienteLocal=localIdentidade.tipo==='unico'?(await lerBase(db,row.data.owner_id)).base?.lista.find(p=>p.codigo===localIdentidade.pessoa.codigo):undefined;
     const gerada=await gerarRespostaAna(request,{checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
     const raw=priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada);
     if(retomada){
