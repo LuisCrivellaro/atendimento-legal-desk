@@ -1,15 +1,19 @@
 # Construção dos módulos Manager ADV
 
 ## Ordenação e atualização das conversas — 03/11/2026
-- [ ] Ordenar no banco por última mensagem real, após filtros, preservar paginação e conversa aberta.
-- [ ] Prévia e não lidas por mensagem real, atualização em tempo real sem alterar design.
-- [ ] Testar envios cliente/equipe/Ana, duplicação, abas, filtros e estabilidade.
+- [x] Ordenação atômica no banco por última mensagem real; páginas de 500, filtros e conversa selecionada preservados.
+- [x] Prévia por remetente/mídia, leitura por timestamp observado e atualização Realtime owner-scoped sem mudança visual.
+- [x] 559 testes passaram; listagem real e rascunho preservado ao alternar abas conferidos. Banco: timestamps derivados sem divergência; Realtime habilitado.
+- [ ] Confirmar entrega imediata de nova mensagem externa na versão publicada: depende de publicação autorizada e mensagem do cliente; nenhuma mensagem de teste enviada.
 
 ## Autonomia operacional e sincronização ProJuris — 03/11/2026
-- [ ] Base persistente de clientes/processos e histórico de movimentos; reutilizar conversas, agenda e treinamento.
-- [ ] Consulta local prioritária e contingência da Ana, com envio factual automático autorizado e confidencialidade preservada.
-- [ ] Sincronização manual oficial de andamentos, recuperação e monitoramento; rotina automática Inngest pendente por decisão da Dra.
-- [ ] Testar persistência, isolamento, sincronização, contingência, deduplicação e fluxo autenticado; identificar bloqueios reais sem simulação.
+- [x] Base persistente owner-scoped com 111 clientes, 131 processos monitorados; movimentos em snapshots atômicos e versões append-only; conversas/agenda/treinamento reutilizados.
+- [x] Ana consulta identidade/fatos locais; envio factual determinístico autorizado com data da sincronização e ressalva de desatualização; segredo/privacidade e revisão jurídica preservados.
+- [x] Sincronização manual oficial, bloqueio concorrente por lease, falhas/auditoria e painel real; lotes limitados a 20 por clique priorizam processos nunca sincronizados/mais antigos.
+- [x] Leitura real: 104 processos, 7.568 versões; repetição do primeiro processo manteve 82 versões sem duplicação. Histórico e persistência após recarga conferidos; compilação limpa e 559 testes aprovados.
+- [ ] Completar primeira importação dos 27 processos restantes: lote integral de verificação excedeu janela de teste; disponíveis para continuar em Sincronizar andamentos (até 20), sem perda dos 104 concluídos.
+- [ ] Rotina automática Inngest permanece pendente por decisão expressa da Dra.; nenhum agendamento criado.
+- [ ] Publicação e resposta factual real no WhatsApp aguardam autorização e mensagem de cliente identificado; não houve envio externo de teste.
 
 ## Apagar mensagens da Ana — 03/11/2026
 - [x] Menu da Ana: apagar para esta conta e para todos (sênior/admin), confirmação e proprietário verificados no servidor.
