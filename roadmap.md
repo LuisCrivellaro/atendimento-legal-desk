@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Primeira mensagem com agenda — 03/11/2026
+- [x] Consultar disponibilidade antes da saudação fixa; oferecer até 3 próximos horários numerados e salvar o contexto.
+- [x] Armazenar nome sem repetir oferta; revalidar escolha antes de reservar e buscar novas opções se ocupado.
+- [x] Testes afetados e simulador aprovados; prévia autenticada conferida sem mensagens ou eventos externos. Suíte completa: 530 aprovados.
+- [ ] Publicação e conversa real dependem de autorização e mensagem externa da Dra.
+
 ## Clientes CS.IA — 31/10/2026
 - [x] Filtrar cadastro desde 01/01/2025 e processos ativos por flagCliente/código: 111 clientes reais, 110 com telefone; ficha com cadastro e processos, credenciais técnicas removidas.
 - [x] Nomes RT/AC por sinais verificáveis, RT/AC em casos mistos, telefone copiável; alias do Atendimento somente para vínculo confirmado, sem alterar nome legal nem mensagens. 13 classificações insuficientes ficam a conferir.

@@ -8,7 +8,6 @@ describe('motor do simulador', () => {
   it('agenda, confirma e cancela com as regras reais', async () => {
     const roteiro: AnaResult[] = [
       base({ mensagem: 'Olá! Sou a Ana, assistente virtual da CS Lawyers. Como posso ajudar?' }),
-      base({ intencao: 'agendamento', mensagem: 'Claro! Qual é seu nome completo?' }),
       base({ intencao: 'agendamento', mensagem: 'Obrigada, Mariana!', dados_coletados: { nome: 'Mariana Souza Lima', cpf: '', assunto: '', email: '' } }),
       base({ intencao: 'agendamento', mensagem: 'Perfeito.' }),
       base({ intencao: 'agendamento', mensagem: 'Entendi.' }),
@@ -16,11 +15,14 @@ describe('motor do simulador', () => {
       base({ intencao: 'outro', mensagem: 'Vou chamar a equipe.' , encaminhar_humano: true}),
     ];
     let i = 0;
-    const sim = new SimuladorAna(async () => ({ resultado: structuredClone(roteiro[Math.min(i++, roteiro.length - 1)]!), bruto: '{}' }), { instrucoes: '', proibidos: ['honorários'], exemplos: [] });
-    const t1 = await sim.receber('Oi, boa tarde'); expect(t1.enviada).toContain('Ana');
-    const t2 = await sim.receber('Quero marcar uma consulta'); console.log('T2', t2.enviada ?? t2.retida, t2.erro);
-    const t3 = await sim.receber('Mariana Souza Lima'); console.log('T3', t3.enviada ?? t3.retida, t3.eventos);
-    expect(t3.enviada).toMatch(/🗓️ (Consulta online|Outras opções)/); // hoje sai "Outras opções": bug real do servidor, reproduzido de propósito
+    const sim = new SimuladorAna(async () => {const resultado=roteiro[Math.min(i++,roteiro.length-1)];if(!resultado)throw new Error('Roteiro ausente');return {resultado:structuredClone(resultado),bruto:'{}'};}, { instrucoes: '', proibidos: ['honorários'], exemplos: [] });
+    await sim.receber('Oi, boa tarde');
+    const offered=sim.conv.agenteAna?.horariosTeste??[];
+    expect(offered).toHaveLength(3);
+    const t3 = await sim.receber('Mariana Souza Lima');
+    expect(t3.eventos.some(e=>e.includes('consultou a agenda'))).toBe(false);
+    expect(sim.conv.agenteAna?.horariosTeste).toEqual(offered);
+    expect(sim.conv.agenteAna?.dados?.nome).toBe('Mariana Souza Lima');
     const t4 = await sim.receber('a primeira'); console.log('T4', t4.enviada, t4.eventos);
     expect(sim.conv.consultaAgendada).toBeTruthy();
     expect(sim.agenda.some(e => e.daAna)).toBe(true);
