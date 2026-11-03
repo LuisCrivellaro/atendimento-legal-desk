@@ -20,6 +20,9 @@ import { numeroWhatsAppAtendido } from './production-channel';
 import { ultramsgAdapter } from './canais/ultramsg';
 import { enviarTextoTelegram } from './canais/telegram';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
+import { autorizaEnvioAna } from './ana-execution';
+import { defaultAutomations } from '../atendimento';
+import type { Conversa } from '../mock-data';
 
 type Db = SupabaseClient<Database>;
 
@@ -86,6 +89,9 @@ async function entradaWhatsAppAberta(): Promise<boolean> {
 }
 
 interface EnvioBase {
+  mensagemOrigem?: string;
+  controleHumanoEm?: string | undefined;
+  permitirEncaminhamento?: boolean;
   conversaId: string;
   acao: string;
   texto: string;
@@ -145,6 +151,27 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     const entradaAberta = entrada.contaMaster === true || await entradaWhatsAppAberta();
     if (!numeroWhatsAppAtendido(contato.contato_externo, entradaAberta)) throw new Error('Número não autorizado nesta fase de produção.');
     if (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID']) throw new Error('WhatsApp não configurado. Nada foi enviado.');
+    if(entrada.acao==='sistema:ana'){
+      const { atualizarConversa } = await import('./ana.server');
+      const owner=await supabase.from('casos').select('owner_id').eq('id',entrada.conversaId).single();
+      if(owner.error)throw new Error('Conversa indisponível.');
+      const ws=await supabase.from('office_workspace').select('dados').eq('owner_id',owner.data.owner_id).maybeSingle();
+      const state=ws.data?.dados as {anaPausa?:{ativa?:boolean};automations?:{modoIA?:string}}|undefined;
+      if(ws.error||state?.anaPausa?.ativa||!config.agente_ativo)throw Object.assign(new Error('Ana pausada; envio interrompido.'),{code:'ana_envio_bloqueado'});
+      let autorizada=false;
+      await atualizarConversa(supabase,entrada.conversaId,c=>{
+        autorizada=false;
+        const origem=entrada.mensagemOrigem??c.mensagens.at(-1)?.id;
+        if(!origem||(c.modoIA??state?.automations?.modoIA??defaultAutomations.modoIA)!=='Automática'||!autorizaEnvioAna(c,origem,entrada.controleHumanoEm,entrada.permitirEncaminhamento))return c;
+        autorizada=true;
+        return {...c,agenteAna:{...c.agenteAna,envioAna:{mensagemId:origem,texto:entrada.texto,desde:new Date().toISOString()}},mensagens:c.mensagens.map(m=>m.id===origem&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:'enviando' as const}}:m)};
+      });
+      if(!autorizada)throw Object.assign(new Error('Conversa assumida ou alterada; Ana não enviou.'),{code:'ana_envio_bloqueado'});
+      const latest=await supabase.from('casos').select('dados').eq('id',entrada.conversaId).single();
+      const c=latest.data?.dados as unknown as Conversa|undefined;
+      const origem=entrada.mensagemOrigem??c?.mensagens.at(-1)?.id;
+      if(latest.error||!c||!origem||!autorizaEnvioAna(c,origem,entrada.controleHumanoEm,entrada.permitirEncaminhamento))throw Object.assign(new Error('Conversa assumida; Ana não enviou.'),{code:'ana_envio_bloqueado'});
+    }
     const resultado = await ultramsgAdapter.enviarTexto(contato.contato_externo, entrada.texto, { ...(entrada.horarios?.length ? { botoes: botoesHorarios(entrada.horarios) } : {}), entradaAberta });
     if (!resultado.ok) {
       await auditar(supabase, ator, entrada.acao, 'Falha no envio pelo WhatsApp', 'erro', resultado.erro);
@@ -163,16 +190,18 @@ export const enviarMensagemCanal = createServerFn({ method: 'POST' })
   .inputValidator(z.object({ conversaId: z.string().uuid(), acao: z.string().min(1).max(60), texto: z.string().max(16000), horarios: z.array(z.string().datetime()).max(8).optional() }))
   .handler(async ({ data, context }) => {
     const ator = await atorDoUsuario(context.supabase, context.userId);
+    const { atualizarConversa } = await import('./ana.server');
+    await atualizarConversa(context.supabase,data.conversaId,c=>({...c,agenteAna:{...c.agenteAna,humano:true,controleHumanoEm:new Date().toISOString(),proximoPasso:'Equipe assumiu esta conversa. Retomar Ana exige ação explícita.'}}));
     const email = String((context.claims as { email?: unknown } | undefined)?.email ?? '').trim().toLowerCase();
     return enviarComRegras(context.supabase, ator, { ...data, contaMaster: email === 'chamanalei@gmail.com' });
   });
 
 /** Envio pelo sistema (agente/lembretes): só chamável no servidor, pronto para a fase 3. Ainda não usado. */
-export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string; contatoEsperado?:string; horarios?: string[] }) {
+export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string; contatoEsperado?:string; horarios?: string[]; mensagemOrigem?:string; controleHumanoEm?:string|undefined; permitirEncaminhamento?:boolean }) {
   return enviarComRegras(
     deps.supabase,
     { nome: 'agente', perfil: 'sistema' },
-    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto, ...(deps.contatoEsperado?{contatoEsperado:deps.contatoEsperado}:{}), ...(deps.horarios?.length?{horarios:deps.horarios}:{}) },
+    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto,mensagemOrigem:deps.mensagemOrigem,controleHumanoEm:deps.controleHumanoEm,permitirEncaminhamento:deps.permitirEncaminhamento, ...(deps.contatoEsperado?{contatoEsperado:deps.contatoEsperado}:{}), ...(deps.horarios?.length?{horarios:deps.horarios}:{}) },
   );
 }
 
