@@ -64,9 +64,11 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   });
   if(!claimed)return;
   let efeitosIniciados=false;
+  const marcarEfeito=()=>atualizarConversa(db,id,x=>({...x,mensagens:x.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:'enviando' as const}}:m)}));
   try {
   if(mode==='Automática'&&canal==='ultramsg'&&c.agenteAna?.pedidosProcesso?.some(p=>p.status==='pendente')&&apenasInsistencia(m.texto)) {
     efeitosIniciados=true;
+    await marcarEfeito();
     const { enviarAvisoProcesso } = await import('./consulta-processo.server');
     await enviarAvisoProcesso(db,id,TEXTOS_CONSULTA.emConferencia,remetente.data?.contato_externo??'');
     return;
@@ -145,6 +147,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(canal==='ultramsg'&&mode==='Automática') {
       const { fluxoProcessoReal } = await import('./consulta-processo.server');
       efeitosIniciados=true;
+      await marcarEfeito();
       if(await fluxoProcessoReal(db,{conversa:c,owner:row.data.owner_id,telefone,contato:remetente.data?.contato_externo??'',texto:m.texto,intencao:raw.intencao,messageId}))return;
       efeitosIniciados=false;
     }
@@ -187,6 +190,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       if(!messageId.startsWith(`${canal}:${contact.data.contato_externo}:`))return;
       if(cancelar){
         efeitosIniciados=true;
+        await marcarEfeito();
         try {
         const reserva=current.agenteAna?.reservaCalendar;
         if(!reserva||reserva.inicio!==current.consultaAgendada)throw new Error('Consulta sem recibo verificável; equipe deve conferir antes de cancelar.');
@@ -210,6 +214,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       const escolhido=escolherReservaAna({texto:m.texto,selecionado,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:bloqueada||consultaEspecifica||cancelar||perguntar||!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
       if(escolhido){
         efeitosIniciados=true;
+        await marcarEfeito();
         if(current.consultaAgendada&&current.agenteAna?.alteracaoConsulta!=='remarcar'){
           r.mensagem=`Você já tem uma consulta marcada para ${formatarHorarioCliente(current.consultaAgendada)}. Deseja remarcar ou cancelar esse agendamento?`;
           r.proximo_passo='Aguardar autorização para alteração da consulta.';
