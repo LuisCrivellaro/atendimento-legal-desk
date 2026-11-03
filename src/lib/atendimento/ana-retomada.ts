@@ -21,6 +21,6 @@ export function pedidoAgendaRetornoAna(texto:string):boolean {
 }
 export function mensagemRetornoAna(textoCliente:string,continuacao:string):string {
   if(apenasCumprimentoAna(textoCliente)||!continuacao.trim())return SAUDACAO_RETORNO_ANA;
-  const limpa=continuacao.replace(/^(?:Ol[aá]|Oi|Bom dia|Boa tarde|Boa noite)[^\n.!?]*[\n.!?]+\s*/i,'').trim();
+  const limpa=continuacao.replace(/(?:Qual (?:é )?(?:o )?seu nome(?: completo)?|Como (?:você )?se chama|Pode (?:me )?informar (?:o )?seu nome(?: completo)?)\?/gi,'').replace(/^(?:Ol[aá]|Oi|Bom dia|Boa tarde|Boa noite)[^\n.!?]*[\n.!?]+\s*/i,'').trim();
   return limpa?`${SAUDACAO_RETORNO_ANA}\n\n${limpa}`:SAUDACAO_RETORNO_ANA;
 }
