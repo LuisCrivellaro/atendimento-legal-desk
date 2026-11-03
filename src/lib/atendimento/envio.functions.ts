@@ -89,9 +89,9 @@ async function entradaWhatsAppAberta(): Promise<boolean> {
 }
 
 interface EnvioBase {
-  mensagemOrigem?: string;
+  mensagemOrigem?: string | undefined;
   controleHumanoEm?: string | undefined;
-  permitirEncaminhamento?: boolean;
+  permitirEncaminhamento?: boolean | undefined;
   conversaId: string;
   acao: string;
   texto: string;

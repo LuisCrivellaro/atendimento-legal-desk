@@ -295,7 +295,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     safe=safe.slice(0,400);
     const pause=e.code==='chave_invalida'||e.statusCode===402||e.statusCode===403||e.statusCode===404||e.statusCode===401;
     // Libera a operação de agenda travada pela falha; sem isso a conversa ficaria impedida de cancelar/remarcar para sempre.
-    await atualizarConversa(db,id,current=>({...current,mensagens:current.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:efeitosIniciados?'incerta' as const:'concluida' as const}}:m),agenteAna:{...current.agenteAna,humano:true,pausa:pause||current.agenteAna?.pausa,erro:safe,operacaoConsulta:undefined,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
+    await atualizarConversa(db,id,current=>({...current,mensagens:current.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:efeitosIniciados?'incerta' as const:'concluida' as const}}:m),agenteAna:{...current.agenteAna,humano:true,pausa:pause||current.agenteAna?.pausa===true,erro:safe,operacaoConsulta:undefined,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
     if(pause) {
       // Pausa durável para todos os atendimentos do proprietário. Sem probes/retries.
       for(let attempt=0;attempt<5;attempt++){
