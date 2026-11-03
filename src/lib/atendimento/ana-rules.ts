@@ -92,7 +92,22 @@ export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=f
   return pedido||continuidade?{...r,intencao:'agendamento'}:r;
 }
 /** Saudação oficial ao cliente novo (fluxo de primeiro contato da Dra., 03/11/2026). Texto exato; pede o nome. */
-export const SAUDACAO_CLIENTE_NOVO = 'Olá,\n\nSeja bem vindo (a)😊\n\nEquipe CS Advocacia\nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.\n\nQual o seu nome?';
+export const SAUDACAO_CLIENTE_NOVO = 'Olá,\n\nSeja bem vindo (a)😊\n\nÀ Equipe CS Advocacia\n[www.carolinasantos.com.br](http://www.carolinasantos.com.br/)\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
+
+export function primeiraMensagemAna(horarios:string[]) {
+  return `${SAUDACAO_CLIENTE_NOVO}\n\n${listaHorariosAna(horarios)}\n\nQual o seu nome?`;
+}
+
+export function pediuNomeInicialAna(texto:string) {
+  // Compatível também com a saudação já enviada pela versão anterior.
+  return texto.startsWith('Olá,\n\nSeja bem vindo (a)😊')&&texto.endsWith('Qual o seu nome?');
+}
+
+export function nomePrimeiroContatoAna(texto:string,anterior:string) {
+  if(!pediuNomeInicialAna(anterior)||apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
+  const nome=texto.trim().replace(/^(?:sou\s+(?:a|o)\s+|me chamo\s+|meu nome (?:é|e)\s+)/i,'');
+  return nome.length<=80&&/^[A-Za-zÀ-ÿ'´`-]+(?:\s+[A-Za-zÀ-ÿ'´`-]+){0,7}$/.test(nome)&&!/^não\b/i.test(nome)?nome:'';
+}
 
 /** Mensagem só de cumprimento ("oi", "boa tarde, tudo bem?"), sem pedido. */
 export function apenasCumprimentoAna(texto:string):boolean {
@@ -104,9 +119,10 @@ export function apenasCumprimentoAna(texto:string):boolean {
  * Primeiro contato de cliente novo: o servidor envia sempre a saudação oficial exata, uma única vez.
  * Fica como agendamento para que a resposta com o nome dispare a consulta real da agenda.
  */
-export function saudacaoClienteNovo(r:AnaResult,_texto:string,o:{apresentado:boolean;tipoCliente?:TipoCliente | undefined}):AnaResult {
+export function saudacaoClienteNovo(r:AnaResult,_texto:string,o:{apresentado:boolean;tipoCliente?:TipoCliente | undefined;horarios?:string[];agendaReal?:boolean}):AnaResult {
   if(o.apresentado||o.tipoCliente==='cadastrado'||r.acao!=='enviar'||r.encaminhar_humano)return r;
-  return {...r,mensagem:SAUDACAO_CLIENTE_NOVO,intencao:'agendamento',proximo_passo:'Aguardar o nome do cliente para oferecer horários reais.'};
+  if(!o.agendaReal||!o.horarios?.length)return {...r,acao:'rascunho',mensagem:'',motivo_aprovacao:'Agenda sem disponibilidade verificada; nenhum horário oferecido.'};
+  return {...r,mensagem:primeiraMensagemAna(o.horarios),intencao:'agendamento',proximo_passo:'Aguardar nome e escolha de um dos horários reais já oferecidos.'};
 }
 
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {

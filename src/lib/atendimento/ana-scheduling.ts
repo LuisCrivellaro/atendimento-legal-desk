@@ -50,11 +50,11 @@ export function opcaoHorarioAna(iso:string) {
   const nome=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'][dia]??'';
   return `${nome}, ${p['day']}/${p['month']}, às ${hora(iso)}`;
 }
-/** Modelo obrigatório: marcadores, "Qual prefere?", lista numerada e pedido do número. Mesmo formato para novas opções. */
+/** Uma única lista numerada; nunca duplica os horários em marcadores. */
 export function listaHorariosAna(slots:string[],_now=new Date(),_repetida=false) {
   if(!slots.length)return 'Não encontrei novas opções livres nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
   const linhas=slots.map(opcaoHorarioAna);
-  return `Tenho estes horários livres na agenda:\n\n${linhas.map(l=>`• ${l}`).join('\n')}\n\nQual prefere?\n\n${linhas.map((l,i)=>`${i+1}. ${l}`).join('\n')}\n\nResponda com o número do horário escolhido.`;
+  return `Tenho estes horários livres na agenda:\n${linhas.map((l,i)=>`${i+1}. ${l}`).join('\n')}\nPara escolher um horário, responda com o número da opção desejada.`;
 }
 export function frustracaoHorariosAna(texto:string){return /(?:mesmos?\s+horarios?|de novo esses|esses.{0,15}nao servem|nao.{0,15}servem esses)/.test(fold(texto));}
 export function pedidoOutrasOpcoesAna(texto:string){return frustracaoHorariosAna(texto)||/(?:outr[oa]s?.{0,25}(?:horario|opco|dia)|nenhum.{0,20}serve|nao posso nesses|mais tarde|mais cedo|\b(?:a|de|pela)\s+(?:tarde|manha)\b)/.test(fold(texto));}
@@ -107,6 +107,7 @@ export function selecionarOpcoesAna(busy:{start:string;end:string}[],now:Date,ti
   const day=t.match(/\bdia\s+(\d{1,2})\b/),dm=t.match(/\b(\d{1,2})\/(\d{1,2})\b/);
   let available=all.filter(s=>(!evitarRepeticao||!anteriores.some(a=>Date.parse(a)===Date.parse(s)))&&(!periodo||(periodo==='tarde'?Number(partesAgenda(s)['hour'])>=13:Number(partesAgenda(s)['hour'])<12))&&(weekday<0||new Date(`${dataAgenda(s)}T12:00:00Z`).getUTCDay()===weekday)&&(!day||Number(partesAgenda(s)['day'])===Number(day[1]))&&(!dm||Number(partesAgenda(s)['day'])===Number(dm[1])&&Number(partesAgenda(s)['month'])===Number(dm[2])));
   const semPeriodo=!!periodo&&!available.length;
+  if(!evitarRepeticao)return {slots:available.sort((a,b)=>Date.parse(a)-Date.parse(b)).slice(0,3),semPeriodo};
   if(specific)available.sort((a,b)=>Math.abs(Date.parse(a)-Date.parse(specific))-Math.abs(Date.parse(b)-Date.parse(specific)));
   const oldDates=new Set(anteriores.map(dataAgenda));
   if(evitarRepeticao)available.sort((a,b)=>Number(oldDates.has(dataAgenda(a)))-Number(oldDates.has(dataAgenda(b))));
