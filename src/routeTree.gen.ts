@@ -26,6 +26,7 @@ import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authentica
 import { Route as AuthenticatedTreinamentoRouteImport } from './routes/_authenticated/treinamento'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicAtendimentoPendenciasProcessoRouteImport } from './routes/api/public/atendimento/pendencias-processo'
+import { Route as ApiPublicAtendimentoRecuperarAnaRouteImport } from './routes/api/public/atendimento/recuperar-ana'
 import { Route as ApiPublicAtendimentoTelegramRouteImport } from './routes/api/public/atendimento/telegram'
 import { Route as ApiPublicAtendimentoWhatsappRouteImport } from './routes/api/public/atendimento/whatsapp'
 
@@ -119,6 +120,12 @@ const ApiPublicAtendimentoPendenciasProcessoRoute =
     path: '/api/public/atendimento/pendencias-processo',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicAtendimentoRecuperarAnaRoute =
+  ApiPublicAtendimentoRecuperarAnaRouteImport.update({
+    id: '/api/public/atendimento/recuperar-ana',
+    path: '/api/public/atendimento/recuperar-ana',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAtendimentoTelegramRoute =
   ApiPublicAtendimentoTelegramRouteImport.update({
     id: '/api/public/atendimento/telegram',
@@ -149,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
+  '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -169,6 +177,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
+  '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -191,6 +200,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
+  '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -213,6 +223,7 @@ export interface FileRouteTypes {
     | '/treinamento'
     | '/.lovable/oauth/consent'
     | '/api/public/atendimento/pendencias-processo'
+    | '/api/public/atendimento/recuperar-ana'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   fileRoutesByTo: FileRoutesByTo
@@ -233,6 +244,7 @@ export interface FileRouteTypes {
     | '/'
     | '/.lovable/oauth/consent'
     | '/api/public/atendimento/pendencias-processo'
+    | '/api/public/atendimento/recuperar-ana'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   id:
@@ -254,6 +266,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
     | '/api/public/atendimento/pendencias-processo'
+    | '/api/public/atendimento/recuperar-ana'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   fileRoutesById: FileRoutesById
@@ -265,6 +278,7 @@ export interface RootRouteChildren {
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicAtendimentoPendenciasProcessoRoute: typeof ApiPublicAtendimentoPendenciasProcessoRoute
+  ApiPublicAtendimentoRecuperarAnaRoute: typeof ApiPublicAtendimentoRecuperarAnaRoute
   ApiPublicAtendimentoTelegramRoute: typeof ApiPublicAtendimentoTelegramRoute
   ApiPublicAtendimentoWhatsappRoute: typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -390,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAtendimentoPendenciasProcessoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/atendimento/recuperar-ana': {
+      id: '/api/public/atendimento/recuperar-ana'
+      path: '/api/public/atendimento/recuperar-ana'
+      fullPath: '/api/public/atendimento/recuperar-ana'
+      preLoaderRoute: typeof ApiPublicAtendimentoRecuperarAnaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/atendimento/telegram': {
       id: '/api/public/atendimento/telegram'
       path: '/api/public/atendimento/telegram'
@@ -447,6 +468,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicAtendimentoPendenciasProcessoRoute:
     ApiPublicAtendimentoPendenciasProcessoRoute,
+  ApiPublicAtendimentoRecuperarAnaRoute: ApiPublicAtendimentoRecuperarAnaRoute,
   ApiPublicAtendimentoTelegramRoute: ApiPublicAtendimentoTelegramRoute,
   ApiPublicAtendimentoWhatsappRoute: ApiPublicAtendimentoWhatsappRoute,
 }
