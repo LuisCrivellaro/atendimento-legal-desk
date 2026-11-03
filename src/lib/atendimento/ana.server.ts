@@ -215,6 +215,19 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
             if(audit.error)throw new Error('Reserva criada; falha de auditoria. Confira a Agenda.');
           }catch(error){
             console.error('Reserva Google Calendar não concluída',error);
+            if(error instanceof Error&&error.message==='Esse horário acabou de ficar ocupado. Escolha outro horário.'){
+              const {ocupadosGoogleCalendar}=await import('./google-calendar.server');
+              const busy=await ocupadosGoogleCalendar(new Date(),horizonteAgendaAna());
+              if(!busy)throw new Error('Agenda indisponível; nenhum novo horário oferecido.');
+              const novas=selecionarOpcoesAna(busy,new Date(),tipoCliente??'novo','',historicoHorarios,true).slots;
+              r.mensagem=`Esse horário acabou de ser ocupado.\n\n${listaHorariosAna(novas)}`;
+              r.proximo_passo='Aguardar escolha das novas opções verificadas.';
+              const {enviarMensagemSistema}=await import('./envio.functions');
+              const envio=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,...(novas.length?{horarios:novas}:{})});
+              if(envio.simulado)throw new Error('Novas opções não enviadas.');
+              await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,operacaoConsulta:undefined,horariosTeste:novas,agendaReal:true,resultado:r,horariosApresentados:[...new Set([...(x.agenteAna?.horariosApresentados??[]),...novas])],listasHorarios:(x.agenteAna?.listasHorarios??0)+1},mensagens:[...x.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal,idExterno:envio.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
+              return;
+            }
             // Nunca prometer reserva após falha, nem criar uma segunda tentativa automática.
             r.mensagem='Não consegui concluir a reserva na agenda. Deixei a situação registrada para a equipe verificar; não considere o horário confirmado por esta mensagem.';
             r.proximo_passo='Equipe: conferir a agenda e a falha de reserva antes de retomar.';

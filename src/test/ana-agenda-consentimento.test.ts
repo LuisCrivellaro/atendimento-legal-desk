@@ -56,3 +56,38 @@ describe.each(['telegram','ultramsg'] as const)('consentimento de agenda pelo %s
   expect(h.saved.agenteAna?.horariosTeste?.[0]).toBe('2026-10-27T12:00:00.000Z');
  });
 });
+
+
+describe('Primeiro contato completo',()=>{
+ it('consulta antes de enviar, guarda nome sem nova consulta e reserva a opção original',async()=>{
+  const h=setup('ultramsg',false);
+  h.patch(c=>({...c,etapa:'inicial',agenteAna:{apresentado:false,dados:{nome:'',cpf:'',email:'',assunto:''}}}));
+  await h.message('oi');
+  const offered=h.saved.agenteAna?.horariosTeste??[];
+  expect(offered).toHaveLength(3);
+  expect(mocks.ocupados.mock.invocationCallOrder[0]).toBeLessThan(mocks.enviar.mock.invocationCallOrder[0]??0);
+  await h.message('Mariana Souza Lima');
+  expect(mocks.ocupados).toHaveBeenCalledOnce();
+  expect(h.saved.agenteAna?.horariosTeste).toEqual(offered);
+  expect(h.saved.agenteAna?.dados?.nome).toBe('Mariana Souza Lima');
+  const selected=offered[1];if(!selected)throw new Error('Sem segunda opção');
+  mocks.reservar.mockResolvedValueOnce({id:'recibo',inicio:selected,fim:new Date(Date.parse(selected)+1800000).toISOString()});
+  await h.message('2');
+  expect(mocks.reservar).toHaveBeenCalledWith(h.saved.id,selected,expect.any(Date),{nome:'Mariana Souza Lima',telefone:'5511999600306',tipo:'novo'});
+  expect(h.saved.consultaAgendada).toBe(selected);
+ });
+ it('indisponibilidade não envia saudação nem opções fictícias',async()=>{
+  const h=setup('ultramsg',false);h.patch(c=>({...c,etapa:'inicial',agenteAna:{apresentado:false}}));
+  mocks.ocupados.mockResolvedValueOnce(null);await h.message('oi');
+  expect(mocks.enviar).not.toHaveBeenCalled();expect(h.saved.agenteAna?.apresentado).toBe(false);
+ });
+ it('horário ocupado busca novas opções sem confirmar nem repetir reserva',async()=>{
+  const h=setup('ultramsg',false);await h.message('quero agendar');
+  const offered=h.saved.agenteAna?.horariosTeste??[];
+  mocks.reservar.mockRejectedValueOnce(new Error('Esse horário acabou de ficar ocupado. Escolha outro horário.'));
+  await h.message('1');
+  expect(mocks.reservar).toHaveBeenCalledOnce();expect(h.saved.consultaAgendada).toBeUndefined();
+  expect(h.saved.agenteAna?.horariosTeste?.every(s=>!offered.includes(s))).toBe(true);
+  expect(h.saved.agenteAna?.humano).toBe(false);
+ });
+});
