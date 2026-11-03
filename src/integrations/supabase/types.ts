@@ -470,6 +470,15 @@ export type Database = {
         }
         Returns: number
       }
+      projuris_salvar_ficha: {
+        Args: {
+          p_codigo: number
+          p_ficha: Json
+          p_owner: string
+          p_revisao: string
+        }
+        Returns: undefined
+      }
       registrar_audit_log: {
         Args: {
           p_acao: string

@@ -78,6 +78,13 @@
       "when": 1793731549758,
       "tag": "0010_projuris_base_operacional_manual",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793731707813,
+      "tag": "0011_projuris_ficha_atomic",
+      "breakpoints": true
     }
   ]
 }
