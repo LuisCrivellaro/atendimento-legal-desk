@@ -101,7 +101,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     // Resposta direta à saudação oficial ("Qual o seu nome?"): texto curto só com letras vale como nome.
     const respostaNome=nomePrimeiroContatoAna(m.texto,previous);
     if(respostaNome&&!raw.dados_coletados.nome.trim()){raw.dados_coletados.nome=respostaNome;}
-    if(pediuNomeInicialAna(previous)&&(raw.dados_coletados.nome.trim()||respostaNome)&&!pedidoHumano(m.texto)&&!pedidoOutrasOpcoesAna(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
+    if(!retomada&&pediuNomeInicialAna(previous)&&(raw.dados_coletados.nome.trim()||respostaNome)&&!pedidoHumano(m.texto)&&!pedidoOutrasOpcoesAna(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
     const nome=raw.dados_coletados.nome.trim()||c.agenteAna?.dados?.nome||'';
     let horarios=(c.agenteAna?.horariosTeste??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
     let agendaReal=c.agenteAna?.agendaReal===true&&horarios.length>0;

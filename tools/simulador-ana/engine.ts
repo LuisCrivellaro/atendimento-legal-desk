@@ -232,7 +232,7 @@ export class SimuladorAna {
       const previous = c.mensagens.filter(x => x.canal === canal && x.de === 'escritorio').at(-1)?.texto ?? '';
       const respostaNome=nomePrimeiroContatoAna(m.texto,previous);
       if(respostaNome&&!raw.dados_coletados.nome.trim())raw.dados_coletados.nome=respostaNome;
-      if(pediuNomeInicialAna(previous)&&(raw.dados_coletados.nome.trim()||respostaNome)&&!pedidoHumano(m.texto)&&!pedidoOutrasOpcoesAna(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
+      if(!retomada&&pediuNomeInicialAna(previous)&&(raw.dados_coletados.nome.trim()||respostaNome)&&!pedidoHumano(m.texto)&&!pedidoOutrasOpcoesAna(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
       const recebeuNome=!!respostaNome&&c.agenteAna?.agendaReal===true&&(c.agenteAna.horariosTeste?.length??0)>0;
       const nome = raw.dados_coletados.nome.trim() || c.agenteAna?.dados?.nome || '';
       let horarios = (c.agenteAna?.horariosTeste ?? []).filter(s => tipoCliente && horarioPermitido(s, tipoCliente) && Date.parse(s) > Date.now());
