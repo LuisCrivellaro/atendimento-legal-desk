@@ -1,9 +1,14 @@
 # Construção dos módulos Manager ADV
 
+## Ordenação e atualização das conversas — 03/11/2026
+- [ ] Ordenar no banco por última mensagem real, após filtros, preservar paginação e conversa aberta.
+- [ ] Prévia e não lidas por mensagem real, atualização em tempo real sem alterar design.
+- [ ] Testar envios cliente/equipe/Ana, duplicação, abas, filtros e estabilidade.
+
 ## Autonomia operacional e sincronização ProJuris — 03/11/2026
 - [ ] Base persistente de clientes/processos e histórico de movimentos; reutilizar conversas, agenda e treinamento.
 - [ ] Consulta local prioritária e contingência da Ana, com envio factual automático autorizado e confidencialidade preservada.
-- [ ] Fila durável e sincronização oficial de andamentos 15 minutos (configurável 10–15), recuperação e monitoramento manual.
+- [ ] Sincronização manual oficial de andamentos, recuperação e monitoramento; rotina automática Inngest pendente por decisão da Dra.
 - [ ] Testar persistência, isolamento, sincronização, contingência, deduplicação e fluxo autenticado; identificar bloqueios reais sem simulação.
 
 ## Apagar mensagens da Ana — 03/11/2026
