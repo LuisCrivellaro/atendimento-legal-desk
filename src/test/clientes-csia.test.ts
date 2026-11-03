@@ -17,9 +17,17 @@ describe('Clientes CS.IA', () => {
     expect(dataCadastro(Date.parse('2025-01-01T03:00:00Z'))).toBe('2025-01-01');
   });
   it('nomenclatura usa ID da pessoa com RT e AC ou RT/AC', () => {
-    expect(nomeClienteProjuris(114, 'Elivania Souza', ['RT'])).toBe('RT 114 - Elivania Souza');
-    expect(nomeClienteProjuris(230, 'Simone Aparecida Souza', ['AC'])).toBe('AC 230 - Simone Aparecida Souza');
-    expect(nomeClienteProjuris(114, 'Elivania Souza', ['AC', 'RT', 'RT'])).toBe('RT/AC 114 - Elivania Souza');
+    const rt = (id: string) => ({ identificador: id, assunto: 'Reclamação Trabalhista', codigoProcesso: 999 });
+    const ac = (id: string) => ({ identificador: id, assunto: 'Indenizatória', codigoProcesso: 888 });
+    expect(nomeClienteProjuris('Luis Filipe', [rt('PRO.0000034')]).nome).toBe('RT - 00034 - LUIS FILIPE');
+    expect(nomeClienteProjuris('Simone Aparecida Souza', [ac('PRO.0000230')]).nome).toBe('AC - 00230 - SIMONE APARECIDA SOUZA');
+    expect(nomeClienteProjuris('Elivania Souza', [rt('PRO.0000114'), ac('PRO.0000150')]).nome).toBe('RT - 00114 / AC - 00150 - ELIVANIA SOUZA');
+  });
+  it('nunca usa o ID interno do ProJuris e sinaliza número faltando', () => {
+    const r = nomeClienteProjuris('Ana Lima', [{ assunto: 'Reclamação Trabalhista', codigoProcesso: 12345 }]);
+    expect(r.nome).toBe('ANA LIMA');
+    expect(r.pendencia).toMatch(/número identificador/);
+    expect(r.nome).not.toContain('12345');
   });
   it('classificação não transforma justiça estadual desconhecida em AC', () => {
     expect(acaoDoProcesso({ tipoJustica: { valor: 'Justiça do Trabalho' } })).toBe('RT');
