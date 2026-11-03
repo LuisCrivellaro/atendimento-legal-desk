@@ -26,7 +26,7 @@ function horarioNoTexto(texto: string, iso: string): boolean {
 
 /**
  * Listas interativas e botões não existem no UltraMsg (documentação oficial conferida em 29/10/2026).
- * Os horários vão uma única vez, com marcadores e sem número; o cliente responde com dia, hora ou ordem.
+ * A lista segue o modelo oficial (marcadores + numeração); o cliente responde com número, dia ou hora.
  * Se o texto já traz um horário, ele não é repetido; os que faltarem entram ao final como marcadores.
  */
 export function textoComOpcoes(texto: string, botoes?: { texto: string; dados?: string }[]): string {
