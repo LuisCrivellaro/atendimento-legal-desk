@@ -1,5 +1,5 @@
 import { nomesConversasProjuris } from '@/lib/projuris-clientes.functions';
-import { Handshake } from 'lucide-react';
+import { Handshake, Trash2 } from 'lucide-react';
 import { consultarDadosMensagem } from '@/lib/atendimento/quick-reply-calendar.functions';
 import { useCalendarQuickReply } from '@/hooks/use-calendar-quick-reply';
 import { pastaCliente, mensagemTratoFeito, comDocumentosBase, avisoProducao, DOCUMENTOS_CONTRATO } from '@/lib/atendimento/trato-feito';

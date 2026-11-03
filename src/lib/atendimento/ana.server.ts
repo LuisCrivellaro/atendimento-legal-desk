@@ -71,7 +71,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   if(mensagemSemResposta(m.texto,!!m.arquivo))return;
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
-    const history=c.mensagens.filter(m=>m.canal===canal).slice(-24).map(m=>({de:m.de,texto:m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
+    const history=c.mensagens.filter(m=>m.canal===canal).slice(-24).map(m=>({de:m.de,texto:m.apagadaParaTodos?'[Mensagem apagada]':m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
     const tipoCliente=c.tipoClienteAgenda??identificarTipoCliente(m.texto)??c.agenteAna?.tipoCliente??(c.etapa==='inicial'?'novo':undefined);
     const etiqueta=etiquetaConversa(c);
     const lista=await db.from('checklist_itens').select('nome,recebido').eq('caso_id',id).eq('owner_id',row.data.owner_id);
