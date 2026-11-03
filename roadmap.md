@@ -1,5 +1,11 @@
 # Construção dos módulos Manager ADV
 
+## Autonomia operacional e sincronização ProJuris — 03/11/2026
+- [ ] Base persistente de clientes/processos e histórico de movimentos; reutilizar conversas, agenda e treinamento.
+- [ ] Consulta local prioritária e contingência da Ana, com envio factual automático autorizado e confidencialidade preservada.
+- [ ] Fila durável e sincronização oficial de andamentos 15 minutos (configurável 10–15), recuperação e monitoramento manual.
+- [ ] Testar persistência, isolamento, sincronização, contingência, deduplicação e fluxo autenticado; identificar bloqueios reais sem simulação.
+
 ## Apagar mensagens da Ana — 03/11/2026
 - [x] Menu da Ana: apagar para esta conta e para todos (sênior/admin), confirmação e proprietário verificados no servidor.
 - [x] UltraMsg resolve mensagem enviada no contato vinculado; só confirma exclusão após resposta positiva, preservando texto/auditoria e sem cancelar agenda.
