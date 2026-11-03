@@ -39,13 +39,13 @@ const normalizar = (t: string) => t.normalize('NFC').toLowerCase().replace(/\s+/
  * coincide com uma mensagem do escritório registrada nos últimos 30 minutos ou com a resposta que a Ana está enviando.
  * O UltraMsg pode acrescentar ao final, com marcadores, horários que faltavam no texto; por isso o início também vale.
  */
-export function mensagemDoSistema(texto: string, conversa: { mensagens: Pick<Mensagem, 'de' | 'texto' | 'dataHora'>[]; agenteAna?: { resultado?: { mensagem?: string } } }, agora = new Date()) {
+export function mensagemDoSistema(texto: string, conversa: { mensagens: Pick<Mensagem, 'de' | 'texto' | 'dataHora'>[]; agenteAna?: { resultado?: { mensagem?: string }; envioAna?: { texto: string; desde: string } } }, agora = new Date()) {
   const corpo = normalizar(texto);
-  if (!corpo) return true;
+  if (!corpo) return false;
   const limite = agora.getTime() - 30 * 60000;
   const candidatos = [
     ...conversa.mensagens.filter(m => m.de === 'escritorio' && (!m.dataHora || Date.parse(m.dataHora) >= limite)).map(m => m.texto),
-    conversa.agenteAna?.resultado?.mensagem ?? '',
+    ...(conversa.agenteAna?.envioAna && Date.parse(conversa.agenteAna.envioAna.desde) >= limite ? [conversa.agenteAna.envioAna.texto] : []),
   ].map(normalizar).filter(Boolean);
   // Mensagem manual curta ("Olá", "ok") nunca é confundida com o começo de uma mensagem do sistema.
   return candidatos.some(c => corpo === c || corpo.startsWith(c) || (corpo.length >= 40 && c.startsWith(corpo)));

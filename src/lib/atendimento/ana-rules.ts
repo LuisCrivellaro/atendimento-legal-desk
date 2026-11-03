@@ -15,6 +15,8 @@ export const anaSchema = z.object({
 });
 export type AnaResult = z.infer<typeof anaSchema>;
 export interface AnaState {
+  controleHumanoEm?: string;
+  envioAna?: { mensagemId: string; texto: string; desde: string } | undefined;
   pedidosProcesso?: import('./consulta-processo').PedidoProcesso[] | undefined;
   aguardandoAssuntoProcesso?: boolean;
   /** Vínculo com a pessoa do ProJuris (gravado pelo servidor; pendente até a equipe confirmar). */

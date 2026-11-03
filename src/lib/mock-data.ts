@@ -6,6 +6,7 @@ export const PIPELINE = ["Atendimento inicial", "Contrato assinado", "Coleta de 
 export type Sync = "sincronizado" | "pendente" | "erro";
 
 export interface Mensagem {
+  iaExecucao?: import('./atendimento/ana-execution').ExecucaoAna;
   ocultaPara?: string[];
   apagadaParaTodos?: {em:string;por:string};
   pdfStart?: { id: string; url: string; nome: string; tipoDocumento: string; descricao: string; bytes: number } | undefined;
