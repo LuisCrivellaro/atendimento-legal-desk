@@ -1,10 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Conversa, DocItem } from "@/lib/mock-data";
-import type { Json } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 
 // Casos e checklist do usuário logado (RLS garante que cada um vê só os seus).
 export async function listarCasos(): Promise<Conversa[]> {
-  const casos = []; const itens = [];
+  const casos: Pick<Database['public']['Tables']['casos']['Row'],'id'|'dados'|'etapa'|'nome'|'last_message_at'>[] = []; const itens: Pick<Database['public']['Tables']['checklist_itens']['Row'],'id'|'caso_id'|'nome'|'recebido'|'ordem'>[] = [];
   for (let offset = 0; ; offset += 500) {
     const r = await supabase.from("casos").select("id,dados,etapa,nome,last_message_at").order('last_message_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).range(offset, offset + 499);
     if (r.error) throw r.error; casos.push(...r.data); if (r.data.length < 500) break;

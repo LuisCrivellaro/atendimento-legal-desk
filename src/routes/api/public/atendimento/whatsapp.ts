@@ -77,7 +77,7 @@ const esperar = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
  * Mensagens do próprio sistema (Ana ou envio pelo Manager) também chegam aqui e são reconhecidas pelo texto;
  * como podem chegar antes de serem gravadas, a conferência é repetida uma vez após alguns segundos.
  */
-async function registrarRespostaManual(admin: Admin, contato: { conversa_id: string | null; contato_externo: string; status: string } | undefined, data: { id: string; body?: string; type?: string; timestamp?: string | number }, auditar: (acao: string, resumo: string, status: string) => unknown) {
+async function registrarRespostaManual(admin: Admin, contato: { conversa_id: string | null; contato_externo: string; status: string } | undefined, data: { id: string; body?: string; type?: string; timestamp?: string | number | undefined }, auditar: (acao: string, resumo: string, status: string) => unknown) {
   if (!contato || contato.status !== 'liberado' || !contato.conversa_id) return Response.json({ ok: true, ignorado: true });
   const conversaId = contato.conversa_id;
   const msgId = `ultramsg:${contato.contato_externo}:${data.id}`;
