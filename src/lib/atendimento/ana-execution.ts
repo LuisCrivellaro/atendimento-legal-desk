@@ -16,5 +16,5 @@ export function autorizaEnvioAna(c: Conversa, origem: string, controle: string |
 }
 /** Proteção contra loop: no máximo 6 respostas da Ana em 10 minutos na mesma conversa. */
 export function excessoRespostasAna(c: Conversa, agora = Date.now(), limite = 6) {
-  return c.mensagens.filter(m => m.de === 'agente' && !!m.respostaAnaDe && agora - Date.parse(m.enviadoEm ?? m.hora ?? '') < 600000).length >= limite;
+  return c.mensagens.filter(m => m.de === 'agente' && !!m.respostaAnaDe && agora - Date.parse(m.dataHora ?? '') < 600000).length >= limite;
 }
