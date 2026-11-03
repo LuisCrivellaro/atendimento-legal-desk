@@ -6,6 +6,7 @@ vi.mock('@tanstack/react-router', () => ({ createFileRoute: () => (options: unkn
 vi.mock('@/integrations/supabase/client.server', () => ({ supabaseAdmin: mocks.db }));
 vi.mock('@/lib/documentos.server', () => ({ analisarAnexoDoCaso: mocks.analisar }));
 vi.mock('@/lib/atendimento/ana.server', () => ({ atualizarConversa: mocks.save, processarAna: mocks.ana }));
+vi.mock('@/lib/atendimento/entrada-whatsapp.server', async (orig) => ({ ...(await orig<object>()), donaEntradaWhatsApp: async () => ({ ownerId: 'owner' }) }));
 import { Route } from '@/routes/api/public/atendimento/whatsapp';
 
 describe('documentos recebidos pelo WhatsApp', () => {
