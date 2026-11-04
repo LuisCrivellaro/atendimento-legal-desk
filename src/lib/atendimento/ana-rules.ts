@@ -4,7 +4,7 @@ import { forbiddenTopics, normalized, chosenSlot, formatarHorarioCliente } from 
 import { gerarHorarios } from './schedule-rules';
 import type { TipoCliente } from './intake-rules';
 import { validarTextoEnvio } from './canal-envio';
-import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, hora } from './ana-scheduling';
+import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, hora, dataAgenda } from './ana-scheduling';
 
 export const anaSchema = z.object({
   acao: z.enum(['enviar', 'rascunho', 'nenhuma']), mensagem: z.string(), motivo_aprovacao: z.string(),
@@ -100,11 +100,20 @@ export const PERGUNTA_HORARIO_ANA = 'O que fica melhor para você?';
 export const PEDIDO_NOME_AGENDA_ANA = 'Ótimo! Para registrar na agenda, qual é o seu nome completo?';
 const horaOferta=(iso:string)=>`às ${hora(iso)}`;
 /** "Temos horários  às 10h ou às 14h30 " — 1 manhã e 1 tarde, mesmo espaçamento do modelo oficial. */
-export function linhaDoisHorariosAna(horarios:string[]) {
-  return `Temos horários  ${horarios.slice(0,2).map(horaOferta).join(' ou ')} `;
+const SEMANA=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+function diaOferta(data:string,hoje:string){
+  const d=new Date(`${data}T12:00:00Z`),dm=`${data.slice(8,10)}/${data.slice(5,7)}`,sem=SEMANA[d.getUTCDay()];
+  return data===hoje?`hoje (${sem}, ${dm})`:`${sem} (${dm})`;
 }
-export function primeiraMensagemAna(horarios:string[]) {
-  return `${SAUDACAO_CLIENTE_NOVO}\n${linhaDoisHorariosAna(horarios)}\n\n${PERGUNTA_HORARIO_ANA}`;
+/** Opção A (Dra. Carolina, 04/11/2026): dia em linha; mesmo dia "X às 10h ou às 14h30"; dois dias "X às 15h, ou Y às 10h ou às 17h". */
+export function linhaDoisHorariosAna(horarios:string[],now=new Date()) {
+  const hoje=dataAgenda(now.toISOString());
+  const grupos:{data:string;horas:string[]}[]=[];
+  for(const s of horarios.slice(0,3)){const data=dataAgenda(s);const g=grupos.find(x=>x.data===data);if(g)g.horas.push(s);else grupos.push({data,horas:[s]});}
+  return `Temos horários ${grupos.map(g=>`${diaOferta(g.data,hoje)} ${g.horas.map(horaOferta).join(' ou ')}`).join(', ou ')}`;
+}
+export function primeiraMensagemAna(horarios:string[],now=new Date()) {
+  return `${SAUDACAO_CLIENTE_NOVO}\n${linhaDoisHorariosAna(horarios,now)}\n\n${PERGUNTA_HORARIO_ANA}`;
 }
 export function saudacaoInicialAna(texto:string) {
   return texto.startsWith('Olá , \n\nSeja bem vindo (a)😊')||texto.startsWith('Olá,\n\nSeja bem vindo (a)😊');
