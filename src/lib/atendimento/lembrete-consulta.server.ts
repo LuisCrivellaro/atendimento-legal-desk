@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import type { Conversa } from '../mock-data';
-import { newMessage } from '../mock-data';
+import { newMessage } from '../atendimento';
 import { consultaDeHoje, mensagemLembreteAna } from './lembrete-consulta';
 import { atualizarConversa } from './ana.server';
 
