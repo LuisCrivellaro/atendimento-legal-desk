@@ -388,10 +388,10 @@
 - [ ] Publicar — aguarda autorização.
 
 ## Migração da agenda Anne → ProJuris — 04/11/2026
-- [ ] Implementar inventário paginado, conferência de equivalências/conflitos, migração manual com recibos persistentes e validação individual; manter Google ativo e originais intactos.
+- [x] Inventário paginado, conferência de equivalências/conflitos, migração manual individual com intenção/recibos persistentes CAS e validação de horário/origem/responsável; Google mantido ativo e originais intactos. 661 testes aprovados, compilação limpa; inventário real autenticado conferido desktop/mobile sem erros, 1528 eventos, cinco consultas confirmadas (uma sem cliente), duas consultas canceladas; nenhuma migração real executada.
 - [x] Auditoria: endpoints reais confirmados na especificação oficial (tarefa-compromisso, consulta de compromissos); filtro de período da API é ignorado — filtragem local; datas já vêm como instante completo em ms.
 - [x] Operações fechadas de compromisso (consultar, obter, criar, alterar; sem excluir) + módulo de agenda com bloqueio no banco, releitura, idempotência por código externo e confirmação por leitura; 652 testes aprovados, compilação limpa.
 - [x] Leitura real validada: autenticação OK, 154 compromissos lidos (tipos Reunião/Atendimento inicial/Atendimento), nenhum compromisso futuro — consultas futuras estão só no Google Calendar.
 - [ ] Validação controlada de criação (aguarda confirmação da Dra.; exclusão está desativada no ProJuris).
-- [ ] Migração dos compromissos futuros do Google Calendar (dry-run → execução após aprovação).
+- [ ] Executar migração real individual após conferência da Dra., validar recibos/quantidades no ProJuris e resolver consulta sem nome/eventos não classificados; não criar registros irreversíveis só para teste.
 - [ ] Troca da Anne para ProJuris exclusivo e desativação do Calendar SOMENTE após aprovação da equipe.

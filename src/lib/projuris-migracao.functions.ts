@@ -8,7 +8,11 @@ export const conferirMigracaoAgenda = createServerFn({ method: 'POST' }).middlew
   const { lerInventario, guardarMigracao } = await import('./projuris/migracao.server');
   const inventario = await lerInventario();
   await guardarMigracao(context.supabase, context.userId, { etapa: 'inventario', inventario });
-  return inventario;
+  const row = await context.supabase.from('office_workspace').select('dados').eq('owner_id', context.userId).single();
+  if (row.error) throw new Error('Histórico da conferência indisponível.');
+  const registros = (row.data.dados as Record<string, unknown>)['migracaoAgenda'];
+  const historico = (Array.isArray(registros) ? registros : []).filter(r => r && typeof r === 'object' && r['origem']).map(r => ({ origem: String(r['origem']), etapa: String(r['etapa']), em: String(r['em']) }));
+  return { ...inventario, historico };
 });
 export const executarMigracaoAgenda = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
   .inputValidator(z.object({ id: z.string().min(1).max(1024), etag: z.string().min(1).max(1024), confirmado: z.literal(true) }))
