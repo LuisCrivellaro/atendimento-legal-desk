@@ -4,7 +4,7 @@ import { forbiddenTopics, normalized, chosenSlot, formatarHorarioCliente } from 
 import { gerarHorarios } from './schedule-rules';
 import type { TipoCliente } from './intake-rules';
 import { validarTextoEnvio } from './canal-envio';
-import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna } from './ana-scheduling';
+import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, hora } from './ana-scheduling';
 
 export const anaSchema = z.object({
   acao: z.enum(['enviar', 'rascunho', 'nenhuma']), mensagem: z.string(), motivo_aprovacao: z.string(),
@@ -93,16 +93,24 @@ export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=f
   const continuidade=emAgendamento&&!!r.dados_coletados.nome.trim();
   return pedido||continuidade?{...r,intencao:'agendamento'}:r;
 }
-/** Saudação oficial ao cliente novo (fluxo de primeiro contato da Dra., 03/11/2026). Texto exato; pede o nome. */
-export const SAUDACAO_CLIENTE_NOVO = 'Olá,\n\nSeja bem vindo (a)😊\n\nÀ Equipe CS Advocacia\n[www.carolinasantos.com.br](http://www.carolinasantos.com.br/)\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
-
-export function primeiraMensagemAna(horarios:string[]) {
-  return `${SAUDACAO_CLIENTE_NOVO}\n\n${listaHorariosAna(horarios)}\n\nQual o seu nome?`;
+/** Saudação oficial ao cliente novo (prompt da Dra. Carolina, 04/11/2026). Texto exato; o nome é pedido só após a escolha. */
+export const SAUDACAO_CLIENTE_NOVO = 'Olá , \n\nSeja bem vindo (a)😊\nEquipe CS Advocacia \nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
+export const PERGUNTA_HORARIO_ANA = 'O que fica melhor para você?';
+export const PEDIDO_NOME_AGENDA_ANA = 'Ótimo! Para registrar na agenda, qual é o seu nome completo?';
+const horaOferta=(iso:string)=>`às ${hora(iso)}`;
+/** "Temos horários  às 10h ou às 14h30 " — 1 manhã e 1 tarde, mesmo espaçamento do modelo oficial. */
+export function linhaDoisHorariosAna(horarios:string[]) {
+  return `Temos horários  ${horarios.slice(0,2).map(horaOferta).join(' ou ')} `;
 }
-
+export function primeiraMensagemAna(horarios:string[]) {
+  return `${SAUDACAO_CLIENTE_NOVO}\n${linhaDoisHorariosAna(horarios)}\n\n${PERGUNTA_HORARIO_ANA}`;
+}
+export function saudacaoInicialAna(texto:string) {
+  return texto.startsWith('Olá , \n\nSeja bem vindo (a)😊')||texto.startsWith('Olá,\n\nSeja bem vindo (a)😊');
+}
 export function pediuNomeInicialAna(texto:string) {
   // Compatível também com a saudação já enviada pela versão anterior.
-  return texto.startsWith('Olá,\n\nSeja bem vindo (a)😊')&&texto.endsWith('Qual o seu nome?');
+  return saudacaoInicialAna(texto)||texto.endsWith('nome completo?');
 }
 
 export function nomePrimeiroContatoAna(texto:string,anterior:string) {
@@ -125,7 +133,7 @@ export function apenasCumprimentoAna(texto:string):boolean {
 export function saudacaoClienteNovo(r:AnaResult,_texto:string,o:{apresentado:boolean;tipoCliente?:TipoCliente | undefined;horarios?:string[];agendaReal?:boolean}):AnaResult {
   if(o.apresentado||o.tipoCliente==='cadastrado'||r.acao!=='enviar'||r.encaminhar_humano||r.urgente)return r;
   if(!o.agendaReal||!o.horarios?.length)return {...r,acao:'rascunho',mensagem:'',motivo_aprovacao:'Agenda sem disponibilidade verificada; nenhum horário oferecido.'};
-  return {...r,mensagem:primeiraMensagemAna(o.horarios),intencao:'agendamento',proximo_passo:'Aguardar nome e escolha de um dos horários reais já oferecidos.'};
+  return {...r,mensagem:primeiraMensagemAna(o.horarios),intencao:'agendamento',proximo_passo:'Aguardar escolha de um dos 2 horários reais oferecidos; pedir o nome completo depois.'};
 }
 
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {

@@ -119,7 +119,7 @@ export function selecionarOpcoesAna(busy:{start:string;end:string}[],now:Date,ti
   const periodo=/tarde|mais tarde/.test(t)?'tarde':/manha|mais cedo/.test(t)?'manha':undefined;
   const weekday=dias.findIndex(d=>new RegExp(`\\b${d}(?:-feira)?\\b`).test(t));
   const day=t.match(/\bdia\s+(\d{1,2})\b/),dm=t.match(/\b(\d{1,2})\/(\d{1,2})\b/);
-  let available=all.filter(s=>(!evitarRepeticao||!anteriores.some(a=>Date.parse(a)===Date.parse(s)))&&(!periodo||(periodo==='tarde'?Number(partesAgenda(s)['hour'])>=13:Number(partesAgenda(s)['hour'])<12))&&(weekday<0||new Date(`${dataAgenda(s)}T12:00:00Z`).getUTCDay()===weekday)&&(!day||Number(partesAgenda(s)['day'])===Number(day[1]))&&(!dm||Number(partesAgenda(s)['day'])===Number(dm[1])&&Number(partesAgenda(s)['month'])===Number(dm[2])));
+  const available=all.filter(s=>(!evitarRepeticao||!anteriores.some(a=>Date.parse(a)===Date.parse(s)))&&(!periodo||(periodo==='tarde'?Number(partesAgenda(s)['hour'])>=13:Number(partesAgenda(s)['hour'])<12))&&(weekday<0||new Date(`${dataAgenda(s)}T12:00:00Z`).getUTCDay()===weekday)&&(!day||Number(partesAgenda(s)['day'])===Number(day[1]))&&(!dm||Number(partesAgenda(s)['day'])===Number(dm[1])&&Number(partesAgenda(s)['month'])===Number(dm[2])));
   const semPeriodo=!!periodo&&!available.length;
   // Regra dos 2 horários: 1 manhã + 1 tarde (ou 2 do período pedido).
   return {slots:parManhaTardeAna(available),semPeriodo};
