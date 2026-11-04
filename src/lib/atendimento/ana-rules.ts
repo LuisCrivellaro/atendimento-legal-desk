@@ -31,6 +31,7 @@ export interface AnaState {
   horariosTeste?: string[]; consultaTeste?: string | undefined; agendaReal?: boolean;
   horariosApresentados?: string[]; listasHorarios?: number; pedidosOutrasOpcoes?: number;
   confirmacaoCancelamento?: {eventoId:string;inicio:string;contato:string;expira:string} | undefined;
+  lembreteConsulta?: {inicio:string;enviadoEm:string;confirmadoEm?:string | undefined} | undefined;
   horarioPendente?: string | undefined; horarioPendenteDesde?: string | undefined;
    reservaCalendar?: import('./calendar-booking').ReservaCalendar | undefined;
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;
