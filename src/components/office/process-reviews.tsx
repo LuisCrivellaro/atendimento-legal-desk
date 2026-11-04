@@ -29,7 +29,7 @@ export function ProcessReviews({ conversaId }: { conversaId?: string }) {
     setBusy(true);
     try {
       await decide({ data: { conversaId: selected.conversaId, codigo: selected.codigo, hash: selected.hash, acao, ...(acao === 'corrigir' ? { texto } : {}) } });
-      toast.success(acao === 'recusar' ? 'Pedido recusado. Ana pausada nesta conversa.' : 'Texto aprovado enviado ao cliente.');
+      toast.success(acao === 'recusar' ? 'Pedido recusado. Anne pausada nesta conversa.' : 'Texto aprovado enviado ao cliente.');
       setSelected(null);
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); await Promise.all([qc.invalidateQueries({ queryKey: ['process-reviews'] }), qc.invalidateQueries({ queryKey: ['casos'] })]); }

@@ -23,7 +23,7 @@ export function AnaSaudePanel() {
   return (
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-        <div><CardTitle>Monitoramento 24h da Ana</CardTitle><p className="text-sm text-muted-foreground">Verificado automaticamente a cada 5 minutos pelo servidor · último: {fmt(s?.verificadoEm)}</p></div>
+        <div><CardTitle>Monitoramento 24h da Anne</CardTitle><p className="text-sm text-muted-foreground">Verificado automaticamente a cada 5 minutos pelo servidor · último: {fmt(s?.verificadoEm)}</p></div>
         <div className="flex items-center gap-2">{s && <Badge variant={cor[s.geral]}>{rot[s.geral]}</Badge>}<Button size="sm" variant="outline" disabled={agora.isPending} onClick={() => agora.mutate()}>{agora.isPending ? 'Verificando…' : 'Verificar agora'}</Button></div>
       </CardHeader>
       <CardContent className="space-y-4">
