@@ -274,7 +274,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
             const audit=await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'reservaCalendar',p_resumo:`Compromisso confirmado · ${reserva.inicio}`,p_status:'sucesso'});
             if(audit.error)throw new Error('Reserva criada; falha de auditoria. Confira a Agenda.');
           }catch(error){
-            console.error('Reserva Google Calendar não concluída',error);
+            console.error('Reserva na agenda ProJuris não concluída',error);
             if(error instanceof Error&&error.message==='Esse horário acabou de ficar ocupado. Escolha outro horário.'){
               const {ocupadosAgenda}=await import('./projuris-agenda.server');
               const busy=await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna());
@@ -291,8 +291,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
             // Nunca prometer reserva após falha, nem criar uma segunda tentativa automática.
             r.mensagem='Não consegui concluir a reserva na agenda. Deixei a situação registrada para a equipe verificar; não considere o horário confirmado por esta mensagem.';
             r.proximo_passo='Equipe: conferir a agenda e a falha de reserva antes de retomar.';
-            await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,humano:true,erro:'Falha ao concluir a reserva; conferir Google Calendar.',resultado:{...r,encaminhar_humano:true},proximoPasso:r.proximo_passo}}));
-            await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'reservaCalendar',p_resumo:'Reserva não confirmada · revisão humana',p_status:'erro',p_erro:'Falha na reserva Google Calendar; conferir registros do servidor.'});
+            await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,humano:true,erro:'Falha ao concluir a reserva; conferir a agenda do ProJuris.',resultado:{...r,encaminhar_humano:true},proximoPasso:r.proximo_passo}}));
+            await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'reservaCalendar',p_resumo:'Reserva não confirmada · revisão humana',p_status:'erro',p_erro:'Falha na reserva na agenda ProJuris; conferir registros do servidor.'});
           }
         }
         const latest=await db.from('casos').select('dados').eq('id',id).single();
