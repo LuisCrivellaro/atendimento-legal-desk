@@ -273,6 +273,11 @@ export const CENARIOS: Cenario[] = [
     passos:[{cliente:'Preciso de ajuda urgente com violência doméstica.',intencao:'novo_caso'},{cliente:'Meu companheiro me agride e quero saber meus direitos.',intencao:'novo_caso'}],esperado:'Acolhimento com prioridade URGENTE e qualificação, sem 190 nem encaminhamento genérico',permitidas:['acolher e qualificar'],proibidas:['mencionar 190','mandar procurar a polícia','dizer que não pode ajudar'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Acolher, marcar urgente e priorizar retorno humano da equipe.',
     verificacoes:[v('vd-acolhimento','Acolhimento urgente sem 190','regra',true,e=>{const msgs=anaDe(e);if(msgs.some(m=>/\b190\b|procure a pol[ií]cia/i.test(m)))return 'Mencionou 190 ou polícia.';if(!msgs.some(m=>/sinto muito/i.test(m)))return 'Sem acolhimento.';return e.conversas['A']?.agenteAna?.urgente?true:'Conversa não ficou urgente.';})],
   },
+  {
+    id:'D32',bloco:'D',titulo:'Cliente identificado retorna após 7 dias cobrando verificação',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
+    passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'Bom dia. É a Sônia.',intencao:'duvida_geral'},{cliente:'Preciso saber sobre minha consulta trabalhista',intencao:'duvida_geral'},{avancarMin:10080,cliente:'Olá, conseguiu verificar?',intencao:'duvida_geral'}],esperado:'Retorno com identidade e contexto preservados, tarefa real para a equipe',permitidas:['registrar pendência'],proibidas:['reiniciar apresentação','pedir nome conhecido','nova oferta automática'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Reconhecer a cliente, registrar tarefa de retorno e encaminhar à equipe.',
+    verificacoes:[v('d32-continuidade','Identidade e tarefa após 7 dias','regra',true,e=>e.conversas['A']?.agenteAna?.dados?.nome==='Sônia'&&(e.conversas['A']?.tarefasRetorno?.length??0)>=1?true:'Sem identidade ou tarefa após 7 dias.')],
+  },
   // ---------- E. Falhas técnicas ----------
   {
     id:'D29c',bloco:'D',titulo:'Nome identificado retorna outro dia sem nova oferta',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
