@@ -12,6 +12,7 @@ export type Status = 'PASSOU' | 'FALHOU' | 'PARCIALMENTE APROVADO';
 
 export interface Linha { conversa: string; de: 'cliente' | 'ana' | 'revisora' | 'sistema'; texto: string }
 export interface Execucao {
+  conversas: Record<string, import('@/lib/mock-data').Conversa>;
   transcricao: Linha[];
   ana: Record<string, string[]>;
   ferramentas: string[];

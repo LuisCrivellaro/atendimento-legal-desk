@@ -263,11 +263,16 @@ export const CENARIOS: Cenario[] = [
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Linhas de boas-vindas (do "Olá!" até o site) e, em seguida, o atendimento ao pedido de agendamento.',
     verificacoes: [anaNaoDiz(/Como podemos te ajudar\?$/, 'Não pergunta como pode ajudar quando o pedido já veio', 'prompt')],
   },
+  {
+    id:'D30-paulo',bloco:'D',titulo:'Paulo mantém contexto e cobra retorno',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
+    passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'Bom dia. É o Paulo.',intencao:'duvida_geral'},{cliente:'Você ficou de me dar um retorno.',intencao:'duvida_geral'}],esperado:'Identidade preservada e tarefa de retorno real',permitidas:['registrar pendência'],proibidas:['reiniciar apresentação','nova oferta automática'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Registrar tarefa e encaminhar à equipe.',
+    verificacoes:[v('paulo-continuidade','Identidade e tarefa persistidas','regra',true,e=>e.conversas['A']?.agenteAna?.dados?.nome==='Paulo'&&(e.conversas['A']?.tarefasRetorno?.length??0)===1?true:'Sem identidade ou tarefa persistida.')],
+  },
   // ---------- E. Falhas técnicas ----------
   {
     id:'D29c',bloco:'D',titulo:'Nome identificado retorna outro dia sem nova oferta',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
     passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'Mariana Souza Lima',intencao:'agendamento'},{avancarMin:1440,cliente:'bom dia',intencao:'duvida_geral'}],esperado:'Saudação de retorno sem nome ou horários',permitidas:['retomar contexto'],proibidas:['nova lista automática','pedir nome conhecido'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Preservar nome e oferta anterior.',
-    verificacoes:[v('retorno-sem-oferta','Não renova oferta no retorno','regra',true,e=>anaDe(e).at(-1)===SAUDACAO_RETORNO_ANA?true:'Retorno não corresponde ao fluxo.')],
+    verificacoes:[v('retorno-sem-oferta','Não renova oferta no retorno','regra',true,e=>anaDe(e).at(-1)==='Olá! Como posso ajudar com seu atendimento?'?true:'Retorno não corresponde ao fluxo.')],
   },
   ...([['E31a', 'ProJuris responde 403 (sem permissão)', { tipo: 'sem_permissao', status: 403 }], ['E31b', 'ProJuris responde 429 (limite)', { tipo: 'limite', status: 429 }],
     ['E31c', 'ProJuris não responde a tempo', { tipo: 'tempo' }], ['E31d', 'ProJuris fora do ar', { tipo: 'indisponivel', status: 503 }]] as const).map(([id, titulo, falha]): Cenario => ({

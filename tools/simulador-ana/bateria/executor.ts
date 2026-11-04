@@ -124,6 +124,7 @@ export async function executarCenario(c: Cenario, modo: ModoExecucao): Promise<R
       erros,
       intencoes,
       dados,
+      conversas: Object.fromEntries(Object.entries(sims).map(([k,s])=>[k,s.conv])),
       nomes: Object.fromEntries(Object.entries(c.conversas).map(([k, v]) => [k, v.nome])),
     };
     return e;

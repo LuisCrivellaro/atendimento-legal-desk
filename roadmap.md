@@ -1,9 +1,10 @@
 # Construção dos módulos Manager ADV
 
 ## Continuidade e retornos pendentes — 04/11/2026
-- [ ] Recuperar contexto persistente e identidade; impedir reinício institucional e reofertas sem pedido.
-- [ ] Vincular cobranças de retorno a histórico e tarefas reais; notificar a equipe no sistema sem inventar atualização ou liberar conteúdo jurídico.
-- [ ] Reproduzir cenário Paulo e regressões, conferir persistência e tela; não publicar nem enviar mensagens externas sem autorização.
+- [x] Contexto completo do contato/canal e estado operacional compartilhados no servidor/simulador; identidade explícita Paulo reconhecida, nome não reinicia ofertas, retorno não repete apresentação institucional.
+- [x] Cobranças genéricas registram tarefa CAS com assunto/referências e responsável da conversa antes do envio, preservadas contra edição antiga; Assessor e avisos internos exibem pendências. Ciente/conclusão autenticados; conclusão exige resposta humana realmente enviada. Conteúdo processual continua no fluxo de aprovação existente.
+- [x] 614 testes aprovados em 74 arquivos; cenário Paulo, histórico >24 mensagens, reinício serializado, duplicidade, merge e ownership verificados com portas controladas. Compilação limpa; Atendimento autenticado desktop/mobile sem erros, rascunho preservado.
+- [ ] Validar criação/aviso/conclusão de tarefa nova na tela com conversa real e WhatsApp: exige publicação autorizada e mensagem externa. Nenhuma tarefa fictícia criada no banco; painel de tarefas sem registros reais não exercitado end-to-end. Não publicado nem enviado ao canal.
 
 ## Ordenação WhatsApp — ajuste de 04/11/2026
 - [x] Banco atual sem divergências/futuros; importação corrigida para segundos/milissegundos/ISO e data desconhecida sem substituir por hoje; deduplicação por ID externo/direção.
