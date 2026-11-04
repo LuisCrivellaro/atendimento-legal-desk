@@ -11,7 +11,7 @@ vi.mock('@/lib/atendimento/google-calendar.server',()=>({cancelarGoogleCalendar:
 vi.mock('@/lib/atendimento/envio.functions',()=>({enviarMensagemSistema:mocks.enviar}));
 afterEach(()=>vi.useRealTimers());
 function setup(canal:'telegram'|'ultramsg',marcada=true){
- vi.clearAllMocks();vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-27T11:00:00Z'));
+ vi.clearAllMocks();vi.useFakeTimers();vi.setSystemTime(new Date('2026-10-27T08:00:00Z'));
  const fixture=conversas[0];if(!fixture)throw new Error('Fixture missing');
  const telefone='5511999600306',contato=canal==='telegram'?'839854097':telefone;
  const reserva={id:'evento-cliente',inicio:'2026-10-28T12:00:00.000Z',fim:'2026-10-28T12:30:00.000Z'};

@@ -11,7 +11,7 @@ describe('prompt da Ana de 04/11/2026', () => {
     expect(primeiraMensagemAna([manha,tarde]).replace(/Temos horários [^\n]+/,'Temos horários X')).toBe('Olá , \n\nSeja bem vindo (a)😊\nEquipe CS Advocacia \nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.\nTemos horários X\n\nO que fica melhor para você?');
   });
   it('apresenta só 2 opções: manhã e tarde mais próximas', () => {
-    const now=new Date('2026-11-04T12:00:00Z'); // qua 9h SP
+    const now=new Date('2026-11-04T09:00:00Z'); // qua 9h SP
     const slots=selecionarOpcoesAna([],now,'novo').slots;
     expect(slots).toHaveLength(2);
     expect(Number(partesAgenda(slots[0]!)['hour'])).toBeLessThan(12);

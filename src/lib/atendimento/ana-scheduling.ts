@@ -1,4 +1,4 @@
-import { gerarHorarios, horarioPermitido, feriadoNacional } from './schedule-rules';
+import { gerarHorarios, horarioPermitido, feriadoNacional, ANTECEDENCIA_MINIMA_MS } from './schedule-rules';
 import { intervaloLivre } from './calendar-booking';
 import type { TipoCliente } from './intake-rules';
 import { formatarHorarioCliente } from '../atendimento';
@@ -123,12 +123,12 @@ export function pedidoHorarioEspecifico(texto:string,now=new Date()) {
   return parsed.toISOString();
 }
 export function horarioEspecificoLivre(iso:string,busy:{start:string;end:string}[],tipo:TipoCliente,now=new Date()) {
-  return Date.parse(iso)>now.getTime()&&Date.parse(iso)<now.getTime()+horizonteAgendaAna(now)*86400000&&horarioPermitido(iso,tipo)&&intervaloLivre(busy,iso,new Date(Date.parse(iso)+30*60000).toISOString());
+  return Date.parse(iso)>=now.getTime()+ANTECEDENCIA_MINIMA_MS&&Date.parse(iso)<now.getTime()+horizonteAgendaAna(now)*86400000&&horarioPermitido(iso,tipo)&&intervaloLivre(busy,iso,new Date(Date.parse(iso)+30*60000).toISOString());
 }
 export function selecionarOpcoesAna(busy:{start:string;end:string}[],now:Date,tipo:TipoCliente,texto='',anteriores:string[]=[],evitarRepeticao=false) {
   // Inclui o restante de hoje, sem mudar as regras compartilhadas dos atalhos manuais.
   const horizonte=horizonteAgendaAna(now);
-  const all=gerarHorarios(busy,new Date(now.getTime()-86400000),tipo,1000,horizonte+1).filter(s=>Date.parse(s)>now.getTime()&&Date.parse(s)<=now.getTime()+horizonte*86400000);
+  const all=gerarHorarios(busy,new Date(now.getTime()-86400000),tipo,1000,horizonte+1).filter(s=>Date.parse(s)>=now.getTime()+ANTECEDENCIA_MINIMA_MS&&Date.parse(s)<=now.getTime()+horizonte*86400000);
   const t=fold(texto);
   const periodo=/tarde|mais tarde/.test(t)?'tarde':/manha|mais cedo/.test(t)?'manha':undefined;
   const weekday=dias.findIndex(d=>new RegExp(`\\b${d}(?:-feira)?\\b`).test(t));
