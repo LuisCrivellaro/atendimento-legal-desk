@@ -55,11 +55,13 @@ export function compromissosDaResposta(raw: unknown): CompromissoPJ[] {
   return saida;
 }
 
-/** Corpo da consulta de compromissos entre dois instantes (ms). */
+/** Corpo da consulta de compromissos entre dois instantes (ms).
+ *  Confirmado contra a API real (04/11/2026): o filtro de período é dataInicio/dataFim;
+ *  dataTarefaInicio/dataTarefaFim existe na especificação mas devolve lista vazia. */
 export function corpoConsultaCompromissos(inicioMs: number, fimMs: number) {
   return {
-    dataTarefaInicio: inicioMs,
-    dataTarefaFim: fimMs,
+    dataInicio: inicioMs,
+    dataFim: fimMs,
     flagCompromisso: true,
     flagCompromissoConcluido: false,
   };

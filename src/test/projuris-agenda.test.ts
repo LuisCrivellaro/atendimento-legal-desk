@@ -20,14 +20,13 @@ describe('agenda ProJuris — regras puras', () => {
     expect(sobrepoe(10, 20, 10, 20)).toBe(true);
   });
 
-  it('normaliza item da consulta com data e hora separadas', () => {
+  it('normaliza item da consulta: dataInicio/dataFim já são instantes completos (confirmado na API real)', () => {
     const c = compromissoDe({
       codigoTarefaEvento: 123,
       titulo: 'Consulta',
-      dataInicioCompromisso: DIA,
-      horaInicioCompromisso: 36000000, // 10h em ms
-      dataFimCompromisso: DIA,
-      horaFimCompromisso: 37800000, // 10h30
+      dataInicioCompromisso: DIA + 36000000,
+      horaInicioCompromisso: DIA + 36000000, // a API repete o instante completo; nunca somar
+      dataFimCompromisso: DIA + 37800000,
       flagCompromissoConcluido: false,
     });
     expect(c).toEqual({ codigo: 123, titulo: 'Consulta', inicioMs: DIA + 36000000, fimMs: DIA + 37800000, concluido: false, codigoExterno: undefined });
