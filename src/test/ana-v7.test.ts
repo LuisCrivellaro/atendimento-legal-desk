@@ -15,7 +15,7 @@ describe('regras Ana v7',()=>{
   it('dia inequívoco seleciona apenas uma opção',()=>{expect(escolherHorarioAna(slots,'quinta')).toBe(slots[1]);expect(escolherHorarioAna([slots[1]??'', '2026-10-29T13:00:00Z'],'quinta')).toBeUndefined();});
   it('amanhã às 16h consulta o intervalo exato',()=>{const iso=pedidoHorarioEspecifico('tem amanhã às 16h?',now);expect(iso).toBe('2026-10-29T19:00:00.000Z');expect(horarioEspecificoLivre(iso??'',[], 'novo',now)).toBe(true);expect(horarioEspecificoLivre(iso??'',[{start:'2026-10-29T19:15:00Z',end:'2026-10-29T19:45:00Z'}],'novo',now)).toBe(false);});
   it('dia fora da carteira nunca fica disponível',()=>expect(horarioEspecificoLivre('2026-10-30T19:00:00Z',[],'novo',now)).toBe(false));
-  it('tarde mostra opções diferentes a partir das 13h',()=>{const r=selecionarOpcoesAna([],now,'novo','e à tarde?',slots,true);expect(r.slots).toHaveLength(3);expect(r.slots.every(s=>!slots.includes(s)&&new Date(s).getUTCHours()>=16)).toBe(true);});
+  it('tarde mostra opções diferentes a partir das 13h',()=>{const r=selecionarOpcoesAna([],now,'novo','e à tarde?',slots,true);expect(r.slots).toHaveLength(2);expect(r.slots.every(s=>!slots.includes(s)&&new Date(s).getUTCHours()>=16)).toBe(true);});
   it('primeira oferta usa os próximos horários e exclui feriado 02/11',()=>{const r=selecionarOpcoesAna([],now,'novo');expect(r.slots.map(s=>new Date(s).toISOString())).toEqual(['2026-10-28T15:30:00.000Z','2026-10-28T16:00:00.000Z','2026-10-28T16:30:00.000Z']);expect(r.slots.some(s=>s.startsWith('2026-11-02'))).toBe(false);});
   it('sem disponibilidade nunca retorna horários inventados',()=>expect(selecionarOpcoesAna([{start:'2026-10-28T00:00:00Z',end:'2026-11-20T00:00:00Z'}],now,'novo').slots).toEqual([]));
 });

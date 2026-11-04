@@ -32,8 +32,8 @@ describe.each(['telegram','ultramsg'] as const)('consentimento de agenda pelo %s
  it('sem consulta não chama Google',async()=>{const h=setup(canal,false);await h.message('quero cancelar');expect(mocks.cancelar).not.toHaveBeenCalled();expect(mocks.ocupados).not.toHaveBeenCalled();expect(h.saved.agenteAna?.confirmacaoCancelamento).toBeUndefined();});
  it('consentimento vencido não apaga evento',async()=>{const h=setup(canal);await h.message('quero cancelar');vi.setSystemTime(new Date('2026-10-27T11:31:00Z'));await h.message('sim');expect(mocks.cancelar).not.toHaveBeenCalled();expect(h.saved.consultaAgendada).toBe(h.reserva.inicio);});
  it('pergunta não enviada não autoriza confirmação',async()=>{const h=setup(canal);mocks.enviar.mockRejectedValueOnce(new Error('Envio indisponível'));await h.message('quero cancelar');expect(h.saved.agenteAna?.confirmacaoCancelamento).toBeUndefined();h.patch(c=>({...c,agenteAna:{...c.agenteAna,humano:false,pausa:false}}));await h.message('sim');expect(mocks.cancelar).not.toHaveBeenCalled();});
- it('remarcar oferece horários distintos do atual e usa novo recibo após escolha',async()=>{const h=setup(canal);await h.message('quero remarcar');const slots=h.saved.agenteAna?.horariosTeste??[];expect(slots).toHaveLength(3);expect(slots).not.toContain(h.reserva.inicio);expect(h.saved.agenteAna?.autorizacaoRemarcacao?.eventoId).toBe(h.reserva.id);const novo=slots[0];if(!novo)throw new Error('Missing offer');mocks.remarcar.mockResolvedValue({id:'novo-evento',inicio:novo,fim:new Date(Date.parse(novo)+30*60000).toISOString()});await h.message('a primeira');expect(mocks.remarcar).toHaveBeenCalledWith(h.saved.id,h.reserva,novo,true,expect.any(Date),{nome:'Maria Silva',telefone:'5511999600306',tipo:'novo'});expect(h.saved.consultaAgendada).toBe(novo);expect(h.saved.agenteAna?.reservaCalendar?.id).toBe('novo-evento');});
- it('frustração consulta novamente sem repetir nenhuma oferta e sem encaminhamento delicado',async()=>{const h=setup(canal,false);await h.message('quero agendar');const first=h.saved.agenteAna?.horariosTeste??[];await h.message('mas você me deu os mesmos horários!');const second=h.saved.agenteAna?.horariosTeste??[];expect(second).toHaveLength(3);expect(second.every(s=>!first.includes(s))).toBe(true);expect(h.saved.agenteAna?.humano).toBe(false);expect(h.saved.agenteAna?.motivo).toBe('');expect(mocks.ocupados).toHaveBeenCalledTimes(2);});
+ it('remarcar oferece horários distintos do atual e usa novo recibo após escolha',async()=>{const h=setup(canal);await h.message('quero remarcar');const slots=h.saved.agenteAna?.horariosTeste??[];expect(slots).toHaveLength(2);expect(slots).not.toContain(h.reserva.inicio);expect(h.saved.agenteAna?.autorizacaoRemarcacao?.eventoId).toBe(h.reserva.id);const novo=slots[0];if(!novo)throw new Error('Missing offer');mocks.remarcar.mockResolvedValue({id:'novo-evento',inicio:novo,fim:new Date(Date.parse(novo)+30*60000).toISOString()});await h.message('a primeira');expect(mocks.remarcar).toHaveBeenCalledWith(h.saved.id,h.reserva,novo,true,expect.any(Date),{nome:'Maria Silva',telefone:'5511999600306',tipo:'novo'});expect(h.saved.consultaAgendada).toBe(novo);expect(h.saved.agenteAna?.reservaCalendar?.id).toBe('novo-evento');});
+ it('frustração consulta novamente sem repetir nenhuma oferta e sem encaminhamento delicado',async()=>{const h=setup(canal,false);await h.message('quero agendar');const first=h.saved.agenteAna?.horariosTeste??[];await h.message('mas você me deu os mesmos horários!');const second=h.saved.agenteAna?.horariosTeste??[];expect(second).toHaveLength(2);expect(second.every(s=>!first.includes(s))).toBe(true);expect(h.saved.agenteAna?.humano).toBe(false);expect(h.saved.agenteAna?.motivo).toBe('');expect(mocks.ocupados).toHaveBeenCalledTimes(2);});
 });describe('primeira lista depois de pedir o nome',()=>{
  it('não guarda horários nunca mostrados e a primeira lista usa o texto inicial com os primeiros horários livres',async()=>{
   const h=setup('telegram',false);
@@ -45,7 +45,7 @@ describe.each(['telegram','ultramsg'] as const)('consentimento de agenda pelo %s
   await h.message('Mariana Souza Lima');
   const texto=String(mocks.enviar.mock.calls.at(-1)?.[0]?.texto??'');
   expect(texto.startsWith('Tenho estes horários livres na agenda:')).toBe(true);
-  expect(h.saved.agenteAna?.horariosTeste).toHaveLength(3);
+  expect(h.saved.agenteAna?.horariosTeste).toHaveLength(2);
   expect(h.saved.agenteAna?.horariosTeste?.[0]).toBe('2026-10-27T12:00:00.000Z');
  });
  it('horários fictícios salvos antes da correção não contam como já oferecidos',async()=>{
@@ -65,7 +65,7 @@ describe('Primeiro contato completo',()=>{
   h.patch(c=>({...c,etapa:'inicial',agenteAna:{apresentado:false,dados:{nome:'',cpf:'',email:'',assunto:''}}}));
   await h.message('oi');
   const offered=h.saved.agenteAna?.horariosTeste??[];
-  expect(offered).toHaveLength(3);
+  expect(offered).toHaveLength(2);
   expect(mocks.ocupados.mock.invocationCallOrder[0]).toBeLessThan(mocks.enviar.mock.invocationCallOrder[0]??0);
   await h.message('Mariana Souza Lima');
   expect(mocks.ocupados).toHaveBeenCalledOnce();
