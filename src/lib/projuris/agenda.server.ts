@@ -4,7 +4,12 @@
 // (em timeout/resposta inconclusiva, consulta-se pelo codigoExterno antes de qualquer nova tentativa).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
-import { projuris, ErroProjuris, type ClienteProjuris } from './cliente.server';
+import { projuris, ErroProjuris } from './cliente.server';
+import type { ChamadaProjuris } from './cliente.server';
+import type { IdOperacaoProjuris } from './operacoes';
+
+/** Assinatura mínima do cliente: aceita a instância real e dublês simples nos testes. */
+export type ClienteAgenda = { chamar: (op: IdOperacaoProjuris, c?: ChamadaProjuris) => Promise<unknown> };
 import {
   compromissosDaResposta,
   corpoConsultaCompromissos,
