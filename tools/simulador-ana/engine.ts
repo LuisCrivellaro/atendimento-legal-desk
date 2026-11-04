@@ -17,7 +17,7 @@ import { criarProjurisFicticio, projurisFicticioPadrao, type FalhaFicticia, type
 import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna } from '@/lib/atendimento/ana-scheduling';
 
 export interface Treino { instrucoes: string; proibidos: string[]; exemplos: { pergunta: string; resposta: string }[] }
-export interface EventoAgenda { id: string; inicio: string; fim: string; titulo: string; daAna: boolean; conversa?: string; meetUrl?: string }
+export interface EventoAgenda { id: string; inicio: string; fim: string; titulo: string; daAna: boolean; conversa?: string; meetUrl?: string; concluido?: boolean }
 export interface Gerado { resultado: AnaResult; bruto: string; modelo?: string | undefined; tier?: string | undefined }
 export type Gerador = (contexto: unknown, instrucoes: string, signal?: AbortSignal) => Promise<Gerado>;
 
@@ -121,12 +121,15 @@ export class SimuladorAna {
     this.conv = { ...this.conv, agenteAna: { ...this.conv.agenteAna, humano: false, pausa: false, erro: undefined } };
   }
 
-  // ---------- Google Calendar simulado (mesmas validações do google-calendar.server.ts) ----------
+  // ---------- Agenda ProJuris simulada (mesmas validações do projuris-agenda.server.ts) ----------
+  // Cancelamento = concluir (exclusão não existe); recibos "pj:{código}"; o link do Meet continua existindo
+  // porque um evento mínimo do Google é criado só para gerá-lo (decisão da Dra. em 04/11/2026).
+  private seqCompromisso = 63200000;
   private ocupados(now: Date, dias: number) {
     this.turnoAtual?.ferramentas.push('agenda.consultar');
     if (this.agendaFalhando) return null;
     const fim = now.getTime() + dias * 86400000;
-    return this.agenda.filter(e => Date.parse(e.fim) > now.getTime() && Date.parse(e.inicio) < fim).map(e => ({ start: e.inicio, end: e.fim }));
+    return this.agenda.filter(e => !e.concluido && Date.parse(e.fim) > now.getTime() && Date.parse(e.inicio) < fim).map(e => ({ start: e.inicio, end: e.fim }));
   }
   private async reservar(conversaId: string, inicio: string, now: Date, cliente?: { nome: string; telefone: string; tipo: TipoCliente }): Promise<ReservaCalendar> {
     this.turnoAtual?.ferramentas.push('agenda.reservar');
