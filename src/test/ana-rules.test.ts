@@ -11,7 +11,7 @@ describe('limites Ana',()=>{
  it('Automática libera dúvida geral',()=>expect(aplicarRegrasAna(response,'Automática','Qual o expediente?',[]).acao).toBe('enviar'));
  it('processo sempre vira rascunho',()=>expect(aplicarRegrasAna({...response,intencao:'processo'},'Automática','Como está meu processo?',[]).acao).toBe('rascunho'));
  it('agenda sem ferramenta de reserva nunca é confirmada automaticamente',()=>expect(aplicarRegrasAna({...response,intencao:'agendamento'},'Automática','Marque amanhã',[]).acao).toBe('rascunho'));
- it('tema delicado mantém acolhimento sem parecer jurídico ou parar a Ana',()=>{const r=aplicarRegrasAna({...response,mensagem:'Vai ganhar R$ 50.000.',encaminhar_humano:true},'Automática','Quanto vou ganhar?',[]);expect(r.acao).toBe('enviar');expect(r.encaminhar_humano).toBe(false);expect(r.mensagem).not.toContain('50.000');});
+ it('dúvida jurídica transfere para a equipe sem parecer jurídico',()=>{const r=aplicarRegrasAna({...response,mensagem:'Vai ganhar R$ 50.000.',encaminhar_humano:true},'Automática','Quanto vou ganhar?',[]);expect(r.acao).toBe('enviar');expect(r.encaminhar_humano).toBe(true);expect(r.mensagem).toContain('transferir');expect(r.mensagem).not.toContain('50.000');});
  it('não repete pergunta de nome seguida com palavras diferentes',()=>expect(mensagemBreveAna('Entendi. Pode me dizer seu nome completo?','Qual é seu nome?')).toBe('Entendi.'));
  it('mantém uma pergunta e mensagem breve',()=>{const r=mensagemBreveAna('Qual seu nome? Qual seu CPF? '+ 'Frase longa. '.repeat(100));expect((r.match(/\?/g)??[])).toHaveLength(1);expect(r.length).toBeLessThanOrEqual(420);});
  it('agenda fictícia só sai automaticamente em teste autorizado',()=>{const r={...response,intencao:'agendamento' as const};expect(aplicarRegrasAna(r,'Automática','Quero agendar',[],{teste:true,tipoCliente:'novo',nome:'Maria',telefone:'11987654321'}).acao).toBe('enviar');expect(aplicarRegrasAna(r,'Automática','Quero agendar',[],{teste:false}).acao).toBe('rascunho');});
@@ -58,11 +58,11 @@ describe('escopo só de agendamento',()=>{
   expect(r.encaminhar_humano).toBe(true);
   expect(r.mensagem).toBe('Por aqui eu cuido só dos agendamentos, então passei sua conversa para a equipe.\nAlguém responsável te responde por aqui ainda hoje.');
  });
- it('pergunta jurídica oferece a consulta sem prometer anotar o caso',()=>{
+ it('pergunta jurídica transfere o atendimento sem prometer anotar o caso',()=>{
   const r=aplicarRegrasAna({...response,intencao:'novo_caso'},'Automática','Tenho direito a indenização?',[]);
-  expect(r.mensagem).toContain('Por aqui eu cuido só dos agendamentos');
+  expect(r.mensagem).toContain('vou transferir seu atendimento');
   expect(r.mensagem).not.toContain('continuar anotando');
-  expect(r.encaminhar_humano).toBe(false);
+  expect(r.encaminhar_humano).toBe(true);
  });
  it('reclamação recebe acolhimento sem oferta de consulta',()=>{
   const r=aplicarRegrasAna({...response,intencao:'reclamacao'},'Automática','Ninguém me responde, que absurdo',[]);
