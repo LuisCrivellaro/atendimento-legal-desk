@@ -91,11 +91,16 @@ describe('agenda ProJuris — reserva com proteção de overbooking', () => {
 
   it('detecta conflito na releitura e não cria nada', async () => {
     const chamadas: string[] = [];
+    let consultas = 0;
     const cliente = { chamar: async (op: string) => {
       chamadas.push(op);
-      if (op === 'tarefa.compromissoConsulta') return { tarefasAgrupadasDataTipoWs: [{ tarefaConsultaWs: [
-        { codigoTarefaEvento: 9, titulo: 'Audiência', dataInicioCompromisso: DIA, horaInicioCompromisso: 36000000, dataFimCompromisso: DIA, horaFimCompromisso: 39600000 },
-      ] }] };
+      if (op === 'tarefa.compromissoConsulta') {
+        consultas++;
+        if (consultas === 1) return { tarefasAgrupadasDataTipoWs: [] }; // idempotência: nada gravado antes
+        return { tarefasAgrupadasDataTipoWs: [{ tarefaConsultaWs: [
+          { codigoTarefaEvento: 9, titulo: 'Audiência', dataInicioCompromisso: DIA, horaInicioCompromisso: 36000000, dataFimCompromisso: DIA, horaFimCompromisso: 39600000 },
+        ] }] };
+      }
       throw new Error('não deveria criar');
     } };
     const r = await reservarCompromisso(dbFalso(true) as never, 'dono', pedido, cliente);
