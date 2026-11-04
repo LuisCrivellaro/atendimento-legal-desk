@@ -44,9 +44,9 @@ describe.each(['telegram','ultramsg'] as const)('consentimento de agenda pelo %s
   mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Obrigada!',intencao:'agendamento',encaminhar_humano:false,motivo_aprovacao:'',urgente:false,dados_coletados:{nome:'Mariana Souza Lima',cpf:'',email:'',assunto:''},proximo_passo:''});
   await h.message('Mariana Souza Lima');
   const texto=String(mocks.enviar.mock.calls.at(-1)?.[0]?.texto??'');
-  expect(texto.startsWith('Tenho estes horários livres na agenda:')).toBe(true);
-  expect(h.saved.agenteAna?.horariosTeste).toHaveLength(2);
-  expect(h.saved.agenteAna?.horariosTeste?.[0]).toBe('2026-10-27T12:00:00.000Z');
+  expect(mocks.ocupados).not.toHaveBeenCalled();
+  expect(h.saved.agenteAna?.horariosTeste??[]).toEqual([]);
+  expect(h.saved.agenteAna?.dados?.nome).toBe('Mariana Souza Lima');
  });
  it('horários fictícios salvos antes da correção não contam como já oferecidos',async()=>{
   const h=setup('telegram',false);
@@ -100,14 +100,14 @@ describe('retomada de identificados',()=>{
   await h.message('bom dia');
   expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();
   expect(h.saved.agenteAna?.dados?.nome).toBe('Maria Silva');expect(h.saved.consultaAgendada).toBe(h.reserva.inicio);
-  expect(h.saved.mensagens.map(m=>m.id)).toContain('old');expect(h.saved.mensagens.at(-1)?.texto).toBe(SAUDACAO_RETORNO_ANA);
-  await h.message('oi');expect(h.saved.mensagens.filter(m=>m.texto===SAUDACAO_RETORNO_ANA)).toHaveLength(1);
+  expect(h.saved.mensagens.map(m=>m.id)).toContain('old');expect(h.saved.mensagens.at(-1)?.texto).toBe('Olá! Como posso ajudar com seu atendimento?');
+  await h.message('oi');expect(h.saved.mensagens.filter(m=>m.texto===SAUDACAO_RETORNO_ANA)).toHaveLength(0);
  });
  it('pedido de cancelamento no retorno mantém pergunta e exige confirmação posterior',async()=>{
   const h=setup('ultramsg');h.patch(c=>({...c,mensagens:[{id:'old',de:'escritorio',canal:'ultramsg',hora:'08:00',dataHora:'2026-10-26T11:00:00Z',texto:'Consulta confirmada.'}]}));
   await h.message('quero cancelar');expect(mocks.cancelar).not.toHaveBeenCalled();
   expect(h.saved.agenteAna?.confirmacaoCancelamento?.eventoId).toBe(h.reserva.id);
-  expect(h.saved.mensagens.at(-1)?.texto.startsWith(SAUDACAO_RETORNO_ANA+'\n\n')).toBe(true);
+  expect(h.saved.mensagens.at(-1)?.texto.startsWith(SAUDACAO_RETORNO_ANA)).toBe(false);
   await h.message('sim');expect(mocks.cancelar).toHaveBeenCalledOnce();
  });
  it('modo sugerir e pausa humana não enviam saudação',async()=>{

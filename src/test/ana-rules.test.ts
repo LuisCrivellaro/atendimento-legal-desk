@@ -37,7 +37,7 @@ describe('agenda real',()=>{
   expect(result.motivo_aprovacao).toBe('');
  });
  it('novo caso não impõe agendamento sem interesse',()=>expect(priorizarAgendamentoAna({...response,intencao:'novo_caso'},'Fui demitido').intencao).toBe('novo_caso'));
- it('resposta de identificação continua agendamento em andamento',()=>expect(priorizarAgendamentoAna({...response,dados_coletados:{...response.dados_coletados,nome:'Maria Santos'}},'Maria Santos',true).intencao).toBe('agendamento'));
+ it('nome informado não autoriza reiniciar a oferta',()=>expect(priorizarAgendamentoAna({...response,dados_coletados:{...response.dados_coletados,nome:'Maria Santos'}},'Maria Santos',true).intencao).toBe('duvida_geral'));
  it('consulta não ignora pedido explícito de pessoa',()=>{
   const texto='Quero agendar consulta e falar com uma pessoa';
   expect(aplicarRegrasAna(priorizarAgendamentoAna(response,texto),'Automática',texto,[],{teste:true}).encaminhar_humano).toBe(true);

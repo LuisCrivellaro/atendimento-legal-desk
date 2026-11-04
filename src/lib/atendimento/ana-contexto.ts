@@ -88,5 +88,5 @@ export function resultadoRetorno(c: Conversa, canal: string): AnaResult {
 }
 export function semReintroducao(texto: string, conhecido: boolean) {
   if (!conhecido) return texto;
-  return texto.split('\n').filter(line => !/seja bem vindo|equipe cs advocacia|www\.carolinasantos|vou te ajudar|primeira consulta.*gratuita|sou a (?:ana|anne)|qual (?:[ée] )?(?:o )?seu nome|como (?:voce|você) se chama/i.test(line)).join('\n').replace(/^\s*Ol[aá]\s*,?\s*\n+/i, '').trim();
+  return texto.split('\n').filter(line => !/seja bem vindo|equipe cs advocacia|www\.carolinasantos|vou te ajudar|primeira consulta.*gratuita|sou a (?:ana|anne)/i.test(line)).join('\n').replace(/^\s*Ol[aá]\s*,?\s*\n+/i, '').trim();
 }

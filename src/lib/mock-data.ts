@@ -23,7 +23,7 @@ export type StatusMensagem = "simulada" | "enviada" | "entregue" | "lida";
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }
 export interface DocItem { id?: string | undefined; nome: string; recebido: boolean }
 export interface Conversa {
-  tarefasRetorno?: import('./atendimento/ana-contexto').TarefaRetorno[];
+  tarefasRetorno?: import('./atendimento/ana-contexto').TarefaRetorno[] | undefined;
   lastMessageAt?: string | null;
   email?: string | undefined;
   etiquetaAcao?: import('./atendimento/intake-rules').EtiquetaAcao | undefined;
