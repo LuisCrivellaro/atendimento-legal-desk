@@ -25,6 +25,7 @@ export async function lerInventario() {
     if (token) vistos.add(token);
   } while (token);
   const raw = await projuris.chamar('tarefa.compromissoConsulta', { corpo: { flagCompromisso: true } });
+  if (!raw || typeof raw !== 'object' || !Array.isArray((raw as Record<string, unknown>)['tarefasAgrupadasDataTipoWs'])) throw new Error('Leitura ProJuris incompleta; não migrar.');
   const agenda = compromissosDaResposta(raw);
   const itens = inventariarEventos(eventos, agenda);
   return { em: new Date().toISOString(), total: eventos.length, itens };
@@ -37,6 +38,7 @@ export async function guardarMigracao(db: Db, owner: string, registro: Record<st
     if (row.error) throw new Error('Não foi possível registrar a migração.');
     const dados = row.data.dados as Record<string, Json>;
     const anteriores = Array.isArray(dados['migracaoAgenda']) ? dados['migracaoAgenda'] : [];
+    if (registro['etapa'] === 'intencao' && anteriores.some(r => r && typeof r === 'object' && !Array.isArray(r) && r['origem'] === registro['origem'])) throw new Error('Tentativa já registrada; conferir sem repetir.');
     const next = JSON.parse(JSON.stringify({ ...dados, migracaoAgenda: [...anteriores, { ...registro, em: new Date().toISOString(), por: owner }] })) as Json;
     const write = await db.from('office_workspace').update({ dados: next, updated_at: new Date().toISOString() }).eq('owner_id', owner).eq('updated_at', row.data.updated_at).select('owner_id');
     if (write.error) throw new Error('Não foi possível registrar a migração.');
