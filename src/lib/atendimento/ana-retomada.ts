@@ -1,6 +1,6 @@
 import type { Conversa } from '../mock-data';
 import { apenasCumprimentoAna } from './ana-rules';
-import { semReintroducao } from './ana-contexto';
+import { semReintroducao, nomeConhecido } from './ana-contexto';
 
 export const SAUDACAO_RETORNO_ANA='Olá,\n\nSeja bem vindo (a)😊\n\nÀ Equipe CS Advocacia\nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
 /** Same-day inactivity threshold; another São Paulo calendar day always starts a return. */
