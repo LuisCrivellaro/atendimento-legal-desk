@@ -9,7 +9,7 @@ export interface TarefaRetorno {
 }
 const fold = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 export function cobraRetorno(texto: string) {
-  return /alguma novidade|(?:ficou|ficaram|ficamos).{0,35}retorno|(?:estou|to|continuo).{0,15}aguardando|conseguiu verificar|(?:iria|ia|vai).{0,20}consultar.{0,20}(?:doutora|dra)|sobre aquilo|aguardando.{0,20}retorno|me dar um retorno/.test(fold(texto));
+  return !/processo|pensao|trabalhista|andamento|audiencia/.test(fold(texto)) && /alguma novidade|(?:ficou|ficaram|ficamos).{0,35}retorno|(?:estou|to|continuo).{0,15}aguardando|conseguiu verificar|(?:iria|ia|vai).{0,20}consultar.{0,20}(?:doutora|dra)|sobre aquilo|aguardando.{0,20}retorno|me dar um retorno/.test(fold(texto));
 }
 export function historicoContato(c: Conversa, canal: string): Mensagem[] {
   return (c.mensagens ?? []).filter(m => (!m.canal || m.canal === canal) && m.de !== 'sistema' && m.status !== 'simulada');
