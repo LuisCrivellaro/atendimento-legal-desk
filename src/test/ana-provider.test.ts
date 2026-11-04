@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { gerarRespostaAna } from '@/lib/atendimento/ana.functions';
+vi.mock('@/lib/atendimento/ia-orcamento.server', () => ({ orcamentoIA: () => ({ reservar: async () => true, registrar: async () => {} }), limiteDiarioIA: () => 1500 }));
 
 const result = {
   acao: 'enviar', intencao: 'agendamento', mensagem: 'Qual o seu nome completo?',
