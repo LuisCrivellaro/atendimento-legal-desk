@@ -372,5 +372,5 @@
 - [x] Horários com o dia em linha (Opção A); em dois dias: 1 horário restante do 1º dia + manhã e fim de tarde do 2º (3 opções).
 - [x] Andamento de processo só vai ao cliente depois do SIM da Dra. (resumo + mensagem proposta no WhatsApp dela).
 - [x] Relatório diário às 08:00 para +5511998290007, por cliente: atender primeiro / só agendamento / em andamento.
-- [ ] Trocar o número revisor cadastrado para o WhatsApp da Dra. — aguarda a Dra. informar no formulário.
+- [x] Número revisor atualizado pela Dra.
 - [ ] Publicar — aguarda autorização.
