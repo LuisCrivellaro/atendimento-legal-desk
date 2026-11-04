@@ -69,11 +69,14 @@ describe('agenda ProJuris — regras puras', () => {
 
 function dbFalso(claimOk: boolean) {
   const updates: unknown[] = [];
+  const liberar = { then: (f: () => void) => { f(); return Promise.resolve(); } };
+  const eq2 = () => liberar;
+  const eq1 = () => ({ eq: eq2 });
   return {
     rpc: async (nome: string, _args: unknown) => nome === 'projuris_claim'
       ? { data: claimOk, error: null }
       : { data: null, error: new Error('rpc inesperada') },
-    from: () => ({ update: (v: unknown) => { updates.push(v); return { eq: () => ({ eq: () => ({ then: (f: () => void) => { f(); return Promise.resolve(); } } }) }); }; }),
+    from: () => ({ update: (v: unknown) => { updates.push(v); return { eq: eq1 }; } }),
     updates,
   };
 }
