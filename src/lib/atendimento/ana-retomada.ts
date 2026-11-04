@@ -1,5 +1,6 @@
 import type { Conversa } from '../mock-data';
 import { apenasCumprimentoAna } from './ana-rules';
+import { semReintroducao } from './ana-contexto';
 
 export const SAUDACAO_RETORNO_ANA='Olá,\n\nSeja bem vindo (a)😊\n\nÀ Equipe CS Advocacia\nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
 /** Same-day inactivity threshold; another São Paulo calendar day always starts a return. */
@@ -20,7 +21,6 @@ export function pedidoAgendaRetornoAna(texto:string):boolean {
   return /\b(?:agendar|agendamento|marcar|consulta|hor[aá]rios?|remarcar|reagendar|cancelar|primeir[oa]|segund[oa]|terceir[oa]|[123])\b/i.test(texto);
 }
 export function mensagemRetornoAna(textoCliente:string,continuacao:string):string {
-  if(apenasCumprimentoAna(textoCliente)||!continuacao.trim())return SAUDACAO_RETORNO_ANA;
-  const limpa=continuacao.replace(/(?:Qual (?:é )?(?:o )?seu nome(?: completo)?|Como (?:você )?se chama|Pode (?:me )?informar (?:o )?seu nome(?: completo)?)\?/gi,'').replace(/^(?:Ol[aá]|Oi|Bom dia|Boa tarde|Boa noite)[^\n.!?]*[\n.!?]+\s*/i,'').trim();
-  return limpa?`${SAUDACAO_RETORNO_ANA}\n\n${limpa}`:SAUDACAO_RETORNO_ANA;
+  if(apenasCumprimentoAna(textoCliente)||!continuacao.trim())return 'Olá! Como posso ajudar com seu atendimento?';
+  return semReintroducao(continuacao,true)||'Olá! Como posso ajudar com seu atendimento?';
 }

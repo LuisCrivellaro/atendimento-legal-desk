@@ -16,6 +16,7 @@ import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifi
 import { apenasInsistencia, TEXTOS_CONSULTA } from './consulta-processo';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from './ana-retomada';
 import { podeExecutarAna } from './ana-execution';
+import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from './ana-contexto';
 type Db=SupabaseClient<Database>;
 
 async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
@@ -78,7 +79,9 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   if(mensagemSemResposta(m.texto,!!m.arquivo))return;
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
-    const history=c.mensagens.filter(m=>m.canal===canal).slice(-24).map(m=>({de:m.de,texto:m.apagadaParaTodos?'[Mensagem apagada]':m.texto,arquivo:m.arquivo??'',autor:m.autor??''}));
+    const memoria=contextoPersistente(c,canal);
+    const history=memoria.historico;
+    const cobranca=cobraRetorno(m.texto);
     const etiqueta=etiquetaConversa(c);
     const lista=await db.from('checklist_itens').select('nome,recebido').eq('caso_id',id).eq('owner_id',row.data.owner_id);
     if(lista.error)throw new Error('Checklist indisponível.');
@@ -89,10 +92,14 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const classificacao=classificarAgenda({persistida:c.tipoClienteAgenda,local:localIdentidade,autodeclaracao:identificarTipoCliente(m.texto),contexto:c.agenteAna?.tipoCliente,padraoLead:c.etapa==='inicial'});
     const tipoCliente=classificacao.tipo;
     const clienteLocal=localIdentidade.tipo==='unico'?(await lerBase(db,row.data.owner_id)).base?.lista.find(p=>p.codigo===localIdentidade.pessoa.codigo):undefined;
-    const gerada=await gerarRespostaAna(request,{checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:clienteLocal?{nome:clienteLocal.nome,telefone:clienteLocal.telefone,email:clienteLocal.email}:c.agenteAna?.dados??null,apresentado:c.agenteAna?.apresentado??false,consulta_info:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
+    const identidade=nomeConhecido(c,canal,clienteLocal?.nome??'');
+    const introducao=apresentacaoNome(m.texto);
+    const gerada=cobranca?resultadoRetorno(c,canal):await gerarRespostaAna(request,{continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
     const raw=priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada);
+    raw.dados_coletados.nome=identidade||introducao||raw.dados_coletados.nome;
+    if(cobranca){raw.intencao='outro';raw.encaminhar_humano=true;}
     if(retomada){
-      raw.dados_coletados.nome=c.agenteAna?.dados?.nome||c.nome;
+      raw.dados_coletados.nome=identidade||introducao||raw.dados_coletados.nome;
       if(!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
     }
     // Cadastro do e-mail só usa texto validado do cliente, nunca suposição do modelo.
@@ -108,22 +115,23 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const semConsulta=decisaoCancel==='pedir'&&!c.consultaAgendada;
     if(decisaoCancel&&!pedidoHumano(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;}
     if(alteracao||c.agenteAna?.alteracaoConsulta==='remarcar')raw.intencao='agendamento';
-    const primeiroContato=!retomada&&!c.agenteAna?.dados?.nome?.trim()&&!c.agenteAna?.apresentado&&tipoCliente==='novo'&&!c.consultaAgendada&&!c.mensagens.some(x=>x.canal===canal&&x.de==='escritorio')&&mode==='Automática'&&!pedidoHumano(m.texto)&&!raw.urgente;
+    const primeiroContato=!cobranca&&!retomada&&!identidade&&!atendimentoIniciado(c,canal,messageId)&&tipoCliente==='novo'&&!c.consultaAgendada&&mode==='Automática'&&!pedidoHumano(m.texto)&&!raw.urgente;
     if(primeiroContato){raw.intencao='agendamento';raw.encaminhar_humano=false;}
-    let bloqueada=!primeiroContato&&bloqueiaAgenda(m.texto,raw.intencao)||pedidoHumano(m.texto);
+    let bloqueada=cobranca||!primeiroContato&&bloqueiaAgenda(m.texto,raw.intencao)||pedidoHumano(m.texto);
     if(!bloqueada&&(escolherHorarioAna(c.agenteAna?.horariosTeste??[],m.texto)??chosenSlot(c.agenteAna?.horariosTeste??[],m.texto)))raw.intencao='agendamento';
     const teste=config.data.modo_teste===true;
     const previous=c.mensagens.filter(m=>m.canal===canal&&m.de==='escritorio').at(-1)?.texto??'';
     // Resposta direta à saudação oficial ("Qual o seu nome?"): texto curto só com letras vale como nome.
-    const respostaNome=nomePrimeiroContatoAna(m.texto,previous);
+    const respostaNome=introducao||nomePrimeiroContatoAna(m.texto,previous);
     if(respostaNome&&!raw.dados_coletados.nome.trim()){raw.dados_coletados.nome=respostaNome;}
-    if(!retomada&&pediuNomeInicialAna(previous)&&(raw.dados_coletados.nome.trim()||respostaNome)&&!pedidoHumano(m.texto)&&!pedidoOutrasOpcoesAna(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
+    if(!cobranca&&!retomada&&respostaNome&&previous===PEDIDO_NOME_AGENDA_ANA&&c.agenteAna?.horarioPendente&&!pedidoHumano(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
     const nome=raw.dados_coletados.nome.trim()||c.agenteAna?.dados?.nome||'';
     let horarios=(c.agenteAna?.horariosTeste??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
     let agendaReal=c.agenteAna?.agendaReal===true&&horarios.length>0;
     // Horário já escolhido aguardando o nome completo: o nome recebido autoriza reservar esse horário (revalidado na reserva).
     const pendenteNome=!!respostaNome&&previous===PEDIDO_NOME_AGENDA_ANA&&!!c.agenteAna?.horarioPendente&&!!c.agenteAna.horarioPendenteDesde&&Date.now()-Date.parse(c.agenteAna.horarioPendenteDesde)<30*60000&&Date.parse(c.agenteAna.horarioPendente)>Date.now();
-    const recebeuNome=!pendenteNome&&!!respostaNome&&c.agenteAna?.agendaReal===true&&(c.agenteAna.horariosTeste?.length??0)>0;
+    const recebeuNome=!pendenteNome&&!!respostaNome&&!cobranca&&!pedidoAgendaRetornoAna(m.texto);
+    if(recebeuNome){raw.intencao='duvida_geral';raw.encaminhar_humano=false;bloqueada=true;}
     const oferecidos=c.agenteAna?.horariosTeste??[];
     // Só horários da agenda real contam como já oferecidos; fictícios salvos antes da correção nunca foram mostrados.
     const historicoHorarios=[...new Set([...(c.agenteAna?.horariosApresentados??[]),...(c.agenteAna?.agendaReal===true?oferecidos:[]),...(c.horariosOfertados??[]),...(c.consultaAgendada?[c.consultaAgendada]:[])])];
@@ -168,7 +176,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     // Caminhos excluídos ou outros modos nunca liberam conteúdo processual produzido pelo modelo.
     if(raw.intencao==='consulta_processo'&&!r.encaminhar_humano){r.acao='rascunho';r.motivo_aprovacao='Notícia processual exige revisão individual.';}
     const saudou=saudacaoInicialAna(r.mensagem);
-    if(recebeuNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.urgente){r.acao='enviar';r.motivo_aprovacao='';r.mensagem=`${linhaDoisHorariosAna(horarios).trim()}.\n\n${PERGUNTA_HORARIO_ANA}`;r.proximo_passo='Nome recebido; aguardar escolha dos horários já oferecidos.';}
+    if(recebeuNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.urgente){r.acao='enviar';r.motivo_aprovacao='';r.mensagem=historicoHorarios.length?`Obrigada, ${nome}. Qual das opções já apresentadas fica melhor para você?`:`Obrigada, ${nome}. Vou manter o contexto do seu atendimento.`;r.proximo_passo='Nome recebido; manter solicitação e ofertas anteriores.';}
     if(pedirNome&&selecionado&&!r.encaminhar_humano&&!r.urgente){horarioPendente=selecionado;r.acao='enviar';r.intencao='agendamento';r.motivo_aprovacao='';r.mensagem=PEDIDO_NOME_AGENDA_ANA;r.proximo_passo='Horário escolhido; aguardar nome completo para reservar.';}
     if(!saudou&&!recebeuNome&&agendaReal&&!selecionado&&!horarioPendente&&!gerenciarExistente&&r.acao==='enviar'&&r.intencao==='agendamento'&&!r.motivo_aprovacao){
       r.mensagem=listaHorariosAna(horarios,new Date(),repetida);
@@ -178,6 +186,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(horarioPendente&&!pedirNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.motivo_aprovacao){r.acao='enviar';r.mensagem=`${linhaHorarioAna(horarioPendente)} está livre. Posso marcar para você?`;r.proximo_passo='Aguardar aceite explícito e nome completo para reservar o horário consultado.';}
     if(indisponivel&&r.acao==='enviar')r.mensagem=`Esse horário não está disponível.\n\n${r.mensagem}`;
     if(semPeriodo&&r.acao==='enviar')r.mensagem='Não encontrei novas opções livres nesse período nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
+    if(cobranca)Object.assign(r,resultadoRetorno(c,canal));
     const gerenciar=teste&&mode==='Automática'&&!r.encaminhar_humano&&!r.motivo_aprovacao&&!!c.consultaAgendada;
     const cancelar=gerenciar&&decisaoCancel==='confirmar'&&pendenteCancel;
     const perguntar=gerenciar&&!confirmouLembrete&&!cancelar&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar'&&r.intencao==='agendamento';
@@ -195,7 +204,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       accepted=false;
       if(!aceitarRespostaAna(messageId,current.mensagens.at(-1)?.id,current.agenteAna))return current;
       accepted=true;
-      return {...current,...(current.etiquetaAcao||etiqueta==='sem'?{}:{etiquetaAcao:etiqueta}),...(!current.tipoClienteAgenda&&classificacao.fonte==='cadastro'&&tipoCliente?{tipoClienteAgenda:tipoCliente}:{}),agenteAna:{...current.agenteAna,...(gerenciar&&alteracao==='remarcar'&&current.agenteAna?.reservaCalendar?{alteracaoConsulta:'remarcar' as const,autorizacaoRemarcacao:{eventoId:current.agenteAna.reservaCalendar.id,inicio:current.agenteAna.reservaCalendar.inicio,contato:telefone,expira:new Date(Date.now()+30*60000).toISOString()}}:{}),tipoCliente,telefone,horarioPendente:horarioPendente??(aceitouPendente?c.agenteAna?.horarioPendente:undefined),horarioPendenteDesde:horarioPendente?new Date().toISOString():aceitouPendente?c.agenteAna?.horarioPendenteDesde:undefined,...(horarioPendente?{horariosTeste:[horarioPendente],agendaReal:true}:{}),...(agenda&&agendaReal?{horariosTeste:agenda.slots,agendaReal}:{}),resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida,...(resumoTransbordo?{timeline:[...current.timeline,{data:new Date().toISOString(),evento:resumoTransbordo}]}:{})};
+      const base=cobranca?registrarRetorno(current,canal,messageId,row.data.owner_id):current;
+      return {...base,...(current.etiquetaAcao||etiqueta==='sem'?{}:{etiquetaAcao:etiqueta}),...(!current.tipoClienteAgenda&&classificacao.fonte==='cadastro'&&tipoCliente?{tipoClienteAgenda:tipoCliente}:{}),agenteAna:{...current.agenteAna,...(gerenciar&&alteracao==='remarcar'&&current.agenteAna?.reservaCalendar?{alteracaoConsulta:'remarcar' as const,autorizacaoRemarcacao:{eventoId:current.agenteAna.reservaCalendar.id,inicio:current.agenteAna.reservaCalendar.inicio,contato:telefone,expira:new Date(Date.now()+30*60000).toISOString()}}:{}),tipoCliente,telefone,horarioPendente:horarioPendente??(aceitouPendente?c.agenteAna?.horarioPendente:undefined),horarioPendenteDesde:horarioPendente?new Date().toISOString():aceitouPendente?c.agenteAna?.horarioPendenteDesde:undefined,...(horarioPendente?{horariosTeste:[horarioPendente],agendaReal:true}:{}),...(agenda&&agendaReal?{horariosTeste:agenda.slots,agendaReal}:{}),resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida,...(resumoTransbordo?{timeline:[...base.timeline,{data:new Date().toISOString(),evento:resumoTransbordo}]}:{})};
     });
     if(!accepted)return;
     if(confirmouLembrete)await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,...(x.agenteAna?.lembreteConsulta?{lembreteConsulta:{...x.agenteAna.lembreteConsulta,confirmadoEm:new Date().toISOString()}}:{})},timeline:[...x.timeline,{data:new Date().toISOString(),evento:'Cliente confirmou presença pelo lembrete'}]}));
@@ -296,6 +306,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       if(!saudou)r.mensagem=limitarNomeAna(r.mensagem,nome,c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').slice(-2).map(x=>x.texto));
       const novosOferecidos=cancelar?novasLembrete:!escolhido&&!cancelar&&!perguntar&&!semConsulta&&agendaReal&&!agenda?.selected?(horarioPendente?[horarioPendente]:agenda?.slots??[]):[];
       if(retomada&&!r.urgente)r.mensagem=mensagemRetornoAna(m.texto,r.mensagem);
+      r.mensagem=semReintroducao(r.mensagem,atendimentoIniciado(c,canal,messageId)||!!identidade);
       efeitosIniciados=true;
       const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,mensagemOrigem:messageId,controleHumanoEm:c.agenteAna?.controleHumanoEm,permitirEncaminhamento:r.encaminhar_humano,...(novosOferecidos.length&&!horarioPendente?{horarios:novosOferecidos}:{})});
       if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');

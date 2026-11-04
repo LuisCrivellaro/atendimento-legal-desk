@@ -91,8 +91,7 @@ export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=f
   if(pedidoOutrasOpcoesAna(texto)&&!pedidoHumano(texto))return {...r,intencao:'agendamento',encaminhar_humano:false};
   if(bloqueiaAgenda(texto,r.intencao))return {...r,intencao:pedidoHumano(texto)?'outro':r.intencao==='agendamento'?'duvida_geral':r.intencao};
   const pedido=/\b(?:quero|gostaria|preciso|podemos|vamos)\b.{0,35}\b(?:agendar|marcar|consulta)\b|\b(?:quais|tem|outros?)\b.{0,25}\bhorarios?\b|\b(?:remarcar|cancelar|reagendar)\b/.test(folded);
-  const continuidade=emAgendamento&&!!r.dados_coletados.nome.trim();
-  return pedido||continuidade?{...r,intencao:'agendamento'}:r;
+  return pedido?{...r,intencao:'agendamento'}:r;
 }
 /** Saudação oficial ao cliente novo (prompt da Dra. Carolina, 04/11/2026). Texto exato; o nome é pedido só após a escolha. */
 export const SAUDACAO_CLIENTE_NOVO = 'Olá , \n\nSeja bem vindo (a)😊\nEquipe CS Advocacia \nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';

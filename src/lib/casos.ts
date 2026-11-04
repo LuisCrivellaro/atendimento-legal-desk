@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Conversa, DocItem } from "@/lib/mock-data";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { ordenarConversas } from './atendimento/conversation-order';
+import { mesclarTarefasRetorno } from './atendimento/ana-contexto';
 
 // Casos e checklist do usuário logado (RLS garante que cada um vê só os seus).
 export async function listarCasos(): Promise<Conversa[]> {
@@ -68,7 +69,7 @@ export async function salvarCaso(antes: Conversa, depois: Conversa) {
     const merged=depois.mensagens.filter(m=>antes.mensagens.some(x=>x.id===m.id)||!m.idExterno||!current.mensagens.some(x=>x.idExterno===m.idExterno&&x.de===m.de)).map(m=>{const original=antes.mensagens.find(x=>x.id===m.id);const fresh=incoming.get(m.id);incoming.delete(m.id);return original&&fresh&&JSON.stringify(original)===JSON.stringify(m)?fresh:m;});
     const lidoAte=[current.lidoAte,depois.lidoAte].filter((v):v is string=>!!v&&Number.isFinite(Date.parse(v))).sort((a,b)=>Date.parse(b)-Date.parse(a))[0];
     const data={...dados,lidoAte,...(antes.email===depois.email?{email:current.email}:{}),mensagens:[...merged,...incoming.values()],agenteAna:{...(JSON.stringify(antes.agenteAna)===JSON.stringify(depois.agenteAna)?current.agenteAna:depois.agenteAna),pedidosProcesso:current.agenteAna?.pedidosProcesso,aguardandoAssuntoProcesso:current.agenteAna?.aguardandoAssuntoProcesso,consultaProcessoEmCurso:current.agenteAna?.consultaProcessoEmCurso,vinculoProjuris:current.agenteAna?.vinculoProjuris,aguardandoCpfProcesso:current.agenteAna?.aguardandoCpfProcesso,perguntaProcessoPendente:current.agenteAna?.perguntaProcessoPendente},...(antes.iaRetida===depois.iaRetida?{iaRetida:current.iaRetida}:{})};
-    const r=await supabase.from('casos').update({dados:JSON.parse(JSON.stringify(data)) as Json,etapa:depois.etapa,nome:depois.nome,updated_at:new Date().toISOString()}).eq('id',id).eq('updated_at',row.data.updated_at).select('id');
+    const r=await supabase.from('casos').update({dados:JSON.parse(JSON.stringify({...data,tarefasRetorno:mesclarTarefasRetorno(antes.tarefasRetorno,depois.tarefasRetorno,current.tarefasRetorno)})) as Json,etapa:depois.etapa,nome:depois.nome,updated_at:new Date().toISOString()}).eq('id',id).eq('updated_at',row.data.updated_at).select('id');
     if(r.error)throw r.error;
     if(r.data?.length){saved=true;break;}
   }
