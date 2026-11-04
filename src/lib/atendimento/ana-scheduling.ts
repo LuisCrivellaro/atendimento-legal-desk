@@ -55,12 +55,11 @@ export function opcaoHorarioAna(iso:string) {
 }
 /**
  * Regra dos 2 horários (Dra. Carolina, 04/11/2026): o mais próximo da manhã e o mais próximo da tarde,
- * preferindo o mesmo dia para a oferta só com horas não ficar ambígua. Sem manhã (sexta de cadastrados), os 2 primeiros.
+ * cada um o mais próximo disponível. Sem um dos períodos (ex.: sexta de cadastrados, só tarde), os 2 primeiros.
  */
 export function parManhaTardeAna(slots:string[]) {
   const ord=[...slots].sort((a,b)=>Date.parse(a)-Date.parse(b));
   const manha=(s:string)=>Number(partesAgenda(s)['hour'])<12;
-  for(const m of ord.filter(manha)){const t=ord.find(x=>!manha(x)&&dataAgenda(x)===dataAgenda(m));if(t)return [m,t];}
   const m=ord.find(manha),t=ord.find(x=>!manha(x));
   return m&&t?[m,t].sort((a,b)=>Date.parse(a)-Date.parse(b)):ord.slice(0,2);
 }
