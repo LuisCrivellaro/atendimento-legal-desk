@@ -70,14 +70,27 @@ export function corpoConsultaCompromissos(inicioMs: number, fimMs: number) {
 /** Tipo de compromisso das consultas criadas pela Anne: "Atendimento inicial" (escolha da Dra. em 04/11/2026). */
 export const TIPO_COMPROMISSO_CONSULTA = 6683563;
 
-/** Corpo de criação (json_TarefaWs). codigoExterno garante idempotência: prefixo fixo do Manager ADV. */
+/** Responsável padrão dos compromissos criados pela integração: Dra. Carolina (confirmado em compromisso real). */
+export const RESPONSAVEL_PADRAO = { chave: 176189, valor: 'CAROLINA RIBEIRO ALVES DOS SANTOS ' };
+
+/** Meia-noite do dia em São Paulo (ms UTC) — campo dataBase exigido pela API de criação. */
+export function meiaNoiteSaoPaulo(ms: number): number {
+  const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+  const [a, m, d] = partes.split('-').map(Number);
+  return Date.UTC(a!, m! - 1, d!, 3); // sem horário de verão no Brasil: meia-noite SP = 03:00 UTC
+}
+
+/** Corpo de criação (json_TarefaWs) no formato comprovado contra a API real em 04/11/2026:
+ *  dataHoraInicio/dataHoraFim + dataBase (meia-noite SP) + responsável com chave e valor;
+ *  sem tipoEvento e sem dataConclusao (a API recusa com 500 quando o formato diverge).
+ *  codigoExterno garante idempotência: prefixo fixo do Manager ADV. */
 export function corpoCriacaoCompromisso(d: {
   titulo: string;
   inicioMs: number;
   fimMs: number;
   codigoExterno: string;
   descricao?: string;
-  codigoUsuarioResponsavel?: number;
+  responsavel?: { chave: number; valor: string };
   codigoTarefaTipo?: number;
 }) {
   return {
@@ -86,17 +99,21 @@ export function corpoCriacaoCompromisso(d: {
     tarefaCompromissoEventoWs: {
       titulo: d.titulo,
       descricaoTarefa: d.descricao ?? '',
-      tipoEvento: 'COMPROMISSO',
-      tipoTarefa: { chave: d.codigoTarefaTipo ?? TIPO_COMPROMISSO_CONSULTA },
+      tipoTarefa: { chave: d.codigoTarefaTipo ?? TIPO_COMPROMISSO_CONSULTA, valor: 'Atendimento inicial' },
+      usuariosResponsaveis: [d.responsavel ?? RESPONSAVEL_PADRAO],
       dataHoraInicio: d.inicioMs,
       dataHoraFim: d.fimMs,
+      dataBase: meiaNoiteSaoPaulo(d.inicioMs),
+      concluido: false,
       privado: false,
+      tarefaPrivada: false,
+      kanban: false,
       notificaClienteCriacao: false,
-      notificaResponsavelCriacao: true,
+      notificaResponsavelCriacao: false,
       notificaTerceirosCriacao: false,
-      ...(d.codigoUsuarioResponsavel
-        ? { usuariosResponsaveis: [{ chave: d.codigoUsuarioResponsavel }] }
-        : {}),
+      notificaClienteConclusao: false,
+      notificaResponsavelConclusao: false,
+      notificaTerceirosConclusao: false,
     },
   };
 }
