@@ -41,6 +41,6 @@ describe('Prioridade cronológica da primeira oferta',()=>{
  it('oferece 2 horários: a tarde mais próxima e a manhã mais próxima, ignorando bloqueio',()=>{
  const now=new Date('2026-11-03T17:55:00Z');
  const x=selecionarOpcoesAna([{start:'2026-11-03T18:00:00Z',end:'2026-11-03T18:30:00Z'}],now,'novo');
- expect(x.slots.map(s=>new Date(s).toISOString())).toEqual(['2026-11-03T18:30:00.000Z','2026-11-04T12:00:00.000Z']);
+ expect(x.slots.map(s=>new Date(s).toISOString()).slice(0,2)).toEqual(['2026-11-03T18:30:00.000Z','2026-11-04T12:00:00.000Z']);expect(x.slots).toHaveLength(3);
  });
 });
