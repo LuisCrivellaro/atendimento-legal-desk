@@ -52,13 +52,19 @@ describe('agenda ProJuris — regras puras', () => {
     });
   });
 
-  it('corpo de criação é json_TarefaWs com tipoEvento COMPROMISSO e codigoExterno', () => {
-    const corpo = corpoCriacaoCompromisso({ titulo: 'Consulta — Maria', inicioMs: 1000, fimMs: 2000, codigoExterno: 'manageradv:consulta:abc:1000', codigoUsuarioResponsavel: 7 });
+  it('corpo de criação segue o formato comprovado na API real: dataBase, responsável e codigoExterno, sem tipoEvento', () => {
+    const inicio = Date.UTC(2026, 10, 5, 13, 30); // 10:30 em São Paulo
+    const corpo = corpoCriacaoCompromisso({ titulo: 'Consulta — Maria', inicioMs: inicio, fimMs: inicio + 1800000, codigoExterno: 'manageradv:consulta:abc:1000', responsavel: { chave: 7, valor: 'FULANO' } });
     expect(corpo.compromisso).toBe(true);
     expect(corpo.codigoExterno).toBe('manageradv:consulta:abc:1000');
-    expect(corpo.tarefaCompromissoEventoWs.tipoEvento).toBe('COMPROMISSO');
-    expect(corpo.tarefaCompromissoEventoWs.dataHoraInicio).toBe(1000);
-    expect(corpo.tarefaCompromissoEventoWs.usuariosResponsaveis).toEqual([{ chave: 7 }]);
+    const ev = corpo.tarefaCompromissoEventoWs;
+    expect(ev).not.toHaveProperty('tipoEvento');
+    expect(ev.dataHoraInicio).toBe(inicio);
+    expect(ev.dataHoraFim).toBe(inicio + 1800000);
+    expect(ev.dataBase).toBe(Date.UTC(2026, 10, 5, 3, 0)); // meia-noite em São Paulo
+    expect(ev.usuariosResponsaveis).toEqual([{ chave: 7, valor: 'FULANO' }]);
+    expect(ev.tipoTarefa.chave).toBe(6683563); // Atendimento inicial
+    expect(ev.notificaClienteCriacao).toBe(false);
   });
 
   it('codigoExterno de consulta carrega caso e instante', () => {
