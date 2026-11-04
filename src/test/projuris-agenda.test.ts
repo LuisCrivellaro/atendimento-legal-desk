@@ -46,9 +46,9 @@ describe('agenda ProJuris — regras puras', () => {
     expect(compromissosDaResposta(null)).toEqual([]);
   });
 
-  it('corpo da consulta usa ms e só compromissos não concluídos', () => {
+  it('corpo da consulta usa o filtro real dataInicio/dataFim e só compromissos não concluídos', () => {
     expect(corpoConsultaCompromissos(1000, 2000)).toEqual({
-      dataTarefaInicio: 1000, dataTarefaFim: 2000, flagCompromisso: true, flagCompromissoConcluido: false,
+      dataInicio: 1000, dataFim: 2000, flagCompromisso: true, flagCompromissoConcluido: false,
     });
   });
 
