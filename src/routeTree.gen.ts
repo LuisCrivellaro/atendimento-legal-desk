@@ -29,6 +29,7 @@ import { Route as ApiPublicAtendimentoLembreteConsultaRouteImport } from './rout
 import { Route as ApiPublicAtendimentoMonitorarAnaRouteImport } from './routes/api/public/atendimento/monitorar-ana'
 import { Route as ApiPublicAtendimentoPendenciasProcessoRouteImport } from './routes/api/public/atendimento/pendencias-processo'
 import { Route as ApiPublicAtendimentoRecuperarAnaRouteImport } from './routes/api/public/atendimento/recuperar-ana'
+import { Route as ApiPublicAtendimentoRelatorioDiarioRouteImport } from './routes/api/public/atendimento/relatorio-diario'
 import { Route as ApiPublicAtendimentoTelegramRouteImport } from './routes/api/public/atendimento/telegram'
 import { Route as ApiPublicAtendimentoWhatsappRouteImport } from './routes/api/public/atendimento/whatsapp'
 
@@ -140,6 +141,12 @@ const ApiPublicAtendimentoRecuperarAnaRoute =
     path: '/api/public/atendimento/recuperar-ana',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicAtendimentoRelatorioDiarioRoute =
+  ApiPublicAtendimentoRelatorioDiarioRouteImport.update({
+    id: '/api/public/atendimento/relatorio-diario',
+    path: '/api/public/atendimento/relatorio-diario',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAtendimentoTelegramRoute =
   ApiPublicAtendimentoTelegramRouteImport.update({
     id: '/api/public/atendimento/telegram',
@@ -173,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
+  '/api/public/atendimento/relatorio-diario': typeof ApiPublicAtendimentoRelatorioDiarioRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -196,6 +204,7 @@ export interface FileRoutesByTo {
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
+  '/api/public/atendimento/relatorio-diario': typeof ApiPublicAtendimentoRelatorioDiarioRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -221,6 +230,7 @@ export interface FileRoutesById {
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
+  '/api/public/atendimento/relatorio-diario': typeof ApiPublicAtendimentoRelatorioDiarioRoute
   '/api/public/atendimento/telegram': typeof ApiPublicAtendimentoTelegramRoute
   '/api/public/atendimento/whatsapp': typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -246,6 +256,7 @@ export interface FileRouteTypes {
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
+    | '/api/public/atendimento/relatorio-diario'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   fileRoutesByTo: FileRoutesByTo
@@ -269,6 +280,7 @@ export interface FileRouteTypes {
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
+    | '/api/public/atendimento/relatorio-diario'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   id:
@@ -293,6 +305,7 @@ export interface FileRouteTypes {
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
+    | '/api/public/atendimento/relatorio-diario'
     | '/api/public/atendimento/telegram'
     | '/api/public/atendimento/whatsapp'
   fileRoutesById: FileRoutesById
@@ -307,6 +320,7 @@ export interface RootRouteChildren {
   ApiPublicAtendimentoMonitorarAnaRoute: typeof ApiPublicAtendimentoMonitorarAnaRoute
   ApiPublicAtendimentoPendenciasProcessoRoute: typeof ApiPublicAtendimentoPendenciasProcessoRoute
   ApiPublicAtendimentoRecuperarAnaRoute: typeof ApiPublicAtendimentoRecuperarAnaRoute
+  ApiPublicAtendimentoRelatorioDiarioRoute: typeof ApiPublicAtendimentoRelatorioDiarioRoute
   ApiPublicAtendimentoTelegramRoute: typeof ApiPublicAtendimentoTelegramRoute
   ApiPublicAtendimentoWhatsappRoute: typeof ApiPublicAtendimentoWhatsappRoute
 }
@@ -453,6 +467,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAtendimentoRecuperarAnaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/atendimento/relatorio-diario': {
+      id: '/api/public/atendimento/relatorio-diario'
+      path: '/api/public/atendimento/relatorio-diario'
+      fullPath: '/api/public/atendimento/relatorio-diario'
+      preLoaderRoute: typeof ApiPublicAtendimentoRelatorioDiarioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/atendimento/telegram': {
       id: '/api/public/atendimento/telegram'
       path: '/api/public/atendimento/telegram'
@@ -514,6 +535,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAtendimentoPendenciasProcessoRoute:
     ApiPublicAtendimentoPendenciasProcessoRoute,
   ApiPublicAtendimentoRecuperarAnaRoute: ApiPublicAtendimentoRecuperarAnaRoute,
+  ApiPublicAtendimentoRelatorioDiarioRoute:
+    ApiPublicAtendimentoRelatorioDiarioRoute,
   ApiPublicAtendimentoTelegramRoute: ApiPublicAtendimentoTelegramRoute,
   ApiPublicAtendimentoWhatsappRoute: ApiPublicAtendimentoWhatsappRoute,
 }

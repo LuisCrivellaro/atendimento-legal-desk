@@ -367,3 +367,10 @@
 - [x] Dúvidas jurídicas transferem para a equipe com resumo (nome, telefone, dúvida) exibido no sistema, sem envio ao WhatsApp da Dra.
 - [x] Lembrete diário às 08:00 com SIM (confirma) e NÃO (cancela e oferece 2 novos horários); rotina diária criada.
 - [ ] Publicar e testar com mensagem real: depende de autorização de publicação.
+
+## Ajustes de 04/11/2026 (noite)
+- [x] Horários com o dia em linha (Opção A); em dois dias: 1 horário restante do 1º dia + manhã e fim de tarde do 2º (3 opções).
+- [x] Andamento de processo só vai ao cliente depois do SIM da Dra. (resumo + mensagem proposta no WhatsApp dela).
+- [x] Relatório diário às 08:00 para +5511998290007, por cliente: atender primeiro / só agendamento / em andamento.
+- [ ] Trocar o número revisor cadastrado para o WhatsApp da Dra. — aguarda a Dra. informar no formulário.
+- [ ] Publicar — aguarda autorização.

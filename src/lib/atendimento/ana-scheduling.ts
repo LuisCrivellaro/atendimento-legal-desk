@@ -59,9 +59,23 @@ export function opcaoHorarioAna(iso:string) {
  */
 export function parManhaTardeAna(slots:string[]) {
   const ord=[...slots].sort((a,b)=>Date.parse(a)-Date.parse(b));
-  const manha=(s:string)=>Number(partesAgenda(s)['hour'])<12;
-  const m=ord.find(manha),t=ord.find(x=>Number(partesAgenda(x)['hour'])>=13);
-  return m&&t?[m,t].sort((a,b)=>Date.parse(a)-Date.parse(b)):ord.slice(0,2);
+  const h=(s:string)=>Number(partesAgenda(s)['hour']);
+  const dia=(s:string)=>dataAgenda(s);
+  const manha=(s:string)=>h(s)<12,tarde=(s:string)=>h(s)>=13;
+  // Sem manhã (ex.: sexta de cadastrados, só tarde): os 2 primeiros.
+  if(!ord.some(manha))return ord.slice(0,2);
+  const primeiro=ord[0];
+  if(!primeiro)return [];
+  const d1=ord.filter(s=>dia(s)===dia(primeiro));
+  const m1=d1.find(manha),t1=d1.find(tarde);
+  if(m1&&t1)return [m1,t1];
+  // Dois dias (Dra. Carolina, 04/11/2026): o horário restante do 1º dia + 1 manhã e 1 fim de tarde no 2º dia.
+  const d2=ord.filter(s=>dia(s)!==dia(primeiro));
+  const outroDia=d2[0]?dia(d2[0]):undefined;
+  const seg=d2.filter(s=>dia(s)===outroDia);
+  const m2=seg.find(manha),t2=[...seg].reverse().find(tarde);
+  const r=[primeiro,m2,t2].filter((x):x is string=>!!x);
+  return r.length>=2?r:ord.slice(0,2);
 }
 /** Uma única lista numerada; nunca duplica os horários em marcadores. */
 export function listaHorariosAna(slots:string[],_now=new Date(),_repetida=false) {
