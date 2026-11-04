@@ -154,8 +154,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     // Telefone com mais de um cadastro na base: a Ana não classifica por conta própria; a equipe confirma o vínculo.
     if(classificacao.fonte==='duvida'&&raw.intencao==='agendamento'){raw.encaminhar_humano=true;raw.motivo_aprovacao='Telefone vinculado a mais de um cadastro; a equipe confirma o vínculo antes de agendar.';bloqueada=true;}
     if(teste&&tipoCliente&&telefone&&raw.intencao==='agendamento'&&!bloqueada&&!selecionado&&!gerenciarExistente&&!semConsulta&&!recebeuNome&&(primeiroContato||nome||consultaEspecifica||/horarios|horários/.test(m.texto))){
-      const {ocupadosGoogleCalendar}=await import('./google-calendar.server');
-      const busy=await ocupadosGoogleCalendar(new Date(),horizonteAgendaAna());
+      const {ocupadosAgenda}=await import('./projuris-agenda.server');
+      const busy=await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna());
       if(!busy)throw new Error('Agenda indisponível; nenhum horário oferecido.');
       agendaReal=true;
       if(consultaEspecifica&&especifico&&horarioEspecificoLivre(especifico,busy,tipoCliente)){
@@ -228,9 +228,9 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         if(!reserva||reserva.inicio!==current.consultaAgendada)throw new Error('Consulta sem recibo verificável; equipe deve conferir antes de cancelar.');
         const consent=current.agenteAna?.confirmacaoCancelamento;
         if(!consent||consent.eventoId!==reserva.id||consent.inicio!==reserva.inicio||consent.contato!==telefone||Date.parse(consent.expira)<=Date.now())throw new Error('Confirmação de cancelamento inválida ou vencida.');
-        const {cancelarGoogleCalendar}=await import('./google-calendar.server');
+        const {cancelarAgenda}=await import('./projuris-agenda.server');
         await assumirAlteracao(db,id,messageId,reserva.id,'cancelar');
-        const resultado=await cancelarGoogleCalendar(id,reserva,true);
+        const resultado=await cancelarAgenda(db,row.data.owner_id,id,reserva,true);
         r.mensagem=`Pronto, sua consulta de ${formatarHorarioCliente(reserva.inicio).toLowerCase()} foi cancelada. Se quiser marcar outro dia, é só me chamar.`;
         r.proximo_passo=resultado==='ausente'?'Consulta retirada do atendimento; o compromisso já não estava na agenda conectada. Equipe: conferir outras agendas.':'Consulta cancelada com autorização do cliente.';
         await atualizarConversa(db,id,x=>({...x,consultaAgendada:undefined,horariosOfertados:[],agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,operacaoConsulta:undefined,reservaCalendar:undefined,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horarioPendente:undefined,horarioPendenteDesde:undefined,horariosTeste:[],agendaReal:false,resultado:r,proximoPasso:r.proximo_passo},timeline:[...x.timeline,{data:new Date().toISOString(),evento:r.proximo_passo}]}));
