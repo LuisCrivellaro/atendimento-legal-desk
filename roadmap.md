@@ -386,3 +386,11 @@
 - [x] Relatório diário às 08:00 para +5511998290007, por cliente: atender primeiro / só agendamento / em andamento.
 - [x] Número revisor atualizado pela Dra.
 - [ ] Publicar — aguarda autorização.
+
+## Migração da agenda Anne → ProJuris — 04/11/2026
+- [ ] Auditoria Calendar/ProJuris e documentação oficial (endpoints reais de compromisso).
+- [ ] Operações fechadas de compromisso (consultar, obter, criar, alterar; sem excluir) + módulo de agenda com proteção de overbooking (bloqueio no banco, releitura, idempotência por código externo).
+- [ ] Validação real de leitura da agenda da Dra. no ProJuris.
+- [ ] Validação controlada de criação (aguarda confirmação da Dra.; exclusão está desativada no ProJuris).
+- [ ] Migração dos compromissos futuros do Google Calendar (dry-run → execução após aprovação).
+- [ ] Troca da Anne para ProJuris exclusivo e desativação do Calendar SOMENTE após aprovação da equipe.
