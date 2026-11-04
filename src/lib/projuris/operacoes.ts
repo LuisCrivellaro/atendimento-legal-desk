@@ -31,7 +31,11 @@ export const OPERACOES_PROJURIS = {
   // Migração da agenda autorizada pela Dra. Carolina (04/11/2026): Compromisso — Visualizar, Inserir e
   // Alterar ativados no ProJuris; Excluir permanece desativado e proibido aqui. Sem retry automático de escrita.
   'tarefa.compromissoCriar': { metodo: 'POST', caminho: 'tarefa-compromisso', somenteLeitura: false, descricao: 'Criação de compromisso (migração da agenda)' },
+  // Formato confirmado contra a API real em 04/11/2026: o PUT recebe o json_TarefaCompromissoEventoWs
+  // DIRETO (sem o envelope da criação); com envelope a API responde 500.
   'tarefa.compromissoAlterar': { metodo: 'PUT', caminho: 'tarefa-compromisso', somenteLeitura: false, descricao: 'Alteração de compromisso (remarcação autorizada)' },
+  // Conclusão pelo endpoint dedicado (swagger.json oficial: PUT sem corpo, resposta 204). Excluir permanece proibido.
+  'tarefa.compromissoConcluir': { metodo: 'PUT', caminho: 'tarefa/compromisso/{codigo}', somenteLeitura: false, descricao: 'Conclusão de compromisso (cancelamento autorizado)' },
 } as const satisfies Record<string, OperacaoProjuris>;
 
 export type IdOperacaoProjuris = keyof typeof OPERACOES_PROJURIS;

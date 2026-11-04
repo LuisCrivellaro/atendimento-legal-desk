@@ -1,5 +1,13 @@
 # Construção dos módulos Manager ADV
 
+## Agenda exclusiva ProJuris — 04/11/2026
+- [ ] Anne passa a consultar disponibilidade, reservar, remarcar e cancelar só no ProJuris (compromissos); Google Calendar deixa de ser fonte de agenda.
+- [ ] Link do Meet: evento mínimo no Google só para gerar o link (decisão da Dra.); link associado à descrição do compromisso no ProJuris; falha do Meet não impede a reserva oficial.
+- [ ] Cancelamento = concluir compromisso (exclusão proibida); remarcação reserva o novo antes de concluir o antigo, com reversão; recibos antigos do Google continuam legíveis/canceláveis até a migração.
+- [ ] Migrar as 4 consultas futuras identificadas do Google para o ProJuris (autorizado pela Dra.), atualizando o recibo na conversa; originais do Google preservados.
+- [ ] Formato real confirmado na API: alteração = PUT do objeto do compromisso direto; conclusão = PUT dedicado sem corpo; ambos com leitura de confirmação.
+- [ ] Testes novos + suíte + compilação; validação real controlada (criar/alterar/concluir/ler) já executada na API; publicação e conversa real no WhatsApp pendentes.
+
 ## Continuidade e retornos pendentes — 04/11/2026
 - [x] Contexto completo do contato/canal e estado operacional compartilhados no servidor/simulador; identidade explícita Paulo reconhecida, nome não reinicia ofertas, retorno não repete apresentação institucional.
 - [x] Cobranças genéricas registram tarefa CAS com assunto/referências e responsável da conversa antes do envio, preservadas contra edição antiga; Assessor e avisos internos exibem pendências. Ciente/conclusão autenticados; conclusão exige resposta humana realmente enviada. Conteúdo processual continua no fluxo de aprovação existente.
