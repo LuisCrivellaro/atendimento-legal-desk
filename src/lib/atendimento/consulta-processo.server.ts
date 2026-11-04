@@ -99,7 +99,8 @@ export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: 
       enviarRevisora: async t => { if (!process.env['REVISORA_WHATSAPP']) throw new Error('Revisora ausente.'); notificacao = t; },
       registrar: ev => auditarProcesso(db, ev),
       buscarPorCpf: consultas.pessoasPorCpf,
-    }, local ? { aprovacao_processo: false, verificacao_processo: false, lembreteMin: 30, maxLembretes: 3, avisoRetornoMin: 60 } : undefined);
+    // Dra. Carolina (04/11/2026): nenhuma notícia processual sai sem a autorização dela, mesmo com base local.
+    });
     await atualizarConversa(db, c.id, current => ({ ...current, agenteAna: { ...current.agenteAna, consultaProcessoEmCurso: undefined, aguardandoAssuntoProcesso: result.tipo === 'perguntar_assunto',
       aguardandoCpfProcesso: result.tipo === 'pedir_cpf',
       perguntaProcessoPendente: result.tipo === 'pedir_cpf' ? (current.agenteAna?.perguntaProcessoPendente ?? e.texto) : result.tipo === 'vinculo_pendente' ? current.agenteAna?.perguntaProcessoPendente : undefined,

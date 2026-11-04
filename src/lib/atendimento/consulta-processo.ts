@@ -167,12 +167,10 @@ export function mensagemRevisora(p: PedidoProcesso): string {
     ? `• ${f.identificacao}: não detalhado ao cliente.`
     : `• ${f.identificacao}\n${f.andamentos.length ? f.andamentos.map(a => `   - ${a.data}${a.hora ? ` ${a.hora}` : ''} · ${a.tipo ?? 'sem tipo'} · ${a.descricao}`).join('\n') : '   - sem movimentação registrada'}`).join('\n');
   return [
-    `Pedido ${p.codigo}: notícia de processo para aprovar`,
-    `Contato: ${p.contato.nome} · ${p.contato.telefone}`,
-    `Identificação: ${p.identificadoPor}`,
-    `Processo(s) e andamentos do ProJuris:\n${processos}`,
-    `Texto proposto ao cliente${p.rascunhoPadrao ? ' (rascunho padrão)' : ''}:\n"""\n${p.textoProposto}\n"""`,
-    `Responda "ok ${p.codigo}" para enviar este texto, "corrigir ${p.codigo}: seu texto" para enviar o seu, ou "não ${p.codigo}" para recusar.`,
+    `Dra. Carolina, pedido ${p.codigo}: o cliente perguntou sobre o processo.`,
+    `Resumo da situação\nCliente: ${p.contato.nome} · ${p.contato.telefone}\nIdentificação: ${p.identificadoPor}\nProcesso(s) e andamentos:\n${processos}`,
+    `Mensagem que será enviada ao cliente${p.rascunhoPadrao ? ' (rascunho padrão)' : ''}:\n"""\n${p.textoProposto}\n"""`,
+    `Posso enviar essa mensagem para o cliente? Responda SIM ${p.codigo} ou NÃO ${p.codigo}. Para trocar o texto: "corrigir ${p.codigo}: seu texto". Nada será enviado sem a sua autorização.`,
   ].join('\n\n');
 }
 
@@ -202,7 +200,7 @@ export function interpretarRespostaRevisora(texto: string, pendentes: string[]):
     return novo ? { acao: 'corrigir', codigo: e.codigo, texto: novo } : { acao: 'ambiguo', motivo: 'Correção sem texto.' };
   }
   if (/^corrigir\b/.test(t)) return { acao: 'ambiguo', motivo: 'Use "corrigir CÓDIGO: texto".' };
-  if (/^(?:ok|aprovad[oa]|aprovo|pode enviar)\b(?:\s+and-\d+)?[\s.!]*$/.test(t)) {
+  if (/^(?:ok|sim|aprovad[oa]|aprovo|pode enviar)\b(?:\s+and-\d+)?[\s.!]*$/.test(t)) {
     const e = escolher();
     return 'motivo' in e ? { acao: 'ambiguo', motivo: e.motivo } : { acao: 'aprovar', codigo: e.codigo };
   }
@@ -363,8 +361,13 @@ export async function iniciarConsultaProcesso(
     }
     let texto = '';
     let padrao = false;
-    try { texto = (await portas.redigir(fatosParaRedacao(pessoa.nome, fatos))).trim(); } catch { texto = ''; }
-    const validacao = validarRascunho(texto, fatos);
+    if (estadoLocal) {
+      // Base local: o texto proposto é a resposta factual já aprovada no formato; vai para autorização da Dra.
+      texto = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime());
+    } else {
+      try { texto = (await portas.redigir(fatosParaRedacao(pessoa.nome, fatos))).trim(); } catch { texto = ''; }
+    }
+    const validacao = estadoLocal && texto ? { ok: true as const, problemas: [] as string[] } : validarRascunho(texto, fatos);
     if (!validacao.ok) { await portas.registrar('rascunho_substituido', validacao.problemas.join('; ')); texto = rascunhoPadrao(pessoa.nome, fatos); padrao = true; }
     const pedido: PedidoProcesso = {
       codigo: proximoCodigo(await portas.codigosExistentes()),
