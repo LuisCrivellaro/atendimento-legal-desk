@@ -16,7 +16,7 @@ describe('Paginação por última mensagem', () => {
       const q = {
         select: () => q, order: () => q, limit: () => q, not: () => q, is: () => q, lt: () => q,
         or: (filter: string) => { filtros.push(filter); return q; },
-        range: offsets,
+        range: (...args: unknown[]) => { offsets(...args); return q; },
         then: (resolve: (value: unknown) => unknown) => Promise.resolve({error: null, data: table === 'casos' ? paginas[pagina++] ?? [] : []}).then(resolve),
       };
       return q;
