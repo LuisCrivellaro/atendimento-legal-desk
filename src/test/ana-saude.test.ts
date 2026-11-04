@@ -15,3 +15,12 @@ describe('monitoramento da Ana', () => {
     expect(excessoRespostasAna({ mensagens: msgs.slice(0, 5) } as never, agora)).toBe(false);
   });
 });
+import { claudeComoSample } from '@/lib/ana-claude/claude.server';
+describe('limite de consumo de IA', () => {
+  it('não chama o Claude quando o limite diário foi atingido', async () => {
+    let chamadas = 0;
+    const sample = claudeComoSample({ apiKey: 'k', fetch: (async () => { chamadas++; return new Response('{}'); }) as never, orcamento: { reservar: async () => false, registrar: async () => {} } });
+    await expect(sample.json([{ role: 'user', content: 'oi' }] as never)).rejects.toMatchObject({ code: 'limite_consumo' });
+    expect(chamadas).toBe(0);
+  });
+});
