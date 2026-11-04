@@ -115,7 +115,7 @@ export function selecionarOpcoesAna(busy:{start:string;end:string}[],now:Date,ti
   // Inclui o restante de hoje, sem mudar as regras compartilhadas dos atalhos manuais.
   const horizonte=horizonteAgendaAna(now);
   const all=gerarHorarios(busy,new Date(now.getTime()-86400000),tipo,1000,horizonte+1).filter(s=>Date.parse(s)>now.getTime()&&Date.parse(s)<=now.getTime()+horizonte*86400000);
-  const t=fold(texto),specific=pedidoHorarioEspecifico(texto,now);
+  const t=fold(texto);
   const periodo=/tarde|mais tarde/.test(t)?'tarde':/manha|mais cedo/.test(t)?'manha':undefined;
   const weekday=dias.findIndex(d=>new RegExp(`\\b${d}(?:-feira)?\\b`).test(t));
   const day=t.match(/\bdia\s+(\d{1,2})\b/),dm=t.match(/\b(\d{1,2})\/(\d{1,2})\b/);
@@ -123,19 +123,6 @@ export function selecionarOpcoesAna(busy:{start:string;end:string}[],now:Date,ti
   const semPeriodo=!!periodo&&!available.length;
   // Regra dos 2 horários: 1 manhã + 1 tarde (ou 2 do período pedido).
   return {slots:parManhaTardeAna(available),semPeriodo};
-  if(specific)available.sort((a,b)=>Math.abs(Date.parse(a)-Date.parse(specific))-Math.abs(Date.parse(b)-Date.parse(specific)));
-  const oldDates=new Set(anteriores.map(dataAgenda));
-  if(evitarRepeticao)available.sort((a,b)=>Number(oldDates.has(dataAgenda(a)))-Number(oldDates.has(dataAgenda(b))));
-  const distinct:string[]=[],dates=new Set<string>();
-  for(const s of available){
-    if(dates.has(dataAgenda(s)))continue;
-    const preferAfternoon=!periodo&&distinct.some(x=>Number(partesAgenda(x)['hour'])<12)&&!distinct.some(x=>Number(partesAgenda(x)['hour'])>=13);
-    const chosen=preferAfternoon?available.find(x=>dataAgenda(x)===dataAgenda(s)&&Number(partesAgenda(x)['hour'])>=13)??s:s;
-    distinct.push(chosen);dates.add(dataAgenda(chosen));if(distinct.length===3)break;
-  }
-  if(!periodo&&!distinct.some(s=>Number(partesAgenda(s)['hour'])>=13)){const afternoon=available.find(s=>Number(partesAgenda(s)['hour'])>=13&&!distinct.includes(s));if(afternoon){if(distinct.length===3)distinct.pop();distinct.push(afternoon);}}
-  for(const s of available){if(distinct.length===3)break;if(!distinct.includes(s))distinct.push(s);}
-  return {slots:distinct,semPeriodo};
 }
 
 /**
