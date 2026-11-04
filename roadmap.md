@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Continuidade e retornos pendentes — 04/11/2026
+- [ ] Recuperar contexto persistente e identidade; impedir reinício institucional e reofertas sem pedido.
+- [ ] Vincular cobranças de retorno a histórico e tarefas reais; notificar a equipe no sistema sem inventar atualização ou liberar conteúdo jurídico.
+- [ ] Reproduzir cenário Paulo e regressões, conferir persistência e tela; não publicar nem enviar mensagens externas sem autorização.
+
 ## Ordenação WhatsApp — ajuste de 04/11/2026
 - [x] Banco atual sem divergências/futuros; importação corrigida para segundos/milissegundos/ISO e data desconhecida sem substituir por hoje; deduplicação por ID externo/direção.
 - [x] Paginação timestamp/id substitui offsets de casos; renderização progressiva de 50, filtros e seleção preservados; falha temporária mantém dados já carregados.
