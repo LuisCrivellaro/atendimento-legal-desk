@@ -144,7 +144,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   const urgent = /(?:risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo|citacao|oficial de justica|carta do forum|prazo.{0,25}(?:venc|amanha|hoje)|demitid.{0,30}(?:hoje|ontem|semana)|audiencia.{0,35}(?:hoje|amanha|semana))/.test(folded);
   const prohibited = etico || forbiddenTopics(texto,proibidos).length > 0 || forbiddenTopics(r.mensagem,proibidos).length > 0;
   // Tema delicado pede revisão, não uma tomada humana completa da conversa.
-  if(prohibited||r.intencao==='reclamacao')result={...result,acao:'enviar',mensagem:r.intencao==='reclamacao'&&!prohibited?'Sinto muito por isso. Deixei registrado para a equipe olhar com cuidado.':'Entendo. Essa pergunta precisa da avaliação da Dra. Carolina, e deixei registrado para a equipe. Por aqui eu cuido só dos agendamentos: se quiser, marco uma consulta online e gratuita para você conversar com ela.',encaminhar_humano:false,motivo_aprovacao:'Questão delicada registrada para avaliação humana; nenhuma orientação jurídica enviada.',proximo_passo:'Equipe: revisar a questão delicada registrada; Ana continua apenas acolhimento e coleta.'};
+  if(prohibited||r.intencao==='reclamacao')result={...result,acao:'enviar',mensagem:r.intencao==='reclamacao'&&!prohibited?'Sinto muito por isso. Deixei registrado para a equipe olhar com cuidado.':'Entendo. Essa dúvida precisa da avaliação da Dra. Carolina, então vou transferir seu atendimento para a equipe, que te responde por aqui.',encaminhar_humano:prohibited,motivo_aprovacao:prohibited?'':'Questão delicada registrada para avaliação humana; nenhuma orientação jurídica enviada.',proximo_passo:prohibited?'Equipe assume a dúvida jurídica; Ana pausada até devolução.':'Equipe: revisar a questão delicada registrada; Ana continua apenas acolhimento e coleta.'};
   else if(!humano)result.encaminhar_humano=false;
   if(humano){const now=options.now??new Date();const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Sao_Paulo',weekday:'short',hour:'numeric',hourCycle:'h23'}).formatToParts(now).map(x=>[x.type,x.value]));const dentro=expedienteAna(now)&&Number(p['hour'])<17;result={...result,acao:'enviar',intencao:'outro',mensagem:`${pedidoHumano(texto)?'Claro! Já passei sua conversa para a equipe.':'Por aqui eu cuido só dos agendamentos, então passei sua conversa para a equipe.'}\n${dentro?'Alguém responsável te responde por aqui ainda hoje.':'Alguém responsável te responde no próximo dia útil, a partir das 8h.'}`,encaminhar_humano:true,motivo_aprovacao:'',proximo_passo:'Equipe assume a conversa; Ana pausada até devolução.'};}
   result.urgente ||= urgent;
@@ -167,4 +167,9 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   result.dados_coletados.cpf = '';
   if (result.dados_coletados.cpf && !/^\d{11}$/.test(result.dados_coletados.cpf.replace(/\D/g,''))) result.dados_coletados.cpf='';
   return result;
+}
+/** Resumo do transbordo exibido no sistema para a Dra. Carolina (não é enviado por WhatsApp). */
+export function resumoTransbordoAna(nome:string,telefone:string|undefined,duvida:string) {
+  const d=duvida.replace(/\s+/g,' ').trim().slice(0,300);
+  return `Resumo para a Dra. Carolina — Nome: ${nome.trim()||'não informado'} · Telefone: ${telefone?.trim()||'não informado'} · Dúvida: ${d||'não informada'}`;
 }
