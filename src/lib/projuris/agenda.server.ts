@@ -16,14 +16,16 @@ import {
 
 type Db = SupabaseClient<Database>;
 
-/** Compromissos (não concluídos) entre dois instantes, já normalizados. */
+/** Compromissos (não concluídos) que cruzam o intervalo, já normalizados.
+ *  A API ignora o filtro de período (confirmado em 04/11/2026: mesma resposta com e sem datas),
+ *  então a filtragem por intervalo é feita aqui, depois da leitura completa. */
 export async function listarCompromissos(
   inicioMs: number,
   fimMs: number,
   cliente: Pick<ClienteProjuris, 'chamar'> = projuris,
 ): Promise<CompromissoPJ[]> {
   const raw = await cliente.chamar('tarefa.compromissoConsulta', { corpo: corpoConsultaCompromissos(inicioMs, fimMs) });
-  return compromissosDaResposta(raw).filter(c => !c.concluido);
+  return compromissosDaResposta(raw).filter(c => !c.concluido && sobrepoe(inicioMs, fimMs, c.inicioMs, c.fimMs));
 }
 
 /** Busca por codigoExterno (idempotência): devolve o compromisso já criado, se existir. */
