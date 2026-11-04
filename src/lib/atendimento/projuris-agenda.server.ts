@@ -32,7 +32,7 @@ export interface PortasAgenda {
   };
 }
 
-async function portas(p: PortasAgenda): Promise<Required<Omit<PortasAgenda, 'cliente'>> & { cliente: ClienteAgenda | undefined }> {
+async function resolverPortas(p: PortasAgenda): Promise<Required<Omit<PortasAgenda, 'cliente'>> & { cliente: ClienteAgenda | undefined }> {
   const google = await import('./google-calendar.server');
   return {
     cliente: p.cliente,
@@ -90,7 +90,7 @@ export async function reservarAgenda(
   if (!horarioPermitido(inicio, cliente.tipo)) throw new Error('Horário fora da carteira de atendimento permitida.');
   inicio = new Date(inicio).toISOString();
   const fim = new Date(Date.parse(inicio) + DURACAO_REUNIAO * 60000).toISOString();
-  const p = await portas(portas);
+  const p = await resolverPortas(portas);
 
   const titulo = `Consulta CS Lawyers · ${cliente.nome.trim()}`;
   // 1. Link do Meet (evento mínimo no Google, só para o link). Falha aqui não impede a reserva oficial.
@@ -130,7 +130,7 @@ export async function reservarAgenda(
 /** Relê o recibo na agenda oficial; recibos legados do Google seguem pelo módulo antigo até a migração. */
 export async function lerReservaAgenda(db: Db, owner: string, conversaId: string, reserva: ReservaCalendar, portas: PortasAgenda = {}): Promise<ReservaCalendar | undefined> {
   const codigo = codigoDoRecibo(reserva.id);
-  const p = await portas(portas);
+  const p = await resolverPortas(portas);
   if (codigo === undefined) return p.legado.ler(conversaId, reserva);
   const dto = await obterCompromisso(codigo, p.cliente);
   if (!dto || eventoDeDto(dto)!['concluido'] === true || !compromissoDoAtendimento(dto, reserva)) return undefined;
@@ -141,7 +141,7 @@ export async function lerReservaAgenda(db: Db, owner: string, conversaId: string
 export async function cancelarAgenda(db: Db, owner: string, conversaId: string, reserva: ReservaCalendar, autorizado: boolean, portas: PortasAgenda = {}): Promise<'cancelado' | 'ausente'> {
   if (!autorizado) throw new Error('Cancelamento exige autorização explícita.');
   const codigo = codigoDoRecibo(reserva.id);
-  const p = await portas(portas);
+  const p = await resolverPortas(portas);
   if (codigo === undefined) return p.legado.cancelar(conversaId, reserva, autorizado);
   const dto = await obterCompromisso(codigo, p.cliente);
   if (!dto || !compromissoDoAtendimento(dto, reserva)) throw new Error('Compromisso não pertence a este atendimento.');
@@ -170,7 +170,7 @@ export async function remarcarAgenda(
 ): Promise<ReservaCalendar> {
   if (!autorizado) throw new Error('Remarcação exige autorização explícita.');
   const codigo = codigoDoRecibo(anterior.id);
-  const p = await portas(portas);
+  const p = await resolverPortas(portas);
   if (codigo === undefined) return p.legado.remarcar(conversaId, anterior, inicio, autorizado, now, cliente);
   const dto = await obterCompromisso(codigo, p.cliente);
   if (!dto || eventoDeDto(dto)!['concluido'] === true || !compromissoDoAtendimento(dto, anterior)) throw new Error('Consulta original indisponível para remarcação.');
