@@ -250,6 +250,7 @@ export class SimuladorAna {
       const consultaEspecifica = !!especifico && (/\?|\b(?:tem|livre|disponivel|disponível|pode ser)\b/i.test(m.texto) || !oferecidos.includes(especifico));
       const selecionado = !bloqueada && !consultaEspecifica ? (aceitouPendente ? c.agenteAna?.horarioPendente : escolherHorarioAna(oferecidos, m.texto) ?? chosenSlot([...(c.agenteAna?.horariosTeste ?? []), ...(c.horariosOfertados ?? [])], m.texto)) : undefined;
       if (!bloqueada && (especifico || selecionado || aceitouPendente)) raw.intencao = 'agendamento';
+      if(!primeiroContato&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
       const gerenciarExistente = !!c.consultaAgendada && alteracao !== 'remarcar' && c.agenteAna?.alteracaoConsulta !== 'remarcar';
       let horarioPendente: string | undefined;
       let semPeriodo = false;
@@ -279,6 +280,7 @@ export class SimuladorAna {
       }
       if (horarioPendente && mode === 'Automática' && !r.encaminhar_humano && !r.motivo_aprovacao) { r.acao = 'enviar'; r.mensagem = `${linhaHorarioAna(horarioPendente)} está livre. Posso marcar para você?`; r.proximo_passo = 'Aguardar aceite explícito e nome completo para reservar o horário consultado.'; }
       if (indisponivel && r.acao === 'enviar') r.mensagem = `Esse horário não está disponível.\n\n${r.mensagem}`;
+      if(identidade&&/qual (?:[ée] )?(?:o )?seu nome|como (?:você|voce) se chama/i.test(r.mensagem)){r.mensagem='Já tenho seu nome registrado. Vou continuar a partir da sua solicitação.';}
       if (semPeriodo && r.acao === 'enviar') r.mensagem = 'Não encontrei novas opções livres nesse período nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
       if(cobranca)Object.assign(r,resultadoRetorno(c,canal));
       const gerenciar = teste && mode === 'Automática' && !r.encaminhar_humano && !r.motivo_aprovacao && !!c.consultaAgendada;
