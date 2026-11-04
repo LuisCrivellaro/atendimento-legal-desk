@@ -147,11 +147,11 @@ export function saudacaoClienteNovo(r:AnaResult,_texto:string,o:{apresentado:boo
 
 /** Violência doméstica é área de atuação da Dra. Carolina: acolhimento jurídico, nunca encaminhamento genérico nem 190 espontâneo. */
 export function violenciaDomesticaAna(texto:string):boolean{
-  const t=texto.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const t=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   return /violencia (?:domestica|familiar)|agressao|me agride|me agrediu|me bate|me bateu|abuso|ameac[ao]|medida protetiva|protetiva|assedio/.test(t);
 }
 export function riscoImediatoAna(texto:string):boolean{
-  const t=texto.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const t=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   return /(?:neste|nesse) momento|agora mesmo|me ameac|vai me (?:matar|bater|pegar)|risco.{0,15}vida|suicid|me matar/.test(t);
 }
 const ACOLHIMENTO_VD='Olá! Sinto muito que você esteja passando por essa situação. Vamos te ajudar.\nA Dra. Carolina atua em casos de violência doméstica e nossa equipe poderá entender melhor o que aconteceu para orientar os próximos passos jurídicos.\nGostaria de me contar brevemente o que aconteceu?';
