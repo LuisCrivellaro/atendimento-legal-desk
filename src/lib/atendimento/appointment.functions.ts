@@ -8,7 +8,7 @@ export const alterarConsultaEquipe=createServerFn({method:'POST'})
  .inputValidator(z.object({casoId:z.string().uuid(),eventoId:z.string().min(1),acao:z.enum(['cancelar','reagendar'])}))
  .handler(async({data,context})=>{
   const {atualizarConversa}=await import('./ana.server');
-  const {cancelarGoogleCalendar,ocupadosGoogleCalendar}=await import('./google-calendar.server');
+  const {cancelarAgenda,ocupadosAgenda}=await import('./projuris-agenda.server');
   const {horariosLivresAna}=await import('./ana-rules');
   const {enviarMensagemSistema}=await import('./envio.functions');
   const {newMessage,formatarHorarioCliente}=await import('../atendimento');
@@ -27,7 +27,7 @@ export const alterarConsultaEquipe=createServerFn({method:'POST'})
   let horarios:string[]=[];
   if(data.acao==='reagendar'){
    if(!tipo)throw new Error('Confirme a carteira de agendamento do cliente antes de reagendar.');
-   const busy=await ocupadosGoogleCalendar();
+    const busy=await ocupadosAgenda(context.supabase,context.userId);
    if(!busy)throw new Error('Agenda indisponível; consulta preservada.');
    horarios=horariosLivresAna(busy,new Date(),tipo);
    if(!horarios.length)throw new Error('Nenhum horário livre nos próximos 14 dias; consulta preservada.');
@@ -41,7 +41,7 @@ export const alterarConsultaEquipe=createServerFn({method:'POST'})
    return {...x,agenteAna:{...x.agenteAna,operacaoConsulta:{mensagemId:operationId,eventoId:data.eventoId,tipo:'cancelar',desde:new Date().toISOString()}}};
   });
   if(!claimed)throw new Error('Consulta alterada ou operação em andamento.');
-  try{await cancelarGoogleCalendar(data.casoId,reserva,true);}
+  try{await cancelarAgenda(context.supabase,context.userId,data.casoId,reserva,true);}
   catch(error){await atualizarConversa(context.supabase,data.casoId,x=>({...x,agenteAna:{...x.agenteAna,humano:true,erro:'Cancelamento não confirmado; conferir agenda antes de repetir.'}}));throw error;}
   const texto=`Pedimos desculpas pelo ocorrido. Devido a uma diligência de emergência, a Dra. Carolina precisou cancelar nossa reunião de ${formatarHorarioCliente(reserva.inicio)}.${horarios.length?' Podemos reagendar para um destes horários. Qual você prefere?':' Quando desejar, podemos combinar um novo horário.'}`;
   await atualizarConversa(context.supabase,data.casoId,x=>({...x,consultaAgendada:undefined,horariosOfertados:horarios,agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:undefined,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,consultaTeste:undefined,horariosTeste:horarios,agendaReal:!!horarios.length,proximoPasso:horarios.length?'Aguardar escolha de novo horário pelo cliente.':'Consulta cancelada pela equipe.'},timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta cancelada por ${profile.data?.nome??'atendente'} · diligência de emergência${horarios.length?' · novos horários oferecidos':''}`}]}));
