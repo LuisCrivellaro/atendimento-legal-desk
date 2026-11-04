@@ -125,3 +125,26 @@ export const PREFIXO_EXTERNO_MANAGER = 'manageradv:';
 export function codigoExternoConsulta(casoId: string, inicioMs: number): string {
   return `${PREFIXO_EXTERNO_MANAGER}consulta:${casoId}:${inicioMs}`;
 }
+
+/** Extrai o objeto do compromisso (json_TarefaCompromissoEventoWs) do DTO completo de leitura. */
+export function eventoDeDto(raw: unknown): Record<string, unknown> | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const e = (raw as Record<string, unknown>)['tarefaCompromissoEventoWs'];
+  return e && typeof e === 'object' && !Array.isArray(e) ? (e as Record<string, unknown>) : undefined;
+}
+
+/** Corpo da alteração (PUT tarefa-compromisso): o objeto do compromisso DIRETO, sem o envelope da criação.
+ *  Formato confirmado contra a API real em 04/11/2026 (com envelope a API responde 500).
+ *  Parte sempre do DTO recém-lido: campos não alterados são preservados. */
+export function corpoAlteracaoCompromisso(dto: unknown, alteracoes: { inicioMs?: number; fimMs?: number; descricao?: string }): Record<string, unknown> {
+  const evento = eventoDeDto(dto);
+  if (!evento) throw new Error('Leitura do compromisso incompleta; alteração não montada.');
+  const inicioMs = alteracoes.inicioMs ?? (evento['dataHoraInicio'] as number);
+  return {
+    ...evento,
+    ...(alteracoes.inicioMs !== undefined ? { dataHoraInicio: alteracoes.inicioMs } : {}),
+    ...(alteracoes.fimMs !== undefined ? { dataHoraFim: alteracoes.fimMs } : {}),
+    ...(alteracoes.inicioMs !== undefined || alteracoes.fimMs !== undefined ? { dataBase: meiaNoiteSaoPaulo(inicioMs) } : {}),
+    ...(alteracoes.descricao !== undefined ? { descricaoTarefa: alteracoes.descricao } : {}),
+  };
+}

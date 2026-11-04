@@ -139,7 +139,8 @@ export function criarClienteProjuris(o: OpcoesClienteProjuris = {}) {
         r = await requisitar(url.toString(), {
           method: op.metodo,
           headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: t.esquema ? `${t.esquema} ${t.valor}` : t.valor },
-          ...(op.metodo !== 'GET' ? { body: JSON.stringify(c.corpo ?? {}) } : {}),
+          // PUT sem corpo existe (concluir compromisso); só envia body quando a chamada trouxer um.
+          ...(op.metodo !== 'GET' && c.corpo !== undefined ? { body: JSON.stringify(c.corpo) } : {}),
         });
       } catch (e) {
         if (tentativa < maxTentativas) { await esperar(espera(tentativa)); tentativa++; continue; }
