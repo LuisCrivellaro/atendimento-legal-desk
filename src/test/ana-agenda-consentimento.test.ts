@@ -121,3 +121,20 @@ describe('retomada de identificados',()=>{
  it('falha temporária gera nova tentativa persistente sem assumir atendimento humano',async()=>{const h=setup('ultramsg',false);mocks.gerar.mockRejectedValueOnce(Object.assign(new Error('Indisponível'),{retryable:true}));await h.message('quero agendar');expect(h.saved.mensagens.at(-1)?.iaExecucao?.estado).toBe('aguardando');expect(h.saved.agenteAna?.humano).not.toBe(true);expect(mocks.enviar).not.toHaveBeenCalled();});
  it('equipe assume durante geração e bloqueia resposta',async()=>{const h=setup('ultramsg',false);mocks.gerar.mockImplementationOnce(async()=>{h.patch(c=>({...c,agenteAna:{...c.agenteAna,humano:true,controleHumanoEm:'assumido'}}));return {acao:'enviar',mensagem:'Olá',intencao:'duvida_geral',encaminhar_humano:false,motivo_aprovacao:'',urgente:false,dados_coletados:{nome:'',cpf:'',email:'',assunto:''},proximo_passo:''};});await h.message('oi');expect(mocks.enviar).not.toHaveBeenCalled();expect(h.saved.agenteAna?.humano).toBe(true);});
 });
+
+
+describe('Paulo — continuidade no servidor real com portas controladas',()=>{
+ it('nome não reoferta e cobrança persiste tarefa antes do envio; equipe pausa Anne',async()=>{
+  const h=setup('ultramsg',false);
+  h.patch(c=>({...c,agenteAna:{apresentado:true,agendaReal:true,horariosTeste:['2026-10-28T12:00:00Z'],dados:{nome:'',cpf:'',email:'',assunto:''}},mensagens:[{id:'assunto',de:'cliente',canal:'ultramsg',texto:'Aguardo conferência dos documentos que enviei',hora:''},{id:'promessa',de:'escritorio',canal:'ultramsg',texto:'Vou verificar com a doutora e dar um retorno',hora:''},...Array.from({length:30},(_,i)=>({id:`old${i}`,de:'cliente' as const,canal:'ultramsg',texto:'ok',hora:''})),{id:'boas',de:'escritorio',canal:'ultramsg',texto:'Olá, Seja bem vindo. Horários apresentados.',hora:''}]}));
+  await h.message('Bom dia. É o Paulo.');
+  expect(h.saved.agenteAna?.dados?.nome).toBe('Paulo');expect(mocks.ocupados).not.toHaveBeenCalled();expect(h.saved.agenteAna?.horariosTeste).toEqual(['2026-10-28T12:00:00Z']);
+  expect(mocks.gerar.mock.calls[0]?.[1].historico.some((m:{id:string})=>m.id==='promessa')).toBe(true);
+  mocks.enviar.mockImplementationOnce(async()=>{expect(h.saved.tarefasRetorno).toHaveLength(1);return {simulado:false,idExterno:'retorno-enviado'};});
+  await h.message('Você ficou de me dar um retorno.');
+  expect(h.saved.tarefasRetorno?.[0]).toMatchObject({responsavelId:'owner',assunto:'Aguardo conferência dos documentos que enviei',status:'pendente'});
+  expect(h.saved.agenteAna?.humano).toBe(true);expect(mocks.reservar).not.toHaveBeenCalled();
+  const count=mocks.enviar.mock.calls.length;await h.message('Estou aguardando.');expect(mocks.enviar).toHaveBeenCalledTimes(count);expect(h.saved.tarefasRetorno).toHaveLength(1);
+ });
+ it('primeira cobrança não inicia boas-vindas ou consulta de agenda',async()=>{const h=setup('ultramsg',false);h.patch(c=>({...c,agenteAna:{apresentado:false},mensagens:[]}));await h.message('Bom dia. Alguma novidade?');expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.gerar).not.toHaveBeenCalled();expect(h.saved.tarefasRetorno).toHaveLength(1);expect(h.saved.agenteAna?.humano).toBe(true);});
+});
