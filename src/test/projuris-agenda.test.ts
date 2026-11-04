@@ -84,7 +84,7 @@ const pedido = { titulo: 'Consulta — Maria', inicioMs: DIA + 36000000, fimMs: 
 
 describe('agenda ProJuris — reserva com proteção de overbooking', () => {
   it('recusa quando outra operação detém o bloqueio', async () => {
-    const r = await reservarCompromisso(dbFalso(false) as never, 'dono', pedido, { chamar: async () => null });
+    const r = await reservarCompromisso(dbFalso(false) as never, 'dono', pedido, { chamar: async <T,>() => null as T });
     expect(r).toEqual({ ok: false, motivo: 'ocupado', detalhe: 'Outra operação de agenda em andamento.' });
   });
 
@@ -151,7 +151,7 @@ describe('agenda ProJuris — reserva com proteção de overbooking', () => {
   });
 
   it('rejeita codigoExterno fora do padrão e horário inválido', async () => {
-    await expect(reservarCompromisso(dbFalso(true) as never, 'dono', { ...pedido, codigoExterno: 'livre' }, { chamar: async () => null })).rejects.toThrow('padrão');
-    await expect(reservarCompromisso(dbFalso(true) as never, 'dono', { ...pedido, fimMs: pedido.inicioMs }, { chamar: async () => null })).rejects.toThrow('término');
+    await expect(reservarCompromisso(dbFalso(true) as never, 'dono', { ...pedido, codigoExterno: 'livre' }, { chamar: async <T,>() => null as T })).rejects.toThrow('padrão');
+    await expect(reservarCompromisso(dbFalso(true) as never, 'dono', { ...pedido, fimMs: pedido.inicioMs }, { chamar: async <T,>() => null as T })).rejects.toThrow('término');
   });
 });
