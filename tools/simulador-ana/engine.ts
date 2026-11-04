@@ -5,6 +5,7 @@ import type { Conversa } from '@/lib/mock-data';
 import { newMessage, chosenSlot, formatarHorarioCliente } from '@/lib/atendimento';
 import { escolherReservaAna, idReservaCalendar, intervaloLivre, type ReservaCalendar } from '@/lib/atendimento/calendar-booking';
 import { saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, type AnaResult } from '@/lib/atendimento/ana-rules';
+import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from '@/lib/atendimento/ana-contexto';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from '@/lib/atendimento/ana-retomada';
 import { classificarAgenda, etiquetaConversa, identificarTipoCliente, classificarEntrada, telefoneAgenda, type TipoCliente } from '@/lib/atendimento/intake-rules';
 import { iniciarAtendimentoAutomatico } from '@/lib/atendimento/initial-attendance';
@@ -204,19 +205,20 @@ export class SimuladorAna {
     if (pendente && !m.arquivo && apenasInsistencia(m.texto)) { this.enviarAna(TEXTOS_CONSULTA.emConferencia); turno.enviada = TEXTOS_CONSULTA.emConferencia; turno.eventos.push(`Pedido ${pendente.codigo} em conferência: insistência sem texto.`); return; }
     if (mensagemSemResposta(m.texto, !!m.arquivo)) { turno.semResposta = 'Mensagem curta de confirmação ("ok", "obrigado"...): a Ana não responde.'; return; }
     try {
-      const history = c.mensagens.filter(x => x.canal === canal).slice(-24).map(x => ({ de: x.de, texto: x.texto, arquivo: x.arquivo ?? '', autor: x.autor ?? '' }));
+      const memoria=contextoPersistente(c,canal);const history=memoria.historico;const cobranca=cobraRetorno(m.texto);const identidade=nomeConhecido(c,canal);const introducao=apresentacaoNome(m.texto);
       // O simulador não acessa a base local; a produção classifica primeiro pelo cadastro ativo.
       const tipoCliente = classificarAgenda({ persistida: c.tipoClienteAgenda, autodeclaracao: identificarTipoCliente(m.texto), contexto: c.agenteAna?.tipoCliente, padraoLead: c.etapa === 'inicial' }).tipo;
       const etiqueta = etiquetaConversa(c);
       const lista: { nome: string; recebido: boolean }[] = [];
       const email = c.email || c.agenteAna?.dados?.email || '';
-      const contexto = { checklist: lista, email_cadastrado: email, solicitar_email: c.etapa === 'documentos' && solicitarEmailPendente(lista as never, email), data_hora_atual: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), dentro_expediente: expedienteAna(), tipo_cliente_agenda: tipoCliente ?? 'desconhecido; perguntar', area_origem: etiqueta, telefone_informado: telefone ?? '', regras_agenda: '30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF', modo_ia: mode, vendedor_ativo: false, cliente: c.agenteAna?.dados ?? null, apresentado: c.agenteAna?.apresentado ?? false, consulta_info: c.agenteAna?.reservaCalendar ? { online: true, gratuita: true, duracao_minutos: 30, reserva_confirmada: c.agenteAna.reservaCalendar.inicio } : { online: true, gratuita: true, duracao_minutos: 30 }, horarios_oferecidos: c.agenteAna?.horariosTeste ?? [], temas_proibidos_extra: state.training.proibidos, historico: history, ultima_mensagem: { texto: m.texto, arquivo: m.arquivo ?? '' }, exemplos: state.training.exemplos };
+      const contexto = { continuidade:memoria.continuidade, checklist: lista, email_cadastrado: email, solicitar_email: c.etapa === 'documentos' && solicitarEmailPendente(lista as never, email), data_hora_atual: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), dentro_expediente: expedienteAna(), tipo_cliente_agenda: tipoCliente ?? 'desconhecido; perguntar', area_origem: etiqueta, telefone_informado: telefone ?? '', regras_agenda: '30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF', modo_ia: mode, vendedor_ativo: false, cliente: {...(c.agenteAna?.dados??{}),nome:identidade}, apresentado: atendimentoIniciado(c,canal,messageId), consulta_info: c.agenteAna?.reservaCalendar ? { online: true, gratuita: true, duracao_minutos: 30, reserva_confirmada: c.agenteAna.reservaCalendar.inicio } : { online: true, gratuita: true, duracao_minutos: 30 }, horarios_oferecidos: c.agenteAna?.horariosTeste ?? [], temas_proibidos_extra: state.training.proibidos, historico: history, ultima_mensagem: { texto: m.texto, arquivo: m.arquivo ?? '' }, exemplos: state.training.exemplos };
       turno.contexto = contexto;
-      const g = await this.gerar(contexto, state.training.instrucoes, signal);
+      const g = cobranca ? {resultado:resultadoRetorno(c,canal),bruto:''} : await this.gerar(contexto, state.training.instrucoes, signal);
       turno.claude = JSON.parse(JSON.stringify(g.resultado)); turno.bruto = g.bruto; turno.modelo = g.modelo; turno.tier = g.tier;
       const gerada = g.resultado;
       const raw = priorizarAgendamentoAna(gerada, m.texto, !retomada&&c.agenteAna?.resultado?.intencao === 'agendamento' && !c.consultaAgendada);
-      if(retomada){raw.dados_coletados.nome=c.agenteAna?.dados?.nome||c.nome;if(!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';}
+      raw.dados_coletados.nome=identidade||introducao||raw.dados_coletados.nome;
+      if(retomada){raw.dados_coletados.nome=identidade||introducao||raw.dados_coletados.nome;if(!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';}
       raw.dados_coletados.email = email;
       const consentCancel = c.agenteAna?.confirmacaoCancelamento;
       const pendenteCancel = !!consentCancel && consentCancel.eventoId === c.agenteAna?.reservaCalendar?.id && consentCancel.inicio === c.consultaAgendada && consentCancel.contato === telefone && Date.parse(consentCancel.expira) > Date.now();
@@ -225,16 +227,16 @@ export class SimuladorAna {
       const semConsulta = decisaoCancel === 'pedir' && !c.consultaAgendada;
       if (decisaoCancel && !pedidoHumano(m.texto)) { raw.intencao = 'agendamento'; raw.encaminhar_humano = false; }
       if (alteracao || c.agenteAna?.alteracaoConsulta === 'remarcar') raw.intencao = 'agendamento';
-      const primeiroContato = !retomada&&!c.agenteAna?.dados?.nome?.trim()&&!c.agenteAna?.apresentado && tipoCliente === 'novo' && !c.consultaAgendada && !c.mensagens.some(x => x.canal === canal && x.de === 'escritorio') && mode === 'Automática' && !pedidoHumano(m.texto) && !raw.urgente;
+      const primeiroContato = !cobranca&&!retomada&&!identidade&&!atendimentoIniciado(c,canal,messageId) && tipoCliente === 'novo' && !c.consultaAgendada && !c.mensagens.some(x => x.canal === canal && x.de === 'escritorio') && mode === 'Automática' && !pedidoHumano(m.texto) && !raw.urgente;
       if(primeiroContato){raw.intencao='agendamento';raw.encaminhar_humano=false;}
-      let bloqueada = !primeiroContato && bloqueiaAgenda(m.texto, raw.intencao) || pedidoHumano(m.texto);
+      let bloqueada = cobranca || !primeiroContato && bloqueiaAgenda(m.texto, raw.intencao) || pedidoHumano(m.texto);
       if (!bloqueada && (escolherHorarioAna(c.agenteAna?.horariosTeste ?? [], m.texto) ?? chosenSlot(c.agenteAna?.horariosTeste ?? [], m.texto))) raw.intencao = 'agendamento';
       const teste = true;
       const previous = c.mensagens.filter(x => x.canal === canal && x.de === 'escritorio').at(-1)?.texto ?? '';
-      const respostaNome=nomePrimeiroContatoAna(m.texto,previous);
+      const respostaNome=introducao||nomePrimeiroContatoAna(m.texto,previous);
       if(respostaNome&&!raw.dados_coletados.nome.trim())raw.dados_coletados.nome=respostaNome;
-      if(!retomada&&pediuNomeInicialAna(previous)&&(raw.dados_coletados.nome.trim()||respostaNome)&&!pedidoHumano(m.texto)&&!pedidoOutrasOpcoesAna(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
-      const recebeuNome=!!respostaNome&&c.agenteAna?.agendaReal===true&&(c.agenteAna.horariosTeste?.length??0)>0;
+      
+      const recebeuNome=!!respostaNome&&!cobranca&&!pedidoAgendaRetornoAna(m.texto);if(recebeuNome){raw.intencao='duvida_geral';raw.encaminhar_humano=false;bloqueada=true;}
       const nome = raw.dados_coletados.nome.trim() || c.agenteAna?.dados?.nome || '';
       let horarios = (c.agenteAna?.horariosTeste ?? []).filter(s => tipoCliente && horarioPermitido(s, tipoCliente) && Date.parse(s) > Date.now());
       let agendaReal = c.agenteAna?.agendaReal === true && horarios.length > 0;
@@ -269,7 +271,7 @@ export class SimuladorAna {
       // Consulta de processo (fase de testes, com aprovação): mesmo módulo do servidor, ProJuris fictício.
       if (await this.fluxoProcesso(m.texto, raw.intencao, r, turno)) return;
       const saudou=pediuNomeInicialAna(r.mensagem);
-      if(recebeuNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.urgente){r.acao='enviar';r.motivo_aprovacao='';r.mensagem='Para escolher um horário, responda com o número da opção desejada.';r.proximo_passo='Nome recebido; aguardar escolha dos horários já oferecidos.';}
+      if(recebeuNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.urgente){r.acao='enviar';r.motivo_aprovacao='';r.mensagem=historicoHorarios.length?`Obrigada, ${nome}. Qual das opções já apresentadas fica melhor para você?`:`Obrigada, ${nome}. Vou manter o contexto do seu atendimento.`;r.proximo_passo='Nome recebido; aguardar escolha dos horários já oferecidos.';}
       if (!saudou && !recebeuNome && agendaReal && !selecionado && !horarioPendente && !gerenciarExistente && r.acao === 'enviar' && r.intencao === 'agendamento' && !r.motivo_aprovacao) {
         r.mensagem = listaHorariosAna(horarios, new Date(), repetida);
         if (frustracaoHorariosAna(m.texto) && horarios.length) r.mensagem = r.mensagem.replace(/^[^\n]+/, 'Desculpe! Aqui vão opções diferentes:');
@@ -278,6 +280,7 @@ export class SimuladorAna {
       if (horarioPendente && mode === 'Automática' && !r.encaminhar_humano && !r.motivo_aprovacao) { r.acao = 'enviar'; r.mensagem = `${linhaHorarioAna(horarioPendente)} está livre. Posso marcar para você?`; r.proximo_passo = 'Aguardar aceite explícito e nome completo para reservar o horário consultado.'; }
       if (indisponivel && r.acao === 'enviar') r.mensagem = `Esse horário não está disponível.\n\n${r.mensagem}`;
       if (semPeriodo && r.acao === 'enviar') r.mensagem = 'Não encontrei novas opções livres nesse período nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
+      if(cobranca)Object.assign(r,resultadoRetorno(c,canal));
       const gerenciar = teste && mode === 'Automática' && !r.encaminhar_humano && !r.motivo_aprovacao && !!c.consultaAgendada;
       const cancelar = gerenciar && decisaoCancel === 'confirmar' && pendenteCancel;
       const perguntar = gerenciar && !cancelar && alteracao !== 'remarcar' && c.agenteAna?.alteracaoConsulta !== 'remarcar' && r.intencao === 'agendamento';
@@ -292,7 +295,8 @@ export class SimuladorAna {
         accepted = false;
         if (!aceitarRespostaAna(messageId, current.mensagens.at(-1)?.id, current.agenteAna)) return current;
         accepted = true;
-        return { ...current, ...(current.etiquetaAcao || etiqueta === 'sem' ? {} : { etiquetaAcao: etiqueta }), agenteAna: { ...current.agenteAna, ...(gerenciar && alteracao === 'remarcar' && current.agenteAna?.reservaCalendar ? { alteracaoConsulta: 'remarcar' as const, autorizacaoRemarcacao: { eventoId: current.agenteAna.reservaCalendar.id, inicio: current.agenteAna.reservaCalendar.inicio, contato: telefone, expira: new Date(Date.now() + 30 * 60000).toISOString() } } : {}), tipoCliente, telefone, horarioPendente: horarioPendente ?? (aceitouPendente ? c.agenteAna?.horarioPendente : undefined), horarioPendenteDesde: horarioPendente ? new Date().toISOString() : aceitouPendente ? c.agenteAna?.horarioPendenteDesde : undefined, ...(horarioPendente ? { horariosTeste: [horarioPendente], agendaReal: true } : {}), ...(agenda && agendaReal ? { horariosTeste: agenda.slots, agendaReal } : {}), resultado: r, dados: { ...(current.agenteAna?.dados ?? { nome: '', cpf: '', assunto: '', email: '' }), ...Object.fromEntries(Object.entries(r.dados_coletados).filter(([, v]) => v)) }, humano: r.encaminhar_humano, urgente: r.urgente || current.agenteAna?.urgente || false, motivo: r.motivo_aprovacao, proximoPasso: r.proximo_passo, erro: undefined }, iaRetida: r.acao === 'rascunho' ? r.mensagem : current.iaRetida } as Conversa;
+        const base=cobranca?registrarRetorno(current,canal,messageId,'simulador-responsavel'):current;
+        return { ...base, ...(current.etiquetaAcao || etiqueta === 'sem' ? {} : { etiquetaAcao: etiqueta }), agenteAna: { ...current.agenteAna, ...(gerenciar && alteracao === 'remarcar' && current.agenteAna?.reservaCalendar ? { alteracaoConsulta: 'remarcar' as const, autorizacaoRemarcacao: { eventoId: current.agenteAna.reservaCalendar.id, inicio: current.agenteAna.reservaCalendar.inicio, contato: telefone, expira: new Date(Date.now() + 30 * 60000).toISOString() } } : {}), tipoCliente, telefone, horarioPendente: horarioPendente ?? (aceitouPendente ? c.agenteAna?.horarioPendente : undefined), horarioPendenteDesde: horarioPendente ? new Date().toISOString() : aceitouPendente ? c.agenteAna?.horarioPendenteDesde : undefined, ...(horarioPendente ? { horariosTeste: [horarioPendente], agendaReal: true } : {}), ...(agenda && agendaReal ? { horariosTeste: agenda.slots, agendaReal } : {}), resultado: r, dados: { ...(current.agenteAna?.dados ?? { nome: '', cpf: '', assunto: '', email: '' }), ...Object.fromEntries(Object.entries(r.dados_coletados).filter(([, v]) => v)) }, humano: r.encaminhar_humano, urgente: r.urgente || current.agenteAna?.urgente || false, motivo: r.motivo_aprovacao, proximoPasso: r.proximo_passo, erro: undefined }, iaRetida: r.acao === 'rascunho' ? r.mensagem : current.iaRetida } as Conversa;
       });
       if (!accepted) return;
       if (decisaoCancel === 'manter' || decisaoCancel === 'remarcar') this.atualizar(x => ({ ...x, agenteAna: { ...x.agenteAna, confirmacaoCancelamento: undefined, ...(decisaoCancel === 'manter' ? { alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, horarioPendente: undefined, horarioPendenteDesde: undefined } : {}) } }));
@@ -349,6 +353,7 @@ export class SimuladorAna {
         if(!saudou)r.mensagem = limitarNomeAna(r.mensagem, nome, c.mensagens.filter(x => x.canal === canal && x.de === 'escritorio').slice(-2).map(x => x.texto));
         const novosOferecidos = !escolhido && !cancelar && !perguntar && !semConsulta && agendaReal && !agenda?.selected ? (horarioPendente ? [horarioPendente] : agenda?.slots ?? []) : [];
         if(retomada&&!r.urgente)r.mensagem=mensagemRetornoAna(m.texto,r.mensagem);
+        r.mensagem=semReintroducao(r.mensagem,atendimentoIniciado(c,canal,messageId)||!!identidade);
         turno.enviada = r.mensagem;
         this.atualizar(cur => ({ ...cur, iaRetida: undefined, agenteAna: { ...cur.agenteAna, apresentado: true, ...(gerenciar && decisaoCancel === 'pedir' && cur.agenteAna?.reservaCalendar?.id === c.agenteAna?.reservaCalendar?.id && cur.agenteAna?.reservaCalendar ? { confirmacaoCancelamento: { eventoId: cur.agenteAna.reservaCalendar.id, inicio: cur.agenteAna.reservaCalendar.inicio, contato: telefone, expira: new Date(Date.now() + 30 * 60000).toISOString() } } : {}), ...(novosOferecidos.length ? { horariosApresentados: [...new Set([...(cur.agenteAna?.horariosApresentados ?? []), ...historicoHorarios, ...novosOferecidos])], listasHorarios: (cur.agenteAna?.listasHorarios ?? 0) + 1, pedidosOutrasOpcoes: pedidosOutras } : {}) }, mensagens: [...cur.mensagens, newMessage(r.mensagem, { autor: 'Ana · assistente virtual', canal, idExterno: `sim-${this.seq}`, respostaAnaDe: messageId, status: 'enviada' })] }));
       } else if (r.acao === 'rascunho') {
