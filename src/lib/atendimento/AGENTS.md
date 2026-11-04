@@ -1,5 +1,7 @@
 # Attendance server and domain rules
 
+- Domestic violence, aggression, threats, abuse and protective measures are the office's practice area: `violenciaDomesticaAna`/`riscoImediatoAna` (mirrored in `ana-claude/regras.ts` and `ana-rules.ts`) force URGENT priority, fixed acolhimento text, strip any spontaneous 190 mention and keep Anne qualifying instead of handing off. Why: the Dra. attends these cases; generic emergency referrals are forbidden.
+
 - Intake defaults to automatic, preserving modes/pauses. Active `ana-prompt.txt` and `ana-restrictions.txt` supply identity with owner training; `ana-scheduling.ts` validates intent, offers and pending-slot consent. Why: no forced greeting or unsafe booking.
 - Ana inference uses `ana.functions.ts` with the uploaded `claudeComoSample` adapter; UltraMsg uses channel-validated orchestration, consent and released conversation-owned destinations. Telegram is retired and production restrictions apply before incoming processing and outgoing provider calls. Why: preserve operational safety and provider billing.
 - Ana books, reschedules and cancels; process news uses the shared approval flow through server ports, while meaning, documents, contract, payment and legal advice stay team-only; `processo` intent still falls back to draft. Fictional slots are never stored as offers. Why: permit reviewed news without weakening legal or scheduling gates.

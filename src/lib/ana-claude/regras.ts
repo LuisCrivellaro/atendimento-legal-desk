@@ -79,6 +79,17 @@ export function mensagemSemResposta(texto: string, arquivo = false) {
   const t = texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[!.,]+/g, ' ').trim();
   return t === '' || /^(?:(?:ok|okay|okk|blz|beleza|certo|perfeito|combinado|obrigad[oa]|muito obrigad[oa]|valeu|show|top|otimo|recebi|entendi|ta bom|ta|joia|👍|🙏|❤️|😊)\s*)+(?:pela ajuda)?$/u.test(t);
 }
+/** Violência doméstica é área de atuação da Dra. Carolina: acolhimento jurídico, nunca encaminhamento genérico nem 190 espontâneo. */
+export function violenciaDomesticaAna(texto:string):boolean{
+  const t=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  return /violencia (?:domestica|familiar)|agressao|me agride|me agrediu|me bate|me bateu|abuso|ameac[ao]|medida protetiva|protetiva|assedio/.test(t);
+}
+export function riscoImediatoAna(texto:string):boolean{
+  const t=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  return /(?:neste|nesse) momento|agora mesmo|me ameac|vai me (?:matar|bater|pegar)|risco.{0,15}vida|suicid|me matar/.test(t);
+}
+const ACOLHIMENTO_VD='Olá! Sinto muito que você esteja passando por essa situação. Vamos te ajudar.\nA Dra. Carolina atua em casos de violência doméstica e nossa equipe poderá entender melhor o que aconteceu para orientar os próximos passos jurídicos.\nGostaria de me contar brevemente o que aconteceu?';
+const ACOLHIMENTO_VD_RISCO='Sinto muito que você esteja passando por isso. Você está em um local seguro agora?\nA Dra. Carolina atua em casos de violência doméstica e nossa equipe já foi avisada com prioridade para orientar os próximos passos jurídicos.\nSe quiser, posso te ajudar a contatar os serviços de emergência ou a rede de proteção.';
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;agendaReal?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -102,7 +113,19 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   if (mode==='Sugerir' && result.mensagem.trim()) result.acao='rascunho';
   if (mode==='Desligada') result = {...result,acao:'nenhuma',mensagem:''};
   if(!testAgenda)result.mensagem=mensagemBreveAna(result.mensagem,options.ultimaResposta);
-  if(perigo&&mode!=='Desligada'&&!result.mensagem.includes('190'))result.mensagem=mensagemBreveAna(`Se houver perigo imediato, ligue 190. ${result.mensagem}`,options.ultimaResposta);
+  // Violência doméstica: a Dra. Carolina atua nesses casos. Acolhimento jurídico com prioridade URGENTE,
+  // sem 190 espontâneo e sem encaminhamento genérico; a Anne segue qualificando e a equipe é avisada pela urgência.
+  if(violenciaDomesticaAna(texto)&&mode!=='Desligada'){
+    result.urgente=true;
+    const risco=riscoImediatoAna(texto);
+    if(/\b190\b/.test(result.mensagem)||!/(sinto muito|vamos te ajudar|viol[eê]ncia)/i.test(result.mensagem))result.mensagem=risco?ACOLHIMENTO_VD_RISCO:ACOLHIMENTO_VD;
+    result.encaminhar_humano=false;
+    result.proximo_passo=`URGENTE — violência doméstica${risco?' com risco imediato informado':''}: priorizar retorno humano da equipe e da Dra. Carolina. ${result.proximo_passo}`.trim();
+    if(mode==='Automática'){result.acao='enviar';result.motivo_aprovacao='';}
+  }else if(perigo&&mode!=='Desligada'&&/\b190\b/.test(result.mensagem)){
+    // A Anne nunca menciona o 190 espontaneamente, mesmo fora de violência doméstica.
+    result.mensagem=result.mensagem.replace(/[^.\n]*\b190\b[^.\n]*\.?/g,'').replace(/\n{3,}/g,'\n\n').trim();
+  }
   if(!result.mensagem.trim())result.acao='nenhuma';
   // Nunca exibir CPF completo, inclusive um CPF recém-coletado.
   result.mensagem = result.mensagem.replace(/\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b/g, cpf=>`••••••••${cpf.replace(/\D/g,'').slice(-3)}`);
