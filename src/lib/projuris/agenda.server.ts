@@ -124,3 +124,86 @@ export async function reservarCompromisso(
     await liberar();
   }
 }
+
+/** Lê o DTO completo de um compromisso; devolve undefined quando inexistente ou incompleto. */
+export async function obterCompromisso(
+  codigo: number,
+  cliente: ClienteAgenda = projuris,
+): Promise<Record<string, unknown> | undefined> {
+  const raw = await cliente.chamar('tarefa.compromissoObter', { parametros: { codigo } }).catch(() => undefined);
+  return eventoDeDto(raw) ? (raw as Record<string, unknown>) : undefined;
+}
+
+export type ResultadoAlteracao =
+  | { ok: true }
+  | { ok: false; motivo: 'conflito' | 'ausente' | 'ocupado' | 'inconclusivo'; detalhe?: string };
+
+/**
+ * Altera o horário de um compromisso com o mesmo bloqueio serializado da reserva:
+ * releitura do DTO sob o lease, verificação de conflito no novo intervalo (excluindo o próprio),
+ * PUT do objeto do compromisso direto (formato confirmado na API real em 04/11/2026) e confirmação por leitura.
+ * Nunca repete a escrita automaticamente: resposta inconclusiva fica para conferência humana.
+ */
+export async function alterarHorarioCompromisso(
+  db: Db,
+  owner: string,
+  codigo: number,
+  inicioMs: number,
+  fimMs: number,
+  cliente: ClienteAgenda = projuris,
+): Promise<ResultadoAlteracao> {
+  if (!(fimMs > inicioMs)) throw new Error('Horário de término inválido.');
+  const token = crypto.randomUUID();
+  const claim = await db.rpc('projuris_claim', { p_owner: owner, p_codigo: 0, p_token: token });
+  if (claim.error || !claim.data) return { ok: false, motivo: 'ocupado', detalhe: 'Outra operação de agenda em andamento.' };
+  const liberar = () =>
+    db.from('projuris_base').update({ lease_token: null, lease_ate: null }).eq('owner_id', owner).eq('lease_token', token)
+      .then(() => undefined);
+  try {
+    const dto = await obterCompromisso(codigo, cliente);
+    if (!dto) return { ok: false, motivo: 'ausente', detalhe: 'Compromisso não encontrado no ProJuris.' };
+    const evento = eventoDeDto(dto)!;
+    if (evento['concluido'] === true) return { ok: false, motivo: 'ausente', detalhe: 'Compromisso já concluído.' };
+    const agenda = await listarCompromissos(inicioMs, fimMs, cliente);
+    const conflito = agenda.find(c => c.codigo !== codigo && sobrepoe(inicioMs, fimMs, c.inicioMs, c.fimMs));
+    if (conflito) return { ok: false, motivo: 'conflito', detalhe: `Horário ocupado por "${conflito.titulo || 'compromisso'}".` };
+    await cliente.chamar('tarefa.compromissoAlterar', { corpo: corpoAlteracaoCompromisso(dto, { inicioMs, fimMs }) });
+    const confirmacao = await obterCompromisso(codigo, cliente);
+    const ev = confirmacao ? eventoDeDto(confirmacao) : undefined;
+    if (!ev || ev['dataHoraInicio'] !== inicioMs || ev['dataHoraFim'] !== fimMs)
+      return { ok: false, motivo: 'inconclusivo', detalhe: 'Alteração não confirmada na leitura; conferir no ProJuris antes de repetir.' };
+    return { ok: true };
+  } finally {
+    await liberar();
+  }
+}
+
+/**
+ * Conclui um compromisso (cancelamento autorizado; exclusão é proibida e desligada no ProJuris).
+ * Endpoint dedicado sem corpo (swagger.json oficial), sob o mesmo lease, com confirmação por leitura.
+ */
+export async function concluirCompromisso(
+  db: Db,
+  owner: string,
+  codigo: number,
+  cliente: ClienteAgenda = projuris,
+): Promise<ResultadoAlteracao> {
+  const token = crypto.randomUUID();
+  const claim = await db.rpc('projuris_claim', { p_owner: owner, p_codigo: 0, p_token: token });
+  if (claim.error || !claim.data) return { ok: false, motivo: 'ocupado', detalhe: 'Outra operação de agenda em andamento.' };
+  const liberar = () =>
+    db.from('projuris_base').update({ lease_token: null, lease_ate: null }).eq('owner_id', owner).eq('lease_token', token)
+      .then(() => undefined);
+  try {
+    const dto = await obterCompromisso(codigo, cliente);
+    if (!dto) return { ok: false, motivo: 'ausente', detalhe: 'Compromisso não encontrado no ProJuris.' };
+    if (eventoDeDto(dto)!['concluido'] === true) return { ok: true }; // já concluído: estado desejado
+    await cliente.chamar('tarefa.compromissoConcluir', { parametros: { codigo } });
+    const confirmacao = await obterCompromisso(codigo, cliente);
+    if (!confirmacao || eventoDeDto(confirmacao)!['concluido'] !== true)
+      return { ok: false, motivo: 'inconclusivo', detalhe: 'Conclusão não confirmada na leitura; conferir no ProJuris antes de repetir.' };
+    return { ok: true };
+  } finally {
+    await liberar();
+  }
+}
