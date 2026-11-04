@@ -97,7 +97,7 @@ describe('agenda ProJuris — reserva com proteção de overbooking', () => {
         consultas++;
         if (consultas === 1) return { tarefasAgrupadasDataTipoWs: [] }; // idempotência: nada gravado antes
         return { tarefasAgrupadasDataTipoWs: [{ tarefaConsultaWs: [
-          { codigoTarefaEvento: 9, titulo: 'Audiência', dataInicioCompromisso: DIA, horaInicioCompromisso: 36000000, dataFimCompromisso: DIA, horaFimCompromisso: 39600000 },
+          { codigoTarefaEvento: 9, titulo: 'Audiência', dataInicioCompromisso: DIA + 36000000, dataFimCompromisso: DIA + 39600000 },
         ] }] };
       }
       throw new Error('não deveria criar');
@@ -129,7 +129,7 @@ describe('agenda ProJuris — reserva com proteção de overbooking', () => {
         consultas++;
         if (consultas === 1) return { tarefasAgrupadasDataTipoWs: [] }; // idempotência inicial: nada
         return { tarefasAgrupadasDataTipoWs: [{ tarefaConsultaWs: [
-          { codigoTarefaEvento: 777, dataInicioCompromisso: DIA, horaInicioCompromisso: 36000000, codigoExterno: pedido.codigoExterno },
+          { codigoTarefaEvento: 777, dataInicioCompromisso: DIA + 36000000, codigoExterno: pedido.codigoExterno },
         ] }] };
       }
       if (op === 'tarefa.compromissoCriar') throw new ErroProjuris('tempo', 'sem resposta');
