@@ -1,9 +1,10 @@
 # Construção dos módulos Manager ADV
 
 ## Ordenação WhatsApp — ajuste de 04/11/2026
-- [ ] Corrigir datas da importação sem inventar atividade; paginação por cursor e deduplicação reutilizando a ordenação existente.
-- [ ] Carregamento progressivo sem mudar filtros, seleção, rascunho ou desenho; testar D/C/B/A e atualização da tela.
-- [ ] Conferir banco, testes e compilação; publicação e mensagem externa dependem de autorização e envio da Dra.
+- [x] Banco atual sem divergências/futuros; importação corrigida para segundos/milissegundos/ISO e data desconhecida sem substituir por hoje; deduplicação por ID externo/direção.
+- [x] Paginação timestamp/id substitui offsets de casos; renderização progressiva de 50, filtros e seleção preservados; falha temporária mantém dados já carregados.
+- [x] 602 testes aprovados, incluindo D/C/B/A e cursor; compilação limpa. Conta da Dra. conferida com dados reais; rascunho e conversa mantidos após atualização automática, nenhum envio externo.
+- [ ] Publicação e subida imediata por nova mensagem real no WhatsApp: dependem de autorização de publicação e mensagem da Dra.; não foram enviados dados fictícios ao canal ou banco.
 
 ## Agendamento por tipo de cliente — 03/11/2026
 - [x] Classificação antes de oferecer horários: confirmação da equipe > cadastro ativo na base local (telefone principal) > autodeclaração > contexto > lead novo; novos seg–qui, ativos só sexta; telefone duplicado vai à equipe sem classificação própria; classificação confirmada pelo cadastro fica salva na conversa.
