@@ -4,7 +4,7 @@ import type { Conversa } from '../mock-data';
 import { defaultState, type OfficeState } from '../office';
 import { defaultAutomations, newMessage, chosenSlot, formatarHorarioCliente } from '../atendimento';
 import { escolherReservaAna } from './calendar-booking';
-import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna } from './ana-rules';
+import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, saudacaoInicialAna, linhaDoisHorariosAna, PERGUNTA_HORARIO_ANA, PEDIDO_NOME_AGENDA_ANA, resumoTransbordoAna } from './ana-rules';
 import { classificarAgenda, etiquetaConversa, identificarTipoCliente } from './intake-rules';
 import { telefoneRemetenteAna } from './telegram-intake';
 import { horarioPermitido } from './schedule-rules';
@@ -115,7 +115,9 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const nome=raw.dados_coletados.nome.trim()||c.agenteAna?.dados?.nome||'';
     let horarios=(c.agenteAna?.horariosTeste??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
     let agendaReal=c.agenteAna?.agendaReal===true&&horarios.length>0;
-    const recebeuNome=!!respostaNome&&c.agenteAna?.agendaReal===true&&(c.agenteAna.horariosTeste?.length??0)>0;
+    // Horário já escolhido aguardando o nome completo: o nome recebido autoriza reservar esse horário (revalidado na reserva).
+    const pendenteNome=!!respostaNome&&previous===PEDIDO_NOME_AGENDA_ANA&&!!c.agenteAna?.horarioPendente&&!!c.agenteAna.horarioPendenteDesde&&Date.now()-Date.parse(c.agenteAna.horarioPendenteDesde)<30*60000&&Date.parse(c.agenteAna.horarioPendente)>Date.now();
+    const recebeuNome=!pendenteNome&&!!respostaNome&&c.agenteAna?.agendaReal===true&&(c.agenteAna.horariosTeste?.length??0)>0;
     const oferecidos=c.agenteAna?.horariosTeste??[];
     // Só horários da agenda real contam como já oferecidos; fictícios salvos antes da correção nunca foram mostrados.
     const historicoHorarios=[...new Set([...(c.agenteAna?.horariosApresentados??[]),...(c.agenteAna?.agendaReal===true?oferecidos:[]),...(c.horariosOfertados??[]),...(c.consultaAgendada?[c.consultaAgendada]:[])])];
@@ -126,10 +128,12 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const especifico=!bloqueada?pedidoHorarioEspecifico(m.texto):undefined;
     // Uma pergunta de disponibilidade nunca autoriza uma reserva, mesmo em horário já oferecido.
     const consultaEspecifica=!!especifico&&(/\?|\b(?:tem|livre|disponivel|disponível|pode ser)\b/i.test(m.texto)||!oferecidos.includes(especifico));
-    const selecionado=!bloqueada&&!consultaEspecifica?(aceitouPendente?c.agenteAna?.horarioPendente:escolherHorarioAna(oferecidos,m.texto)??chosenSlot([...(c.agenteAna?.horariosTeste??[]),...(c.horariosOfertados??[])],m.texto)):undefined;
+    const selecionado=pendenteNome?c.agenteAna?.horarioPendente:!bloqueada&&!consultaEspecifica?(aceitouPendente?c.agenteAna?.horarioPendente:escolherHorarioAna(oferecidos,m.texto)??chosenSlot([...(c.agenteAna?.horariosTeste??[]),...(c.horariosOfertados??[])],m.texto)):undefined;
     if(!bloqueada&&(especifico||selecionado||aceitouPendente))raw.intencao='agendamento';
     const gerenciarExistente=!!c.consultaAgendada&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar';
     let horarioPendente:string|undefined;
+    // Escolheu um dos horários oferecidos sem nome: guardar a escolha e pedir só o nome completo.
+    const pedirNome=!!selecionado&&!pendenteNome&&!nome&&!!tipoCliente&&!!telefone&&mode==='Automática'&&!bloqueada;
     let semPeriodo=false;
     let indisponivel=false;
     // Telefone com mais de um cadastro na base: a Ana não classifica por conta própria; a equipe confirma o vínculo.
@@ -157,14 +161,15 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     }
     // Caminhos excluídos ou outros modos nunca liberam conteúdo processual produzido pelo modelo.
     if(raw.intencao==='consulta_processo'&&!r.encaminhar_humano){r.acao='rascunho';r.motivo_aprovacao='Notícia processual exige revisão individual.';}
-    const saudou=pediuNomeInicialAna(r.mensagem);
-    if(recebeuNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.urgente){r.acao='enviar';r.motivo_aprovacao='';r.mensagem='Para escolher um horário, responda com o número da opção desejada.';r.proximo_passo='Nome recebido; aguardar escolha dos horários já oferecidos.';}
+    const saudou=saudacaoInicialAna(r.mensagem);
+    if(recebeuNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.urgente){r.acao='enviar';r.motivo_aprovacao='';r.mensagem=`${linhaDoisHorariosAna(horarios).trim()}.\n\n${PERGUNTA_HORARIO_ANA}`;r.proximo_passo='Nome recebido; aguardar escolha dos horários já oferecidos.';}
+    if(pedirNome&&selecionado&&!r.encaminhar_humano&&!r.urgente){horarioPendente=selecionado;r.acao='enviar';r.intencao='agendamento';r.motivo_aprovacao='';r.mensagem=PEDIDO_NOME_AGENDA_ANA;r.proximo_passo='Horário escolhido; aguardar nome completo para reservar.';}
     if(!saudou&&!recebeuNome&&agendaReal&&!selecionado&&!horarioPendente&&!gerenciarExistente&&r.acao==='enviar'&&r.intencao==='agendamento'&&!r.motivo_aprovacao){
       r.mensagem=listaHorariosAna(horarios,new Date(),repetida);
       if(frustracaoHorariosAna(m.texto)&&horarios.length)r.mensagem=r.mensagem.replace(/^[^\n]+/,'Desculpe! Aqui vão opções diferentes:');
       if(outras&&pedidosOutras>=2&&!temPreferenciaAna(m.texto)&&horarios.length)r.mensagem=r.mensagem.replace('Qual fica melhor para você? Se preferir, me diga outro dia ou horário.','Prefere algum dia da semana ou período, manhã ou tarde?');
     }
-    if(horarioPendente&&mode==='Automática'&&!r.encaminhar_humano&&!r.motivo_aprovacao){r.acao='enviar';r.mensagem=`${linhaHorarioAna(horarioPendente)} está livre. Posso marcar para você?`;r.proximo_passo='Aguardar aceite explícito e nome completo para reservar o horário consultado.';}
+    if(horarioPendente&&!pedirNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.motivo_aprovacao){r.acao='enviar';r.mensagem=`${linhaHorarioAna(horarioPendente)} está livre. Posso marcar para você?`;r.proximo_passo='Aguardar aceite explícito e nome completo para reservar o horário consultado.';}
     if(indisponivel&&r.acao==='enviar')r.mensagem=`Esse horário não está disponível.\n\n${r.mensagem}`;
     if(semPeriodo&&r.acao==='enviar')r.mensagem='Não encontrei novas opções livres nesse período nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
     const gerenciar=teste&&mode==='Automática'&&!r.encaminhar_humano&&!r.motivo_aprovacao&&!!c.consultaAgendada;
@@ -215,7 +220,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         }
       }
       const ofertasEquipe=(current.horariosOfertados??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
-      const escolhido=escolherReservaAna({texto:m.texto,selecionado,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:bloqueada||consultaEspecifica||cancelar||perguntar||!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
+      const escolhido=escolherReservaAna({texto:m.texto,selecionado,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:pedirNome||(bloqueada&&!pendenteNome)||consultaEspecifica||cancelar||perguntar||!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
       if(escolhido){
         efeitosIniciados=true;
         await marcarEfeito();
