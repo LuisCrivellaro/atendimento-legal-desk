@@ -27,7 +27,7 @@ type Db = SupabaseClient<Database>;
 export async function listarCompromissos(
   inicioMs: number,
   fimMs: number,
-  cliente: Pick<ClienteProjuris, 'chamar'> = projuris,
+  cliente: ClienteAgenda = projuris,
 ): Promise<CompromissoPJ[]> {
   const raw = await cliente.chamar('tarefa.compromissoConsulta', { corpo: corpoConsultaCompromissos(inicioMs, fimMs) });
   return compromissosDaResposta(raw).filter(c => !c.concluido && sobrepoe(inicioMs, fimMs, c.inicioMs, c.fimMs));
@@ -36,7 +36,7 @@ export async function listarCompromissos(
 /** Busca por codigoExterno (idempotência): devolve o compromisso já criado, se existir. */
 export async function buscarPorCodigoExterno(
   codigoExterno: string,
-  cliente: Pick<ClienteProjuris, 'chamar'> = projuris,
+  cliente: ClienteAgenda = projuris,
 ): Promise<CompromissoPJ | undefined> {
   const raw = await cliente.chamar('tarefa.compromissoConsulta', { corpo: { codigoExterno, flagCompromisso: true } });
   return compromissosDaResposta(raw)[0];
@@ -67,7 +67,7 @@ export async function reservarCompromisso(
   db: Db,
   owner: string,
   pedido: PedidoReserva,
-  cliente: Pick<ClienteProjuris, 'chamar'> = projuris,
+  cliente: ClienteAgenda = projuris,
 ): Promise<ResultadoReserva> {
   if (!pedido.codigoExterno.startsWith(PREFIXO_EXTERNO_MANAGER)) {
     throw new Error('codigoExterno fora do padrão do Manager ADV.');
