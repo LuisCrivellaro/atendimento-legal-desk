@@ -67,6 +67,9 @@ export function corpoConsultaCompromissos(inicioMs: number, fimMs: number) {
   };
 }
 
+/** Tipo de compromisso das consultas criadas pela Anne: "Atendimento inicial" (escolha da Dra. em 04/11/2026). */
+export const TIPO_COMPROMISSO_CONSULTA = 6683563;
+
 /** Corpo de criação (json_TarefaWs). codigoExterno garante idempotência: prefixo fixo do Manager ADV. */
 export function corpoCriacaoCompromisso(d: {
   titulo: string;
@@ -75,6 +78,7 @@ export function corpoCriacaoCompromisso(d: {
   codigoExterno: string;
   descricao?: string;
   codigoUsuarioResponsavel?: number;
+  codigoTarefaTipo?: number;
 }) {
   return {
     compromisso: true,
@@ -83,6 +87,7 @@ export function corpoCriacaoCompromisso(d: {
       titulo: d.titulo,
       descricaoTarefa: d.descricao ?? '',
       tipoEvento: 'COMPROMISSO',
+      tipoTarefa: { chave: d.codigoTarefaTipo ?? TIPO_COMPROMISSO_CONSULTA },
       dataHoraInicio: d.inicioMs,
       dataHoraFim: d.fimMs,
       privado: false,
