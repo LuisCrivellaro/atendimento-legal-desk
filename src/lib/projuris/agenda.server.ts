@@ -14,6 +14,8 @@ import {
   compromissosDaResposta,
   corpoConsultaCompromissos,
   corpoCriacaoCompromisso,
+  corpoAlteracaoCompromisso,
+  eventoDeDto,
   sobrepoe,
   PREFIXO_EXTERNO_MANAGER,
   type CompromissoPJ,
