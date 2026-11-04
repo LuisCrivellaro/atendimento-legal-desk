@@ -24,14 +24,10 @@ export function compromissoDe(item: unknown): CompromissoPJ | undefined {
   if (!item || typeof item !== 'object') return undefined;
   const o = item as Record<string, unknown>;
   const codigo = numero(o['codigoTarefaEvento']) ?? numero(o['codigoTarefa']);
-  // A consulta traz data/hora separadas (dataInicioCompromisso em ms do dia + horaInicioCompromisso em ms do dia)
-  // ou já combinadas; aceita ambos sem inventar horário.
-  const dataIni = numero(o['dataInicioCompromisso']);
-  const horaIni = numero(o['horaInicioCompromisso']) ?? 0;
-  const inicioMs = dataIni !== undefined ? dataIni + horaIni : undefined;
-  const dataFim = numero(o['dataFimCompromisso']);
-  const horaFim = numero(o['horaFimCompromisso']);
-  const fimMs = dataFim !== undefined ? dataFim + (horaFim ?? horaIni) : undefined;
+  // Confirmado contra a API real (04/11/2026): dataInicioCompromisso/dataFimCompromisso já são o instante
+  // completo em ms (horaInicioCompromisso repete o mesmo valor); nunca somar os campos.
+  const inicioMs = numero(o['dataInicioCompromisso']);
+  const fimMs = numero(o['dataFimCompromisso']) ?? inicioMs;
   if (codigo === undefined || inicioMs === undefined) return undefined;
   return {
     codigo,
