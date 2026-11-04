@@ -12,7 +12,11 @@ export function cobraRetorno(texto: string) {
   return !/processo|pensao|trabalhista|andamento|audiencia/.test(fold(texto)) && /alguma novidade|(?:ficou|ficaram|ficamos).{0,35}retorno|(?:estou|to|continuo).{0,15}aguardando|conseguiu verificar|(?:iria|ia|vai).{0,20}consultar.{0,20}(?:doutora|dra)|sobre aquilo|aguardando.{0,20}retorno|me dar um retorno/.test(fold(texto));
 }
 export function historicoContato(c: Conversa, canal: string): Mensagem[] {
-  return (c.mensagens ?? []).filter(m => (!m.canal || m.canal === canal) && m.de !== 'sistema' && m.status !== 'simulada');
+  const filtradas = (c.mensagens ?? []).filter(m => (!m.canal || m.canal === canal) && m.de !== 'sistema' && m.status !== 'simulada');
+  // Ordem cronológica real: entregas fora de ordem ou repetidas do webhook não podem embaralhar o contexto.
+  return filtradas.map((m, i) => ({ m, i, t: Date.parse(m.dataHora ?? '') }))
+    .sort((a, b) => ((Number.isFinite(a.t) && Number.isFinite(b.t)) ? a.t - b.t : 0) || a.i - b.i)
+    .map(x => x.m);
 }
 /** Only explicit self-identification, never a name guessed from a legal question. */
 export function apresentacaoNome(texto: string): string {

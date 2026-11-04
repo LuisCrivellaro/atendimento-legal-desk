@@ -1,13 +1,14 @@
 import type { Conversa } from '../mock-data';
 import { apenasCumprimentoAna } from './ana-rules';
-import { semReintroducao } from './ana-contexto';
+import { semReintroducao, nomeConhecido } from './ana-contexto';
 
 export const SAUDACAO_RETORNO_ANA='Olá,\n\nSeja bem vindo (a)😊\n\nÀ Equipe CS Advocacia\nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
 /** Same-day inactivity threshold; another São Paulo calendar day always starts a return. */
 export const INTERVALO_RETORNO_ANA_MS=4*60*60*1000;
 const dia=(d:Date)=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
 export function retornoIdentificadoAna(c:Conversa,messageId:string,canal:string,now=new Date()):boolean {
-  if(!c.agenteAna?.dados?.nome?.trim()&&!(c.tipoClienteAgenda==='cadastrado'&&c.nome?.trim()))return false;
+  // Identidade vale também quando o nome consta apenas no histórico persistido, nunca só na data da última mensagem.
+  if(!nomeConhecido(c,canal))return false;
   const pos=c.mensagens.findIndex(m=>m.id===messageId);
   if(pos<0)return false;
   const anteriores=c.mensagens.slice(0,pos).filter(m=>m.canal===canal&&m.de!=='sistema');
