@@ -21,10 +21,13 @@ export function previaMensagem(m: Mensagem | undefined, userId?: string) {
   const texto = media && /^\[(?:audio|áudio|imagem|documento|arquivo|video|vídeo)/i.test(m.texto) ? '' : m.texto;
   return `${autor}: ${media}${media && texto ? ' ' : ''}${texto || (!media ? m.arquivo ?? '' : '')}`;
 }
-export function timestampWhatsApp(valor: unknown, agora = new Date()): string {
+export function timestampWhatsAppReal(valor: unknown, agora = new Date()): string | undefined {
   const n = typeof valor === 'number' || typeof valor === 'string' && /^\d+$/.test(valor) ? Number(valor) : NaN;
   const t = Number.isFinite(n) ? n < 1e12 ? n * 1000 : n : typeof valor === 'string' ? Date.parse(valor) : NaN;
-  return Number.isFinite(t) && t > 0 && t <= agora.getTime() + 60000 ? new Date(t).toISOString() : agora.toISOString();
+  return Number.isFinite(t) && t > 0 && t <= agora.getTime() + 60000 ? new Date(t).toISOString() : undefined;
+}
+export function timestampWhatsApp(valor: unknown, agora = new Date()): string {
+  return timestampWhatsAppReal(valor, agora) ?? agora.toISOString();
 }
 export function ultimaRecebida(c: Pick<Conversa, 'mensagens'>) {
   return c.mensagens.filter(m => m.de === 'cliente' && Number.isFinite(Date.parse(m.dataHora ?? ''))).map(m => m.dataHora ?? '').sort((a, b) => Date.parse(b) - Date.parse(a))[0];

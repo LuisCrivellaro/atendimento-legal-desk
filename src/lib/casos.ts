@@ -1,19 +1,37 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Conversa, DocItem } from "@/lib/mock-data";
 import type { Database, Json } from "@/integrations/supabase/types";
+import { ordenarConversas } from './atendimento/conversation-order';
 
 // Casos e checklist do usuário logado (RLS garante que cada um vê só os seus).
 export async function listarCasos(): Promise<Conversa[]> {
   const casos: Pick<Database['public']['Tables']['casos']['Row'],'id'|'dados'|'etapa'|'nome'|'last_message_at'>[] = []; const itens: Pick<Database['public']['Tables']['checklist_itens']['Row'],'id'|'caso_id'|'nome'|'recebido'|'ordem'>[] = [];
-  for (let offset = 0; ; offset += 500) {
-    const r = await supabase.from("casos").select("id,dados,etapa,nome,last_message_at").order('last_message_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).range(offset, offset + 499);
-    if (r.error) throw r.error; casos.push(...r.data); if (r.data.length < 500) break;
+  // Cursor estável: movimentos no topo não deslocam os limites das páginas antigas.
+  let cursor: { id: string; timestamp: string | null } | undefined;
+  let semData = false;
+  for (;;) {
+    let query = supabase.from("casos").select("id,dados,etapa,nome,last_message_at").order('last_message_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).limit(500);
+    if (semData) {
+      query = query.is('last_message_at', null);
+      if (cursor) query = query.lt('id', cursor.id);
+    } else {
+      query = query.not('last_message_at', 'is', null);
+      if (cursor?.timestamp) query = query.or(`last_message_at.lt.${cursor.timestamp},and(last_message_at.eq.${cursor.timestamp},id.lt.${cursor.id})`);
+    }
+    const r = await query;
+    if (r.error) throw r.error;
+    casos.push(...r.data);
+    const last = r.data.at(-1);
+    if (r.data.length < 500) {
+      if (semData) break;
+      semData = true; cursor = undefined;
+    } else if (last) cursor = { id: last.id, timestamp: last.last_message_at };
   }
   for (let offset = 0; ; offset += 500) {
     const r = await supabase.from('checklist_itens').select('id,caso_id,nome,recebido,ordem').order('ordem').order('id').range(offset, offset + 499);
     if (r.error) throw r.error; itens.push(...r.data); if (r.data.length < 500) break;
   }
-  return casos.map((c) => ({
+  return [...new Map(casos.map(c => [c.id, c])).values()].map((c) => ({
     ...(c.dados as unknown as Omit<Conversa, "id" | "documentos" | "naoLidas">),
     id: c.id,
     nome: c.nome,
@@ -21,7 +39,7 @@ export async function listarCasos(): Promise<Conversa[]> {
     lastMessageAt: c.last_message_at,
     naoLidas: 0,
     documentos: itens.filter((i) => i.caso_id === c.id).map<DocItem>((i) => ({ id: i.id, nome: i.nome, recebido: i.recebido })),
-  }));
+  })).sort(ordenarConversas);
 }
 
 export async function salvarCaso(antes: Conversa, depois: Conversa) {
