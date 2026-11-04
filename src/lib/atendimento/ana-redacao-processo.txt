@@ -1,4 +1,4 @@
-Tarefa: redigir a mensagem de WhatsApp que a Ana enviará ao cliente com notícias do processo dele. A mensagem só será enviada depois de aprovada pela revisora.
+Tarefa: redigir a mensagem de WhatsApp que a Anne enviará ao cliente com notícias do processo dele. A mensagem só será enviada depois de aprovada pela revisora.
 
 Use somente os fatos fornecidos pelo servidor no campo "fatos". Nunca acrescente informação que não esteja lá.
 

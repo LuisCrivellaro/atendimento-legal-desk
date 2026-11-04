@@ -98,14 +98,14 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGeren
         <label className="flex items-center justify-between gap-4 text-sm">Atender todo mundo que escrever
           <Switch checked={entrada.data?.ativa ?? false} disabled={!podeGerenciar} aria-label="Atender todo mundo que escrever no WhatsApp do escritório"
             onCheckedChange={ativa => {
-              if (ativa && !window.confirm('A Ana vai responder qualquer pessoa que escrever no WhatsApp do escritório. Confirmar?')) return;
+              if (ativa && !window.confirm('A Anne vai responder qualquer pessoa que escrever no WhatsApp do escritório. Confirmar?')) return;
               void executar(ativa ? 'Abrir entrada do WhatsApp' : 'Fechar entrada do WhatsApp', async () => { await salvarEntrada({ data: { ativa } }); await qc.invalidateQueries({ queryKey: ['entrada-whatsapp'] }); });
             }} />
         </label>
         <p className="mt-1 text-xs text-muted-foreground">{entrada.data?.ativa
-          ? 'Ligado: quem escrever no número do escritório ganha uma conversa na sua conta e é atendido pela Ana. Para a Ana não responder alguém, use Bloquear na lista de contatos.'
-          : 'Desligado: a Ana responde só os contatos liberados na lista abaixo.'}</p>
-        <p className="mt-1 text-xs text-muted-foreground">Se a equipe responder pelo celular do escritório, a Ana para naquela conversa até alguém tocar em “Retomar Ana”. Para isso funcionar, toque em “Registrar recebimento do WhatsApp” uma vez depois de publicar.</p>
+          ? 'Ligado: quem escrever no número do escritório ganha uma conversa na sua conta e é atendido pela Anne. Para a Anne não responder alguém, use Bloquear na lista de contatos.'
+          : 'Desligado: a Anne responde só os contatos liberados na lista abaixo.'}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Se a equipe responder pelo celular do escritório, a Anne para naquela conversa até alguém tocar em “Retomar Anne”. Para isso funcionar, toque em “Registrar recebimento do WhatsApp” uma vez depois de publicar.</p>
       </Cartao>
 
       <Cartao title="Contatos">
@@ -141,7 +141,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGeren
         <label className="flex items-center justify-between gap-4 border-b pb-3 text-sm">Agente de IA
           <Switch checked={cfg?.agente_ativo??false} disabled={!cfg||cfg.canal_ativo==='desligado'} aria-label="Agente de IA" onCheckedChange={ativo=>void executar('Salvar agente Ana',async()=>{const salvo=await saveConfig({data:{canal_ativo:'ultramsg',fonte_sugestoes:'agente',agente_ativo:ativo}});onConfig?.(salvo);await refresh();})} />
         </label>
-        <p className="mt-1 text-xs text-muted-foreground">Ana · assistente virtual CS Lawyers</p>
+        <p className="mt-1 text-xs text-muted-foreground">Anne · assistente virtual CS Lawyers</p>
         <label className="mt-3 block text-sm">Fonte das sugestões
           <Select value={cfg?.fonte_sugestoes ?? 'ia_manager'} onValueChange={mudarFonte}>
             <SelectTrigger aria-label="Fonte das sugestões" className="mt-1"><SelectValue /></SelectTrigger>

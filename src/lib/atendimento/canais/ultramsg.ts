@@ -31,6 +31,8 @@ function horarioNoTexto(texto: string, iso: string): boolean {
  */
 export function textoComOpcoes(texto: string, botoes?: { texto: string; dados?: string }[]): string {
   if (!botoes?.length) return texto;
+  // Saudação/oferta oficial já traz os horários em linha e termina sempre na pergunta: nada é acrescentado.
+  if (texto.trimEnd().endsWith('O que fica melhor para você?')) return texto;
   const faltam = botoes.filter(b => {
     const iso = b.dados?.startsWith('slot:') ? b.dados.slice('slot:'.length) : undefined;
     return !iso || !horarioNoTexto(texto, iso);
