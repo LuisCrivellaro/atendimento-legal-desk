@@ -243,7 +243,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
           if(novasLembrete.length)await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,horariosTeste:novasLembrete,agendaReal:true}}));
         }
         }catch(error){
-          console.error('Cancelamento Google Calendar não concluído',error);
+          console.error('Cancelamento na agenda ProJuris não concluído',error);
           r.mensagem='Não consegui cancelar agora. Deixei registrado e a equipe vai confirmar com você.';r.encaminhar_humano=true;r.proximo_passo='Equipe: conferir falha de cancelamento; consulta não confirmada como cancelada.';
           await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,operacaoConsulta:undefined,humano:true,resultado:r,erro:'Falha ao cancelar; conferir agenda.',proximoPasso:r.proximo_passo},timeline:[...x.timeline,{data:new Date().toISOString(),evento:r.proximo_passo}]}));
           await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'cancelarCalendar',p_resumo:r.proximo_passo,p_status:'erro',p_erro:'Cancelamento não confirmado; conferir registros do servidor.'});
@@ -276,8 +276,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
           }catch(error){
             console.error('Reserva Google Calendar não concluída',error);
             if(error instanceof Error&&error.message==='Esse horário acabou de ficar ocupado. Escolha outro horário.'){
-              const {ocupadosGoogleCalendar}=await import('./google-calendar.server');
-              const busy=await ocupadosGoogleCalendar(new Date(),horizonteAgendaAna());
+              const {ocupadosAgenda}=await import('./projuris-agenda.server');
+              const busy=await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna());
               if(!busy)throw new Error('Agenda indisponível; nenhum novo horário oferecido.');
               const novas=selecionarOpcoesAna(busy,new Date(),tipoCliente??'novo','',historicoHorarios,true).slots;
               r.mensagem=`Esse horário acabou de ser ocupado.\n\n${listaHorariosAna(novas)}`;
