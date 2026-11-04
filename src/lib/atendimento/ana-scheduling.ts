@@ -60,7 +60,7 @@ export function opcaoHorarioAna(iso:string) {
 export function parManhaTardeAna(slots:string[]) {
   const ord=[...slots].sort((a,b)=>Date.parse(a)-Date.parse(b));
   const manha=(s:string)=>Number(partesAgenda(s)['hour'])<12;
-  const m=ord.find(manha),t=ord.find(x=>!manha(x));
+  const m=ord.find(manha),t=ord.find(x=>Number(partesAgenda(x)['hour'])>=13);
   return m&&t?[m,t].sort((a,b)=>Date.parse(a)-Date.parse(b)):ord.slice(0,2);
 }
 /** Uma única lista numerada; nunca duplica os horários em marcadores. */
