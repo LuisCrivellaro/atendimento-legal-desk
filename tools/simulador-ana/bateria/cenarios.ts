@@ -255,7 +255,7 @@ export const CENARIOS: Cenario[] = [
     id: 'D29a', bloco: 'D', titulo: 'Cliente novo só cumprimenta: saudação oficial exata', conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
     passos: [{ cliente: 'oi, boa tarde', intencao: 'duvida_geral' }], esperado: 'A saudação oficial, exatamente como definida pela Dra.', permitidas: ['saudar'], proibidas: ['pedir dados', 'mudar o texto da saudação'],
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Enviar exatamente a saudação oficial de cliente novo.',
-    verificacoes: [v('inicio-com-agenda', 'Primeira oferta real preservada', 'integracao', true, e => anaDe(e)[0]?.startsWith(SAUDACAO_CLIENTE_NOVO)&&/1\. .*2\. .*3\./s.test(anaDe(e)[0]??'') ? true : 'Sem oferta inicial completa.')],
+    verificacoes: [v('inicio-com-agenda', 'Primeira oferta real preservada', 'integracao', true, e => anaDe(e)[0]?.startsWith(SAUDACAO_CLIENTE_NOVO)&&/\nTemos horários  às \d{1,2}h(?:\d{2})? ou às \d{1,2}h(?:\d{2})? \n\nO que fica melhor para você\?$/.test(anaDe(e)[0]??'') ? true : 'Sem oferta inicial completa.')],
   },
   {
     id: 'D29b', bloco: 'D', titulo: 'Cliente novo já chega pedindo agendamento', conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,

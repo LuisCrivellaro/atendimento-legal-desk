@@ -25,6 +25,7 @@ import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authenticated/protocolo'
 import { Route as AuthenticatedTreinamentoRouteImport } from './routes/_authenticated/treinamento'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiPublicAtendimentoLembreteConsultaRouteImport } from './routes/api/public/atendimento/lembrete-consulta'
 import { Route as ApiPublicAtendimentoMonitorarAnaRouteImport } from './routes/api/public/atendimento/monitorar-ana'
 import { Route as ApiPublicAtendimentoPendenciasProcessoRouteImport } from './routes/api/public/atendimento/pendencias-processo'
 import { Route as ApiPublicAtendimentoRecuperarAnaRouteImport } from './routes/api/public/atendimento/recuperar-ana'
@@ -115,6 +116,12 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAtendimentoLembreteConsultaRoute =
+  ApiPublicAtendimentoLembreteConsultaRouteImport.update({
+    id: '/api/public/atendimento/lembrete-consulta',
+    path: '/api/public/atendimento/lembrete-consulta',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAtendimentoMonitorarAnaRoute =
   ApiPublicAtendimentoMonitorarAnaRouteImport.update({
     id: '/api/public/atendimento/monitorar-ana',
@@ -162,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/protocolo': typeof AuthenticatedProtocoloRoute
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
@@ -184,6 +192,7 @@ export interface FileRoutesByTo {
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
@@ -208,6 +217,7 @@ export interface FileRoutesById {
   '/_authenticated/treinamento': typeof AuthenticatedTreinamentoRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/protocolo'
     | '/treinamento'
     | '/.lovable/oauth/consent'
+    | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/treinamento'
     | '/'
     | '/.lovable/oauth/consent'
+    | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
@@ -277,6 +289,7 @@ export interface FileRouteTypes {
     | '/_authenticated/treinamento'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
+    | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
@@ -290,6 +303,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicAtendimentoLembreteConsultaRoute: typeof ApiPublicAtendimentoLembreteConsultaRoute
   ApiPublicAtendimentoMonitorarAnaRoute: typeof ApiPublicAtendimentoMonitorarAnaRoute
   ApiPublicAtendimentoPendenciasProcessoRoute: typeof ApiPublicAtendimentoPendenciasProcessoRoute
   ApiPublicAtendimentoRecuperarAnaRoute: typeof ApiPublicAtendimentoRecuperarAnaRoute
@@ -411,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/atendimento/lembrete-consulta': {
+      id: '/api/public/atendimento/lembrete-consulta'
+      path: '/api/public/atendimento/lembrete-consulta'
+      fullPath: '/api/public/atendimento/lembrete-consulta'
+      preLoaderRoute: typeof ApiPublicAtendimentoLembreteConsultaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/atendimento/monitorar-ana': {
       id: '/api/public/atendimento/monitorar-ana'
       path: '/api/public/atendimento/monitorar-ana'
@@ -487,6 +508,8 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicAtendimentoLembreteConsultaRoute:
+    ApiPublicAtendimentoLembreteConsultaRoute,
   ApiPublicAtendimentoMonitorarAnaRoute: ApiPublicAtendimentoMonitorarAnaRoute,
   ApiPublicAtendimentoPendenciasProcessoRoute:
     ApiPublicAtendimentoPendenciasProcessoRoute,
