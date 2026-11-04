@@ -11,7 +11,7 @@ export async function resolveReplyCalendar(c: Conversa, atalho: string, deps: {
     const tipo = c.tipoClienteAgenda ?? c.agenteAna?.tipoCliente;
     if (!tipo) return { aviso: 'Confirme a carteira de agendamento do cliente em Consulta e histórico. Preencha os horários manualmente.' };
     const busy = await deps.busy(now, 14);
-    if (!busy) return { aviso: 'Não foi possível consultar o Google Calendar. Nenhum horário verificado; preencha manualmente ou tente novamente.' };
+    if (!busy) return { aviso: 'Não foi possível consultar a agenda do ProJuris. Nenhum horário verificado; preencha manualmente ou tente novamente.' };
     // /consulta começa amanhã, como na mensagem oficial. /reagendar também considera o restante de hoje.
     const base = atalho === 'reagendar' ? new Date(`${new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(now)}T00:00:00-03:00`) : now;
     if (atalho === 'reagendar') base.setUTCDate(base.getUTCDate() - 1);

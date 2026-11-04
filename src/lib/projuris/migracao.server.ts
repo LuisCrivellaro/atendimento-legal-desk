@@ -69,5 +69,25 @@ export async function migrarEvento(db: Db, owner: string, id: string, etag: stri
   const original = await google(`/calendars/primary/events/${encodeURIComponent(id)}`) as EventoGoogle;
   verificado = verificado && original.etag === etag;
   await guardarMigracao(db, owner, { origem: item.origem, etapa: verificado ? 'verificado' : 'pendente', resultado });
+  // Recibo da conversa passa a apontar para o compromisso do ProJuris: cancelar/remarcar seguem na agenda oficial.
+  if (verificado && resultado.ok && evento.extendedProperties?.private?.conversa) {
+    const conversaId = evento.extendedProperties.private.conversa;
+    const inicioIso = new Date(item.inicio).toISOString();
+    const fimIso = new Date(item.fim).toISOString();
+    for (let tentativa = 0; tentativa < 5; tentativa++) {
+      const caso = await db.from('casos').select('dados,updated_at').eq('id', conversaId).eq('owner_id', owner).maybeSingle();
+      if (caso.error || !caso.data) break;
+      const dados = caso.data.dados as Record<string, unknown>;
+      const ana = (dados['agenteAna'] ?? {}) as Record<string, unknown>;
+      const reserva = (ana['reservaCalendar'] ?? {}) as Record<string, unknown>;
+      // Só troca o recibo se ele ainda aponta para o evento do Google migrado e para o mesmo horário.
+      if (reserva['id'] !== id || reserva['inicio'] !== inicioIso) break;
+      const nextAna = { ...ana, reservaCalendar: { id: `pj:${resultado.codigo}`, inicio: inicioIso, fim: fimIso, ...(evento.hangoutLink ? { meetUrl: evento.hangoutLink } : {}) } };
+      const timeline = [...((dados['timeline'] as unknown[]) ?? []), { data: new Date().toISOString(), evento: 'Consulta migrada para a agenda do ProJuris' }];
+      const write = await db.from('casos').update({ dados: JSON.parse(JSON.stringify({ ...dados, agenteAna: nextAna, timeline })) as Json, updated_at: new Date().toISOString() }).eq('id', conversaId).eq('updated_at', caso.data.updated_at).select('id');
+      if (write.error) throw new Error('Migração verificada; falha ao atualizar o recibo da conversa.');
+      if (write.data.length) break;
+    }
+  }
   return { verificado, resultado };
 }

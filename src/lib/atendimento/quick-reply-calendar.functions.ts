@@ -11,6 +11,9 @@ export const consultarDadosMensagem = createServerFn({ method: 'POST' })
     if (row.error || !row.data) throw new Error('Atendimento indisponível para seu usuário.');
     const c = { ...(row.data.dados as unknown as import('../mock-data').Conversa), id: data.casoId };
     const { resolveReplyCalendar } = await import('./quick-reply-calendar.server');
-    const { ocupadosGoogleCalendar, lerReservaGoogleCalendar } = await import('./google-calendar.server');
-    return resolveReplyCalendar(c, data.atalho, { busy: ocupadosGoogleCalendar, read: lerReservaGoogleCalendar });
+    const { ocupadosAgenda, lerReservaAgenda } = await import('./projuris-agenda.server');
+    return resolveReplyCalendar(c, data.atalho, {
+      busy: (now, dias) => ocupadosAgenda(context.supabase, context.userId, now, dias),
+      read: (_id, reserva) => lerReservaAgenda(context.supabase, context.userId, data.casoId, reserva),
+    });
   });

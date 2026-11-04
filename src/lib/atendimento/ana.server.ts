@@ -154,8 +154,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     // Telefone com mais de um cadastro na base: a Ana não classifica por conta própria; a equipe confirma o vínculo.
     if(classificacao.fonte==='duvida'&&raw.intencao==='agendamento'){raw.encaminhar_humano=true;raw.motivo_aprovacao='Telefone vinculado a mais de um cadastro; a equipe confirma o vínculo antes de agendar.';bloqueada=true;}
     if(teste&&tipoCliente&&telefone&&raw.intencao==='agendamento'&&!bloqueada&&!selecionado&&!gerenciarExistente&&!semConsulta&&!recebeuNome&&(primeiroContato||nome||consultaEspecifica||/horarios|horários/.test(m.texto))){
-      const {ocupadosGoogleCalendar}=await import('./google-calendar.server');
-      const busy=await ocupadosGoogleCalendar(new Date(),horizonteAgendaAna());
+      const {ocupadosAgenda}=await import('./projuris-agenda.server');
+      const busy=await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna());
       if(!busy)throw new Error('Agenda indisponível; nenhum horário oferecido.');
       agendaReal=true;
       if(consultaEspecifica&&especifico&&horarioEspecificoLivre(especifico,busy,tipoCliente)){
@@ -228,22 +228,22 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         if(!reserva||reserva.inicio!==current.consultaAgendada)throw new Error('Consulta sem recibo verificável; equipe deve conferir antes de cancelar.');
         const consent=current.agenteAna?.confirmacaoCancelamento;
         if(!consent||consent.eventoId!==reserva.id||consent.inicio!==reserva.inicio||consent.contato!==telefone||Date.parse(consent.expira)<=Date.now())throw new Error('Confirmação de cancelamento inválida ou vencida.');
-        const {cancelarGoogleCalendar}=await import('./google-calendar.server');
+        const {cancelarAgenda}=await import('./projuris-agenda.server');
         await assumirAlteracao(db,id,messageId,reserva.id,'cancelar');
-        const resultado=await cancelarGoogleCalendar(id,reserva,true);
+        const resultado=await cancelarAgenda(db,row.data.owner_id,id,reserva,true);
         r.mensagem=`Pronto, sua consulta de ${formatarHorarioCliente(reserva.inicio).toLowerCase()} foi cancelada. Se quiser marcar outro dia, é só me chamar.`;
         r.proximo_passo=resultado==='ausente'?'Consulta retirada do atendimento; o compromisso já não estava na agenda conectada. Equipe: conferir outras agendas.':'Consulta cancelada com autorização do cliente.';
         await atualizarConversa(db,id,x=>({...x,consultaAgendada:undefined,horariosOfertados:[],agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,operacaoConsulta:undefined,reservaCalendar:undefined,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horarioPendente:undefined,horarioPendenteDesde:undefined,horariosTeste:[],agendaReal:false,resultado:r,proximoPasso:r.proximo_passo},timeline:[...x.timeline,{data:new Date().toISOString(),evento:r.proximo_passo}]}));
         await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'cancelarCalendar',p_resumo:r.proximo_passo,p_status:'sucesso'});
         if(cancelouLembrete){
-          const {ocupadosGoogleCalendar}=await import('./google-calendar.server');
-          const busy=await ocupadosGoogleCalendar(new Date(),horizonteAgendaAna());
+          const {ocupadosAgenda}=await import('./projuris-agenda.server');
+          const busy=await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna());
           novasLembrete=busy?selecionarOpcoesAna(busy,new Date(),tipoCliente??'novo','',[reserva.inicio],true).slots:[];
           r.mensagem=novasLembrete.length?`Tudo bem, cancelei sua consulta de hoje. Para reagendar:\n\n${listaHorariosAna(novasLembrete)}`:'Tudo bem, cancelei sua consulta de hoje. Vou pedir para a equipe te passar novos horários.';
           if(novasLembrete.length)await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,horariosTeste:novasLembrete,agendaReal:true}}));
         }
         }catch(error){
-          console.error('Cancelamento Google Calendar não concluído',error);
+          console.error('Cancelamento na agenda ProJuris não concluído',error);
           r.mensagem='Não consegui cancelar agora. Deixei registrado e a equipe vai confirmar com você.';r.encaminhar_humano=true;r.proximo_passo='Equipe: conferir falha de cancelamento; consulta não confirmada como cancelada.';
           await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,operacaoConsulta:undefined,humano:true,resultado:r,erro:'Falha ao cancelar; conferir agenda.',proximoPasso:r.proximo_passo},timeline:[...x.timeline,{data:new Date().toISOString(),evento:r.proximo_passo}]}));
           await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'cancelarCalendar',p_resumo:r.proximo_passo,p_status:'erro',p_erro:'Cancelamento não confirmado; conferir registros do servidor.'});
@@ -259,25 +259,25 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
           r.proximo_passo='Aguardar autorização para alteração da consulta.';
         }else{
           try{
-            const {reservarGoogleCalendar,remarcarGoogleCalendar}=await import('./google-calendar.server');
+            const {reservarAgenda,remarcarAgenda}=await import('./projuris-agenda.server');
             const cliente={nome,telefone:telefone??'',tipo:tipoCliente??'novo'};
             if(current.consultaAgendada){
               const consent=current.agenteAna?.autorizacaoRemarcacao;
               if(!current.agenteAna?.reservaCalendar||!consent||consent.eventoId!==current.agenteAna.reservaCalendar.id||consent.inicio!==current.consultaAgendada||consent.contato!==telefone||Date.parse(consent.expira)<=Date.now())throw new Error('Remarcação sem autorização vigente para esta consulta.');
               await assumirAlteracao(db,id,messageId,current.agenteAna.reservaCalendar.id,'remarcar');
             }
-            const reserva=current.consultaAgendada&&current.agenteAna?.reservaCalendar?await remarcarGoogleCalendar(id,current.agenteAna.reservaCalendar,escolhido,true,new Date(),cliente):await reservarGoogleCalendar(id,escolhido,new Date(),cliente);
+            const reserva=current.consultaAgendada&&current.agenteAna?.reservaCalendar?await remarcarAgenda(db,row.data.owner_id,id,current.agenteAna.reservaCalendar,escolhido,true,new Date(),cliente):await reservarAgenda(db,row.data.owner_id,id,escolhido,new Date(),cliente);
             r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl);
-            r.proximo_passo='Consulta reservada automaticamente no Google Calendar.';
+            r.proximo_passo='Consulta reservada automaticamente na agenda do ProJuris.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
-            await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],horarioPendente:undefined,horarioPendenteDesde:undefined,consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada no Google Calendar · ${formatarHorarioCliente(reserva.inicio)}`}]}));
+            await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],horarioPendente:undefined,horarioPendenteDesde:undefined,consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada na agenda do ProJuris · ${formatarHorarioCliente(reserva.inicio)}`}]}));
             const audit=await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'reservaCalendar',p_resumo:`Compromisso confirmado · ${reserva.inicio}`,p_status:'sucesso'});
             if(audit.error)throw new Error('Reserva criada; falha de auditoria. Confira a Agenda.');
           }catch(error){
-            console.error('Reserva Google Calendar não concluída',error);
+            console.error('Reserva na agenda ProJuris não concluída',error);
             if(error instanceof Error&&error.message==='Esse horário acabou de ficar ocupado. Escolha outro horário.'){
-              const {ocupadosGoogleCalendar}=await import('./google-calendar.server');
-              const busy=await ocupadosGoogleCalendar(new Date(),horizonteAgendaAna());
+              const {ocupadosAgenda}=await import('./projuris-agenda.server');
+              const busy=await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna());
               if(!busy)throw new Error('Agenda indisponível; nenhum novo horário oferecido.');
               const novas=selecionarOpcoesAna(busy,new Date(),tipoCliente??'novo','',historicoHorarios,true).slots;
               r.mensagem=`Esse horário acabou de ser ocupado.\n\n${listaHorariosAna(novas)}`;
@@ -291,8 +291,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
             // Nunca prometer reserva após falha, nem criar uma segunda tentativa automática.
             r.mensagem='Não consegui concluir a reserva na agenda. Deixei a situação registrada para a equipe verificar; não considere o horário confirmado por esta mensagem.';
             r.proximo_passo='Equipe: conferir a agenda e a falha de reserva antes de retomar.';
-            await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,humano:true,erro:'Falha ao concluir a reserva; conferir Google Calendar.',resultado:{...r,encaminhar_humano:true},proximoPasso:r.proximo_passo}}));
-            await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'reservaCalendar',p_resumo:'Reserva não confirmada · revisão humana',p_status:'erro',p_erro:'Falha na reserva Google Calendar; conferir registros do servidor.'});
+            await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,humano:true,erro:'Falha ao concluir a reserva; conferir a agenda do ProJuris.',resultado:{...r,encaminhar_humano:true},proximoPasso:r.proximo_passo}}));
+            await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'reservaCalendar',p_resumo:'Reserva não confirmada · revisão humana',p_status:'erro',p_erro:'Falha na reserva na agenda ProJuris; conferir registros do servidor.'});
           }
         }
         const latest=await db.from('casos').select('dados').eq('id',id).single();

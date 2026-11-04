@@ -17,7 +17,7 @@ import { criarProjurisFicticio, projurisFicticioPadrao, type FalhaFicticia, type
 import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna } from '@/lib/atendimento/ana-scheduling';
 
 export interface Treino { instrucoes: string; proibidos: string[]; exemplos: { pergunta: string; resposta: string }[] }
-export interface EventoAgenda { id: string; inicio: string; fim: string; titulo: string; daAna: boolean; conversa?: string; meetUrl?: string }
+export interface EventoAgenda { id: string; inicio: string; fim: string; titulo: string; daAna: boolean; conversa?: string; meetUrl?: string; concluido?: boolean }
 export interface Gerado { resultado: AnaResult; bruto: string; modelo?: string | undefined; tier?: string | undefined }
 export type Gerador = (contexto: unknown, instrucoes: string, signal?: AbortSignal) => Promise<Gerado>;
 
@@ -121,41 +121,43 @@ export class SimuladorAna {
     this.conv = { ...this.conv, agenteAna: { ...this.conv.agenteAna, humano: false, pausa: false, erro: undefined } };
   }
 
-  // ---------- Google Calendar simulado (mesmas validações do google-calendar.server.ts) ----------
+  // ---------- Agenda ProJuris simulada (mesmas validações do projuris-agenda.server.ts) ----------
+  // Cancelamento = concluir (exclusão não existe); recibos "pj:{código}"; o link do Meet continua existindo
+  // porque um evento mínimo do Google é criado só para gerá-lo (decisão da Dra. em 04/11/2026).
+  private seqCompromisso = 63200000;
   private ocupados(now: Date, dias: number) {
     this.turnoAtual?.ferramentas.push('agenda.consultar');
     if (this.agendaFalhando) return null;
     const fim = now.getTime() + dias * 86400000;
-    return this.agenda.filter(e => Date.parse(e.fim) > now.getTime() && Date.parse(e.inicio) < fim).map(e => ({ start: e.inicio, end: e.fim }));
+    return this.agenda.filter(e => !e.concluido && Date.parse(e.fim) > now.getTime() && Date.parse(e.inicio) < fim).map(e => ({ start: e.inicio, end: e.fim }));
   }
   private async reservar(conversaId: string, inicio: string, now: Date, cliente?: { nome: string; telefone: string; tipo: TipoCliente }): Promise<ReservaCalendar> {
     this.turnoAtual?.ferramentas.push('agenda.reservar');
     if (!conversaId || !Number.isFinite(Date.parse(inicio)) || Date.parse(inicio) <= now.getTime()) throw new Error('Escolha um horário futuro disponível.');
     if (!cliente?.nome.trim() || !telefoneAgenda(cliente.telefone)) throw new Error('Informe nome e telefone do cliente antes de reservar.');
     if (!horarioPermitido(inicio, cliente.tipo)) throw new Error('Horário fora da carteira de atendimento permitida.');
-    if (this.agendaFalhando) throw new Error('Google Calendar respondeu 503 (falha simulada).');
+    if (this.agendaFalhando) throw new Error('ProJuris indisponível (falha simulada).');
     inicio = new Date(inicio).toISOString();
     const fim = new Date(Date.parse(inicio) + DURACAO_REUNIAO * 60000).toISOString();
-    const id = await idReservaCalendar(inicio);
-    const existente = this.agenda.find(e => e.id === id);
-    if (existente) {
-      if (existente.conversa === conversaId && existente.inicio === inicio) return { id, inicio, fim, ...(existente.meetUrl ? { meetUrl: existente.meetUrl } : {}) };
-      throw new Error('Compromisso existente não pertence a este atendimento.');
-    }
-    if (!intervaloLivre(this.agenda.map(e => ({ start: e.inicio, end: e.fim })), inicio, fim)) throw new Error('Esse horário acabou de ficar ocupado. Escolha outro horário.');
-    const meetUrl = `https://meet.google.com/sim-${id.slice(3, 7)}-${id.slice(7, 10)}`;
-    this.agenda.push({ id, inicio, fim, titulo: `Consulta online · ${cliente.nome}`, daAna: true, conversa: conversaId, meetUrl });
+    // Idempotência como o codigoExterno: mesma conversa + mesmo horário reutiliza o compromisso.
+    const existente = this.agenda.find(e => e.daAna && !e.concluido && e.conversa === conversaId && e.inicio === inicio);
+    if (existente) return { id: existente.id, inicio, fim, ...(existente.meetUrl ? { meetUrl: existente.meetUrl } : {}) };
+    if (!intervaloLivre(this.agenda.filter(e => !e.concluido).map(e => ({ start: e.inicio, end: e.fim })), inicio, fim)) throw new Error('Esse horário acabou de ficar ocupado. Escolha outro horário.');
+    const id = `pj:${++this.seqCompromisso}`;
+    const meetUrl = `https://meet.google.com/sim-${id.slice(3, 7)}-${id.slice(7)}`;
+    this.agenda.push({ id, inicio, fim, titulo: `Consulta CS Lawyers · ${cliente.nome}`, daAna: true, conversa: conversaId, meetUrl });
     this.agenda.sort((a, b) => a.inicio.localeCompare(b.inicio));
     return { id, inicio, fim, meetUrl };
   }
   private async cancelar(conversaId: string, reserva: ReservaCalendar, autorizado: boolean) {
     this.turnoAtual?.ferramentas.push('agenda.cancelar');
     if (!autorizado) throw new Error('Cancelamento exige autorização explícita.');
-    if (this.agendaFalhando) throw new Error('Google Calendar respondeu 503 (falha simulada).');
+    if (this.agendaFalhando) throw new Error('ProJuris indisponível (falha simulada).');
     const ev = this.agenda.find(e => e.id === reserva.id);
-    if (!ev) return 'ausente' as const;
+    if (!ev || ev.concluido) return 'ausente' as const;
     if (ev.conversa !== conversaId || ev.inicio !== new Date(reserva.inicio).toISOString()) throw new Error('Compromisso não pertence a este atendimento.');
-    this.agenda = this.agenda.filter(e => e.id !== reserva.id);
+    // Cancelamento = concluir: o compromisso permanece no histórico, fora da disponibilidade.
+    this.agenda = this.agenda.map(e => e.id === reserva.id ? { ...e, concluido: true, titulo: `${e.titulo} (concluído)` } : e);
     return 'cancelado' as const;
   }
   private async remarcar(conversaId: string, anterior: ReservaCalendar, inicio: string, autorizado: boolean, now: Date, cliente?: { nome: string; telefone: string; tipo: TipoCliente }) {
