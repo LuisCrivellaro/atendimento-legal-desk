@@ -361,3 +361,9 @@
 - [x] Modelos de mensagens do escritório nos atalhos e no treinamento da Ana (2 listas enviadas em 22/10).
 - Trato feito: Drive, ProJuris/ZapSign, Plaud e WhatsApp da Dra. simulados até autorização e credenciais.
 - Google Drive real: o TRATO FEITO cria a pasta Raiz/AC ou RT/Cliente; anexos (painel e Telegram) são copiados para ela; ProJuris/ZapSign/Plaud ainda simulados.
+
+## Prompt da Ana de 04/11/2026
+- [x] Saudação exata com 1 horário de manhã e 1 à tarde; regra dos 2 horários; nome completo pedido só após a escolha; sem CPF.
+- [x] Dúvidas jurídicas transferem para a equipe com resumo (nome, telefone, dúvida) exibido no sistema, sem envio ao WhatsApp da Dra.
+- [x] Lembrete diário às 08:00 com SIM (confirma) e NÃO (cancela e oferece 2 novos horários); rotina diária criada.
+- [ ] Publicar e testar com mensagem real: depende de autorização de publicação.
