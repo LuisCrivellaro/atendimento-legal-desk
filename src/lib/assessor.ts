@@ -1,7 +1,7 @@
 import { needsReply } from './atendimento';
 import type { Mensagem } from './mock-data';
 import type { Movement } from './office';
-export interface AssessorCase {id:string;nome:string;pipeline:number;mine:boolean;prazos:{data:string;texto:string;fatal?:boolean}[];mensagens?:Mensagem[];movements?:Movement[];consultaAgendada?:string|undefined;retornoAgendado?:string|undefined}
+export interface AssessorCase {tarefasRetorno?:import('./atendimento/ana-contexto').TarefaRetorno[];id:string;nome:string;pipeline:number;mine:boolean;prazos:{data:string;texto:string;fatal?:boolean}[];mensagens?:Mensagem[];movements?:Movement[];consultaAgendada?:string|undefined;retornoAgendado?:string|undefined}
 export function daysUntil(date:string,today:string){return Math.round((Date.parse(date.slice(0,10)+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000);}
 export function buildAssessor(cases:AssessorCase[],today:string){
  const deadlines=cases.flatMap(c=>c.prazos.filter(p=>p.fatal).map(p=>({...p,caseId:c.id,client:c.nome,days:daysUntil(p.data,today)}))).sort((a,b)=>a.data.localeCompare(b.data));
@@ -11,6 +11,7 @@ export function buildAssessor(cases:AssessorCase[],today:string){
  const tasks:{id:string;label:string;to:'/andamentos'|'/atendimento'|'/protocolo';urgent:boolean;caseId?:string}[]=[];
  for(const p of deadlines.filter(p=>p.days<=2))tasks.push({id:'fatal-'+p.caseId+p.data,label:`Prazo fatal: ${p.client} · ${p.texto}`,to:'/andamentos',urgent:true,caseId:p.caseId});
  for(const c of cases)for(const p of c.prazos.filter(p=>!p.fatal&&p.data===today))tasks.push({id:c.id+p.texto,label:`Vence hoje: ${c.nome} · ${p.texto}`,to:'/andamentos',urgent:false,caseId:c.id});
+ for(const c of cases)for(const t of c.tarefasRetorno??[])if(t.status==='pendente')tasks.push({id:t.id,label:`Retorno pendente: ${c.nome} · ${t.assunto}`,to:'/atendimento',urgent:false,caseId:c.id});
  for(const c of consultations)tasks.push({id:'consulta-'+c.id,label:`Consulta: ${c.nome} · ${new Date(c.consultaAgendada??'').toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'})}`,to:'/atendimento',urgent:false});
  if(waiting)tasks.push({id:'waiting',label:`${waiting} mensagens aguardando resposta`,to:'/atendimento',urgent:false});
  if(protocols)tasks.push({id:'protocol',label:`${protocols} casos aguardando autuação ou protocolo`,to:'/protocolo',urgent:false});
