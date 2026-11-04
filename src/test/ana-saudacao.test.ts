@@ -38,9 +38,9 @@ describe('Lista de horários do fluxo oficial (03/11/2026)', () => {
 });
 
 describe('Prioridade cronológica da primeira oferta',()=>{
- it('oferece os próximos três livres, ignorando bloqueio e sem alternar dias',()=>{
+ it('oferece 2 horários: a tarde mais próxima e a manhã mais próxima, ignorando bloqueio',()=>{
  const now=new Date('2026-11-03T17:55:00Z');
  const x=selecionarOpcoesAna([{start:'2026-11-03T18:00:00Z',end:'2026-11-03T18:30:00Z'}],now,'novo');
- expect(x.slots.map(s=>new Date(s).toISOString())).toEqual(['2026-11-03T18:30:00.000Z','2026-11-03T19:00:00.000Z','2026-11-03T19:30:00.000Z']);
+ expect(x.slots.map(s=>new Date(s).toISOString())).toEqual(['2026-11-03T18:30:00.000Z','2026-11-04T12:00:00.000Z']);
  });
 });
