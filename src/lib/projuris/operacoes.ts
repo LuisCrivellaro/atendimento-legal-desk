@@ -25,6 +25,13 @@ export const OPERACOES_PROJURIS = {
   'processo.consultaCompleta': { metodo: 'POST', caminho: 'processo/consulta-completa', somenteLeitura: true, descricao: 'Processos por envolvido e situação' },
   'processo.andamentos': { metodo: 'GET', caminho: 'processo/{codigo}/andamento/consulta', somenteLeitura: true, descricao: 'Andamentos de um processo' },
   'tarefa.calendario': { metodo: 'POST', caminho: 'tarefa/calendario/consulta-sem-paginacao', somenteLeitura: true, descricao: 'Agenda (compromissos, audiências e prazos), só leitura' },
+  'tarefa.tipos': { metodo: 'GET', caminho: 'tarefa-tipo/consulta', somenteLeitura: true, descricao: 'Tipos de tarefa/compromisso cadastrados' },
+  'tarefa.compromissoConsulta': { metodo: 'POST', caminho: 'tarefa/calendario/consulta-sem-paginacao-compromisso', somenteLeitura: true, descricao: 'Agenda de compromissos, só leitura' },
+  'tarefa.compromissoObter': { metodo: 'GET', caminho: 'tarefa-compromisso/{codigo}', somenteLeitura: true, descricao: 'Um compromisso pelo código' },
+  // Migração da agenda autorizada pela Dra. Carolina (04/11/2026): Compromisso — Visualizar, Inserir e
+  // Alterar ativados no ProJuris; Excluir permanece desativado e proibido aqui. Sem retry automático de escrita.
+  'tarefa.compromissoCriar': { metodo: 'POST', caminho: 'tarefa-compromisso', somenteLeitura: false, descricao: 'Criação de compromisso (migração da agenda)' },
+  'tarefa.compromissoAlterar': { metodo: 'PUT', caminho: 'tarefa-compromisso', somenteLeitura: false, descricao: 'Alteração de compromisso (remarcação autorizada)' },
 } as const satisfies Record<string, OperacaoProjuris>;
 
 export type IdOperacaoProjuris = keyof typeof OPERACOES_PROJURIS;
