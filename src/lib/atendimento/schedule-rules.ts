@@ -2,6 +2,8 @@ import Holidays from 'date-holidays';
 import type { TipoCliente } from './intake-rules';
 
 export const DURACAO_REUNIAO = 30;
+/** Dra. Carolina, 04/11/2026: nunca oferecer consulta em cima da hora — mínimo de 3 horas após o contato. */
+export const ANTECEDENCIA_MINIMA_MS = 3 * 3600_000;
 function partes(iso: string) {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return undefined;
@@ -40,7 +42,7 @@ export function gerarHorarios(ocupados: { start: string; end: string }[], now: D
       if (minutes + DURACAO_REUNIAO > 720 && minutes < 810) continue; // almoço 12h–13h30
       const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
       const s = Date.parse(`${data}T${time}:00-03:00`), e = s + DURACAO_REUNIAO * 60000;
-      if (s > now.getTime() && ocupados.every(b => Number.isFinite(Date.parse(b.start)) && Number.isFinite(Date.parse(b.end)) && !(s < Date.parse(b.end) && e > Date.parse(b.start)))) slots.push(new Date(s).toISOString());
+      if (s >= now.getTime() + ANTECEDENCIA_MINIMA_MS && ocupados.every(b => Number.isFinite(Date.parse(b.start)) && Number.isFinite(Date.parse(b.end)) && !(s < Date.parse(b.end) && e > Date.parse(b.start)))) slots.push(new Date(s).toISOString());
     }
   }
   return slots;
