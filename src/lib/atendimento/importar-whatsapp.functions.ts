@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import type { Mensagem } from '@/lib/mock-data';
+import { timestampWhatsAppReal } from './conversation-order';
 
 const POR_CLIQUE = 20;
 const AVISO = 'Conversa importada do WhatsApp; Ana pausada. Use "Retomar Ana" para ativar.';
@@ -41,8 +42,9 @@ export const importarConversasWhatsApp = createServerFn({ method: 'POST' })
     let conversas = 0, mensagens = 0, falhas = 0, mantidas = 0;
     for (let i = 0; i < lote.length; i++) {
       if (i > 0) await esperar(1000);
-      const chat = lote[i]!;
-      const numero = chat.id!.replace(/@c\.us$/, '').replace(/\D/g, '');
+      const chat = lote[i];
+      if (!chat?.id) { falhas++; continue; }
+      const numero = chat.id.replace(/@c\.us$/, '').replace(/\D/g, '');
       try {
         if (!numero) throw new Error('Número inválido');
         if (numeroUltraMsgPermitido(numero)) { mantidas++; continue; }
@@ -53,7 +55,7 @@ export const importarConversasWhatsApp = createServerFn({ method: 'POST' })
         };
         let contato = await lerContato();
         if (contato?.status === 'bloqueado') { mantidas++; continue; }
-        const rm = await fetch(`${base}/chats/messages?${new URLSearchParams({ token, chatId: chat.id!, limit: '50' })}`);
+        const rm = await fetch(`${base}/chats/messages?${new URLSearchParams({ token, chatId: chat.id, limit: '50' })}`);
         if (!rm.ok) throw new Error(`HTTP ${rm.status}`);
         const brutas = (await rm.json().catch(() => [])) as MsgUltra[];
         if (!contato?.conversa_id) {
@@ -63,24 +65,29 @@ export const importarConversasWhatsApp = createServerFn({ method: 'POST' })
         if (!contato?.conversa_id) throw new Error('Conversa não aberta');
         const externo = contato.contato_externo;
         const novas: Mensagem[] = (Array.isArray(brutas) ? brutas : []).filter(m => m.id).map(m => {
-          const ts = Number(m.timestamp);
-          const quando = new Date(Number.isFinite(ts) && ts > 0 ? ts * 1000 : Date.now());
+          const dataHora = timestampWhatsAppReal(m.timestamp);
+          const quando = dataHora ? new Date(dataHora) : undefined;
           const t = m.type ?? 'chat';
           const tipo: Mensagem['tipo'] = t === 'chat' ? 'texto' : t === 'image' ? 'imagem' : t === 'ptt' || t === 'audio' ? 'audio' : 'documento';
           const texto = tipo === 'texto' ? (m.body ?? '') : tipo === 'imagem' ? '[imagem]' : tipo === 'audio' ? '[áudio]' : '[documento]';
           return {
             id: `ultramsg:${externo}:${m.id}`, de: m.fromMe ? 'escritorio' : 'cliente', texto, tipo,
-            hora: quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }),
-            dataHora: quando.toISOString(), canal: 'ultramsg', idExterno: m.id, iaProcessada: true,
+            hora: quando?.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }) ?? '',
+            dataHora, canal: 'ultramsg', idExterno: m.id, iaProcessada: true,
             ...(m.fromMe ? { autor: 'Equipe · importado do WhatsApp', status: 'enviada' as const } : {}),
           };
         });
         let adicionadas = 0;
         await atualizarConversa(supabaseAdmin, contato.conversa_id, c => {
           const ids = new Set(c.mensagens.map(m => m.id));
-          const faltam = novas.filter(m => !ids.has(m.id));
+          const externos = new Set(c.mensagens.filter(m => m.canal === 'ultramsg' && m.idExterno).map(m => `${m.de}:${m.idExterno}`));
+          const faltam = novas.filter(m => {
+            const externoId = `${m.de}:${m.idExterno}`;
+            if (ids.has(m.id) || externos.has(externoId)) return false;
+            ids.add(m.id); externos.add(externoId); return true;
+          });
           adicionadas = faltam.length;
-          const todas = [...c.mensagens, ...faltam].sort((a, b) => Date.parse(a.dataHora ?? '') - Date.parse(b.dataHora ?? ''));
+          const todas = [...c.mensagens, ...faltam].sort((a, b) => (Date.parse(a.dataHora ?? '') || 0) - (Date.parse(b.dataHora ?? '') || 0));
           const jaPausada = c.agenteAna?.humano === true;
           return {
             ...c, mensagens: todas,

@@ -1,11 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { ultimaMensagem, ordenarConversas, timestampWhatsApp, ultimaRecebida } from '@/lib/atendimento/conversation-order';
+import { ultimaMensagem, ordenarConversas, timestampWhatsApp, timestampWhatsAppReal, ultimaRecebida } from '@/lib/atendimento/conversation-order';
 import { unread } from '@/lib/atendimento';
 import { conversas, type Conversa, type Mensagem } from '@/lib/mock-data';
 const base = conversas[0]; if (!base) throw new Error('Fixture ausente');
 const m = (id: string, dataHora: string, de: Mensagem['de'] = 'cliente'): Mensagem => ({ id, dataHora, de, hora: '', texto: id });
 const c = (id: string, mensagens: Mensagem[]): Conversa => ({ ...base, id, mensagens });
 describe('Ordenação real WhatsApp', () => {
+  it('cenário obrigatório: D agora, C há 10 minutos, B há 2 horas, A há 5 dias', () => {
+    const lista = [c('A', [m('a', '2026-10-30T13:50:00Z')]), c('B', [m('b', '2026-11-04T11:50:00Z')]), c('C', [m('c', '2026-11-04T13:40:00Z')]), c('D', [m('d', '2026-11-04T13:50:00Z')])];
+    expect(lista.sort(ordenarConversas).map(x => x.id)).toEqual(['D', 'C', 'B', 'A']);
+  });
+  it('histórico importado aceita segundos, milissegundos e ISO sem promover mensagens antigas', () => {
+    const now = new Date('2026-11-04T13:50:00Z');
+    for (const value of [1793727000, 1793727000000, '2026-11-03T14:30:00-03:00']) expect(timestampWhatsAppReal(value, now)).toBe('2026-11-03T17:30:00.000Z');
+  });
+  it('histórico sem timestamp verificável não recebe a data de hoje', () => {
+    const now = new Date('2026-11-04T13:50:00Z');
+    for (const value of [undefined, '', 'inválido', 0, '2026-11-05T00:00:00Z']) expect(timestampWhatsAppReal(value, now)).toBeUndefined();
+  });
+  it('data do banco prevalece sobre mudanças cadastrais e mensagens simuladas', () => {
+    const antiga = {...c('A', [m('a', '2026-11-04T13:50:00Z')]), lastMessageAt: '2026-10-30T13:50:00Z'};
+    const recente = {...c('B', []), lastMessageAt: '2026-11-04T11:50:00Z'};
+    expect([antiga, recente].sort(ordenarConversas).map(x => x.id)).toEqual(['B', 'A']);
+  });
   for (const [remetente, de, autor] of [['cliente', 'cliente', ''], ['equipe', 'escritorio', 'Equipe'], ['Ana', 'escritorio', 'ANA'], ['celular', 'escritorio', 'Equipe · celular']] as const) {
     it(`${remetente} coloca a conversa mais recente no topo`, () => {
       const antigo = c('a', [m('1', '2026-11-03T17:30:00Z')]); const novo = c('c', [{ ...m('2', '2026-11-03T17:35:00Z', de), autor }]);
