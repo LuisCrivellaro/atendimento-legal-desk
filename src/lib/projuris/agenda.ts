@@ -7,7 +7,7 @@ export interface CompromissoPJ {
   inicioMs: number;
   fimMs: number;
   concluido: boolean;
-  codigoExterno?: string;
+  codigoExterno?: string | undefined;
 }
 
 /** Verdadeiro quando os intervalos [aIni,aFim) e [bIni,bFim) se cruzam. */
