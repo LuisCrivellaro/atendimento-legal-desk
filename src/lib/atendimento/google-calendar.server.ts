@@ -64,6 +64,52 @@ export async function reservarGoogleCalendar(conversaId: string, inicio: string,
   return receberReservaMeet(await created.json(), conversaId, inicio, fim);
 }
 
+/**
+ * Evento mínimo no Google Calendar SOMENTE para gerar o link do Google Meet (decisão da Dra. em 04/11/2026):
+ * a agenda oficial é o ProJuris; este evento não é fonte de disponibilidade nem de confirmação.
+ * Id determinístico por horário (idReservaCalendar) torna a chamada repetida segura.
+ */
+export async function criarEventoMeet(inicio: string, fim: string, titulo: string, descricao: string): Promise<{ id: string; meetUrl?: string | undefined }> {
+  const id = await idReservaCalendar(inicio);
+  const existing = await calendarRequest(`/calendars/primary/events/${id}`);
+  if (existing.ok) {
+    const event = await existing.json() as CalendarEvent;
+    if (event.status !== 'cancelled') return { id, meetUrl: linkMeet(event) };
+  } else if (existing.status !== 404) return erroCalendar(existing);
+  const created = await calendarRequest('/calendars/primary/events?sendUpdates=none&conferenceDataVersion=1', {
+    method: 'POST',
+    body: JSON.stringify({
+      id, status: 'confirmed', summary: titulo.slice(0, 200), description: descricao,
+      start: { dateTime: inicio, timeZone: 'America/Sao_Paulo' }, end: { dateTime: fim, timeZone: 'America/Sao_Paulo' },
+      conferenceData: { createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: 'hangoutsMeet' } } },
+      reminders: { useDefault: false },
+    }),
+  });
+  if (created.status === 409) {
+    const concurrent = await calendarRequest(`/calendars/primary/events/${id}`);
+    if (!concurrent.ok) return erroCalendar(concurrent);
+    const event = await concurrent.json() as CalendarEvent;
+    return { id, meetUrl: linkMeet(event) };
+  }
+  if (!created.ok) return erroCalendar(created);
+  const event = await created.json() as CalendarEvent;
+  // O Meet pode nascer pendente; algumas releituras curtas antes de desistir do link.
+  let atual = event;
+  for (let tentativa = 0; tentativa < 3 && !linkMeet(atual) && atual.conferenceData?.createRequest?.status?.statusCode === 'pending'; tentativa++) {
+    await new Promise(r => setTimeout(r, 500));
+    const resp = await calendarRequest(`/calendars/primary/events/${id}`);
+    if (!resp.ok) break;
+    atual = await resp.json() as CalendarEvent;
+  }
+  return { id, meetUrl: linkMeet(atual) };
+}
+
+/** Remove o evento-companheiro do Meet (melhor esforço; nunca bloqueia a operação principal). */
+export async function apagarEventoMeet(id: string): Promise<void> {
+  const res = await calendarRequest(`/calendars/primary/events/${encodeURIComponent(id)}?sendUpdates=none`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 404 && res.status !== 410) console.error(`Falha ao remover evento Meet ${id}: ${res.status}`);
+}
+
 /** Períodos ocupados da agenda principal (somente leitura). Retorna null se indisponível. */
 export async function ocupadosGoogleCalendar(now = new Date(), dias = 14): Promise<{ start: string; end: string }[] | null> {
   const lovable = process.env['LOVABLE_API_KEY'];
