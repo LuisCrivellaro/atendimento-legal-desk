@@ -77,7 +77,8 @@ export const RESPONSAVEL_PADRAO = { chave: 176189, valor: 'CAROLINA RIBEIRO ALVE
 export function meiaNoiteSaoPaulo(ms: number): number {
   const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
   const [a, m, d] = partes.split('-').map(Number);
-  return Date.UTC(a!, m! - 1, d!, 3); // sem horário de verão no Brasil: meia-noite SP = 03:00 UTC
+  if (a === undefined || m === undefined || d === undefined) throw new Error('Data inválida.');
+  return Date.UTC(a, m - 1, d, 3); // sem horário de verão no Brasil: meia-noite SP = 03:00 UTC
 }
 
 /** Corpo de criação (json_TarefaWs) no formato comprovado contra a API real em 04/11/2026:
