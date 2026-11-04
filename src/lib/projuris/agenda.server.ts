@@ -18,6 +18,8 @@ import {
   PREFIXO_EXTERNO_MANAGER,
   type CompromissoPJ,
 } from './agenda';
+import { reciboCompromisso } from './migracao';
+import { RESPONSAVEL_PADRAO } from './agenda';
 
 type Db = SupabaseClient<Database>;
 
@@ -39,7 +41,7 @@ export async function buscarPorCodigoExterno(
   cliente: ClienteAgenda = projuris,
 ): Promise<CompromissoPJ | undefined> {
   const raw = await cliente.chamar('tarefa.compromissoConsulta', { corpo: { codigoExterno, flagCompromisso: true } });
-  return compromissosDaResposta(raw)[0];
+  return compromissosDaResposta(raw).find(c => c.codigoExterno === codigoExterno);
 }
 
 export interface PedidoReserva {
@@ -82,7 +84,11 @@ export async function reservarCompromisso(
   try {
     // Idempotência: se uma tentativa anterior gravou sem resposta, reutiliza o registro existente.
     const existente = await buscarPorCodigoExterno(pedido.codigoExterno, cliente);
-    if (existente) return { ok: true, codigo: existente.codigo, jaExistia: true };
+    if (existente) {
+      const raw = await cliente.chamar('tarefa.compromissoObter', { parametros: { codigo: existente.codigo } });
+      if (!reciboCompromisso(raw, pedido, RESPONSAVEL_PADRAO.chave)) return { ok: false, motivo: 'inconclusivo', detalhe: 'Registro de origem existente diverge; conferir na equipe.' };
+      return { ok: true, codigo: existente.codigo, jaExistia: true };
+    }
 
     // Releitura da agenda já com o bloqueio: ninguém grava entre a verificação e a criação.
     const agenda = await listarCompromissos(pedido.inicioMs, pedido.fimMs, cliente);
@@ -96,8 +102,11 @@ export async function reservarCompromisso(
       // Timeout/5xx inconclusivo: a gravação pode ter ocorrido. Consulta antes de qualquer nova tentativa.
       if (e instanceof ErroProjuris && (e.tipo === 'tempo' || e.tipo === 'indisponivel' || e.tipo === 'limite')) {
         const gravado = await buscarPorCodigoExterno(pedido.codigoExterno, cliente).catch(() => undefined);
-        if (gravado) return { ok: true, codigo: gravado.codigo, jaExistia: true };
-        return { ok: false, motivo: 'inconclusivo', detalhe: 'Sem confirmação do ProJuris; nada foi gravado (verificado).' };
+        if (gravado) {
+          const raw = await cliente.chamar('tarefa.compromissoObter', { parametros: { codigo: gravado.codigo } }).catch(() => null);
+          if (reciboCompromisso(raw, pedido, RESPONSAVEL_PADRAO.chave)) return { ok: true, codigo: gravado.codigo, jaExistia: true };
+        }
+        return { ok: false, motivo: 'inconclusivo', detalhe: 'Sem confirmação do ProJuris; conferir antes de qualquer nova tentativa.' };
       }
       throw e;
     }
@@ -107,7 +116,7 @@ export async function reservarCompromisso(
 
     // Confirmação real por leitura antes de declarar sucesso.
     const confirmacao = await cliente.chamar('tarefa.compromissoObter', { parametros: { codigo } }).catch(() => null);
-    if (!confirmacao) return { ok: false, motivo: 'inconclusivo', detalhe: 'Criado, mas a leitura de confirmação falhou.' };
+    if (!reciboCompromisso(confirmacao, pedido, RESPONSAVEL_PADRAO.chave)) return { ok: false, motivo: 'inconclusivo', detalhe: 'Criado, mas horário, origem ou responsável não foram confirmados.' };
     return { ok: true, codigo, jaExistia: false };
   } finally {
     await liberar();

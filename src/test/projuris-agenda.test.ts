@@ -87,6 +87,7 @@ function dbFalso(claimOk: boolean) {
 }
 
 const pedido = { titulo: 'Consulta — Maria', inicioMs: DIA + 36000000, fimMs: DIA + 37800000, codigoExterno: 'manageradv:consulta:c1:1' };
+const recibo = { codigoExterno: pedido.codigoExterno, tarefaCompromissoEventoWs: { titulo: pedido.titulo, dataHoraInicio: pedido.inicioMs, dataHoraFim: pedido.fimMs, usuariosResponsaveis: [{ chave: 176189 }] } };
 
 describe('agenda ProJuris — reserva com proteção de overbooking', () => {
   it('recusa quando outra operação detém o bloqueio', async () => {
@@ -120,7 +121,7 @@ describe('agenda ProJuris — reserva com proteção de overbooking', () => {
       chamadas.push(op);
       if (op === 'tarefa.compromissoConsulta') return { tarefasAgrupadasDataTipoWs: [] };
       if (op === 'tarefa.compromissoCriar') return { chave: 555 };
-      if (op === 'tarefa.compromissoObter') return { codigoTarefa: 555 };
+      if (op === 'tarefa.compromissoObter') return { codigoTarefa: 555, ...recibo };
       throw new Error('op inesperada: ' + op);
     } };
     const r = await reservarCompromisso(dbFalso(true) as never, 'dono', pedido, cliente);
@@ -133,12 +134,13 @@ describe('agenda ProJuris — reserva com proteção de overbooking', () => {
     const cliente = { chamar: async (op: string) => {
       if (op === 'tarefa.compromissoConsulta') {
         consultas++;
-        if (consultas === 1) return { tarefasAgrupadasDataTipoWs: [] }; // idempotência inicial: nada
+        if (consultas <= 2) return { tarefasAgrupadasDataTipoWs: [] }; // idempotência inicial e disponibilidade
         return { tarefasAgrupadasDataTipoWs: [{ tarefaConsultaWs: [
           { codigoTarefaEvento: 777, dataInicioCompromisso: DIA + 36000000, codigoExterno: pedido.codigoExterno },
         ] }] };
       }
       if (op === 'tarefa.compromissoCriar') throw new ErroProjuris('tempo', 'sem resposta');
+      if (op === 'tarefa.compromissoObter') return recibo;
       throw new Error('op inesperada: ' + op);
     } };
     const r = await reservarCompromisso(dbFalso(true) as never, 'dono', pedido, cliente);
