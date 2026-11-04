@@ -19,7 +19,7 @@ export function horarioPermitido(iso: string, tipo: TipoCliente, bloqueios: stri
   const dia = new Date(`${p.data}T12:00:00Z`).getUTCDay();
   const diaValido = tipo === 'cadastrado' ? dia === 5 : dia >= 1 && dia <= 4;
   const inicio = tipo === 'cadastrado' ? 13 * 60 + 30 : 9 * 60;
-  return diaValido && p.minutos >= inicio && p.minutos + DURACAO_REUNIAO <= 17 * 60 + 30 && p.minutos % 30 === 0 && p.segundos === 0;
+  return diaValido && p.minutos >= inicio && p.minutos <= 17 * 60 + 30 && !(p.minutos + DURACAO_REUNIAO > 12 * 60 && p.minutos < 13 * 60 + 30) && p.minutos % 30 === 0 && p.segundos === 0;
 }
 export function gerarHorarios(ocupados: { start: string; end: string }[], now: Date, tipo: TipoCliente, quantidade = 3, dias = 14, bloqueios: string[] = []) {
   const p = partes(now.toISOString());
@@ -36,7 +36,8 @@ export function gerarHorarios(ocupados: { start: string; end: string }[], now: D
     const year = day.getUTCFullYear();
     if (!anos.has(year)) anos.set(year, new Set(holidays.getHolidays(year).filter(h => h.type === 'public').map(h => h.date.slice(0, 10))));
     if (anos.get(year)?.has(data) || bloqueios.includes(data)) continue;
-    for (let minutes = tipo === 'cadastrado' ? 810 : 540; minutes <= 1020 && slots.length < quantidade; minutes += 30) {
+    for (let minutes = tipo === 'cadastrado' ? 810 : 540; minutes <= 1050 && slots.length < quantidade; minutes += 30) {
+      if (minutes + DURACAO_REUNIAO > 720 && minutes < 810) continue; // almoço 12h–13h30
       const time = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
       const s = Date.parse(`${data}T${time}:00-03:00`), e = s + DURACAO_REUNIAO * 60000;
       if (s > now.getTime() && ocupados.every(b => Number.isFinite(Date.parse(b.start)) && Number.isFinite(Date.parse(b.end)) && !(s < Date.parse(b.end) && e > Date.parse(b.start)))) slots.push(new Date(s).toISOString());

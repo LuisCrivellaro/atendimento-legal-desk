@@ -67,7 +67,8 @@ export function parManhaTardeAna(slots:string[]) {
   const primeiro=ord[0];
   if(!primeiro)return [];
   const d1=ord.filter(s=>dia(s)===dia(primeiro));
-  const m1=d1.find(manha),t1=d1.find(tarde);
+  // Espaçamento amigo: manhã mais próxima + tarde mais para o final do dia.
+  const m1=d1.find(manha),t1=[...d1].reverse().find(tarde);
   if(m1&&t1)return [m1,t1];
   // Dois dias (Dra. Carolina, 04/11/2026): o horário restante do 1º dia + 1 manhã e 1 fim de tarde no 2º dia.
   const d2=ord.filter(s=>dia(s)!==dia(primeiro));
