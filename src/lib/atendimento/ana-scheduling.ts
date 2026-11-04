@@ -18,6 +18,9 @@ export function bloqueiaAgenda(texto:string,intencao:string) {
 }
 export function escolherHorarioAna(slots:string[],texto:string) {
   const t=fold(texto).trim();
+  // Oferta oficial: um horário de manhã e um à tarde; "de manhã"/"à tarde" escolhe o respectivo.
+  const per=t.match(/^(?:(?:o|a|pode ser|prefiro|quero|fico com|melhor)\s+)*(?:(?:de|da|a|pela|na|o da|o de)\s+)?(manha|tarde)[.!\s]*$/);
+  if(per){const m=slots.filter(s=>per[1]==='manha'?Number(partesAgenda(s)['hour'])<12:Number(partesAgenda(s)['hour'])>=12);return m.length===1?m[0]:undefined;}
   if(pedidoOutrasOpcoesAna(texto)||/\?|\b(?:tem|livre|disponivel)\b/.test(t))return undefined;
   const ordem=t.match(/\b(primeir[ao]|segund[ao]|terceir[ao]|ultim[ao])\b/);
   if(ordem){const pos=ordem[1]?.startsWith('primeir')?0:ordem[1]?.startsWith('segund')?1:ordem[1]?.startsWith('terceir')?2:slots.length-1;return slots[pos];}
@@ -33,7 +36,7 @@ export function escolherHorarioAna(slots:string[],texto:string) {
   return undefined;
 }
 export function dataAgenda(iso:string) {const p=partesAgenda(iso);return `${p['year']}-${p['month']}-${p['day']}`;}
-const hora=(iso:string)=>{const p=partesAgenda(iso);return `${Number(p['hour'])}h${p['minute']==='00'?'':p['minute']}`;};
+export const hora=(iso:string)=>{const p=partesAgenda(iso);return `${Number(p['hour'])}h${p['minute']==='00'?'':p['minute']}`;};
 export function linhaHorarioAna(iso:string,now=new Date()) {
   const p=partesAgenda(iso), data=dataAgenda(iso);
   const today=dataAgenda(now.toISOString());
@@ -49,6 +52,17 @@ export function opcaoHorarioAna(iso:string) {
   const p=partesAgenda(iso),dia=new Date(`${dataAgenda(iso)}T12:00:00Z`).getUTCDay();
   const nome=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'][dia]??'';
   return `${nome}, ${p['day']}/${p['month']}, às ${hora(iso)}`;
+}
+/**
+ * Regra dos 2 horários (Dra. Carolina, 04/11/2026): o mais próximo da manhã e o mais próximo da tarde,
+ * preferindo o mesmo dia para a oferta só com horas não ficar ambígua. Sem manhã (sexta de cadastrados), os 2 primeiros.
+ */
+export function parManhaTardeAna(slots:string[]) {
+  const ord=[...slots].sort((a,b)=>Date.parse(a)-Date.parse(b));
+  const manha=(s:string)=>Number(partesAgenda(s)['hour'])<12;
+  for(const m of ord.filter(manha)){const t=ord.find(x=>!manha(x)&&dataAgenda(x)===dataAgenda(m));if(t)return [m,t];}
+  const m=ord.find(manha),t=ord.find(x=>!manha(x));
+  return m&&t?[m,t].sort((a,b)=>Date.parse(a)-Date.parse(b)):ord.slice(0,2);
 }
 /** Uma única lista numerada; nunca duplica os horários em marcadores. */
 export function listaHorariosAna(slots:string[],_now=new Date(),_repetida=false) {
@@ -107,7 +121,8 @@ export function selecionarOpcoesAna(busy:{start:string;end:string}[],now:Date,ti
   const day=t.match(/\bdia\s+(\d{1,2})\b/),dm=t.match(/\b(\d{1,2})\/(\d{1,2})\b/);
   let available=all.filter(s=>(!evitarRepeticao||!anteriores.some(a=>Date.parse(a)===Date.parse(s)))&&(!periodo||(periodo==='tarde'?Number(partesAgenda(s)['hour'])>=13:Number(partesAgenda(s)['hour'])<12))&&(weekday<0||new Date(`${dataAgenda(s)}T12:00:00Z`).getUTCDay()===weekday)&&(!day||Number(partesAgenda(s)['day'])===Number(day[1]))&&(!dm||Number(partesAgenda(s)['day'])===Number(dm[1])&&Number(partesAgenda(s)['month'])===Number(dm[2])));
   const semPeriodo=!!periodo&&!available.length;
-  if(!evitarRepeticao)return {slots:available.sort((a,b)=>Date.parse(a)-Date.parse(b)).slice(0,3),semPeriodo};
+  // Regra dos 2 horários: 1 manhã + 1 tarde (ou 2 do período pedido).
+  return {slots:parManhaTardeAna(available),semPeriodo};
   if(specific)available.sort((a,b)=>Math.abs(Date.parse(a)-Date.parse(specific))-Math.abs(Date.parse(b)-Date.parse(specific)));
   const oldDates=new Set(anteriores.map(dataAgenda));
   if(evitarRepeticao)available.sort((a,b)=>Number(oldDates.has(dataAgenda(a)))-Number(oldDates.has(dataAgenda(b))));
