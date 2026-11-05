@@ -157,7 +157,7 @@ export function riscoImediatoAna(texto:string):boolean{
 const ACOLHIMENTO_VD='Entendi. Vamos verificar os horários disponíveis para você conversar com a Dra. Carolina.';
 const ACOLHIMENTO_VD_RISCO='Sinto muito que você esteja passando por isso. Você está em um local seguro agora?\nSe quiser, posso te ajudar a contatar os serviços de emergência ou a rede de proteção. E posso verificar os horários disponíveis para você conversar com a Dra. Carolina.';
 /** Frases fora do escopo da Anne: investigação do relato, regras internas da agenda e promessas de encaminhamento/avaliação. */
-const FORA_ESCOPO=/(?:est[aá] acontecendo agora|j[aá] aconteceu\?|medida protetiva ou processo|j[aá] tem (?:alguma )?medida|me contar (?:mais|brevemente)|mais detalhes|h[aá] quanto tempo|tem provas|s[oó] [aà]s sextas|clientes? j[aá] cadastrad|encaix|registrad[oa] como urgente|deixei registrad|poder[aá] avaliar|encaminhar (?:seu|o seu) caso|para an[aá]lise|entrar[aá] em contato para avaliar|equipe (?:j[aá] )?foi (?:avisada|priorizada))/i;
+const FORA_ESCOPO=/(?:est[aá] acontecendo agora|j[aá] aconteceu\?|medida protetiva ou processo|j[aá] tem (?:alguma )?medida|me contar (?:mais|brevemente)|mais detalhes|h[aá] quanto tempo|tem provas|s[oó] [aà]s sextas|clientes? j[aá] cadastrad|encaix|registrad[oa] como urgente|poder[aá] avaliar|encaminhar (?:seu|o seu) caso|para an[aá]lise|entrar[aá] em contato para avaliar|equipe (?:j[aá] )?foi (?:avisada|priorizada))/i;
 export function limparForaEscopoAna(msg:string):string{
   if(!FORA_ESCOPO.test(msg))return msg;
   const partes=msg.split(/(?<=[.!?])\s+|\n/).filter(p=>!FORA_ESCOPO.test(p));
@@ -193,7 +193,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
     result.urgente=true;
     const risco=riscoImediatoAna(texto);
     result.mensagem=limparForaEscopoAna(result.mensagem);
-    if(/\b190\b/.test(result.mensagem)||!result.mensagem.trim()||risco&&!/local seguro/i.test(result.mensagem))result.mensagem=risco?ACOLHIMENTO_VD_RISCO:ACOLHIMENTO_VD;
+    if(/\b190\b/.test(result.mensagem)||!/hor[aá]rio/i.test(result.mensagem)||risco&&!/local seguro/i.test(result.mensagem))result.mensagem=risco?ACOLHIMENTO_VD_RISCO:ACOLHIMENTO_VD;
     result.encaminhar_humano=false;
     result.proximo_passo=`URGENTE — violência doméstica${risco?' com risco imediato informado':''}: priorizar retorno humano da equipe e da Dra. Carolina. ${result.proximo_passo}`.trim();
     if(mode==='Automática'){result.acao='enviar';result.motivo_aprovacao='';}
