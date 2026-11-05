@@ -6,12 +6,13 @@
 - [ ] Sincronização bidirecional (Git sync) depende de conexão pela interface do Lovable (Configurações do projeto → Git) e cria repositório novo — não vincula ao ManagerADV existente; informar a Dra.
 
 ## Agenda exclusiva ProJuris — 04/11/2026
-- [ ] Anne passa a consultar disponibilidade, reservar, remarcar e cancelar só no ProJuris (compromissos); Google Calendar deixa de ser fonte de agenda.
-- [ ] Link do Meet: evento mínimo no Google só para gerar o link (decisão da Dra.); link associado à descrição do compromisso no ProJuris; falha do Meet não impede a reserva oficial.
-- [ ] Cancelamento = concluir compromisso (exclusão proibida); remarcação reserva o novo antes de concluir o antigo, com reversão; recibos antigos do Google continuam legíveis/canceláveis até a migração.
-- [ ] Migrar as 4 consultas futuras identificadas do Google para o ProJuris (autorizado pela Dra.), atualizando o recibo na conversa; originais do Google preservados.
-- [ ] Formato real confirmado na API: alteração = PUT do objeto do compromisso direto; conclusão = PUT dedicado sem corpo; ambos com leitura de confirmação.
-- [ ] Testes novos + suíte + compilação; validação real controlada (criar/alterar/concluir/ler) já executada na API; publicação e conversa real no WhatsApp pendentes.
+- [x] Anne passa a consultar disponibilidade, reservar, remarcar e cancelar só no ProJuris (compromissos); Google Calendar deixa de ser fonte de agenda.
+- [x] Link do Meet: evento mínimo no Google só para gerar o link (decisão da Dra.); link associado à descrição do compromisso no ProJuris; falha do Meet não impede a reserva oficial.
+- [x] Cancelamento = concluir compromisso (exclusão proibida); remarcação reserva o novo antes de concluir o antigo, com reversão; recibos antigos do Google continuam legíveis/canceláveis até a migração.
+- [x] Migradas Anderson e Ludimila (Sérgio e Joyce já estavam no ProJuris); consulta de hoje 15h sem cliente fica para a equipe. Originais do Google preservados.
+- [x] Formato real confirmado na API: alteração = PUT do objeto do compromisso direto; conclusão = PUT dedicado sem corpo; ambos com leitura de confirmação.
+- [x] 663 testes; teste real 05/11: consulta, criação com Meet, conflito, ocupado, cancelamento e Google sem sobras.
+- [ ] Publicação e conversa real no WhatsApp — dependem de autorização da Dra.
 
 ## Continuidade e retornos pendentes — 04/11/2026
 - [x] Contexto completo do contato/canal e estado operacional compartilhados no servidor/simulador; identidade explícita Paulo reconhecida, nome não reinicia ofertas, retorno não repete apresentação institucional.
