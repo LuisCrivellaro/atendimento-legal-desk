@@ -88,8 +88,15 @@ export function riscoImediatoAna(texto:string):boolean{
   const t=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   return /(?:neste|nesse) momento|agora mesmo|me ameac|vai me (?:matar|bater|pegar)|risco.{0,15}vida|suicid|me matar/.test(t);
 }
-const ACOLHIMENTO_VD='Olá! Sinto muito que você esteja passando por essa situação. Vamos te ajudar.\nA Dra. Carolina atua em casos de violência doméstica e nossa equipe poderá entender melhor o que aconteceu para orientar os próximos passos jurídicos.\nGostaria de me contar brevemente o que aconteceu?';
-const ACOLHIMENTO_VD_RISCO='Sinto muito que você esteja passando por isso. Você está em um local seguro agora?\nA Dra. Carolina atua em casos de violência doméstica e nossa equipe já foi avisada com prioridade para orientar os próximos passos jurídicos.\nSe quiser, posso te ajudar a contatar os serviços de emergência ou a rede de proteção.';
+const ACOLHIMENTO_VD='Entendi. Vamos verificar os horários disponíveis para você conversar com a Dra. Carolina.';
+const ACOLHIMENTO_VD_RISCO='Sinto muito que você esteja passando por isso. Você está em um local seguro agora?\nSe quiser, posso te ajudar a contatar os serviços de emergência ou a rede de proteção. E posso verificar os horários disponíveis para você conversar com a Dra. Carolina.';
+/** Frases fora do escopo da Anne: investigação do relato, regras internas da agenda e promessas de encaminhamento/avaliação. */
+const FORA_ESCOPO=/(?:est[aá] acontecendo agora|j[aá] aconteceu\?|medida protetiva ou processo|j[aá] tem (?:alguma )?medida|me contar (?:mais|brevemente)|mais detalhes|h[aá] quanto tempo|tem provas|s[oó] [aà]s sextas|clientes? j[aá] cadastrad|encaix|registrad[oa] como urgente|poder[aá] avaliar|encaminhar (?:seu|o seu) caso|para an[aá]lise|entrar[aá] em contato para avaliar|equipe (?:j[aá] )?foi (?:avisada|priorizada))/i;
+export function limparForaEscopoAna(msg:string):string{
+  if(!FORA_ESCOPO.test(msg))return msg;
+  const partes=msg.split(/(?<!\b(?:Dra|Dr|Sra|Sr)\.)(?<=[.!?])\s+|\n/).filter(p=>!FORA_ESCOPO.test(p));
+  return partes.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+}
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;agendaReal?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -118,7 +125,8 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   if(violenciaDomesticaAna(texto)&&mode!=='Desligada'){
     result.urgente=true;
     const risco=riscoImediatoAna(texto);
-    if(/\b190\b/.test(result.mensagem)||!/(sinto muito|vamos te ajudar|viol[eê]ncia)/i.test(result.mensagem))result.mensagem=risco?ACOLHIMENTO_VD_RISCO:ACOLHIMENTO_VD;
+    result.mensagem=limparForaEscopoAna(result.mensagem);
+    if(/\b190\b/.test(result.mensagem)||!/hor[aá]rio/i.test(result.mensagem)||risco&&!/local seguro/i.test(result.mensagem))result.mensagem=risco?ACOLHIMENTO_VD_RISCO:ACOLHIMENTO_VD;
     result.encaminhar_humano=false;
     result.proximo_passo=`URGENTE — violência doméstica${risco?' com risco imediato informado':''}: priorizar retorno humano da equipe e da Dra. Carolina. ${result.proximo_passo}`.trim();
     if(mode==='Automática'){result.acao='enviar';result.motivo_aprovacao='';}
@@ -126,6 +134,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
     // A Anne nunca menciona o 190 espontaneamente, mesmo fora de violência doméstica.
     result.mensagem=result.mensagem.replace(/[^.\n]*\b190\b[^.\n]*\.?/g,'').replace(/\n{3,}/g,'\n\n').trim();
   }
+  if(mode!=='Desligada'&&result.mensagem.trim()){const limpa=limparForaEscopoAna(result.mensagem);result.mensagem=limpa||'Entendi. Vamos verificar os horários disponíveis para você conversar com a Dra. Carolina.';}
   if(!result.mensagem.trim())result.acao='nenhuma';
   // Nunca exibir CPF completo, inclusive um CPF recém-coletado.
   result.mensagem = result.mensagem.replace(/\b\d{3}\.?\d{3}\.?\d{3}[-.]?\d{2}\b/g, cpf=>`••••••••${cpf.replace(/\D/g,'').slice(-3)}`);
