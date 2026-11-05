@@ -36,7 +36,7 @@ describe('ProJuris · lista fechada de operações', () => {
       expect(['GET', 'POST', 'PUT'], id).toContain(op.metodo);
       // Agenda: consulta do calendário (leitura) autorizada pela Dra. em 30/10/2026;
       // compromissos (ler, criar, alterar — nunca excluir) autorizados pela Dra. em 04/11/2026 (migração da agenda).
-      const agenda = ['tarefa/calendario/consulta-sem-paginacao', 'tarefa-tipo/consulta', 'tarefa/calendario/consulta-sem-paginacao-compromisso', 'tarefa-compromisso/{codigo}', 'tarefa-compromisso'];
+      const agenda = ['tarefa/calendario/consulta-sem-paginacao', 'tarefa-tipo/consulta', 'tarefa/calendario/consulta-sem-paginacao-compromisso', 'tarefa-compromisso/{codigo}', 'tarefa-compromisso', 'tarefa/compromisso/{codigo}'];
       if (agenda.includes(op.caminho)) {
         if (op.metodo !== 'GET') expect(id.startsWith('tarefa.'), id).toBe(true);
         if (op.metodo === 'PUT' || (op.metodo === 'POST' && op.caminho === 'tarefa-compromisso')) expect(op.somenteLeitura, id).toBe(false);

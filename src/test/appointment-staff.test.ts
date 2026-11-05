@@ -6,6 +6,7 @@ vi.mock('@tanstack/react-start',()=>({createServerFn:()=>{
 }}));
 vi.mock('@/integrations/supabase/auth-middleware',()=>({requireSupabaseAuth:{}}));
 vi.mock('@/lib/atendimento/google-calendar.server',()=>({cancelarGoogleCalendar:mocks.cancelar,ocupadosGoogleCalendar:mocks.busy}));
+vi.mock('@/lib/atendimento/projuris-agenda.server',()=>({cancelarAgenda:(_d:unknown,_o:unknown,...a:unknown[])=>(mocks.cancelar as (...x:unknown[])=>unknown)(...a),ocupadosAgenda:(_d:unknown,_o:unknown,...a:unknown[])=>(mocks.busy as (...x:unknown[])=>unknown)(...a)}));
 vi.mock('@/lib/atendimento/envio.functions',()=>({enviarMensagemSistema:mocks.send}));
 import {alterarConsultaEquipe} from '@/lib/atendimento/appointment.functions';
 const receipt={id:'ana123',inicio:'2026-10-26T12:00:00.000Z',fim:'2026-10-26T12:30:00.000Z'};
