@@ -22,7 +22,10 @@ export function escolherHorarioAna(slots:string[],texto:string) {
   const per=t.match(/^(?:(?:o|a|pode ser|prefiro|quero|fico com|melhor)\s+)*(?:(?:de|da|a|pela|na|o da|o de)\s+)?(manha|tarde)[.!\s]*$/);
   if(per){const m=slots.filter(s=>per[1]==='manha'?Number(partesAgenda(s)['hour'])<12:Number(partesAgenda(s)['hour'])>=12);return m.length===1?m[0]:undefined;}
   if(pedidoOutrasOpcoesAna(texto)||/\?|\b(?:tem|livre|disponivel)\b/.test(t))return undefined;
-  const ordem=t.match(/\b(primeir[ao]|segund[ao]|terceir[ao]|ultim[ao])\b/);
+  // Data/horário explícitos têm prioridade sobre a posição na lista: "Segunda-feira (09/11) às 17h30"
+  // é dia da semana + horário, nunca "a segunda opção" (erro real de 05/11/2026: registrou 9h).
+  const temHorario=/\b\d{1,2}(?:h\d{0,2}|:\d{2})\b/.test(t)||/\b\d{1,2}\/\d{1,2}\b/.test(t);
+  const ordem=temHorario?null:t.replace(/\b(?:segunda|terca|quarta|quinta|sexta)\s*-?\s*feira\b/g,' ').match(/\b(primeir[ao]|segund[ao]|terceir[ao]|ultim[ao])\b/);
   if(ordem){const pos=ordem[1]?.startsWith('primeir')?0:ordem[1]?.startsWith('segund')?1:ordem[1]?.startsWith('terceir')?2:slots.length-1;return slots[pos];}
   const numero=t.match(/^(?:(?:a|o|opcao|numero|escolho|quero)(?:\s+(?:a|o|opcao))?\s*)?([1-9])\s*[.!]?$/);
   if(numero)return slots[Number(numero[1])-1];
