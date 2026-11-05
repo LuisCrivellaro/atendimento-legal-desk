@@ -14,8 +14,10 @@ export function pastaCliente(c: Pick<Conversa, 'nome' | 'atendimento' | 'etiquet
 }
 
 export function mensagemTratoFeito(nome: string) {
-  const n = nome.split(' ')[0] || nome;
-  return `Oi, ${n}! Que bom seguir com você 😊\nPara iniciarmos, envie por aqui:\n${DOCUMENTOS_BASE.map(d => `• ${d}`).join('\n')}\n\nEquipe CS Advocacia`;
+  const limpo = nome.replace(/^\s*(RT|AC)\s*-\s*[^-]*-\s*/i, '').trim();
+  const p = limpo.split(/\s+/)[0] || '';
+  const n = p ? p.charAt(0).toLocaleUpperCase('pt-BR') + p.slice(1).toLocaleLowerCase('pt-BR') : '';
+  return `Oi${n ? `, ${n}` : ''}! Tudo bem? 😊\n\nPara elaborarmos o seu contrato e darmos andamento ao seu caso, preciso que você nos encaminhe, por gentileza:\n\n📍 Documento pessoal com foto, podendo ser RG ou CNH\n📍 CPF, caso não conste no documento enviado\n📍 Comprovante de residência atualizado\n\nNa sequência, enviaremos a lista de documentos necessários e já iniciaremos o processo 😊\n\nFicamos no aguardo 🩵\n\nEquipe CS Advocacia\ncarolinasantos.com.br`;
 }
 
 /** Inclui os documentos base no checklist sem duplicar nem desmarcar itens já recebidos. */

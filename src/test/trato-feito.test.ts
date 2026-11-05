@@ -9,3 +9,16 @@ describe('Trato feito', () => {
   it('sem contrato assinado não avisa Produção', () => { expect(avisoProducao({ nome: 'A', atendimento: 'X', documentos: base(true), contrato: 'enviado' })).toBeUndefined(); });
   it('com tudo juntado avisa a Dra.', () => { expect(avisoProducao({ nome: 'A', atendimento: 'X', documentos: base(true), contrato: 'assinado' })).toContain('Produção'); });
 });
+
+import { mensagemTratoFeito as msgTF } from '@/lib/atendimento/trato-feito';
+describe('mensagem do TRATO FEITO', () => {
+  it('usa o primeiro nome e o texto padrão', () => {
+    const m = msgTF('MARIA DA SILVA');
+    expect(m.startsWith('Oi, Maria! Tudo bem? 😊')).toBe(true);
+    expect(m).toContain('📍 Comprovante de residência atualizado');
+    expect(m.endsWith('Equipe CS Advocacia\ncarolinasantos.com.br')).toBe(true);
+  });
+  it('ignora o prefixo RT/AC do nome exibido', () => {
+    expect(msgTF('RT - 00034 - LUIS FILIPE').startsWith('Oi, Luis!')).toBe(true);
+  });
+});
