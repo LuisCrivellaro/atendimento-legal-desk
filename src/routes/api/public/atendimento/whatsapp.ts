@@ -212,7 +212,7 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         const { atualizarConversa, processarAna } = await import('@/lib/atendimento/ana.server');
         let inserida=false;
         try {
-          await atualizarConversa(supabaseAdmin, caso.data.id, c => {inserida=false;if(c.mensagens.some(m=>m.id===nova.id))return c;inserida=true;return classificarEntrada({...iniciarAtendimentoAutomatico(c),mensagens:[...c.mensagens,nova]});});
+          await atualizarConversa(supabaseAdmin, caso.data.id, c => {inserida=false;if(c.mensagens.some(m=>m.id===nova.id))return c;inserida=true;if(tipo==='audio')return {...c,mensagens:[...c.mensagens,nova]};return classificarEntrada({...iniciarAtendimentoAutomatico(c),mensagens:[...c.mensagens,nova]});});
         } catch {
           await auditar('mensagemRecebida', 'Falha ao gravar mensagem WhatsApp', 'erro');
           return Response.json({ error: 'Falha ao registrar' }, { status: 500 });
@@ -225,6 +225,7 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         }
         if(nova.path)await atualizarConversa(supabaseAdmin,caso.data.id,c=>({...c,mensagens:c.mensagens.map(m=>m.id===nova.id?{...m,...nova}:m)}));
         await auditar('mensagemRecebida', `WhatsApp ← ${mascararContato(numero)} · ${tipo}`, 'sucesso');
+        if (tipo === 'audio') return Response.json({ ok: true, ignorado: 'audio' });
         try {
           const { registrarEmailConversa } = await import('@/lib/atendimento/email.server');
           await registrarEmailConversa(supabaseAdmin, caso.data.id, caso.data.owner_id, nova.id);

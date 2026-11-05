@@ -56,6 +56,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   const mode=c.modoIA??state.automations?.modoIA??defaultAutomations.modoIA;
   const retomada=retornoIdentificadoAna(c,messageId,canal);
   const m=c.mensagens.find(m=>m.id===messageId);
+  // Regra obrigatória: áudios/mensagens de voz (audio, ptt) ficam sem resposta da Anne.
+  if(m?.tipo==='audio')return;
   if(!m||!podeExecutarAna(m)||c.agenteAna?.humano||c.agenteAna?.pausa||state.anaPausa?.ativa)return;
   let claimed=false;
   await atualizarConversa(db,id,current=>{
