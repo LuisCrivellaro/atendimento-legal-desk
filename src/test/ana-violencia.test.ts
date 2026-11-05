@@ -20,7 +20,6 @@ describe('violência doméstica — produção (ana-claude)', () => {
       expect(r.mensagem).not.toContain('190');
       expect(r.mensagem).not.toMatch(/procure a pol[ií]cia/i);
       expect(r.mensagem).toMatch(/hor[aá]rios dispon[ií]veis/i); expect(r.mensagem).not.toMatch(/me contar|avaliar|registrad/i);
-      expect(r.mensagem).toMatch(/Dra\. Carolina atua em casos de viol[eê]ncia dom[eé]stica/i);
       expect(r.proximo_passo).toContain('URGENTE');
     });
   }

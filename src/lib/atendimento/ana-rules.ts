@@ -160,7 +160,7 @@ const ACOLHIMENTO_VD_RISCO='Sinto muito que você esteja passando por isso. Voc�
 const FORA_ESCOPO=/(?:est[aá] acontecendo agora|j[aá] aconteceu\?|medida protetiva ou processo|j[aá] tem (?:alguma )?medida|me contar (?:mais|brevemente)|mais detalhes|h[aá] quanto tempo|tem provas|s[oó] [aà]s sextas|clientes? j[aá] cadastrad|encaix|registrad[oa] como urgente|poder[aá] avaliar|encaminhar (?:seu|o seu) caso|para an[aá]lise|entrar[aá] em contato para avaliar|equipe (?:j[aá] )?foi (?:avisada|priorizada))/i;
 export function limparForaEscopoAna(msg:string):string{
   if(!FORA_ESCOPO.test(msg))return msg;
-  const partes=msg.split(/(?<!\bDra|\bDr|\bSra|\bSr)(?<=[.!?])\s+|\n/).filter(p=>!FORA_ESCOPO.test(p));
+  const partes=msg.split(/(?<!\b(?:Dra|Dr|Sra|Sr)\.)(?<=[.!?])\s+|\n/).filter(p=>!FORA_ESCOPO.test(p));
   return partes.join('\n').replace(/\n{3,}/g,'\n\n').trim();
 }
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {
