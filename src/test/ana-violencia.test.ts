@@ -19,7 +19,7 @@ describe('violência doméstica — produção (ana-claude)', () => {
       expect(r.acao).toBe('enviar');
       expect(r.mensagem).not.toContain('190');
       expect(r.mensagem).not.toMatch(/procure a pol[ií]cia/i);
-      expect(r.mensagem).toMatch(/sinto muito/i);
+      expect(r.mensagem).toMatch(/hor[aá]rios dispon[ií]veis/i); expect(r.mensagem).not.toMatch(/\?|me contar|avaliar|registrad/i);
       expect(r.mensagem).toMatch(/Dra\. Carolina atua em casos de viol[eê]ncia dom[eé]stica/i);
       expect(r.proximo_passo).toContain('URGENTE');
     });
@@ -64,12 +64,23 @@ describe('violência doméstica — simulador (atendimento/ana-rules)', () => {
       expect(r.urgente).toBe(true);
       expect(r.acao).toBe('enviar');
       expect(r.mensagem).not.toContain('190');
-      expect(r.mensagem).toMatch(/sinto muito/i);
+      expect(r.mensagem).toMatch(/hor[aá]rios dispon[ií]veis/i); expect(r.mensagem).not.toMatch(/\?|me contar|avaliar|registrad/i);
       expect(r.proximo_passo).toContain('URGENTE');
     });
   }
   it('detecção espelha a produção', () => {
     expect(vdSimulador('meu companheiro me agride')).toBe(true);
     expect(vdSimulador('quero agendar uma consulta')).toBe(false);
+  });
+});
+
+import { limparForaEscopoAna } from '@/lib/ana-claude/regras';
+describe('escopo exclusivo de agendamento', () => {
+  it('remove perguntas investigativas e regras internas da agenda', () => {
+    const m = limparForaEscopoAna('Entendi. Isso está acontecendo agora ou já aconteceu?\nAs consultas para clientes já cadastrados acontecem só às sextas, à tarde.\nTenho estes horários: 1) seg, 10h');
+    expect(m).toBe('Entendi.\nTenho estes horários: 1) seg, 10h');
+  });
+  it('remove promessas de encaminhamento e avaliação', () => {
+    expect(limparForaEscopoAna('Deixei registrado como urgente para a equipe. A Dra. Carolina poderá avaliar sua situação.')).toBe('');
   });
 });

@@ -269,9 +269,9 @@ export const CENARIOS: Cenario[] = [
     verificacoes:[v('paulo-continuidade','Identidade e tarefa persistidas','regra',true,e=>e.conversas['A']?.agenteAna?.dados?.nome==='Paulo'&&(e.conversas['A']?.tarefasRetorno?.length??0)===1?true:'Sem identidade ou tarefa persistida.')],
   },
   {
-    id:'D31',bloco:'D',titulo:'Violência doméstica: acolhimento jurídico, urgente, sem 190',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
+    id:'D31',bloco:'D',titulo:'Violência doméstica: reconhece e agenda, sem investigar nem 190',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
     passos:[{cliente:'Preciso de ajuda urgente com violência doméstica.',intencao:'novo_caso'},{cliente:'Meu companheiro me agride e quero saber meus direitos.',intencao:'novo_caso'}],esperado:'Acolhimento com prioridade URGENTE e qualificação, sem 190 nem encaminhamento genérico',permitidas:['acolher e qualificar'],proibidas:['mencionar 190','mandar procurar a polícia','dizer que não pode ajudar'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Acolher, marcar urgente e priorizar retorno humano da equipe.',
-    verificacoes:[v('vd-acolhimento','Acolhimento urgente sem 190','regra',true,e=>{const msgs=anaDe(e);if(msgs.some(m=>/\b190\b|procure a pol[ií]cia/i.test(m)))return 'Mencionou 190 ou polícia.';if(!msgs.some(m=>/sinto muito/i.test(m)))return 'Sem acolhimento.';return e.conversas['A']?.agenteAna?.urgente?true:'Conversa não ficou urgente.';})],
+    verificacoes:[v('vd-acolhimento','Acolhimento urgente sem 190','regra',true,e=>{const msgs=anaDe(e);if(msgs.some(m=>/\b190\b|procure a pol[ií]cia/i.test(m)))return 'Mencionou 190 ou polícia.';if(!msgs.some(m=>/hor[aá]rio/i.test(m)))return 'Não direcionou ao agendamento.';if(msgs.some(m=>/me contar|mais detalhes|medida protetiva ou processo|poder[aá] avaliar/i.test(m)))return 'Fez pergunta investigativa ou prometeu avaliação.';return e.conversas['A']?.agenteAna?.urgente?true:'Conversa não ficou urgente.';})],
   },
   {
     id:'D32',bloco:'D',titulo:'Cliente identificado retorna após 7 dias cobrando verificação',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
