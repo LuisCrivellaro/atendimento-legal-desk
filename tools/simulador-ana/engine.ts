@@ -162,9 +162,9 @@ export class SimuladorAna {
   }
   private async remarcar(conversaId: string, anterior: ReservaCalendar, inicio: string, autorizado: boolean, now: Date, cliente?: { nome: string; telefone: string; tipo: TipoCliente }) {
     if (!autorizado) throw new Error('Remarcação exige autorização explícita.');
-    if (this.agendaFalhando) throw new Error('Google Calendar respondeu 503 (falha simulada).');
+    if (this.agendaFalhando) throw new Error('ProJuris indisponível (falha simulada).');
     const ev = this.agenda.find(e => e.id === anterior.id);
-    if (!ev || ev.conversa !== conversaId) throw new Error('Consulta original indisponível para remarcação.');
+    if (!ev || ev.concluido || ev.conversa !== conversaId) throw new Error('Consulta original indisponível para remarcação.');
     if (Date.parse(anterior.inicio) === Date.parse(inicio)) return anterior;
     const nova = await this.reservar(conversaId, inicio, now, cliente);
     try { await this.cancelar(conversaId, anterior, true); }

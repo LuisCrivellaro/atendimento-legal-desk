@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Sincronização GitHub — 05/11/2026
+- [ ] Enviar o código-fonte atual completo ao repositório LuisCrivellaro/ManagerADV (branch main), sem sobrescrever alterações existentes nem apagar arquivos; comparar antes de enviar, como nas sincronizações anteriores.
+- [ ] Verificar arquivo por arquivo (hashes) e confirmar repositório, branch e estado ao final.
+- [ ] Sincronização bidirecional (Git sync) depende de conexão pela interface do Lovable (Configurações do projeto → Git) e cria repositório novo — não vincula ao ManagerADV existente; informar a Dra.
+
 ## Agenda exclusiva ProJuris — 04/11/2026
 - [ ] Anne passa a consultar disponibilidade, reservar, remarcar e cancelar só no ProJuris (compromissos); Google Calendar deixa de ser fonte de agenda.
 - [ ] Link do Meet: evento mínimo no Google só para gerar o link (decisão da Dra.); link associado à descrição do compromisso no ProJuris; falha do Meet não impede a reserva oficial.
