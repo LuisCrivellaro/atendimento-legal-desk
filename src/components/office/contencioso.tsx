@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useRouter } from '@tanstack/react-router';
+import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
@@ -15,9 +15,12 @@ import { sincronizarProjurisManual } from '@/lib/projuris-sync.functions';
 import { dataLegivel } from '@/lib/projuris/processos';
 import { dataHoraCurta } from '@/lib/atendimento';
 import type { FiltrosContencioso } from '@/lib/contencioso';
+import { filtrosContencioso } from '@/lib/contencioso';
 import { toast } from 'sonner';
 
-export function ContenciosoPage({ filtros, modo, codigo }: { filtros: FiltrosContencioso; modo: 'processos' | 'andamentos' | 'ficha'; codigo?: number }) {
+export function ContenciosoPage({ filtros: filtrosIniciais, modo, codigo }: { filtros: FiltrosContencioso; modo: 'processos' | 'andamentos' | 'ficha'; codigo?: number }) {
+  const search = useRouterState({ select: s => s.location.search });
+  const filtros = filtrosContencioso.parse({ ...filtrosIniciais, ...search });
   const { data: d } = useSuspenseQuery(contenciosoQuery(filtros, modo, codigo));
   const navigate = useNavigate(); const qc = useQueryClient(); const sincronizar = useServerFn(sincronizarProjurisManual);
   const [busy, setBusy] = useState(false); const [progresso, setProgresso] = useState('');
