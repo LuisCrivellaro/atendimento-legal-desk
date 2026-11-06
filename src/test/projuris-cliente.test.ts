@@ -30,6 +30,11 @@ function relogio() {
 const token = (valor = 'tk-1', expires_in = 1500) => json(200, { access_token: valor, expires_in, token_type: 'Bearer' });
 
 describe('ProJuris · lista fechada de operações', () => {
+  it('validação do Contencioso autoriza apenas as três consultas oficiais sem escrita', () => {
+    expect(OPERACOES_PROJURIS['processo.andamentosBusca']).toMatchObject({ metodo: 'POST', caminho: 'processo/{codigo}/andamento/consulta', somenteLeitura: true });
+    expect(OPERACOES_PROJURIS['processo.andamentosClassificados']).toMatchObject({ metodo: 'POST', caminho: 'processo/andamento-classificado/consulta', somenteLeitura: true });
+    expect(OPERACOES_PROJURIS['processo.andamentosIndicador']).toMatchObject({ metodo: 'POST', caminho: 'v2/processo-andamento/consulta/indicador', somenteLeitura: true });
+  });
   it('só consultas e atualizações cadastrais autorizadas, sem operações destrutivas ou outros módulos', () => {
     const proibido = /remov|exclu|delet|arquivo|financ|receita|pagamento|apontamento|hora|comentario|solicitac|tarefa|atendimento|usuario|perfil|permiss|webhook|notificac|credencia|config/i;
     for (const [id, op] of Object.entries(OPERACOES_PROJURIS)) {
