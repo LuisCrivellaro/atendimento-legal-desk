@@ -7,7 +7,6 @@ import { enviarMensagemSistema } from './envio.functions';
 import { enviarTextoRevisora } from './canais/ultramsg';
 import { pedidoHumano } from './ana-scheduling';
 import { criarConsultasProjuris } from '../projuris/consultas.server';
-import { identificarClienteProjuris } from '../projuris/indice.server';
 import { redigirNoticiaProcesso } from './processo-redacao.server';
 import { aplicarDecisao, deveConsultarProcesso, pedidoNoticiaProcesso, iniciarConsultaProcesso, interpretarRespostaRevisora, mensagemNaoCliente, pendencias, proximoCodigo, respostaAutorizada, respostaDuranteEspera, TEXTOS_CONSULTA, type ComandoRevisora, type PedidoProcesso } from './consulta-processo';
 

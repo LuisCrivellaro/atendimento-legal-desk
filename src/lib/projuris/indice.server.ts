@@ -23,7 +23,11 @@ export async function carregarIndiceProjuris(consultas: Consultas = criarConsult
       const principais = p.telefones.filter(t => t.principal);
       if (principais.length) pessoas.push({ codigo: p.codigo, nome: p.nome, telefones: principais });
     }
-    if (!lote.length || lote.length < POR_PAGINA || total > lote.length && lidos >= total) return [...new Map(pessoas.map(p => [p.codigo, p])).values()];
+    if (!lote.length || lote.length < POR_PAGINA) {
+      if (lidos < total) throw new Error('Índice de identidade incompleto; divulgação bloqueada.');
+      return [...new Map(pessoas.map(p => [p.codigo, p])).values()];
+    }
+    if (total > lote.length && lidos >= total) return [...new Map(pessoas.map(p => [p.codigo, p])).values()];
   }
   throw new Error('Índice de identidade incompleto; divulgação bloqueada.');
 }

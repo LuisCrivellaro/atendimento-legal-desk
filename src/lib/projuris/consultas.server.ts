@@ -1,14 +1,13 @@
 // Consultas de leitura ao ProJuris, já filtradas pelas regras de processos.ts. Só no servidor.
-// A ordem dos andamentos na API não é documentada: busca a primeira e a última página e ordena aqui.
+// A ordem da API não é documentada: lê todas as páginas e ordena os movimentos públicos aqui.
 import { projuris, type ClienteProjuris } from './cliente.server';
 import { ErroProjuris } from './erros';
-import { andamentoDe, codigoSituacaoAtiva, pessoaDe, processoDe, registros, totalRegistros } from './mapeamento';
-import { processosAtivosDoCliente, ultimosAndamentosPublicos, type AndamentoLegivel, type AndamentoPJ, type ProcessoPJ } from './processos';
+import { codigoSituacaoAtiva, pessoaDe, processoDe, registros, totalRegistros } from './mapeamento';
+import { processosAtivosDoCliente, ultimosAndamentosPublicos, type AndamentoLegivel, type ProcessoPJ } from './processos';
 import type { PessoaComTelefones } from './identificacao';
 
 const CHAVES_PESSOA = ['pessoaConsultaCompleta', 'pessoaConsulta', 'pessoas', 'pessoaWs'];
 const CHAVES_PROCESSO = ['processoConsultaCompleta', 'processoConsulta', 'processos', 'processoWs'];
-const CHAVES_ANDAMENTO = ['andamentoProcessoWs', 'andamentoWs', 'andamentos'];
 const POR_PAGINA = 50;
 const MAX_PAGINAS_PROCESSOS = 200;
 
@@ -29,26 +28,33 @@ export function criarConsultasProjuris(cliente: Pick<ClienteProjuris, 'chamar'> 
   /** Uma página de pessoas com telefones (para o índice de telefones principais). */
   async function pessoasCompletas(pagina: number, quantidade = 100): Promise<{ pessoas: PessoaComTelefones[]; total: number }> {
     const raw = await cliente.chamar('pessoa.consultaCompleta', { consulta: { pagina, 'quan-registros': quantidade }, corpo: {} });
-    return { pessoas: registros(raw, CHAVES_PESSOA).map(pessoaDe).filter(definido), total: totalRegistros(raw, CHAVES_PESSOA) };
+    const lote = registros(raw, CHAVES_PESSOA);
+    const pessoas = lote.map(pessoaDe).filter(definido);
+    if (pessoas.length !== lote.length) throw new ErroProjuris('resposta', 'Índice contém cadastro sem identificação válida.');
+    return { pessoas, total: totalRegistros(raw, CHAVES_PESSOA) };
   }
 
   /** Processos ativos em que a pessoa é cliente. Confere de novo aqui, mesmo que a API já filtre. */
   async function processosAtivos(codigoPessoa: number): Promise<ProcessoPJ[]> {
     const ativo = await codigoSituacaoAtivo();
-    const todos: ProcessoPJ[] = [];
+    const todos = new Map<number, ProcessoPJ>();
     let completa = false;
     for (let pagina = 0; pagina < MAX_PAGINAS_PROCESSOS; pagina++) {
       const raw = await cliente.chamar('processo.consultaCompleta', {
         consulta: { pagina, 'quan-registros': POR_PAGINA },
         corpo: { codigoPessoaEnvolvido: codigoPessoa, codigoSituacao: ativo },
       });
-      const lote = registros(raw, CHAVES_PROCESSO).map(processoDe).filter(definido);
-      todos.push(...lote);
+      const registrosPagina = registros(raw, CHAVES_PROCESSO);
+      const lote = registrosPagina.map(processoDe).filter(definido);
+      if (lote.length !== registrosPagina.length) throw new ErroProjuris('resposta', 'Processo sem identificação; consulta incompleta.');
+      const antes = todos.size;
+      for (const p of lote) todos.set(p.codigo, p);
       const informado = raw && typeof raw === 'object' && !Array.isArray(raw) && typeof (raw as Record<string, unknown>)['totalRegistros'] === 'number';
-      if (informado ? todos.length >= totalRegistros(raw, CHAVES_PROCESSO) : !lote.length) { completa = true; break; }
+      if (informado ? todos.size >= totalRegistros(raw, CHAVES_PROCESSO) : !lote.length) { completa = true; break; }
+      if (!lote.length || antes === todos.size) throw new ErroProjuris('resposta', 'Paginação de processos sem avanço.');
     }
     if (!completa) throw new ErroProjuris('resposta', 'Consulta de processos incompleta; nenhuma seleção será divulgada.');
-    const unicos = [...new Map(todos.map(p => [p.codigo, p])).values()];
+    const unicos = [...todos.values()];
     return processosAtivosDoCliente(unicos, codigoPessoa, ativo);
   }
 

@@ -363,6 +363,7 @@ export async function iniciarConsultaProcesso(
     const textoEscolha = e.perguntaOriginal?.trim() || e.textoCliente;
     const ativos = (await (portas.prepararProcessos ?? portas.processosAtivos)(pessoa.codigo)).filter(p => p.envolvidos.some(v => v.codigoPessoa === pessoa.codigo && v.cliente));
     if (!ativos.length) return equipe('nenhum processo ativo como cliente');
+    if (e.processosOferecidos?.some(codigo => !ativos.some(p => p.codigo === codigo && podeDetalhar(p)))) return equipe('opções de processo alteradas desde a oferta');
     const candidatos = e.processosOferecidos ? e.processosOferecidos.flatMap(codigo => ativos.filter(p => p.codigo === codigo && podeDetalhar(p))) : ativos;
     const ordinal = e.assuntoJaPerguntado ? /^(?:o |processo |opcao )?([1-9]\d*)[.!]?$/i.exec(fold(e.textoCliente).trim())?.[1] : undefined;
     const selecionado = ordinal ? candidatos[Number(ordinal) - 1] : undefined;
@@ -383,7 +384,7 @@ export async function iniciarConsultaProcesso(
     const dadosFalharam = estadoLocal && escolha.escolhidos.some(p => podeDetalhar(p) && (estadoLocal(p.codigo).falha || dadosDesatualizados(estadoLocal(p.codigo).sincronizadoEm, portas.agora().getTime())));
     if (dadosFalharam) return { tipo: 'equipe', mensagem: 'Não consegui confirmar a atualização do seu processo agora. Vou pedir à equipe que confira as informações.', motivo: 'dados processuais não confirmados' };
     if (!cfg.aprovacao_processo && estadoLocal && !selecionar) {
-      const mensagem = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime());
+      const mensagem = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime(), textoEscolha);
       await portas.registrar('consulta_factual_local');
       return { tipo: 'factual', mensagem, ...(novoVinculo ? { vinculo: novoVinculo } : {}) };
     }
