@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Consulta inteligente pelo WhatsApp — 06/11/2026
+- [ ] Reutilizar identificação e consulta existentes, com seleção explícita de processos e confirmação de dados desatualizados no ProJuris.
+- [ ] Cobrir os onze cenários do anexo, preservar revisão/envio central e documentar validação sem dados fictícios em produção.
+- [ ] Publicação e validação externa dependem de autorização e mensagem real; não enviar informações de clientes apenas para teste.
+
 ## Captação e agendamento da Anne — 06/11/2026
 - [x] Instruções e lógica compartilhada ajustadas: pedido genérico de informações não transfere; aceite contextual consulta horários sem nome antecipado; questões jurídicas, reclamações, pausas e agenda ProJuris preservadas.
 - [x] Fluxos servidor/simulador e bateria: informações → SIM → opções → escolha → nome → reserva única; falha sem confirmação; 695 testes aprovados em 81 arquivos, compilação limpa. Integrações substituídas nos testes, nenhum envio ou compromisso real criado.
