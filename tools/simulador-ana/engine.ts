@@ -4,7 +4,7 @@
 import type { Conversa } from '@/lib/mock-data';
 import { newMessage, chosenSlot, formatarHorarioCliente } from '@/lib/atendimento';
 import { escolherReservaAna, idReservaCalendar, intervaloLivre, type ReservaCalendar } from '@/lib/atendimento/calendar-booking';
-import { saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, type AnaResult } from '@/lib/atendimento/ana-rules';
+import { saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, nomeParaHorarioPendenteAna, aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, PEDIDO_NOME_AGENDA_ANA, type AnaResult } from '@/lib/atendimento/ana-rules';
 import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from '@/lib/atendimento/ana-contexto';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from '@/lib/atendimento/ana-retomada';
 import { classificarAgenda, etiquetaConversa, identificarTipoCliente, classificarEntrada, telefoneAgenda, type TipoCliente } from '@/lib/atendimento/intake-rules';
@@ -235,10 +235,15 @@ export class SimuladorAna {
       if (!bloqueada && (escolherHorarioAna(c.agenteAna?.horariosTeste ?? [], m.texto) ?? chosenSlot(c.agenteAna?.horariosTeste ?? [], m.texto))) raw.intencao = 'agendamento';
       const teste = true;
       const previous = c.mensagens.filter(x => x.canal === canal && x.de === 'escritorio').at(-1)?.texto ?? '';
-      const respostaNome=introducao||nomePrimeiroContatoAna(m.texto,previous);
+      // Horário já escolhido aguardando o nome: vale mesmo se outra mensagem entrou no meio ou se passou mais
+      // tempo; a reserva revalida a disponibilidade antes de confirmar.
+      const aguardaNome = !!c.agenteAna?.horarioPendente && Date.parse(c.agenteAna.horarioPendente) > Date.now();
+      const respostaNome=introducao||nomePrimeiroContatoAna(m.texto,previous)||(aguardaNome?nomeParaHorarioPendenteAna(m.texto):'');
       if(respostaNome&&!raw.dados_coletados.nome.trim())raw.dados_coletados.nome=respostaNome;
-      
-      const recebeuNome=!!respostaNome&&!cobranca&&!pedidoAgendaRetornoAna(m.texto);if(recebeuNome){raw.intencao='duvida_geral';raw.encaminhar_humano=false;bloqueada=true;}
+      // Com escolha pendente, o nome recebido conclui o agendamento: nunca transferir para a equipe nesse passo.
+      if (!cobranca && !retomada && respostaNome && aguardaNome && !pedidoHumano(m.texto)) { raw.intencao = 'agendamento'; raw.encaminhar_humano = false; bloqueada = false; }
+      const pendenteNome = !!respostaNome && aguardaNome;
+      const recebeuNome=!pendenteNome&&!!respostaNome&&!cobranca&&!pedidoAgendaRetornoAna(m.texto);if(recebeuNome){raw.intencao='duvida_geral';raw.encaminhar_humano=false;bloqueada=true;}
       const nome = raw.dados_coletados.nome.trim() || c.agenteAna?.dados?.nome || '';
       let horarios = (c.agenteAna?.horariosTeste ?? []).filter(s => tipoCliente && horarioPermitido(s, tipoCliente) && Date.parse(s) > Date.now());
       let agendaReal = c.agenteAna?.agendaReal === true && horarios.length > 0;
@@ -250,9 +255,9 @@ export class SimuladorAna {
       const aceitouPendente = !!c.agenteAna?.horarioPendente && !!c.agenteAna.horarioPendenteDesde && Date.now() - Date.parse(c.agenteAna.horarioPendenteDesde) < 30 * 60000 && /^(?:sim|pode|pode marcar|sim pode|sim por favor|confirmo|confirmar)[.!\s]*$/i.test(m.texto.trim());
       const especifico = !bloqueada ? pedidoHorarioEspecifico(m.texto) : undefined;
       const consultaEspecifica = !!especifico && (/\?|\b(?:tem|livre|disponivel|disponível|pode ser)\b/i.test(m.texto) || !oferecidos.includes(especifico));
-      const selecionado = !bloqueada && !consultaEspecifica ? (aceitouPendente ? c.agenteAna?.horarioPendente : escolherHorarioAna(oferecidos, m.texto) ?? chosenSlot([...(c.agenteAna?.horariosTeste ?? []), ...(c.horariosOfertados ?? [])], m.texto)) : undefined;
+      const selecionado = pendenteNome ? c.agenteAna?.horarioPendente : !bloqueada && !consultaEspecifica ? (aceitouPendente ? c.agenteAna?.horarioPendente : escolherHorarioAna(oferecidos, m.texto) ?? chosenSlot([...(c.agenteAna?.horariosTeste ?? []), ...(c.horariosOfertados ?? [])], m.texto)) : undefined;
       if (!bloqueada && (especifico || selecionado || aceitouPendente)) raw.intencao = 'agendamento';
-      if(!primeiroContato&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
+      if(!primeiroContato&&!pendenteNome&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
       const gerenciarExistente = !!c.consultaAgendada && alteracao !== 'remarcar' && c.agenteAna?.alteracaoConsulta !== 'remarcar';
       let horarioPendente: string | undefined;
       let semPeriodo = false;
