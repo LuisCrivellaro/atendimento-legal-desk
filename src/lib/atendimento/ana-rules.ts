@@ -174,8 +174,12 @@ export function limparForaEscopoAna(msg:string):string{
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  // O nome do cliente nunca dispara o filtro ético: "Maria Vitória" não é "chance de vitória"
+  // (erro real de 06/11/2026: o nome Vitória forçou transferência no meio do agendamento).
+  const nomeLimpo = options.nome?.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+');
+  const foldedSemNome = nomeLimpo ? texto.replace(new RegExp(nomeLimpo,'gi'),' ').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase() : folded;
   const humano = pedidoHumano(texto)||(r.encaminhar_humano&&r.intencao==='outro'&&!/agendar|marcar|consulta/.test(folded));
-  const etico = /honorari|ganhar|chance|vitoria|tenho direito|prescri|recorrer|estrategia|desistir|parte contraria|devo assinar/.test(folded);
+  const etico = /honorari|ganhar|chance|vitoria|tenho direito|prescri|recorrer|estrategia|desistir|parte contraria|devo assinar/.test(foldedSemNome);
   const urgent = /(?:risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo|citacao|oficial de justica|carta do forum|prazo.{0,25}(?:venc|amanha|hoje)|demitid.{0,30}(?:hoje|ontem|semana)|audiencia.{0,35}(?:hoje|amanha|semana))/.test(folded);
   const prohibited = etico || forbiddenTopics(texto,proibidos).length > 0 || forbiddenTopics(r.mensagem,proibidos).length > 0;
   // Tema delicado pede revisão, não uma tomada humana completa da conversa.
