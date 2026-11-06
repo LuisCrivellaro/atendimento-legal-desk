@@ -94,7 +94,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='nomePendente'||cenario==='nomePendenteTardio'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBe(inicio);expect(saved.agenteAna?.humano).toBe(false);expect(saved.mensagens.at(-1)?.texto).toContain('confirmada');expect(saved.mensagens.at(-1)?.texto).not.toMatch(/transferir|para a equipe/i);}
       if(cenario==='tarde'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste?.every(s=>new Date(s).getUTCHours()>=16)).toBe(true);}
       expect(saved.agenteAna).toMatchObject({ humano: cenario==='humano' });
-      expect(mocks.enviar).toHaveBeenCalledOnce();
+      expect(mocks.enviar, `cenario ${cenario}`).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
       expect(saved.mensagens.at(-1)?.canal).toBe(canal);
     } finally {
