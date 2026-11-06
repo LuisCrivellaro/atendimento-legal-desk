@@ -10,6 +10,10 @@ function consultas(paginas: PessoaComTelefones[][], total: number) {
 
 describe('Índice de telefones principais (servidor)', () => {
   beforeEach(() => limparIndiceProjuris());
+  it('paginação incompleta não comprova identidade única', async () => {
+    const { c } = consultas([[p(7, ['11990000007', true])]], 2);
+    await expect(carregarIndiceProjuris(c)).rejects.toThrow('incompleto');
+  });
   it('lê todas as páginas e guarda só telefones principais', async () => {
     const pag0 = Array.from({ length: 100 }, (_, i) => p(i + 1, [`11 3000-${String(i).padStart(4, '0')}`, true]));
     const { pedidas, c } = consultas([pag0, [p(500, ['11 99000-0500', true], ['11 98888-0000', false]), p(501, ['11 97777-0000', false])]], 102);

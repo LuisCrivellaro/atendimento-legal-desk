@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/integrations/supabase/types';
-import { baseDe, identificarNaBase, processosDaBase, type BaseProjuris } from './base';
+import { baseDe, dadosDesatualizados, identificarNaBase, processosDaBase, type BaseProjuris } from './base';
 import { carregarCarteira } from './carteira.server';
 import { projuris, ErroProjuris, type ClienteProjuris } from './cliente.server';
 import { andamentoDe, processoDe, registros, totalRegistros } from './mapeamento';
@@ -95,9 +95,65 @@ export async function portasLocais(db: Db, owner: string) {
     processosAtivos: async (codigoPessoa: number) => (base.processos[String(codigoPessoa)] ?? []).flatMap(p => { const m = processoDe(p); return m && m.envolvidos.some(e => e.codigoPessoa === codigoPessoa && e.cliente) ? [m] : []; }),
     ultimosAndamentos: async (codigo: number) => ultimosAndamentosPublicos((porCodigo.get(codigo)?.atuais ?? []) as unknown as AndamentoPJ[]),
     estado: (codigo: number) => ({ sincronizadoEm: porCodigo.get(codigo)?.ultimo_sucesso ?? null, falha: !!porCodigo.get(codigo)?.erro }),
+    fatosRegistrados: async (codigo: number, pergunta: string) => {
+      const t = pergunta.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const categorias = [
+        { pedido: /audiencia/, registro: /audiencia/ },
+        { pedido: /prazo/, registro: /prazo/ },
+        { pedido: /documentos? (?:pendentes?|faltantes?)/, registro: /documento.{0,80}(?:pendente|faltante|apresentar)|(?:apresentar|providenciar|juntar).{0,80}documento/ },
+        { pedido: /providencia/, registro: /providencia/ },
+        { pedido: /decisao|despacho/, registro: /decisao|despacho|sentenca/ },
+      ].filter(c => c.pedido.test(t));
+      if (!categorias.length) return undefined;
+      return ultimosAndamentosPublicos((porCodigo.get(codigo)?.atuais ?? []) as unknown as AndamentoPJ[], Number.MAX_SAFE_INTEGER).filter(a => categorias.some(c => c.registro.test(a.descricao.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()))).slice(0, 3);
+    },
   };
 }
 export async function salvarFicha(db: Db, owner: string, codigo: number, ficha: Record<string, unknown>) {
   const r = await db.rpc('projuris_salvar_ficha', { p_owner: owner, p_codigo: codigo, p_ficha: json(cadastroVisivel(ficha)), p_revisao: await revisaoCadastro(ficha) });
   if (r.error) throw new Error('Ficha não persistida; recarregue.');
+}
+
+/** Consulta owner-scoped: reaproveita leases/commits; nunca retorna snapshot antigo como atual. */
+export async function portasConsultaAtualizada(db: Db, owner: string) {
+  const { criarConsultasProjuris } = await import('./consultas.server');
+  const { identificarClienteProjuris } = await import('./indice.server');
+  const consultas = criarConsultasProjuris();
+  let local = await portasLocais(db, owner);
+  let base = (await lerBase(db, owner)).base;
+  return {
+    identificar: async (telefone: string) => {
+      // A carteira filtrada não prova unicidade entre TODOS os cadastros do provedor.
+      if (local) await local.identificar(telefone);
+      return identificarClienteProjuris(telefone);
+    },
+    prepararProcessos: async (pessoa: number) => {
+      if (!base || dadosDesatualizados(base.em)) {
+        base = await sincronizarBase(db, owner);
+        local = await portasLocais(db, owner);
+      }
+      // Confere situação, sigilo e flagCliente no provedor antes de divulgar.
+      const oficiais = await consultas.processosAtivos(pessoa);
+      const vinculados = new Set((base?.processos[String(pessoa)] ?? []).map(p => Number(p['codigoProcesso'])));
+      if (oficiais.some(p => !vinculados.has(p.codigo))) {
+        base = await sincronizarBase(db, owner);
+        local = await portasLocais(db, owner);
+      }
+      const permitidos = new Set((base?.processos[String(pessoa)] ?? []).map(p => Number(p['codigoProcesso'])));
+      if (oficiais.some(p => !permitidos.has(p.codigo))) throw new Error('Carteira local não contém todos os processos oficiais; equipe deve conferir.');
+      return oficiais;
+    },
+    processosAtivos: async (pessoa: number) => local?.processosAtivos(pessoa) ?? [],
+    confirmarAtualizacao: async (codigo: number) => {
+      const estado = local?.estado(codigo);
+      if (!estado || estado.falha || dadosDesatualizados(estado.sincronizadoEm)) {
+        const resultado = await sincronizarProcesso(db, owner, codigo);
+        if (!resultado.ok) throw new Error('Não foi possível confirmar a atualização processual.');
+        local = await portasLocais(db, owner);
+      }
+    },
+    ultimosAndamentos: async (codigo: number) => local?.ultimosAndamentos(codigo) ?? [],
+    fatosRegistrados: async (codigo: number, pergunta: string) => local?.fatosRegistrados(codigo, pergunta),
+    estadoLocal: (codigo: number) => local?.estado(codigo) ?? { sincronizadoEm: null, falha: true },
+  };
 }

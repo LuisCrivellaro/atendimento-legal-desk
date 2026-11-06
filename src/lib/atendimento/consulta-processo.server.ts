@@ -7,7 +7,6 @@ import { enviarMensagemSistema } from './envio.functions';
 import { enviarTextoRevisora } from './canais/ultramsg';
 import { pedidoHumano } from './ana-scheduling';
 import { criarConsultasProjuris } from '../projuris/consultas.server';
-import { identificarClienteProjuris } from '../projuris/indice.server';
 import { redigirNoticiaProcesso } from './processo-redacao.server';
 import { aplicarDecisao, deveConsultarProcesso, pedidoNoticiaProcesso, iniciarConsultaProcesso, interpretarRespostaRevisora, mensagemNaoCliente, pendencias, proximoCodigo, respostaAutorizada, respostaDuranteEspera, TEXTOS_CONSULTA, type ComandoRevisora, type PedidoProcesso } from './consulta-processo';
 
@@ -86,13 +85,11 @@ export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: 
   if (!claimed) return true;
   try {
     const consultas = criarConsultasProjuris();
-    const { portasLocais } = await import('../projuris/base.server');
-    const local = await portasLocais(db, e.owner);
+    const { portasConsultaAtualizada } = await import('../projuris/base.server');
+    const local = await portasConsultaAtualizada(db, e.owner);
     let notificacao = '';
-    const result = await iniciarConsultaProcesso({ conversaId: c.id, telefone: e.telefone, nomeContato: c.nome, textoCliente: e.texto, assuntoJaPerguntado: !!c.agenteAna?.aguardandoAssuntoProcesso, vinculo: c.agenteAna?.vinculoProjuris, aguardandoCpf: !!c.agenteAna?.aguardandoCpfProcesso, perguntaOriginal: c.agenteAna?.perguntaProcessoPendente }, {
-      agora: () => new Date(), identificar: local?.identificar ?? identificarClienteProjuris,
-      processosAtivos: local?.processosAtivos ?? consultas.processosAtivos, ultimosAndamentos: local?.ultimosAndamentos ?? consultas.ultimosAndamentos,
-      ...(local ? { estadoLocal: local.estado } : {}),
+    const result = await iniciarConsultaProcesso({ conversaId: c.id, telefone: e.telefone, nomeContato: c.nome, textoCliente: e.texto, assuntoJaPerguntado: !!c.agenteAna?.aguardandoAssuntoProcesso, processosOferecidos: c.agenteAna?.processosOferecidos, vinculo: c.agenteAna?.vinculoProjuris, aguardandoCpf: !!c.agenteAna?.aguardandoCpfProcesso, perguntaOriginal: c.agenteAna?.perguntaProcessoPendente }, {
+      agora: () => new Date(), ...local,
       redigir: redigirNoticiaProcesso, codigosExistentes: () => reservarCodigo(db, e.owner),
       avisarCliente: t => enviarAvisoProcesso(db, c.id, t, e.contato),
       // Persistir antes do envio externo permite receber uma resposta imediata e não perder pedidos em falhas.
@@ -139,6 +136,7 @@ export async function decidirPedidoProcesso(db: Db, id: string, comando: Comando
   if (d.enviarCliente) {
     try { await enviarAvisoProcesso(db, id, d.enviarCliente, contato); }
     catch { await atualizarConversa(db, id, c => ({ ...c, agenteAna: { ...c.agenteAna, humano: true, erro: 'Envio aprovado não confirmado; conferir WhatsApp antes de reenviar.' } })); throw new Error('Decisão salva, mas envio não confirmado. Confira WhatsApp antes de repetir.'); }
+    if (p.selecaoProcessos && comando.acao === 'aprovar') await atualizarConversa(db, id, c => ({ ...c, agenteAna: { ...c.agenteAna, processosOferecidos: p.selecaoProcessos, aguardandoAssuntoProcesso: true, proximoPasso: 'Aguardar escolha do processo pelo cliente.' } }));
   }
   return d.pedido.status;
 }

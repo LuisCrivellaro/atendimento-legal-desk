@@ -22,10 +22,10 @@ describe('identificação do cliente para consulta de processo', () => {
     expect(r.tipo).toBe('pedido');
     expect(r.tipo === 'pedido' && r.vinculo).toMatchObject({ codigoPessoa: 1, status: 'confirmado', origem: 'telefone' });
   });
-  it('vínculo gravado é usado sem consultar o telefone de novo', async () => {
+  it('vínculo por telefone antigo não libera consulta se o cadastro atual não confirma', async () => {
     const p = portas({ tipo: 'nao_encontrado' });
     const v: VinculoProjuris = { codigoPessoa: 1, nome: 'Maria Souza', status: 'confirmado', origem: 'telefone', desde: agora.toISOString() };
-    expect((await iniciarConsultaProcesso({ ...base, vinculo: v }, p)).tipo).toBe('pedido');
+    expect((await iniciarConsultaProcesso({ ...base, vinculo: v }, p)).tipo).toBe('equipe');
   });
   it('não encontrado: pede o CPF', async () => {
     expect(await iniciarConsultaProcesso(base, portas({ tipo: 'nao_encontrado' }))).toEqual({ tipo: 'pedir_cpf', mensagem: TEXTOS_VINCULO.pedirCpf });
