@@ -4,7 +4,7 @@ import type { Conversa } from '../mock-data';
 import { defaultState, type OfficeState } from '../office';
 import { defaultAutomations, newMessage, chosenSlot, formatarHorarioCliente } from '../atendimento';
 import { escolherReservaAna } from './calendar-booking';
-import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, saudacaoInicialAna, linhaDoisHorariosAna, PERGUNTA_HORARIO_ANA, PEDIDO_NOME_AGENDA_ANA, resumoTransbordoAna } from './ana-rules';
+import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, nomeParaHorarioPendenteAna, saudacaoInicialAna, linhaDoisHorariosAna, PERGUNTA_HORARIO_ANA, PEDIDO_NOME_AGENDA_ANA, resumoTransbordoAna } from './ana-rules';
 import { classificarAgenda, etiquetaConversa, identificarTipoCliente } from './intake-rules';
 import { telefoneRemetenteAna } from './telegram-intake';
 import { horarioPermitido } from './schedule-rules';
@@ -124,14 +124,18 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const teste=config.data.modo_teste===true;
     const previous=c.mensagens.filter(m=>m.canal===canal&&m.de==='escritorio').at(-1)?.texto??'';
     // Resposta direta à saudação oficial ("Qual o seu nome?"): texto curto só com letras vale como nome.
-    const respostaNome=introducao||nomePrimeiroContatoAna(m.texto,previous);
+    // Horário já escolhido aguardando o nome: vale mesmo se outra mensagem entrou no meio ou se passou mais
+    // tempo; a reserva revalida a disponibilidade antes de confirmar.
+    const aguardaNome=!!c.agenteAna?.horarioPendente&&Date.parse(c.agenteAna.horarioPendente)>Date.now();
+    const respostaNome=introducao||nomePrimeiroContatoAna(m.texto,previous)||(aguardaNome?nomeParaHorarioPendenteAna(m.texto):'');
     if(respostaNome&&!raw.dados_coletados.nome.trim()){raw.dados_coletados.nome=respostaNome;}
-    if(!cobranca&&!retomada&&respostaNome&&previous===PEDIDO_NOME_AGENDA_ANA&&c.agenteAna?.horarioPendente&&!pedidoHumano(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
+    // Com escolha pendente, o nome recebido conclui o agendamento: nunca transferir para a equipe nesse passo.
+    if(!cobranca&&!retomada&&respostaNome&&aguardaNome&&!pedidoHumano(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;bloqueada=false;}
     const nome=raw.dados_coletados.nome.trim()||c.agenteAna?.dados?.nome||'';
     let horarios=(c.agenteAna?.horariosTeste??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
     let agendaReal=c.agenteAna?.agendaReal===true&&horarios.length>0;
     // Horário já escolhido aguardando o nome completo: o nome recebido autoriza reservar esse horário (revalidado na reserva).
-    const pendenteNome=!!respostaNome&&previous===PEDIDO_NOME_AGENDA_ANA&&!!c.agenteAna?.horarioPendente&&!!c.agenteAna.horarioPendenteDesde&&Date.now()-Date.parse(c.agenteAna.horarioPendenteDesde)<30*60000&&Date.parse(c.agenteAna.horarioPendente)>Date.now();
+    const pendenteNome=!!respostaNome&&aguardaNome;
     const recebeuNome=!pendenteNome&&!!respostaNome&&!cobranca&&!pedidoAgendaRetornoAna(m.texto);
     if(recebeuNome){raw.intencao='duvida_geral';raw.encaminhar_humano=false;bloqueada=true;}
     const oferecidos=c.agenteAna?.horariosTeste??[];
