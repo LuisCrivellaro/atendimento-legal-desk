@@ -122,11 +122,19 @@ export function pediuNomeInicialAna(texto:string) {
   return saudacaoInicialAna(texto)||texto.endsWith('nome completo?');
 }
 
-export function nomePrimeiroContatoAna(texto:string,anterior:string) {
-  if(!pediuNomeInicialAna(anterior)||apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
+function nomeValidoAna(texto:string) {
   const nome=texto.trim().replace(/^(?:sou\s+(?:a|o)\s+|me chamo\s+|meu nome (?:é|e)\s+)/i,'');
   if(/\b(?:quero|preciso|gostaria|consulta|agendar|marcar|horário|horarios|obrigad[oa]|manh[aã]|tarde|sim|ok|pode|qualquer|melhor|prefiro|primeir[oa]|segund[oa])\b/i.test(nome))return '';
   return nome.length<=80&&/^[A-Za-zÀ-ÿ'´`-]+(?:\s+[A-Za-zÀ-ÿ'´`-]+){0,7}$/.test(nome)&&!/^não\b/i.test(nome)?nome:'';
+}
+export function nomePrimeiroContatoAna(texto:string,anterior:string) {
+  if(!pediuNomeInicialAna(anterior)||apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
+  return nomeValidoAna(texto);
+}
+/** Nome enviado enquanto um horário escolhido aguarda o nome completo, mesmo se outra mensagem entrou no meio. */
+export function nomeParaHorarioPendenteAna(texto:string) {
+  if(apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
+  return nomeValidoAna(texto);
 }
 
 /** Mensagem só de cumprimento ("oi", "boa tarde, tudo bem?"), sem pedido. */
@@ -166,8 +174,12 @@ export function limparForaEscopoAna(msg:string):string{
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  // O nome do cliente nunca dispara o filtro ético: "Maria Vitória" não é "chance de vitória"
+  // (erro real de 06/11/2026: o nome Vitória forçou transferência no meio do agendamento).
+  const nomeLimpo = options.nome?.trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+');
+  const foldedSemNome = nomeLimpo ? texto.replace(new RegExp(nomeLimpo,'gi'),' ').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase() : folded;
   const humano = pedidoHumano(texto)||(r.encaminhar_humano&&r.intencao==='outro'&&!/agendar|marcar|consulta/.test(folded));
-  const etico = /honorari|ganhar|chance|vitoria|tenho direito|prescri|recorrer|estrategia|desistir|parte contraria|devo assinar/.test(folded);
+  const etico = /honorari|ganhar|chance|vitoria|tenho direito|prescri|recorrer|estrategia|desistir|parte contraria|devo assinar/.test(foldedSemNome);
   const urgent = /(?:risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo|citacao|oficial de justica|carta do forum|prazo.{0,25}(?:venc|amanha|hoje)|demitid.{0,30}(?:hoje|ontem|semana)|audiencia.{0,35}(?:hoje|amanha|semana))/.test(folded);
   const prohibited = etico || forbiddenTopics(texto,proibidos).length > 0 || forbiddenTopics(r.mensagem,proibidos).length > 0;
   // Tema delicado pede revisão, não uma tomada humana completa da conversa.
