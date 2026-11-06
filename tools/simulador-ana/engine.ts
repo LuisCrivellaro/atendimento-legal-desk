@@ -395,7 +395,11 @@ export class SimuladorAna {
   pausar(motivo: string) {
     this.atualizar(cur => ({ ...cur, agenteAna: { ...cur.agenteAna, humano: true, proximoPasso: `Equipe: ${motivo}` } }));
   }
-  entregarAprovado(texto: string) { this.enviarAna(texto); }
+  entregarAprovado(texto: string) {
+    this.enviarAna(texto);
+    const pedido = this.conv.agenteAna?.pedidosProcesso?.find(p => p.decisao?.textoEnviado === texto);
+    if (pedido?.selecaoProcessos && pedido.status === 'aprovado') this.atualizar(c => ({ ...c, agenteAna: { ...c.agenteAna, processosOferecidos: pedido.selecaoProcessos, aguardandoAssuntoProcesso: true } }));
+  }
 
   private async fluxoProcesso(texto: string, intencao: string, r: AnaResult, turno: Turno): Promise<boolean> {
     const pendente = this.central.pendenteDe(this.conversaId);
@@ -423,7 +427,7 @@ export class SimuladorAna {
       enviarRevisora: async t => { ferramenta('revisora.pedido'); this.central.notificar(t); },
       registrar: async (ev, d) => { turno.eventos.push(`${ev}${d ? `: ${d}` : ''}`); },
     };
-    const res = await iniciarConsultaProcesso({ conversaId: this.conversaId, telefone: this.telefone, nomeContato: this.conv.nome, textoCliente: texto, assuntoJaPerguntado: this.aguardandoAssunto }, portas, this.configConsulta);
+    const res = await iniciarConsultaProcesso({ conversaId: this.conversaId, telefone: this.telefone, nomeContato: this.conv.nome, textoCliente: texto, assuntoJaPerguntado: this.aguardandoAssunto || !!this.conv.agenteAna?.aguardandoAssuntoProcesso, processosOferecidos: this.conv.agenteAna?.processosOferecidos }, portas, this.configConsulta);
     this.aguardandoAssunto = res.tipo === 'perguntar_assunto';
     turno.final = r;
     if (res.tipo === 'pedido') {

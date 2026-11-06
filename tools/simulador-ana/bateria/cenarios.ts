@@ -142,11 +142,11 @@ export const CENARIOS: Cenario[] = [
   },
   {
     id: 'B7', bloco: 'B', titulo: 'Vários processos e pedido vago; depois "não sei"', conversas: { A: joana }, projuris: 'Joana: 3 processos ativos (1 em segredo)', relogio: QUI_10H,
-    passos: [{ cliente: 'e aí, como tá meu caso?', intencao: 'consulta_processo' }, { cliente: 'sei lá, quero saber de tudo', intencao: 'duvida_geral' }],
+    passos: [{ cliente: 'e aí, como tá meu caso?', intencao: 'consulta_processo' }, { revisora: 'ok' }, { cliente: '1', intencao: 'consulta_processo' }],
     esperado: 'Pergunta o assunto sem listar processos; depois pedido cobrindo todos, com o de segredo sem detalhe', permitidas: ['perguntar o assunto'], proibidas: ['listar processos', 'pedir número de opção', 'detalhar segredo'],
-    aprovacao: 'necessária', ferramentas: { esperadas: ANA_PROCESSO, proibidas: [] }, comportamento: 'Pergunta natural sobre o assunto; depois aviso de consulta.',
-    verificacoes: [anaIgual([TEXTOS_CONSULTA.perguntaAssunto, TEXTOS_CONSULTA.aviso]), processosDoPedido([2001, 2002, 2003]),
-      v('segredo-sem-detalhe', 'Processo em segredo sem detalhe no pedido', 'regra', true, e => pedido(e, 'AND-0001')?.processos.find(f => f.codigo === 2002)?.andamentos.length === 0 ? true : 'Segredo detalhado.')],
+    aprovacao: 'necessária', ferramentas: { esperadas: ANA_PROCESSO, proibidas: [] }, comportamento: 'Lista revisada; escolha explícita; detalhe aguarda nova revisão.',
+    verificacoes: [processosDoPedido([2001], 'AND-0002'),
+      v('lista-segura', 'Lista pública e escolha persistidas', 'regra', true, e => JSON.stringify(pedido(e, 'AND-0001')?.selecaoProcessos) === '[2001,2003]' ? true : 'Lista de processos não corresponde às opções públicas.')],
   },
   {
     id: 'B8', bloco: 'B', titulo: 'Cliente só com processos arquivados', conversas: { A: { telefone: T.soArquivados, nome: 'Carlos Exemplo Rocha', perfil: 'cliente' } }, projuris: 'Só processo arquivado', relogio: QUI_10H,

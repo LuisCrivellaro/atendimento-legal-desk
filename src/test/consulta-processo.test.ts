@@ -87,9 +87,11 @@ describe('B. Processos e conteúdo', () => {
   it('7. vários processos sem assunto: pergunta em linguagem natural, sem listar; se não souber, cobre todos', async () => {
     const pt = portas();
     const r1 = await consulta(T.tresProcessos, 'e aí, como tá meu caso?', {}, pt);
-    expect(r1).toMatchObject({ tipo: 'perguntar_assunto', mensagem: TEXTOS_CONSULTA.perguntaAssunto });
-    expect(TEXTOS_CONSULTA.perguntaAssunto).not.toMatch(/\d|process/i);
-    expect(pt.reg.avisos).toEqual([]);
+    expect(r1.tipo).toBe('pedido');
+    if (r1.tipo !== 'pedido') throw new Error('Lista aguardando revisão');
+    expect(r1.pedido.selecaoProcessos).toEqual([2001, 2003]);
+    expect(r1.pedido.textoProposto).not.toContain('1000003-33.2025.8.26.0100');
+    expect(pt.reg.avisos).toEqual([TEXTOS_CONSULTA.aviso]);
     const r2 = await consulta(T.tresProcessos, 'não sei, quero saber de tudo', { assuntoJaPerguntado: true }, pt);
     expect(r2.tipo).toBe('pedido');
     if (r2.tipo !== 'pedido') return;
