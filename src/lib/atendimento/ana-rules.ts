@@ -19,6 +19,7 @@ export interface AnaState {
   envioAna?: { mensagemId: string; texto: string; desde: string } | undefined;
   pedidosProcesso?: import('./consulta-processo').PedidoProcesso[] | undefined;
   aguardandoAssuntoProcesso?: boolean;
+  processosOferecidos?: number[] | undefined;
   /** Vínculo com a pessoa do ProJuris (gravado pelo servidor; pendente até a equipe confirmar). */
   vinculoProjuris?: import('../projuris/vinculo').VinculoProjuris | undefined;
   aguardandoCpfProcesso?: boolean;

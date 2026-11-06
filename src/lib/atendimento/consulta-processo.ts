@@ -1,7 +1,7 @@
 // Consulta de processo pela Ana na fase de testes: nenhuma informação de processo vai ao cliente sem aprovação
 // da revisora. Módulo único para o servidor (ProJuris real) e para o simulador (ProJuris fictício): a lógica é a
 // mesma e só mudam as portas (consulta, redação, envio, registro, relógio). Regras de prazo: REGRAS-DA-DOUTORA.md.
-import { respostaFactual } from '../projuris/base';
+import { dadosDesatualizados, respostaFactual } from '../projuris/base';
 import { feriadoNacional } from './schedule-rules';
 import { cpfNoTexto, pessoaPorCpf, TEXTOS_VINCULO, vinculoPendentePorCpf, vinculoPorTelefone, type PessoaCpf, type VinculoProjuris } from '../projuris/vinculo';
 import { podeDetalhar, identificacaoProcesso, type AndamentoLegivel, type ProcessoPJ } from '../projuris/processos';
@@ -22,6 +22,8 @@ export const CONFIG_CONSULTA_PADRAO: ConfigConsultaProcesso = { aprovacao_proces
 export interface FatoProcesso { codigo: number; identificacao: string; numero?: string; assunto?: string; segredo: boolean; andamentos: AndamentoLegivel[] }
 export type StatusPedido = 'pendente' | 'aprovado' | 'corrigido' | 'recusado';
 export interface PedidoProcesso {
+  /** A lista também passa pela revisão; a escolha só é liberada após envio confirmado. */
+  selecaoProcessos?: number[];
   codigo: string;
   conversaId: string;
   contato: { nome: string; telefone: string };
@@ -81,8 +83,13 @@ const naoSabe = (t: string) => /\b(?:nao sei|todos|todas|os dois|as duas|os tres
 function justicaCnj(numero?: string) { return /\d{7}-\d{2}\.\d{4}\.(\d)\.\d{2}\.\d{4}/.exec(numero ?? '')?.[1]; }
 
 export function escolherProcessos(processos: ProcessoPJ[], textoCliente: string): { escolhidos: ProcessoPJ[]; criterio: 'unico' | 'assunto' | 'todos' | 'indefinido' } {
-  if (processos.length <= 1) return { escolhidos: processos, criterio: 'unico' };
   const t = fold(textoCliente);
+  const numeros = textoCliente.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g) ?? [];
+  if (numeros.length) {
+    const achados = processos.filter(p => p.numero && numeros.includes(p.numero));
+    return numeros.every(n => achados.some(p => p.numero === n)) ? { escolhidos: achados, criterio: 'assunto' } : { escolhidos: [], criterio: 'indefinido' };
+  }
+  if (processos.length <= 1) return { escolhidos: processos, criterio: 'unico' };
   if (naoSabe(t)) return { escolhidos: processos, criterio: 'todos' };
   const texto = (p: ProcessoPJ) => fold([p.assunto, p.orgao, p.vara].filter(Boolean).join(' '));
   for (const g of GRUPOS) {
@@ -262,7 +269,7 @@ export function respostaDuranteEspera(texto: string, intencao: string, temPenden
 export function pedidoNoticiaProcesso(texto: string): boolean {
   const t = fold(texto);
   if (/signific|quer dizer|o que e|vou ganhar|chance|ganho|perco|honorari|valor|quanto|pagamento|boleto/.test(t)) return false;
-  return /\b(?:como (?:ta|esta|anda|vai)|novidade|noticia|andamento|movimenta|atualiza|alguma coisa|status)\b.{0,40}\b(?:processo|caso|acao|audiencia)\b|\b(?:meu|minha|do meu|da minha|o meu)\s+(?:processo|caso|acao)\b.{0,30}\b(?:como|andou|andamento|novidade|ta|esta|anda)\b|\bnoticias?\s+(?:do|da|de)\s+(?:processo|caso|acao)|\btem\s+audiencia\b|\baudiencia\s+marcada\b/.test(t);
+  return /\b(?:como (?:ta|esta|anda|vai)|novidade|noticia|andamento|movimenta|atualiza|alguma coisa|status|situacao)\b.{0,40}\b(?:processo|caso|acao|audiencia)\b|\b(?:meu|minha|do meu|da minha|o meu)\s+(?:processo|caso|acao)\b.{0,30}\b(?:como|andou|andamento|novidade|ta|esta|anda)\b|\bnoticias?\s+(?:do|da|de)\s+(?:processo|caso|acao)|\b(?:ultima|ultimas|novas?)\s+movimenta(?:cao|coes)\b|\b(?:decisao|despacho|prazo|providencia|documentos? pendentes?)\b.{0,40}\b(?:meu processo|meu caso)\b|\btem\s+audiencia\b|\baudiencia\s+marcada\b/.test(t);
 }
 
 /** Pedido sobre terceiro (irmão, mãe, outra pessoa): nunca consulta; a equipe trata. */
@@ -272,7 +279,8 @@ export function pedidoSobreTerceiro(texto: string): boolean {
 
 /** Pedido para gravar, apagar, ver documento, significado, chance ou valores: não é consulta de notícia. */
 function foraDaConsulta(texto: string): boolean {
-  return /signific|quer dizer|o que e (?:isso|esse|essa)|vou ganhar|chance|ganho|perco|honorari|quanto|valor|pagamento|boleto|copia|documento|arquivo|pdf|sentenca na integra|cadastr|apag|exclu|alter[ae]|mud[ae] (?:meu|o)|atualiz[ae] (?:meu|o) (?:telefone|endereco)/.test(fold(texto));
+  const t = fold(texto);
+  return /signific|quer dizer|o que e (?:isso|esse|essa)|vou ganhar|chance|ganho|perco|honorari|quanto|valor|pagamento|boleto|copia|(?:manda|envia|abrir|baixar).{0,20}(?:documento|arquivo|pdf)|sentenca na integra|cadastr|apag|exclu|alter[ae]|mud[ae] (?:meu|o)|atualiz[ae] (?:meu|o) (?:telefone|endereco)|ainda (?:da|tenho) tempo|devo |preciso fazer|qual estrategia/.test(t) || /documento|arquivo|pdf/.test(t) && !/documentos? (?:pendentes?|faltantes?)/.test(t);
 }
 
 /** Decide se a mensagem vai para a consulta ao ProJuris (mesma regra no servidor e no simulador). */
@@ -290,6 +298,9 @@ export function mensagemNaoCliente(agora: Date): string {
 // ---------- Roteiro da consulta ----------
 export interface EntradaRedacao { primeiro_nome: string; processos: ReturnType<typeof fatosParaRedacao>['processos'] }
 export interface PortasConsulta {
+  /** Resolve a carteira/fatos oficiais e persiste antes de compor a resposta. */
+  prepararProcessos?(codigoPessoa: number): Promise<ProcessoPJ[]>;
+  confirmarAtualizacao?(codigoProcesso: number): Promise<void>;
   agora(): Date;
   identificar(telefone: string): Promise<Identificacao>;
   processosAtivos(codigoPessoa: number): Promise<ProcessoPJ[]>;
@@ -314,7 +325,7 @@ export type ResultadoConsulta =
   | { tipo: 'pedido'; pedido: PedidoProcesso; vinculo?: VinculoProjuris };
 
 export async function iniciarConsultaProcesso(
-  e: { conversaId: string; telefone: string; nomeContato: string; textoCliente: string; assuntoJaPerguntado: boolean; vinculo?: VinculoProjuris | undefined; aguardandoCpf?: boolean; perguntaOriginal?: string | undefined },
+  e: { conversaId: string; telefone: string; nomeContato: string; textoCliente: string; assuntoJaPerguntado: boolean; processosOferecidos?: number[] | undefined; vinculo?: VinculoProjuris | undefined; aguardandoCpf?: boolean; perguntaOriginal?: string | undefined },
   portas: PortasConsulta,
   cfg: ConfigConsultaProcesso = CONFIG_CONSULTA_PADRAO,
 ): Promise<ResultadoConsulta> {
@@ -327,6 +338,10 @@ export async function iniciarConsultaProcesso(
     let identificadoPor = 'telefone principal no ProJuris (cadastro único)';
     if (e.vinculo?.status === 'pendente') return { tipo: 'vinculo_pendente', mensagem: TEXTOS_VINCULO.pendente, vinculo: e.vinculo };
     if (e.vinculo?.status === 'confirmado') {
+      if (e.vinculo.origem === 'telefone') {
+        const atual = await portas.identificar(e.telefone);
+        if (atual.tipo !== 'unico' || atual.pessoa.codigo !== e.vinculo.codigoPessoa) return equipe('vínculo por telefone precisa de confirmação');
+      }
       pessoa = { codigo: e.vinculo.codigoPessoa, nome: e.vinculo.nome };
       identificadoPor = e.vinculo.origem === 'cpf' ? 'vínculo por CPF confirmado pela equipe' : 'vínculo gravado na conversa (telefone principal)';
     } else if (e.aguardandoCpf && portas.buscarPorCpf) {
@@ -345,31 +360,45 @@ export async function iniciarConsultaProcesso(
       novoVinculo = vinculoPorTelefone(id.pessoa, portas.agora());
     }
     const textoEscolha = e.perguntaOriginal?.trim() || e.textoCliente;
-    const ativos = await portas.processosAtivos(pessoa.codigo);
+    const ativos = (await (portas.prepararProcessos ?? portas.processosAtivos)(pessoa.codigo)).filter(p => p.envolvidos.some(v => v.codigoPessoa === pessoa.codigo && v.cliente));
     if (!ativos.length) return equipe('nenhum processo ativo como cliente');
-    const escolha = escolherProcessos(ativos, e.assuntoJaPerguntado ? e.textoCliente : textoEscolha);
-    if (escolha.criterio === 'indefinido' && !e.assuntoJaPerguntado) return { tipo: 'perguntar_assunto', mensagem: TEXTOS_CONSULTA.perguntaAssunto, codigoPessoa: pessoa.codigo };
+    const candidatos = e.processosOferecidos ? e.processosOferecidos.flatMap(codigo => ativos.filter(p => p.codigo === codigo && podeDetalhar(p))) : ativos;
+    const ordinal = e.assuntoJaPerguntado ? /^(?:o |processo |opcao )?([1-9]\d*)[.!]?$/i.exec(fold(e.textoCliente).trim())?.[1] : undefined;
+    const selecionado = ordinal ? candidatos[Number(ordinal) - 1] : undefined;
+    const escolha = ordinal ? { escolhidos: selecionado ? [selecionado] : [], criterio: 'assunto' as const } : escolherProcessos(candidatos, e.assuntoJaPerguntado ? e.textoCliente : textoEscolha);
+    if (!escolha.escolhidos.length) return equipe('processo solicitado não pertence às opções autorizadas');
+    const selecionar = escolha.criterio === 'indefinido' || escolha.escolhidos.length > 1 && escolha.criterio !== 'todos';
     if (escolha.escolhidos.every(p => !podeDetalhar(p))) return equipe('segredo de justiça');
     await portas.avisarCliente(TEXTOS_CONSULTA.aviso);
     const fatos: FatoProcesso[] = [];
-    for (const p of escolha.escolhidos) fatos.push(fatoDe(p, podeDetalhar(p) ? await portas.ultimosAndamentos(p.codigo) : []));
+    for (const p of escolha.escolhidos) {
+      if (podeDetalhar(p) && portas.confirmarAtualizacao) await portas.confirmarAtualizacao(p.codigo);
+      const movimentos = podeDetalhar(p) ? await portas.ultimosAndamentos(p.codigo) : [];
+      fatos.push(fatoDe(p, movimentos));
+    }
     const estadoLocal = portas.estadoLocal;
-    if (!cfg.aprovacao_processo && estadoLocal) {
+    const dadosFalharam = estadoLocal && escolha.escolhidos.some(p => podeDetalhar(p) && (estadoLocal(p.codigo).falha || dadosDesatualizados(estadoLocal(p.codigo).sincronizadoEm, portas.agora().getTime())));
+    if (dadosFalharam) return { tipo: 'equipe', mensagem: 'Não consegui confirmar a atualização do seu processo agora. Vou pedir à equipe que confira as informações.', motivo: 'dados processuais não confirmados' };
+    if (!cfg.aprovacao_processo && estadoLocal && !selecionar) {
       const mensagem = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime());
       await portas.registrar('consulta_factual_local');
       return { tipo: 'factual', mensagem, ...(novoVinculo ? { vinculo: novoVinculo } : {}) };
     }
     let texto = '';
     let padrao = false;
-    if (estadoLocal) {
+    if (selecionar) {
+      const publicos = escolha.escolhidos.filter(podeDetalhar);
+      texto = `Encontrei estes processos vinculados ao seu cadastro:\n\n${publicos.map((p, i) => [`📌 Processo ${i + 1}${p.numero ? `: ${p.numero}` : ''}`, ...(p.assunto ? [`Área/assunto: ${p.assunto}`] : []), ...(p.situacao ? [`Situação: ${p.situacao}`] : [])].join('\n')).join('\n\n')}\n\nSobre qual deles você gostaria de receber uma atualização mais detalhada?`;
+    } else if (estadoLocal) {
       // Base local: o texto proposto é a resposta factual já aprovada no formato; vai para autorização da Dra.
       texto = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime());
     } else {
       try { texto = (await portas.redigir(fatosParaRedacao(pessoa.nome, fatos))).trim(); } catch { texto = ''; }
     }
-    const validacao = estadoLocal && texto ? { ok: true as const, problemas: [] as string[] } : validarRascunho(texto, fatos);
+    const validacao = (estadoLocal || selecionar) && texto ? { ok: true as const, problemas: [] as string[] } : validarRascunho(texto, fatos);
     if (!validacao.ok) { await portas.registrar('rascunho_substituido', validacao.problemas.join('; ')); texto = rascunhoPadrao(pessoa.nome, fatos); padrao = true; }
     const pedido: PedidoProcesso = {
+      ...(selecionar ? { selecaoProcessos: escolha.escolhidos.filter(podeDetalhar).map(p => p.codigo) } : {}),
       codigo: proximoCodigo(await portas.codigosExistentes()),
       conversaId: e.conversaId,
       contato: { nome: pessoa.nome, telefone: e.telefone },
