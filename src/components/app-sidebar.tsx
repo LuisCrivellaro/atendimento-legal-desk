@@ -43,6 +43,7 @@ const groups: { label?: string; flow?: boolean; items: Item[] }[] = [
     ],
   },
   { label: "Cadastros", items: [{ title: "Clientes", url: "/clientes", icon: Users }] },
+  { label: "Contencioso", items: [{ title: "Processos", url: "/contencioso/processos", icon: Landmark }, { title: "Andamentos processuais", url: "/contencioso/andamentos", icon: Activity }] },
   {
     label: "Escritório",
     items: [

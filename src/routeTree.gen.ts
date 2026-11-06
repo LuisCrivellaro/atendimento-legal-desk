@@ -25,6 +25,9 @@ import { Route as AuthenticatedProducaoRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedProtocoloRouteImport } from './routes/_authenticated/protocolo'
 import { Route as AuthenticatedTreinamentoRouteImport } from './routes/_authenticated/treinamento'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as AuthenticatedContenciosoAndamentosRouteImport } from './routes/_authenticated/contencioso.andamentos'
+import { Route as AuthenticatedContenciosoProcessosRouteImport } from './routes/_authenticated/contencioso.processos'
+import { Route as AuthenticatedContenciosoProcessosCodigoRouteImport } from './routes/_authenticated/contencioso.processos_.$codigo'
 import { Route as ApiPublicAtendimentoLembreteConsultaRouteImport } from './routes/api/public/atendimento/lembrete-consulta'
 import { Route as ApiPublicAtendimentoMonitorarAnaRouteImport } from './routes/api/public/atendimento/monitorar-ana'
 import { Route as ApiPublicAtendimentoPendenciasProcessoRouteImport } from './routes/api/public/atendimento/pendencias-processo'
@@ -117,6 +120,24 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedContenciosoAndamentosRoute =
+  AuthenticatedContenciosoAndamentosRouteImport.update({
+    id: '/contencioso/andamentos',
+    path: '/contencioso/andamentos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContenciosoProcessosRoute =
+  AuthenticatedContenciosoProcessosRouteImport.update({
+    id: '/contencioso/processos',
+    path: '/contencioso/processos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedContenciosoProcessosCodigoRoute =
+  AuthenticatedContenciosoProcessosCodigoRouteImport.update({
+    id: '/contencioso/processos_/$codigo',
+    path: '/contencioso/processos/$codigo',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicAtendimentoLembreteConsultaRoute =
   ApiPublicAtendimentoLembreteConsultaRouteImport.update({
     id: '/api/public/atendimento/lembrete-consulta',
@@ -176,6 +197,9 @@ export interface FileRoutesByFullPath {
   '/protocolo': typeof AuthenticatedProtocoloRoute
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/contencioso/andamentos': typeof AuthenticatedContenciosoAndamentosRoute
+  '/contencioso/processos': typeof AuthenticatedContenciosoProcessosRoute
+  '/contencioso/processos/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
@@ -200,6 +224,9 @@ export interface FileRoutesByTo {
   '/treinamento': typeof AuthenticatedTreinamentoRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/contencioso/andamentos': typeof AuthenticatedContenciosoAndamentosRoute
+  '/contencioso/processos': typeof AuthenticatedContenciosoProcessosRoute
+  '/contencioso/processos/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
@@ -226,6 +253,9 @@ export interface FileRoutesById {
   '/_authenticated/treinamento': typeof AuthenticatedTreinamentoRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/_authenticated/contencioso/andamentos': typeof AuthenticatedContenciosoAndamentosRoute
+  '/_authenticated/contencioso/processos': typeof AuthenticatedContenciosoProcessosRoute
+  '/_authenticated/contencioso/processos_/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
@@ -252,6 +282,9 @@ export interface FileRouteTypes {
     | '/protocolo'
     | '/treinamento'
     | '/.lovable/oauth/consent'
+    | '/contencioso/andamentos'
+    | '/contencioso/processos'
+    | '/contencioso/processos/$codigo'
     | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
@@ -276,6 +309,9 @@ export interface FileRouteTypes {
     | '/treinamento'
     | '/'
     | '/.lovable/oauth/consent'
+    | '/contencioso/andamentos'
+    | '/contencioso/processos'
+    | '/contencioso/processos/$codigo'
     | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
@@ -301,6 +337,9 @@ export interface FileRouteTypes {
     | '/_authenticated/treinamento'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
+    | '/_authenticated/contencioso/andamentos'
+    | '/_authenticated/contencioso/processos'
+    | '/_authenticated/contencioso/processos_/$codigo'
     | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
@@ -439,6 +478,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/contencioso/andamentos': {
+      id: '/_authenticated/contencioso/andamentos'
+      path: '/contencioso/andamentos'
+      fullPath: '/contencioso/andamentos'
+      preLoaderRoute: typeof AuthenticatedContenciosoAndamentosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contencioso/processos': {
+      id: '/_authenticated/contencioso/processos'
+      path: '/contencioso/processos'
+      fullPath: '/contencioso/processos'
+      preLoaderRoute: typeof AuthenticatedContenciosoProcessosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/contencioso/processos_/$codigo': {
+      id: '/_authenticated/contencioso/processos_/$codigo'
+      path: '/contencioso/processos/$codigo'
+      fullPath: '/contencioso/processos/$codigo'
+      preLoaderRoute: typeof AuthenticatedContenciosoProcessosCodigoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/atendimento/lembrete-consulta': {
       id: '/api/public/atendimento/lembrete-consulta'
       path: '/api/public/atendimento/lembrete-consulta'
@@ -503,6 +563,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedProtocoloRoute: typeof AuthenticatedProtocoloRoute
   AuthenticatedTreinamentoRoute: typeof AuthenticatedTreinamentoRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedContenciosoAndamentosRoute: typeof AuthenticatedContenciosoAndamentosRoute
+  AuthenticatedContenciosoProcessosRoute: typeof AuthenticatedContenciosoProcessosRoute
+  AuthenticatedContenciosoProcessosCodigoRoute: typeof AuthenticatedContenciosoProcessosCodigoRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -517,6 +580,12 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedProtocoloRoute: AuthenticatedProtocoloRoute,
   AuthenticatedTreinamentoRoute: AuthenticatedTreinamentoRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedContenciosoAndamentosRoute:
+    AuthenticatedContenciosoAndamentosRoute,
+  AuthenticatedContenciosoProcessosRoute:
+    AuthenticatedContenciosoProcessosRoute,
+  AuthenticatedContenciosoProcessosCodigoRoute:
+    AuthenticatedContenciosoProcessosCodigoRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

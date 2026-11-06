@@ -85,7 +85,8 @@ export function processoDe(r: Obj): ProcessoPJ | undefined {
 
 export function andamentoDe(r: Obj): AndamentoPJ | undefined {
   const codigo = num(r['codigoAndamento'] ?? r['codigo']);
-  const descricao = txt(r['descricaoAndamento'] ?? r['descricao']);
+  const valorDescricao = r['descricaoAndamento'] ?? r['descricao'];
+  const descricao = typeof valorDescricao === 'string' && valorDescricao.trim() ? valorDescricao : undefined;
   if (!codigo || !descricao) return undefined;
   const data = typeof r['dataAndamento'] === 'number' ? String(r['dataAndamento']) : txt(r['dataAndamento']);
   const hora = txt(r['horaAndamento']), tipo = txt(r['nomeTipoAndamento']);

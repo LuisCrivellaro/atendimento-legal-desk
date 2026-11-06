@@ -11,9 +11,13 @@ import type { ClienteProjurisDiretorio } from '@/lib/projuris/diretorio';
 import { Empty } from './shared';
 import { dataHoraCurta } from '@/lib/atendimento';
 import { ProjurisCadastro } from './projuris-cadastro';
+import { useRouterState } from '@tanstack/react-router';
 
 
 export function ProjurisClientes() {
+  const selecionado = useRouterState({ select: s => new URLSearchParams(s.location.searchStr).get('clientId') });
+  const codigoSelecionado = selecionado && /^\d+$/.test(selecionado) ? Number(selecionado) : null;
+  const [selecionadoFechado, setSelecionadoFechado] = useState<string | null>(null);
   const listar = useServerFn(listarClientesProjuris);
   const [texto, setTexto] = useState('');
   const [busca, setBusca] = useState('');
@@ -40,6 +44,6 @@ export function ProjurisClientes() {
           <tbody>{d.itens.map(c => <tr key={c.codigo} className="border-b"><td className="p-3 font-medium">{c.nomeExibicao ?? c.nome}<p className="text-xs font-normal text-muted-foreground">{c.processosAtivos} processos ativos{!c.acoes ? ' · Classificação a conferir' : ''}</p>{c.nomePendencia && <p className="text-xs font-normal text-pending-foreground">Nome incompleto: {c.nomePendencia}</p>}</td><td className="whitespace-nowrap p-3">{c.cpfCnpj ?? 'Não informado'}</td><td className="p-3"><div className="flex items-center gap-2 whitespace-nowrap">{c.telefone ?? 'Não informado'}{c.telefone && <Button size="icon" variant="ghost" className="size-7" aria-label={`Copiar telefone de ${c.nome}`} onClick={() => void navigator.clipboard.writeText(c.telefone ?? '').then(() => toast.success('Telefone copiado.')).catch(() => toast.error('Não foi possível copiar o telefone.'))}><Copy className="size-3.5"/></Button>}</div><p className="text-xs text-muted-foreground">{c.email ?? ''}</p></td><td className="p-3">{[c.cidade, c.estado].filter(Boolean).join(' / ') || '—'}</td><td className="p-3"><span className={c.habilitado ? 'text-success' : 'text-muted-foreground'}>{c.habilitado ? 'Habilitado' : 'Desabilitado'}</span></td><td className="p-3"><Button size="sm" variant="outline" onClick={() => setAberto(c)}>Ver dados</Button></td></tr>)}</tbody></table></div>}
         <div className="mt-4 flex items-center justify-end gap-2 text-sm"><Button size="sm" variant="outline" aria-label="Página anterior" disabled={pagina === 0} onClick={() => setPagina(p => p - 1)}><ChevronLeft/></Button><span>Página {pagina + 1} de {paginas}</span><Button size="sm" variant="outline" aria-label="Próxima página" disabled={pagina + 1 >= paginas} onClick={() => setPagina(p => p + 1)}><ChevronRight/></Button></div>
       </>}
-    <Dialog open={!!aberto} onOpenChange={v => { if (!v) setAberto(null); }}>{aberto && <ProjurisCadastro key={aberto.codigo} codigo={aberto.codigo}/>}</Dialog>
+    <Dialog open={!!aberto || !!codigoSelecionado && selecionadoFechado !== selecionado} onOpenChange={v => { if (!v) { setAberto(null); setSelecionadoFechado(selecionado); } }}>{(aberto || codigoSelecionado && selecionadoFechado !== selecionado) && <ProjurisCadastro key={aberto?.codigo ?? codigoSelecionado} codigo={aberto?.codigo ?? codigoSelecionado ?? 0}/>}</Dialog>
   </div>;
 }

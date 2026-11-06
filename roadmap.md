@@ -3,9 +3,9 @@
 ## Contencioso real — 06/11/2026
 - [x] Consulta real do processo 1001676-10.2025.5.02.0001: 220 movimentos únicos em cinco páginas, 26/09/2025 a 04/11/2026; segunda leitura idêntica; 33 testes existentes aprovados. Relatório em docs/contencioso-validacao.md; nenhuma escrita operacional.
 - [x] Investigação API complementar: páginas excedentes vazias, lotes 50/100 idênticos, GET com complementos e POST sem filtros retornam 220; indicador independente confirma 220 (1 lido/219 não lidos).
-- [ ] Etapa 1: correspondência com Visualizar todos — consulta oficial classificada retorna HTTP 500 nos três formatos documentados examinados; falta resposta dessa consulta ou evidência de qual chamada alimenta a janela. Não expandir sem fechar essa lacuna.
-- [ ] Etapa 2: Processos, ficha/linha do tempo e Andamentos com filtros, paginação e sincronização persistente reutilizando integração/base existentes — aguarda comprovação da etapa 1 exigida pela Dra.
-- [ ] Testes finais de persistência, sincronização individual/geral, permissões e Clientes — aguardam implementação após a comprovação.
+- [x] Dra. autorizou desenvolvimento direto com a API validada; equivalência visual permanece limitação explícita, sem exportação manual.
+- [x] Processos, ficha/linha do tempo e Andamentos com filtros, paginação e sincronização persistente reutilizando integração/base existentes.
+- [x] Importação/sync geral real: 111 clientes, 131 processos, 7.931 movimentos, zero pendentes/falhas após retry individual; processo referência com 220, repetição zero versões novas; persistência após recarga. 687 testes passaram; Clientes e celular verificados. Limitações em docs/contencioso-implementacao.md; não publicado.
 
 ## Sincronização GitHub — 05/11/2026
 - [ ] Enviar o código-fonte atual completo ao repositório LuisCrivellaro/ManagerADV (branch main), sem sobrescrever alterações existentes nem apagar arquivos; comparar antes de enviar, como nas sincronizações anteriores.

@@ -50,9 +50,10 @@ export async function lerTodosAndamentos(codigo: number, cliente: Pick<ClientePr
       if (!a) throw new Error('Andamento sem identificação válida; leitura incompleta.');
       todos.set(a.codigo, a);
     }
+    const informado = raw && typeof raw === 'object' && !Array.isArray(raw) && typeof (raw as Record<string, unknown>)['totalRegistros'] === 'number';
     const total = totalRegistros(raw, chaves);
     if (!lote.length && todos.size < total) throw new Error('Paginação incompleta.');
-    if (todos.size >= total) return [...todos.values()];
+    if (informado ? todos.size >= total : !lote.length) return [...todos.values()];
     if (todos.size === antes) throw new Error('Paginação sem avanço.');
   }
   throw new Error('Limite de páginas atingido; dados anteriores preservados.');
