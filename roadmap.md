@@ -1,9 +1,10 @@
 # Construção dos módulos Manager ADV
 
 ## Contencioso real — 06/11/2026
-- [ ] Etapa 1: validar processo real vinculado, paginação completa e correspondência com ProJuris → Linha do tempo → Ver tudo; não avançar sem comprovação.
-- [ ] Etapa 2: após validação, Processos, ficha/linha do tempo e Andamentos com filtros, paginação e sincronização persistente reutilizando integração/base existentes.
-- [ ] Conferir repetição, integridade, permissões, Clientes e apresentar contagens reais e limitações.
+- [x] Consulta real do processo 1001676-10.2025.5.02.0001: 220 movimentos únicos em cinco páginas, 26/09/2025 a 04/11/2026; segunda leitura idêntica; 33 testes existentes aprovados. Relatório em docs/contencioso-validacao.md; nenhuma escrita operacional.
+- [ ] Etapa 1: correspondência com ProJuris → Linha do tempo → Ver tudo — bloqueada por falta de sessão/evidência da interface oficial do mesmo processo; solicitar exportação completa sem credenciais.
+- [ ] Etapa 2: Processos, ficha/linha do tempo e Andamentos com filtros, paginação e sincronização persistente reutilizando integração/base existentes — aguarda comprovação da etapa 1 exigida pela Dra.
+- [ ] Testes finais de persistência, sincronização individual/geral, permissões e Clientes — aguardam implementação após a comprovação.
 
 ## Sincronização GitHub — 05/11/2026
 - [ ] Enviar o código-fonte atual completo ao repositório LuisCrivellaro/ManagerADV (branch main), sem sobrescrever alterações existentes nem apagar arquivos; comparar antes de enviar, como nas sincronizações anteriores.
