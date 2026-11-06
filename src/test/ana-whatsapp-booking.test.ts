@@ -26,7 +26,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       const externo = canal === 'telegram' ? '839854097' : telefone;
       const messageId = `${canal}:${externo}:escolha-1`;
       const anterior={id:'anavelho',inicio:'2026-10-27T12:00:00.000Z',fim:'2026-10-27T12:30:00.000Z'};
-      const texto=cenario==='inicio'?'Olá':cenario==='nome'?'Maria Silva Souza':cenario==='recusa'?'Mas eu não quero agendar.':cenario==='humano'?'Poderia me passar para eu falar com alguém por favor':cenario==='especifico'?'tem segunda às 16h?':cenario==='aceite'?'sim':cenario==='tarde'?'e à tarde?':cenario==='numero'?'1':cenario==='cancelar'?'Quero cancelar minha consulta':cenario==='perguntar'?'Quero agendar uma consulta':cenario==='ofertar'?'Quero agendar uma consulta':'26/10 às 9h';
+      const texto=cenario==='inicio'?'Olá':cenario==='nome'?'Maria Silva Souza':cenario==='nomePendente'||cenario==='nomePendenteTardio'?'Maria vitória Ferreira Pimentel':cenario==='recusa'?'Mas eu não quero agendar.':cenario==='humano'?'Poderia me passar para eu falar com alguém por favor':cenario==='especifico'?'tem segunda às 16h?':cenario==='aceite'?'sim':cenario==='tarde'?'e à tarde?':cenario==='numero'?'1':cenario==='cancelar'?'Quero cancelar minha consulta':cenario==='perguntar'?'Quero agendar uma consulta':cenario==='ofertar'?'Quero agendar uma consulta':'26/10 às 9h';
       let saved:Conversa = {
         ...fixture, consultaAgendada: undefined, modoIA: 'Automática', tipoClienteAgenda: 'novo',
         agenteAna: { apresentado: true, agendaReal: true, horariosTeste: [inicio], dados: { nome: 'Maria Teste', cpf: '', assunto: 'Consulta', email: '' } },
@@ -37,6 +37,14 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='inicio'||cenario==='nome')delete saved.tipoClienteAgenda;
       if(cenario==='nome'){saved.agenteAna={...saved.agenteAna,agendaReal:true,horariosTeste:[inicio],tipoCliente:'novo'};saved.mensagens.unshift({id:'primeira',de:'escritorio',canal,texto:'Olá,\n\nSeja bem vindo (a)😊\n\nHorários já oferecidos.\n\nQual o seu nome?',hora:'01:00'});}
       if(cenario==='aceite')saved.agenteAna={...saved.agenteAna,horarioPendente:inicio,horarioPendenteDesde:'2026-10-23T04:00:00Z'};
+      // Erro real de 06/11/2026: cliente escolheu o horário, a Anne pediu o nome e, ao recebê-lo,
+      // transferiu para a equipe em vez de reservar. O modelo responde com transferência (mock padrão)
+      // e o servidor deve concluir a reserva mesmo assim — inclusive se outra mensagem entrou no meio
+      // ou se o nome chegou mais de 30 minutos depois da escolha.
+      if(cenario==='nomePendente'||cenario==='nomePendenteTardio'){
+        saved.agenteAna={apresentado:true,agendaReal:true,horariosTeste:[inicio],tipoCliente:'novo',dados:{nome:'',cpf:'',assunto:'',email:''},horarioPendente:inicio,horarioPendenteDesde:cenario==='nomePendente'?'2026-10-23T04:00:00Z':'2026-10-23T03:00:00Z'};
+        saved.mensagens.unshift({id:'pedido-nome',de:'escritorio',canal,texto:cenario==='nomePendente'?'Ótimo! Para registrar na agenda, qual é o seu nome completo?':'Segue o resumo do seu atendimento.',hora:'01:00'});
+      }
       if(cenario==='tarde')saved.mensagens.unshift({id:'lista',de:'escritorio',canal,texto:'🗓️ Horários livres:',hora:'01:00'});
       const config = { agente_ativo: true, canal_ativo: canal, modo_teste: true };
       const contato = { contato_externo: externo, telefone_ficticio: telefone, status: 'liberado' };
@@ -83,6 +91,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='recusa'||cenario==='humano'){expect(mocks.ocupados).not.toHaveBeenCalled();expect(mocks.reservar).not.toHaveBeenCalled();expect(saved.agenteAna?.resultado?.intencao).not.toBe('agendamento');}
       if(cenario==='especifico'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horarioPendente).toBe('2026-10-26T19:00:00.000Z');expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='aceite'||cenario==='numero'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBe(inicio);}
+      if(cenario==='nomePendente'||cenario==='nomePendenteTardio'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBe(inicio);expect(saved.agenteAna?.humano).toBe(false);expect(saved.mensagens.at(-1)?.texto).toContain('confirmada');expect(saved.mensagens.at(-1)?.texto).not.toMatch(/transferir|para a equipe/i);}
       if(cenario==='tarde'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste?.every(s=>new Date(s).getUTCHours()>=16)).toBe(true);}
       expect(saved.agenteAna).toMatchObject({ humano: cenario==='humano' });
       expect(mocks.enviar).toHaveBeenCalledOnce();
