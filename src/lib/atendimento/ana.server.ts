@@ -126,7 +126,11 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     // Resposta direta à saudação oficial ("Qual o seu nome?"): texto curto só com letras vale como nome.
     // Horário já escolhido aguardando o nome: vale mesmo se outra mensagem entrou no meio ou se passou mais
     // tempo; a reserva revalida a disponibilidade antes de confirmar.
-    const aguardaNome=!!c.agenteAna?.horarioPendente&&Date.parse(c.agenteAna.horarioPendente)>Date.now();
+    // Escolha anterior perdida (ex.: não reconhecida na hora): recupera da última mensagem do cliente após a oferta.
+    const clienteAnterior=c.mensagens.filter(x=>x.canal===canal&&x.de==='cliente'&&x.id!==messageId).at(-1)?.texto??'';
+    const recuperado=!c.agenteAna?.horarioPendente&&/nome completo/i.test(previous)?escolherHorarioAna(c.agenteAna?.horariosTeste??[],clienteAnterior):undefined;
+    const pendenteSalvo=c.agenteAna?.horarioPendente??recuperado;
+    const aguardaNome=!!pendenteSalvo&&Date.parse(pendenteSalvo)>Date.now();
     const respostaNome=introducao||nomePrimeiroContatoAna(m.texto,previous)||(aguardaNome?nomeParaHorarioPendenteAna(m.texto):'');
     if(respostaNome&&!raw.dados_coletados.nome.trim()){raw.dados_coletados.nome=respostaNome;}
     // Com escolha pendente, o nome recebido conclui o agendamento: nunca transferir para a equipe nesse passo.
@@ -147,8 +151,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const aceitouPendente=!!c.agenteAna?.horarioPendente&&!!c.agenteAna.horarioPendenteDesde&&Date.now()-Date.parse(c.agenteAna.horarioPendenteDesde)<30*60000&&/^(?:sim|pode|pode marcar|sim pode|sim por favor|confirmo|confirmar)[.!\s]*$/i.test(m.texto.trim());
     const especifico=!bloqueada?pedidoHorarioEspecifico(m.texto):undefined;
     // Uma pergunta de disponibilidade nunca autoriza uma reserva, mesmo em horário já oferecido.
-    const consultaEspecifica=!!especifico&&(/\?|\b(?:tem|livre|disponivel|disponível|pode ser)\b/i.test(m.texto)||!oferecidos.includes(especifico));
-    const selecionado=pendenteNome?c.agenteAna?.horarioPendente:!bloqueada&&!consultaEspecifica?(aceitouPendente?c.agenteAna?.horarioPendente:escolherHorarioAna(oferecidos,m.texto)??chosenSlot([...(c.agenteAna?.horariosTeste??[]),...(c.horariosOfertados??[])],m.texto)):undefined;
+    const consultaEspecifica=!!especifico&&(/\?|\b(?:tem|livre|disponivel|disponível)\b/i.test(m.texto)||!oferecidos.includes(especifico));
+    const selecionado=pendenteNome?pendenteSalvo:!bloqueada&&!consultaEspecifica?(aceitouPendente?c.agenteAna?.horarioPendente:escolherHorarioAna(oferecidos,m.texto)??chosenSlot([...(c.agenteAna?.horariosTeste??[]),...(c.horariosOfertados??[])],m.texto)):undefined;
     if(!bloqueada&&(especifico||selecionado||aceitouPendente))raw.intencao='agendamento';
     if(!primeiroContato&&!pendenteNome&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
     const gerenciarExistente=!!c.consultaAgendada&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar';
@@ -191,6 +195,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       if(outras&&pedidosOutras>=2&&!temPreferenciaAna(m.texto)&&horarios.length)r.mensagem=r.mensagem.replace('Qual fica melhor para você? Se preferir, me diga outro dia ou horário.','Prefere algum dia da semana ou período, manhã ou tarde?');
     }
     if(horarioPendente&&!pedirNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.motivo_aprovacao){r.acao='enviar';r.mensagem=`${linhaHorarioAna(horarioPendente)} está livre. Posso marcar para você?`;r.proximo_passo='Aguardar aceite explícito e nome completo para reservar o horário consultado.';}
+    // Nunca afirmar que anotou um horário que não foi reconhecido e salvo.
+    if(!selecionado&&!horarioPendente&&!pendenteNome&&/anotei (?:o|seu) hor|hor[aá]rio (?:que (?:voc[eê] )?escolheu|escolhido)/i.test(r.mensagem)){r.mensagem='Qual dos horários enviados fica melhor para você?';r.proximo_passo='Escolha de horário não reconhecida; aguardar escolha.';}
     if(indisponivel&&r.acao==='enviar')r.mensagem=`Esse horário não está disponível.\n\n${r.mensagem}`;
     if(identidade&&/qual (?:[ée] )?(?:o )?seu nome|como (?:você|voce) se chama/i.test(r.mensagem)){r.mensagem='Já tenho seu nome registrado. Vou continuar a partir da sua solicitação.';}
     if(semPeriodo&&r.acao==='enviar')r.mensagem='Não encontrei novas opções livres nesse período nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
