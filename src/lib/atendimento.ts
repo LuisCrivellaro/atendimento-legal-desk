@@ -58,7 +58,7 @@ export function newMessage(text:string,extra:Partial<Mensagem>={}):Mensagem{cons
 export function validCharge(value:string,description:string,due:string){return Number.isFinite(Number(value))&&Number(value)>0&&Boolean(description.trim())&&/^\d{4}-\d{2}-\d{2}$/.test(due);}
 export function chosenSlot(offered:string[],text:string){
  const unique=[...new Set(offered)];const exact=unique.filter(h=>text.includes(h));if(exact.length)return exact.length===1?exact[0]:undefined;
- const folded=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const folded=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/([a-gi-z])(\d)/g,'$1 $2').replace(/\b(\d{1,2})\s*(?:h|:)?\s*e\s+meia\b/g,'$1:30').replace(/\b(\d{1,2})[.,](\d{2})\b/g,'$1:$2');
  const times=[...folded.matchAll(/\b(\d{1,2})(?:h(\d{2})?|:(\d{2}))\b/g)].map(m=>({hour:Number(m[1]),minute:Number(m[2]??m[3]??0)}));
  if(times.length!==1||times[0]?.hour===undefined||times[0].hour>23||times[0].minute>59)return undefined;
  const dates=[...folded.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/\d{4})?\b/g)];const days=[...folded.matchAll(/\bdia\s+(\d{1,2})\b/g)];const weekdays=[...folded.matchAll(/\b(domingo|segunda|terca|quarta|quinta|sexta|sabado)(?:-feira)?\b/g)];

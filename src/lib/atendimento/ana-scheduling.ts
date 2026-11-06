@@ -16,8 +16,12 @@ export function bloqueiaAgenda(texto:string,intencao:string) {
   const t=fold(texto).trim();
   return pedidoHumano(texto)||/\bnao\s+(?:quero|desejo|vou|preciso)\s+(?:mais\s+)?(?:agendar|marcar)\b/.test(t)||/^(?:ola|oi|bom dia|boa tarde|boa noite|tudo bem)[!?.,\s]*$/.test(t)||(['reclamacao','processo','documento','novo_caso'].includes(intencao)&&!pedidoOutrasOpcoesAna(texto));
 }
+/** Normaliza escolhas digitadas às pressas: "As9:30" → "as 9:30", "9.30"/"9 e meia" → "9:30", "9hs" → "9h". */
+export function normalizarEscolhaHorario(texto:string) {
+  return fold(texto).trim().replace(/([a-gi-z])(\d)/g,'$1 $2').replace(/\b(\d{1,2})\s*(?:h|:)?\s*e\s+meia\b/g,'$1:30').replace(/\b(\d{1,2})[.,](\d{2})\b/g,'$1:$2').replace(/\b(\d{1,2})\s*hs?\b/g,'$1h').replace(/\b(\d{1,2})h\s+(\d{2})\b/g,'$1h$2').replace(/\s+/g,' ');
+}
 export function escolherHorarioAna(slots:string[],texto:string) {
-  const t=fold(texto).trim();
+  const t=normalizarEscolhaHorario(texto);
   // Oferta oficial: um horário de manhã e um à tarde; "de manhã"/"à tarde" escolhe o respectivo.
   const per=t.match(/^(?:(?:o|a|pode ser|prefiro|quero|fico com|melhor)\s+)*(?:(?:de|da|a|pela|na|o da|o de)\s+)?(manha|tarde)[.!\s]*$/);
   if(per){const m=slots.filter(s=>per[1]==='manha'?Number(partesAgenda(s)['hour'])<12:Number(partesAgenda(s)['hour'])>=12);return m.length===1?m[0]:undefined;}
