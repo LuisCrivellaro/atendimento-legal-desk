@@ -1,5 +1,5 @@
 import { describe,it,expect } from 'vitest';
-import { priorizarAgendamentoAna } from '@/lib/atendimento/ana-rules';
+import { priorizarAgendamentoAna, aceiteConsultaAna, pedidoInformacoesConsultaAna } from '@/lib/atendimento/ana-rules';
 import { aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, mensagemBreveAna, respostaAgendaTeste, horariosTesteAna, type AnaResult } from '@/lib/atendimento/ana-rules';
 const response:AnaResult={acao:'enviar',mensagem:'Sou Ana, assistente virtual. Como posso ajudar?',motivo_aprovacao:'',intencao:'duvida_geral',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''};
 describe('limites Ana',()=>{
@@ -47,6 +47,21 @@ describe('agenda real',()=>{
  it('oferta real ainda não é confirmação de reserva',()=>{const r=respostaAgendaTeste('26/10 às 10h30',['2026-10-26T13:30:00.000Z'],new Date(),true);expect(r.selected).toBe('2026-10-26T13:30:00.000Z');});
 });
 describe('escopo só de agendamento',()=>{
+ it('pedido de informações não aceita transferência inventada pelo modelo',()=>{
+  const texto='Gostaria de umas informações se for possível?';
+  const r=aplicarRegrasAna({...response,intencao:'outro',encaminhar_humano:true},'Automática',texto,[]);
+  expect(r.encaminhar_humano).toBe(false);expect(r.intencao).toBe('duvida_geral');expect(r.acao).toBe('enviar');
+ });
+ it('aceite do convite solicita horários sem exigir nome antecipadamente',()=>{
+  const anterior='Posso verificar os horários disponíveis para você?';
+  const r=priorizarAgendamentoAna({...response,intencao:'outro',encaminhar_humano:true},'Sim',false,anterior);
+  expect(r.intencao).toBe('agendamento');expect(r.encaminhar_humano).toBe(false);
+ });
+ it('sim isolado não autoriza agendamento nem muda confirmação de cancelamento',()=>{
+  expect(aceiteConsultaAna('Sim','')).toBe(false);
+  expect(aceiteConsultaAna('Sim','Quer cancelar sua consulta?')).toBe(false);
+ });
+ it.each(['Gostaria de informações sobre meu processo','Quero informações e falar com a equipe','Quanto vou receber de indenização?','Gostaria de informações sobre o pagamento'])('não transforma exceção em captação: %s',texto=>expect(pedidoInformacoesConsultaAna(texto)).toBe(false));
  const dentro=new Date('2026-10-27T13:00:00Z');
  it('pedido explícito de pessoa mantém a mensagem de sempre',()=>{
   const r=aplicarRegrasAna({...response,intencao:'outro',encaminhar_humano:true},'Automática','Quero falar com a doutora',[],{now:dentro});
@@ -67,5 +82,6 @@ describe('escopo só de agendamento',()=>{
  it('reclamação recebe acolhimento sem oferta de consulta',()=>{
   const r=aplicarRegrasAna({...response,intencao:'reclamacao'},'Automática','Ninguém me responde, que absurdo',[]);
   expect(r.mensagem).toBe('Sinto muito por isso.\nDeixei registrado para a equipe olhar com cuidado.');
+  expect(r.encaminhar_humano).toBe(true);
  });
 });
