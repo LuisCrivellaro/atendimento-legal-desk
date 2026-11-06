@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useRouter } from '@tanstack/react-router';
+import type { ErrorComponentProps } from '@tanstack/react-router';
 import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { RefreshCw, ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, Search, Loader2, Scale, FileText } from 'lucide-react';
@@ -100,7 +101,7 @@ export function ContenciosoPage({ filtros, modo, codigo }: { filtros: FiltrosCon
 function Filtro({ label, valor, alterar, opcoes }: { label: string; valor: string; alterar: (v: string) => void; opcoes: { valor: string; nome: string }[] }) {
   return <Select value={valor || '__todos'} onValueChange={v => alterar(v === '__todos' ? '' : v)}><SelectTrigger aria-label={label} className="w-full"><SelectValue placeholder={label}/></SelectTrigger><SelectContent><SelectItem value="__todos">{label}: todos</SelectItem>{opcoes.map(o => <SelectItem key={o.valor} value={o.valor}>{o.nome}</SelectItem>)}</SelectContent></Select>;
 }
-export function ContenciosoError({ error }: { error: Error }) {
+export function ContenciosoError({ error }: ErrorComponentProps) {
   const router = useRouter();
   return <div className="p-8"><h1 className="mb-4 text-2xl">Contencioso</h1><p role="alert" className="mb-4 text-destructive">{error.message}</p><Button variant="outline" onClick={() => void router.invalidate()}><RefreshCw/>Tentar novamente</Button></div>;
 }
