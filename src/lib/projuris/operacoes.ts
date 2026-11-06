@@ -24,6 +24,10 @@ export const OPERACOES_PROJURIS = {
   'pessoa.consultaCompleta': { metodo: 'POST', caminho: 'pessoa/consulta-completa', somenteLeitura: true, descricao: 'Busca com dados completos (telefones)' },
   'processo.consultaCompleta': { metodo: 'POST', caminho: 'processo/consulta-completa', somenteLeitura: true, descricao: 'Processos por envolvido e situação' },
   'processo.andamentos': { metodo: 'GET', caminho: 'processo/{codigo}/andamento/consulta', somenteLeitura: true, descricao: 'Andamentos de um processo' },
+  // Consultas oficiais confirmadas no Swagger /ui/swagger.json para validação do Contencioso.
+  'processo.andamentosBusca': { metodo: 'POST', caminho: 'processo/{codigo}/andamento/consulta', somenteLeitura: true, descricao: 'Busca avançada de andamentos do processo, sem alteração' },
+  'processo.andamentosClassificados': { metodo: 'POST', caminho: 'processo/andamento-classificado/consulta', somenteLeitura: true, descricao: 'Consulta de andamentos classificados do processo' },
+  'processo.andamentosIndicador': { metodo: 'POST', caminho: 'v2/processo-andamento/consulta/indicador', somenteLeitura: true, descricao: 'Contagem oficial de andamentos conforme filtros' },
   'tarefa.calendario': { metodo: 'POST', caminho: 'tarefa/calendario/consulta-sem-paginacao', somenteLeitura: true, descricao: 'Agenda (compromissos, audiências e prazos), só leitura' },
   'tarefa.tipos': { metodo: 'GET', caminho: 'tarefa-tipo/consulta', somenteLeitura: true, descricao: 'Tipos de tarefa/compromisso cadastrados' },
   'tarefa.compromissoConsulta': { metodo: 'POST', caminho: 'tarefa/calendario/consulta-sem-paginacao-compromisso', somenteLeitura: true, descricao: 'Agenda de compromissos, só leitura' },
