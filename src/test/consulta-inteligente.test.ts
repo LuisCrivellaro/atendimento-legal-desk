@@ -21,6 +21,11 @@ function portas(quantidade = 1) {
   return { p, antigo: () => { em = '2026-11-05T19:18:00Z'; }, novidade: () => { descricao = 'Despacho registrado.'; } };
 }
 describe('Consulta inteligente — onze cenários do anexo', () => {
+  it('opção removida não desloca ordinal para outro processo', async () => {
+    const { p } = portas(2);
+    const r = await iniciarConsultaProcesso({ ...entrada, textoCliente: '1', assuntoJaPerguntado: true, processosOferecidos: [3, 2] }, p);
+    expect(r.tipo).toBe('equipe'); expect(p.ultimosAndamentos).not.toHaveBeenCalled();
+  });
   it('um processo: consulta diretamente, preservando revisão', async () => {
     const { p } = portas(); const r = await iniciarConsultaProcesso(entrada, p);
     expect(r.tipo).toBe('pedido');
