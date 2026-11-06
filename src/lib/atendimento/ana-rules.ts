@@ -122,11 +122,19 @@ export function pediuNomeInicialAna(texto:string) {
   return saudacaoInicialAna(texto)||texto.endsWith('nome completo?');
 }
 
-export function nomePrimeiroContatoAna(texto:string,anterior:string) {
-  if(!pediuNomeInicialAna(anterior)||apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
+function nomeValidoAna(texto:string) {
   const nome=texto.trim().replace(/^(?:sou\s+(?:a|o)\s+|me chamo\s+|meu nome (?:é|e)\s+)/i,'');
   if(/\b(?:quero|preciso|gostaria|consulta|agendar|marcar|horário|horarios|obrigad[oa]|manh[aã]|tarde|sim|ok|pode|qualquer|melhor|prefiro|primeir[oa]|segund[oa])\b/i.test(nome))return '';
   return nome.length<=80&&/^[A-Za-zÀ-ÿ'´`-]+(?:\s+[A-Za-zÀ-ÿ'´`-]+){0,7}$/.test(nome)&&!/^não\b/i.test(nome)?nome:'';
+}
+export function nomePrimeiroContatoAna(texto:string,anterior:string) {
+  if(!pediuNomeInicialAna(anterior)||apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
+  return nomeValidoAna(texto);
+}
+/** Nome enviado enquanto um horário escolhido aguarda o nome completo, mesmo se outra mensagem entrou no meio. */
+export function nomeParaHorarioPendenteAna(texto:string) {
+  if(apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
+  return nomeValidoAna(texto);
 }
 
 /** Mensagem só de cumprimento ("oi", "boa tarde, tudo bem?"), sem pedido. */
