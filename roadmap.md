@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Captação e agendamento da Anne — 06/11/2026
+- [ ] Ajustar instruções e lógica existentes para conduzir pedidos de informações/interesse ao agendamento sem encaminhamento desnecessário, preservando questões jurídicas, pausas e agenda ProJuris.
+- [ ] Verificar escolha → nome faltante → reserva sem confirmação adicional, disponibilidade real e regressões na bateria existente.
+- [ ] Publicação e conversa real no WhatsApp dependem de autorização; não enviar mensagens nem criar reservas reais apenas para teste.
+
 ## Contencioso real — 06/11/2026
 - [x] Consulta real do processo 1001676-10.2025.5.02.0001: 220 movimentos únicos em cinco páginas, 26/09/2025 a 04/11/2026; segunda leitura idêntica; 33 testes existentes aprovados. Relatório em docs/contencioso-validacao.md; nenhuma escrita operacional.
 - [x] Investigação API complementar: páginas excedentes vazias, lotes 50/100 idênticos, GET com complementos e POST sem filtros retornam 220; indicador independente confirma 220 (1 lido/219 não lidos).
