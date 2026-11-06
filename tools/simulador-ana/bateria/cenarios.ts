@@ -275,7 +275,7 @@ export const CENARIOS: Cenario[] = [
   },
   {
     id:'D33',bloco:'D',titulo:'Escolheu horário e mandou o nome: reserva, nunca transfere',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
-    passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'9h',intencao:'agendamento'},{cliente:'Maria Vitória Fictícia Pimentel',intencao:'outro',humano:true}],
+    passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'9h30',intencao:'agendamento'},{cliente:'Maria Vitória Fictícia Pimentel',intencao:'outro',humano:true}],
     esperado:'O nome recebido após a escolha conclui a reserva; nunca transfere para a equipe',
     permitidas:['confirmar a consulta'],proibidas:['transferir para a equipe','pedir o nome de novo','perder o horário escolhido'],aprovacao:'não se aplica',ferramentas:{esperadas:['agenda.reservar'],proibidas:SEM_PROJURIS},comportamento:'Reservar o horário escolhido e confirmar; transferência só quando realmente necessária.',
     verificacoes:[v('d33-reserva','Consulta reservada sem transferência','regra',true,e=>{
