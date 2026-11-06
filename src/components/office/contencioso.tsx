@@ -19,8 +19,8 @@ import { filtrosContencioso } from '@/lib/contencioso';
 import { toast } from 'sonner';
 
 export function ContenciosoPage({ filtros: filtrosIniciais, modo, codigo }: { filtros: FiltrosContencioso; modo: 'processos' | 'andamentos' | 'ficha'; codigo?: number }) {
-  const search = useRouterState({ select: s => s.location.search });
-  const filtros = filtrosContencioso.parse({ ...filtrosIniciais, ...search });
+  const searchStr = useRouterState({ select: s => s.location.searchStr });
+  const filtros = filtrosContencioso.parse({ ...filtrosIniciais, ...Object.fromEntries(new URLSearchParams(searchStr)) });
   const { data: d } = useSuspenseQuery(contenciosoQuery(filtros, modo, codigo));
   const navigate = useNavigate(); const qc = useQueryClient(); const sincronizar = useServerFn(sincronizarProjurisManual);
   const [busy, setBusy] = useState(false); const [progresso, setProgresso] = useState('');
