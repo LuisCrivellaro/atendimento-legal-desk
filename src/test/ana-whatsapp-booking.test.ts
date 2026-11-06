@@ -14,7 +14,7 @@ vi.mock('@/lib/atendimento/envio.functions', () => ({ enviarMensagemSistema: moc
 
 describe('reserva WhatsApp com telefone do canal', () => {
   it.each(['ultramsg','telegram'] as const)('fluxos com canal %s e UltraMsg pausado no teste Telegram', async (canal) => {
-  for (const cenario of ['reservar','perguntar','cancelar','remarcar','ofertar','inicio','nome','recusa','humano','especifico','aceite','tarde','numero'] as const) {
+  for (const cenario of ['reservar','perguntar','cancelar','remarcar','ofertar','inicio','nome','recusa','humano','especifico','aceite','tarde','numero','nomePendente','nomePendenteTardio'] as const) {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-23T04:06:00Z'));
