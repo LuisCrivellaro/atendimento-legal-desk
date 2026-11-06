@@ -86,12 +86,22 @@ export function mensagemSemResposta(texto: string, arquivo = false) {
   return !arquivo && ['', 'ok','obrigado','obrigada','recebi','beleza','certo','perfeito','combinado'].includes(normalized(texto));
 }
 /** A disponibilidade da Ana não depende do expediente da equipe. */
-export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=false):AnaResult {
+export function pedidoInformacoesConsultaAna(texto:string):boolean {
+  const t=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  if(pedidoHumano(texto)||/processo|andamento|audiencia|documento|contrato|pagamento|boleto|prazo|honorari|direito|indeniza|reclam|ninguem|absurdo/.test(t))return false;
+  return /^(?:(?:ola|oi|bom dia|boa tarde|boa noite)[,.!\s]*)?(?:(?:eu\s+)?(?:gostaria|queria|quero|preciso)(?:\s+de)?\s+(?:(?:umas?|algumas?|mais)\s+)?(?:informacoes|informacao)(?:\s+(?:se (?:for )?possivel|por favor))?[?.!\s]*|(?:pode|poderia)\s+me\s+(?:dar|passar)\s+(?:umas?\s+)?informacoes[?.!\s]*|(?:como funciona|(?:a )?consulta (?:e (?:online|gratuita)|tem custo)|(?:quanto custa|qual (?:e )?o valor d[ae]) (?:a )?consulta)\b)/.test(t);
+}
+export function aceiteConsultaAna(texto:string,anterior:string):boolean {
+  return /^(?:sim|pode|pode sim|quero|quero sim|por favor|sim por favor|vamos|pode verificar)[.!\s]*$/i.test(texto.trim())&&/quer(?:ia)?|gostaria|deseja|posso|vamos/i.test(anterior)&&/agendar|marcar|verificar.{0,20}hor[aá]rios|consulta/i.test(anterior)&&!/cancelar|remarcar|equipe|transferir/i.test(anterior);
+}
+export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=false,anterior=''):AnaResult {
   const folded=texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(pedidoInformacoesConsultaAna(texto))return {...r,intencao:'duvida_geral',encaminhar_humano:false,mensagem:'Claro! Nossa consulta inicial com a Dra. Carolina é online e gratuita. Posso verificar os horários disponíveis para você?',motivo_aprovacao:''};
+  if(aceiteConsultaAna(texto,anterior)&&!pedidoHumano(texto))return {...r,intencao:'agendamento',encaminhar_humano:false,motivo_aprovacao:''};
   if(pedidoOutrasOpcoesAna(texto)&&!pedidoHumano(texto))return {...r,intencao:'agendamento',encaminhar_humano:false};
   if(bloqueiaAgenda(texto,r.intencao))return {...r,intencao:pedidoHumano(texto)?'outro':r.intencao==='agendamento'?'duvida_geral':r.intencao};
   const pedido=/\b(?:quero|gostaria|preciso|podemos|vamos)\b.{0,35}\b(?:agendar|marcar|consulta)\b|\b(?:quais|tem|outros?)\b.{0,25}\bhorarios?\b|\b(?:remarcar|cancelar|reagendar)\b/.test(folded);
-  return pedido?{...r,intencao:'agendamento'}:r;
+  return pedido?{...r,intencao:'agendamento',encaminhar_humano:false}:r;
 }
 /** Saudação oficial ao cliente novo (prompt da Dra. Carolina, 04/11/2026). Texto exato; o nome é pedido só após a escolha. */
 export const SAUDACAO_CLIENTE_NOVO = 'Olá , \n\nSeja bem vindo (a)😊\nEquipe CS Advocacia \nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
@@ -172,6 +182,7 @@ export function limparForaEscopoAna(msg:string):string{
   return partes.join('\n').replace(/\n{3,}/g,'\n\n').trim();
 }
 export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {
+  if(pedidoInformacoesConsultaAna(texto))r=priorizarAgendamentoAna(r,texto);
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   // O nome do cliente nunca dispara o filtro ético: "Maria Vitória" não é "chance de vitória"
@@ -183,7 +194,7 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   const urgent = /(?:risco.{0,15}vida|suicid|me matar|violencia|ameaca|perigo|citacao|oficial de justica|carta do forum|prazo.{0,25}(?:venc|amanha|hoje)|demitid.{0,30}(?:hoje|ontem|semana)|audiencia.{0,35}(?:hoje|amanha|semana))/.test(folded);
   const prohibited = etico || forbiddenTopics(texto,proibidos).length > 0 || forbiddenTopics(r.mensagem,proibidos).length > 0;
   // Tema delicado pede revisão, não uma tomada humana completa da conversa.
-  if(prohibited||r.intencao==='reclamacao')result={...result,acao:'enviar',mensagem:r.intencao==='reclamacao'&&!prohibited?'Sinto muito por isso. Deixei registrado para a equipe olhar com cuidado.':'Entendo. Essa dúvida precisa da avaliação da Dra. Carolina, então vou transferir seu atendimento para a equipe, que te responde por aqui.',encaminhar_humano:prohibited,motivo_aprovacao:prohibited?'':'Questão delicada registrada para avaliação humana; nenhuma orientação jurídica enviada.',proximo_passo:prohibited?'Equipe assume a dúvida jurídica; Ana pausada até devolução.':'Equipe: revisar a questão delicada registrada; Ana continua apenas acolhimento e coleta.'};
+  if(prohibited||r.intencao==='reclamacao')result={...result,acao:'enviar',mensagem:r.intencao==='reclamacao'&&!prohibited?'Sinto muito por isso. Deixei registrado para a equipe olhar com cuidado.':'Entendo. Essa dúvida precisa da avaliação da Dra. Carolina, então vou transferir seu atendimento para a equipe, que te responde por aqui.',encaminhar_humano:true,motivo_aprovacao:'',proximo_passo:prohibited?'Equipe assume a dúvida jurídica; Ana pausada até devolução.':'Equipe assume a reclamação; Ana pausada até devolução.'};
   else if(!humano)result.encaminhar_humano=false;
   if(humano){const now=options.now??new Date();const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/Sao_Paulo',weekday:'short',hour:'numeric',hourCycle:'h23'}).formatToParts(now).map(x=>[x.type,x.value]));const dentro=expedienteAna(now)&&Number(p['hour'])<17;result={...result,acao:'enviar',intencao:'outro',mensagem:`${pedidoHumano(texto)?'Claro! Já passei sua conversa para a equipe.':'Por aqui eu cuido só dos agendamentos, então passei sua conversa para a equipe.'}\n${dentro?'Alguém responsável te responde por aqui ainda hoje.':'Alguém responsável te responde no próximo dia útil, a partir das 8h.'}`,encaminhar_humano:true,motivo_aprovacao:'',proximo_passo:'Equipe assume a conversa; Ana pausada até devolução.'};}
   result.urgente ||= urgent;

@@ -293,6 +293,17 @@ export const CENARIOS: Cenario[] = [
   },
   // ---------- E. Falhas técnicas ----------
   {
+    id:'D34-captacao',bloco:'D',titulo:'Informações → aceite → escolha → nome → reserva única',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
+    passos:[{cliente:'Gostaria de umas informações se for possível?',intencao:'outro',humano:true},{cliente:'Sim',intencao:'outro',humano:true},{cliente:'1',intencao:'agendamento'},{cliente:'Gisele Fictícia Souza',intencao:'outro',humano:true}],
+    esperado:'Consulta reservada depois do nome sem transferência nem confirmação extra',permitidas:['conduzir à consulta','consultar agenda','reservar'],proibidas:['transferir desnecessariamente','inventar horário','reconfirmar escolha'],aprovacao:'não se aplica',ferramentas:{esperadas:['agenda.consultar','agenda.reservar'],proibidas:SEM_PROJURIS},comportamento:'Manter captação até a reserva verificada.',
+    verificacoes:[v('d34-reserva','Uma única reserva com dados necessários','regra',true,e=>{
+      const c=e.conversas['A'];
+      if(c?.agenteAna?.humano)return 'Transferiu para atendimento humano.';
+      if(!c?.consultaAgendada||c.agenteAna?.dados?.nome!=='Gisele Fictícia Souza')return 'Sem reserva ou nome completo.';
+      return e.ferramentas.filter(f=>f==='agenda.reservar').length===1?true:'Reserva ausente ou duplicada.';
+    })],
+  },
+  {
     id:'D29c',bloco:'D',titulo:'Nome identificado retorna outro dia sem nova oferta',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
     passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'Mariana Souza Lima',intencao:'agendamento'},{avancarMin:1440,cliente:'bom dia',intencao:'duvida_geral'}],esperado:'Saudação de retorno sem nome ou horários',permitidas:['retomar contexto'],proibidas:['nova lista automática','pedir nome conhecido'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Preservar nome e oferta anterior.',
     verificacoes:[v('retorno-sem-oferta','Não renova oferta no retorno','regra',true,e=>anaDe(e).at(-1)==='Olá! Como posso ajudar com seu atendimento?'?true:'Retorno não corresponde ao fluxo.')],
