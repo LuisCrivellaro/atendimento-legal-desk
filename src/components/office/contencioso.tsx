@@ -13,13 +13,13 @@ import { contenciosoQuery } from '@/lib/contencioso-query';
 import { sincronizarProjurisManual } from '@/lib/projuris-sync.functions';
 import { dataLegivel } from '@/lib/projuris/processos';
 import { dataHoraCurta } from '@/lib/atendimento';
-import type { FiltrosContencioso, MovimentoContencioso } from '@/lib/contencioso';
+import type { FiltrosContencioso } from '@/lib/contencioso';
 import { toast } from 'sonner';
 
 export function ContenciosoPage({ filtros, modo, codigo }: { filtros: FiltrosContencioso; modo: 'processos' | 'andamentos' | 'ficha'; codigo?: number }) {
   const { data: d } = useSuspenseQuery(contenciosoQuery(filtros, modo, codigo));
   const navigate = useNavigate(); const qc = useQueryClient(); const sincronizar = useServerFn(sincronizarProjurisManual);
-  const [busy, setBusy] = useState(false); const [progresso, setProgresso] = useState(''); const [parar, setParar] = useState(false);
+  const [busy, setBusy] = useState(false); const [progresso, setProgresso] = useState('');
   const alterar = (mudanca: Partial<FiltrosContencioso>) => {
     const search = { ...filtros, pagina: 0, ...mudanca };
     if (modo === 'ficha' && codigo) void navigate({ to: '/contencioso/processos/$codigo', params: { codigo: String(codigo) }, search });
@@ -27,7 +27,7 @@ export function ContenciosoPage({ filtros, modo, codigo }: { filtros: FiltrosCon
     else void navigate({ to: '/contencioso/processos', search });
   };
   const atualizar = async (escopo: 'cadastros' | 'geral' | 'individual') => {
-    if (busy) return; setBusy(true); setParar(false);
+    if (busy) return; setBusy(true);
     let novas = 0, falhas = 0, completos = 0;
     try {
       if (escopo === 'cadastros') {
