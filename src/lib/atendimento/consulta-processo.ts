@@ -84,7 +84,7 @@ function justicaCnj(numero?: string) { return /\d{7}-\d{2}\.\d{4}\.(\d)\.\d{2}\.
 
 export function escolherProcessos(processos: ProcessoPJ[], textoCliente: string): { escolhidos: ProcessoPJ[]; criterio: 'unico' | 'assunto' | 'todos' | 'indefinido' } {
   const t = fold(textoCliente);
-  const numeros = textoCliente.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g) ?? [];
+  const numeros: string[] = Array.from(textoCliente.matchAll(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g), m => m[0]);
   if (numeros.length) {
     const achados = processos.filter(p => p.numero && numeros.includes(p.numero));
     return numeros.every(n => achados.some(p => p.numero === n)) ? { escolhidos: achados, criterio: 'assunto' } : { escolhidos: [], criterio: 'indefinido' };

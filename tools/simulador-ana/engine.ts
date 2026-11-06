@@ -395,9 +395,8 @@ export class SimuladorAna {
   pausar(motivo: string) {
     this.atualizar(cur => ({ ...cur, agenteAna: { ...cur.agenteAna, humano: true, proximoPasso: `Equipe: ${motivo}` } }));
   }
-  entregarAprovado(texto: string) {
+  entregarAprovado(texto: string, pedido?: PedidoProcesso) {
     this.enviarAna(texto);
-    const pedido = this.conv.agenteAna?.pedidosProcesso?.find(p => p.decisao?.textoEnviado === texto);
     if (pedido?.selecaoProcessos && pedido.status === 'aprovado') this.atualizar(c => ({ ...c, agenteAna: { ...c.agenteAna, processosOferecidos: pedido.selecaoProcessos, aguardandoAssuntoProcesso: true } }));
   }
 
@@ -413,7 +412,7 @@ export class SimuladorAna {
       return true;
     }
     // Só o pedido explícito de falar com alguém impede a consulta; a marcação do modelo não basta.
-    if (!deveConsultarProcesso({ intencao, texto, encaminharHumano: pedidoHumano(texto), aguardandoAssunto: this.aguardandoAssunto })) return false;
+    if (!deveConsultarProcesso({ intencao, texto, encaminharHumano: pedidoHumano(texto), aguardandoAssunto: this.aguardandoAssunto || !!this.conv.agenteAna?.aguardandoAssuntoProcesso })) return false;
     const ferramenta = (nome: string) => turno.ferramentas.push(nome);
     const pj = criarProjurisFicticio(this.projuris, this.falhaProjuris ? { falha: this.falhaProjuris } : {});
     const portas: PortasConsulta = {
@@ -480,7 +479,7 @@ export class CentralRevisao {
     const canal = origem.canal === 'manager' ? 'manager' : 'revisora';
     const d = await aplicarDecisao(alvo.pedido, c, canal === 'manager' ? 'sênior/admin (Manager)' : 'revisora', canal, new Date());
     alvo.pedido = d.pedido;
-    if (d.enviarCliente) alvo.sim.entregarAprovado(d.enviarCliente);
+    if (d.enviarCliente) alvo.sim.entregarAprovado(d.enviarCliente, d.pedido);
     if (d.pausarAna) alvo.sim.pausar('revisora recusou a notícia do processo');
     this.registros.push(`${c.codigo}: ${d.pedido.status} (${canal}).`);
     return d.pedido.status;
