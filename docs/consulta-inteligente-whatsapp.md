@@ -10,6 +10,7 @@
 - Listas e atualizações continuam exigindo aprovação individual da Dra. A interpretação jurídica permanece humana; simplificação oficial disponível pode compor o texto revisado.
 
 ## Verificação
+- Suíte completa: 710 testes em 83 arquivos aprovados; compilação automática sem erros.
 - Onze cenários do anexo cobertos com portas controladas, incluindo identidade, seleção, novidades, falha, ausência de registro e processo alheio. Testes adicionais cobrem páginas intermediárias, paginação sem total e alteração das opções.
 - Leitura real somente de andamentos do processo de referência: 220 registros, 220 públicos com datas válidas; nenhum envio, pedido de revisão ou dado fictício gravado em produção.
 - Publicação e fluxo completo de consulta → revisão → entrega no WhatsApp ainda não executados. Exigem autorização de publicação e mensagem real de cliente; testes controlados não equivalem a entrega externa.
