@@ -260,6 +260,8 @@ export class SimuladorAna {
       if(!primeiroContato&&!pendenteNome&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
       const gerenciarExistente = !!c.consultaAgendada && alteracao !== 'remarcar' && c.agenteAna?.alteracaoConsulta !== 'remarcar';
       let horarioPendente: string | undefined;
+      // Escolheu um dos horários oferecidos sem nome: guardar a escolha e pedir só o nome completo.
+      const pedirNome = !!selecionado && !pendenteNome && !nome && !!tipoCliente && !!telefone && mode === 'Automática' && !bloqueada;
       let semPeriodo = false;
       let indisponivel = false;
       if (teste && tipoCliente && telefone && raw.intencao === 'agendamento' && !bloqueada && !selecionado && !gerenciarExistente && !semConsulta && !recebeuNome && (primeiroContato || nome || consultaEspecifica || /horarios|horários/.test(m.texto))) {
@@ -280,12 +282,13 @@ export class SimuladorAna {
       if (await this.fluxoProcesso(m.texto, raw.intencao, r, turno)) return;
       const saudou=pediuNomeInicialAna(r.mensagem);
       if(recebeuNome&&mode==='Automática'&&!r.encaminhar_humano&&!r.urgente){r.acao='enviar';r.motivo_aprovacao='';r.mensagem=historicoHorarios.length?`Obrigada, ${nome}. Qual das opções já apresentadas fica melhor para você?`:`Obrigada, ${nome}. Vou manter o contexto do seu atendimento.`;r.proximo_passo='Nome recebido; aguardar escolha dos horários já oferecidos.';}
+      if (pedirNome && selecionado && !r.encaminhar_humano && !r.urgente) { horarioPendente = selecionado; r.acao = 'enviar'; r.intencao = 'agendamento'; r.motivo_aprovacao = ''; r.mensagem = PEDIDO_NOME_AGENDA_ANA; r.proximo_passo = 'Horário escolhido; aguardar nome completo para reservar.'; }
       if (!saudou && !recebeuNome && agendaReal && !selecionado && !horarioPendente && !gerenciarExistente && r.acao === 'enviar' && r.intencao === 'agendamento' && !r.motivo_aprovacao) {
         r.mensagem = listaHorariosAna(horarios, new Date(), repetida);
         if (frustracaoHorariosAna(m.texto) && horarios.length) r.mensagem = r.mensagem.replace(/^[^\n]+/, 'Desculpe! Aqui vão opções diferentes:');
         if (outras && pedidosOutras >= 2 && !temPreferenciaAna(m.texto) && horarios.length) r.mensagem = r.mensagem.replace('Qual fica melhor para você? Se preferir, me diga outro dia ou horário.', 'Prefere algum dia da semana ou período, manhã ou tarde?');
       }
-      if (horarioPendente && mode === 'Automática' && !r.encaminhar_humano && !r.motivo_aprovacao) { r.acao = 'enviar'; r.mensagem = `${linhaHorarioAna(horarioPendente)} está livre. Posso marcar para você?`; r.proximo_passo = 'Aguardar aceite explícito e nome completo para reservar o horário consultado.'; }
+      if (horarioPendente && !pedirNome && mode === 'Automática' && !r.encaminhar_humano && !r.motivo_aprovacao) { r.acao = 'enviar'; r.mensagem = `${linhaHorarioAna(horarioPendente)} está livre. Posso marcar para você?`; r.proximo_passo = 'Aguardar aceite explícito e nome completo para reservar o horário consultado.'; }
       if (indisponivel && r.acao === 'enviar') r.mensagem = `Esse horário não está disponível.\n\n${r.mensagem}`;
       if(identidade&&/qual (?:[ée] )?(?:o )?seu nome|como (?:você|voce) se chama/i.test(r.mensagem)){r.mensagem='Já tenho seu nome registrado. Vou continuar a partir da sua solicitação.';}
       if (semPeriodo && r.acao === 'enviar') r.mensagem = 'Não encontrei novas opções livres nesse período nos próximos 15 dias úteis. Quer que a equipe entre em contato com você?';
@@ -331,7 +334,7 @@ export class SimuladorAna {
           }
         }
         const ofertasEquipe = (current.horariosOfertados ?? []).filter(s => tipoCliente && horarioPermitido(s, tipoCliente) && Date.parse(s) > Date.now());
-        escolhido = escolherReservaAna({ texto: m.texto, selecionado, horarios: agendaReal ? [...(c.agenteAna?.horariosTeste ?? []), ...ofertasEquipe] : ofertasEquipe, real: agendaReal || ofertasEquipe.length > 0, tipoCliente, teste: true, modo: current.modoIA ?? this.modoIA, bloqueado: bloqueada || consultaEspecifica || cancelar || perguntar || !tipoCliente || !nome || !telefone || r.intencao !== 'agendamento' || r.encaminhar_humano || !!r.motivo_aprovacao });
+        escolhido = escolherReservaAna({ texto: m.texto, selecionado, horarios: agendaReal ? [...(c.agenteAna?.horariosTeste ?? []), ...ofertasEquipe] : ofertasEquipe, real: agendaReal || ofertasEquipe.length > 0, tipoCliente, teste: true, modo: current.modoIA ?? this.modoIA, bloqueado: pedirNome || (bloqueada && !pendenteNome) || consultaEspecifica || cancelar || perguntar || !tipoCliente || !nome || !telefone || r.intencao !== 'agendamento' || r.encaminhar_humano || !!r.motivo_aprovacao });
         if (escolhido) {
           if (current.consultaAgendada && current.agenteAna?.alteracaoConsulta !== 'remarcar') {
             r.mensagem = `Você já tem uma consulta marcada para ${formatarHorarioCliente(current.consultaAgendada)}. Deseja remarcar ou cancelar esse agendamento?`;
