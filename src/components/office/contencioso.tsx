@@ -103,5 +103,5 @@ function Filtro({ label, valor, alterar, opcoes }: { label: string; valor: strin
 }
 export function ContenciosoError({ error }: ErrorComponentProps) {
   const router = useRouter();
-  return <div className="p-8"><h1 className="mb-4 text-2xl">Contencioso</h1><p role="alert" className="mb-4 text-destructive">{error.message}</p><Button variant="outline" onClick={() => void router.invalidate()}><RefreshCw/>Tentar novamente</Button></div>;
+  return <div className="p-8"><h1 className="mb-4 text-2xl">Contencioso</h1><p role="alert" className="mb-4 text-destructive">{error instanceof Error ? error.message : 'Não foi possível consultar o Contencioso.'}</p><Button variant="outline" onClick={() => void router.invalidate()}><RefreshCw/>Tentar novamente</Button></div>;
 }
