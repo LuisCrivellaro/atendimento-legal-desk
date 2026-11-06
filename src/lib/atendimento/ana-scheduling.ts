@@ -18,7 +18,7 @@ export function bloqueiaAgenda(texto:string,intencao:string) {
 }
 /** Normaliza escolhas digitadas às pressas: "As9:30" → "as 9:30", "9.30"/"9 e meia" → "9:30", "9hs" → "9h". */
 export function normalizarEscolhaHorario(texto:string) {
-  return fold(texto).trim().replace(/([a-z])(\d)/g,'$1 $2').replace(/\b(\d{1,2})\s*(?:h|:)?\s*e\s+meia\b/g,'$1:30').replace(/\b(\d{1,2})[.,](\d{2})\b/g,'$1:$2').replace(/\b(\d{1,2})\s*hs?\b/g,'$1h').replace(/\b(\d{1,2})h\s+(\d{2})\b/g,'$1h$2').replace(/\s+/g,' ');
+  return fold(texto).trim().replace(/([a-gi-z])(\d)/g,'$1 $2').replace(/\b(\d{1,2})\s*(?:h|:)?\s*e\s+meia\b/g,'$1:30').replace(/\b(\d{1,2})[.,](\d{2})\b/g,'$1:$2').replace(/\b(\d{1,2})\s*hs?\b/g,'$1h').replace(/\b(\d{1,2})h\s+(\d{2})\b/g,'$1h$2').replace(/\s+/g,' ');
 }
 export function escolherHorarioAna(slots:string[],texto:string) {
   const t=normalizarEscolhaHorario(texto);
