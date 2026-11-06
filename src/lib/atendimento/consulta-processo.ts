@@ -301,6 +301,7 @@ export interface PortasConsulta {
   /** Resolve a carteira/fatos oficiais e persiste antes de compor a resposta. */
   prepararProcessos?(codigoPessoa: number): Promise<ProcessoPJ[]>;
   confirmarAtualizacao?(codigoProcesso: number): Promise<void>;
+  fatosRegistrados?(codigoProcesso: number, pergunta: string): Promise<AndamentoLegivel[] | undefined>;
   agora(): Date;
   identificar(telefone: string): Promise<Identificacao>;
   processosAtivos(codigoPessoa: number): Promise<ProcessoPJ[]>;
@@ -373,7 +374,9 @@ export async function iniciarConsultaProcesso(
     const fatos: FatoProcesso[] = [];
     for (const p of escolha.escolhidos) {
       if (podeDetalhar(p) && portas.confirmarAtualizacao) await portas.confirmarAtualizacao(p.codigo);
-      const movimentos = podeDetalhar(p) ? await portas.ultimosAndamentos(p.codigo) : [];
+      const registrados = podeDetalhar(p) && portas.fatosRegistrados ? await portas.fatosRegistrados(p.codigo, textoEscolha) : undefined;
+      if (registrados && !registrados.length) return equipe('providência, audiência ou prazo não encontrado em registro público confirmado');
+      const movimentos = podeDetalhar(p) ? registrados ?? await portas.ultimosAndamentos(p.codigo) : [];
       fatos.push(fatoDe(p, movimentos));
     }
     const estadoLocal = portas.estadoLocal;
@@ -391,7 +394,7 @@ export async function iniciarConsultaProcesso(
       texto = `Encontrei estes processos vinculados ao seu cadastro:\n\n${publicos.map((p, i) => [`📌 Processo ${i + 1}${p.numero ? `: ${p.numero}` : ''}`, ...(p.assunto ? [`Área/assunto: ${p.assunto}`] : []), ...(p.situacao ? [`Situação: ${p.situacao}`] : [])].join('\n')).join('\n\n')}\n\nSobre qual deles você gostaria de receber uma atualização mais detalhada?`;
     } else if (estadoLocal) {
       // Base local: o texto proposto é a resposta factual já aprovada no formato; vai para autorização da Dra.
-      texto = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime());
+      texto = respostaFactual(escolha.escolhidos.map(p => ({ processo: p, andamentos: fatos.find(f => f.codigo === p.codigo)?.andamentos ?? [], ...estadoLocal(p.codigo) })), portas.agora().getTime(), textoEscolha);
     } else {
       try { texto = (await portas.redigir(fatosParaRedacao(pessoa.nome, fatos))).trim(); } catch { texto = ''; }
     }

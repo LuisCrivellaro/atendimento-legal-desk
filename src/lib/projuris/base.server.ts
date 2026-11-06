@@ -95,6 +95,18 @@ export async function portasLocais(db: Db, owner: string) {
     processosAtivos: async (codigoPessoa: number) => (base.processos[String(codigoPessoa)] ?? []).flatMap(p => { const m = processoDe(p); return m && m.envolvidos.some(e => e.codigoPessoa === codigoPessoa && e.cliente) ? [m] : []; }),
     ultimosAndamentos: async (codigo: number) => ultimosAndamentosPublicos((porCodigo.get(codigo)?.atuais ?? []) as unknown as AndamentoPJ[]),
     estado: (codigo: number) => ({ sincronizadoEm: porCodigo.get(codigo)?.ultimo_sucesso ?? null, falha: !!porCodigo.get(codigo)?.erro }),
+    fatosRegistrados: async (codigo: number, pergunta: string) => {
+      const t = pergunta.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const categorias = [
+        { pedido: /audiencia/, registro: /audiencia/ },
+        { pedido: /prazo/, registro: /prazo/ },
+        { pedido: /documentos? (?:pendentes?|faltantes?)/, registro: /documento.{0,80}(?:pendente|faltante|apresentar)|(?:apresentar|providenciar|juntar).{0,80}documento/ },
+        { pedido: /providencia/, registro: /providencia/ },
+        { pedido: /decisao|despacho/, registro: /decisao|despacho|sentenca/ },
+      ].filter(c => c.pedido.test(t));
+      if (!categorias.length) return undefined;
+      return ultimosAndamentosPublicos((porCodigo.get(codigo)?.atuais ?? []) as unknown as AndamentoPJ[], Number.MAX_SAFE_INTEGER).filter(a => categorias.some(c => c.registro.test(a.descricao.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()))).slice(0, 3);
+    },
   };
 }
 export async function salvarFicha(db: Db, owner: string, codigo: number, ficha: Record<string, unknown>) {
@@ -141,6 +153,7 @@ export async function portasConsultaAtualizada(db: Db, owner: string) {
       }
     },
     ultimosAndamentos: async (codigo: number) => local?.ultimosAndamentos(codigo) ?? [],
+    fatosRegistrados: async (codigo: number, pergunta: string) => local?.fatosRegistrados(codigo, pergunta),
     estadoLocal: (codigo: number) => local?.estado(codigo) ?? { sincronizadoEm: null, falha: true },
   };
 }

@@ -23,9 +23,9 @@ export async function carregarIndiceProjuris(consultas: Consultas = criarConsult
       const principais = p.telefones.filter(t => t.principal);
       if (principais.length) pessoas.push({ codigo: p.codigo, nome: p.nome, telefones: principais });
     }
-    if (!lote.length || lote.length < POR_PAGINA || lidos >= total) break;
+    if (!lote.length || lote.length < POR_PAGINA || total > lote.length && lidos >= total) return [...new Map(pessoas.map(p => [p.codigo, p])).values()];
   }
-  return pessoas;
+  throw new Error('Índice de identidade incompleto; divulgação bloqueada.');
 }
 
 async function indice(agora: number, consultas?: Consultas): Promise<PessoaComTelefones[]> {

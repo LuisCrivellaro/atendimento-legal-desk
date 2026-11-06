@@ -10,7 +10,7 @@ const CHAVES_PESSOA = ['pessoaConsultaCompleta', 'pessoaConsulta', 'pessoas', 'p
 const CHAVES_PROCESSO = ['processoConsultaCompleta', 'processoConsulta', 'processos', 'processoWs'];
 const CHAVES_ANDAMENTO = ['andamentoProcessoWs', 'andamentoWs', 'andamentos'];
 const POR_PAGINA = 50;
-const MAX_PAGINAS_PROCESSOS = 5;
+const MAX_PAGINAS_PROCESSOS = 200;
 
 const definido = <T>(v: T | undefined): v is T => v !== undefined;
 
