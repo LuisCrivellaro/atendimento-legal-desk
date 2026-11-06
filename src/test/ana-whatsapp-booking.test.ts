@@ -79,7 +79,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       mocks.cancelar.mockResolvedValue(undefined);
       mocks.ocupados.mockResolvedValue([{start:inicio,end:'2026-10-26T12:30:00.000Z'}]);
       mocks.enviar.mockResolvedValue({ simulado: false, idExterno: 'envio-teste' });
-      await processarAna(db as unknown as SupabaseClient<Database>, 'caso-teste', messageId, new Request('http://localhost:8080')).catch(e=>console.log('ERRO', cenario, (e as Error).message));console.log('DBG', cenario, 'enviar', mocks.enviar.mock.calls.length, 'reservar', mocks.reservar.mock.calls.length, 'humano', saved.agenteAna?.humano, 'msg', JSON.stringify(saved.mensagens.at(-1)?.texto?.slice(0,60)));
+      await processarAna(db as unknown as SupabaseClient<Database>, 'caso-teste', messageId, new Request('http://localhost:8080'));
       expect(mocks.gerar.mock.calls[0]?.[1].telefone_informado).toBe('5511999600306');
       if(cenario==='reservar') {expect(mocks.reservar).toHaveBeenCalledWith('caso-teste', inicio, expect.any(Date), { nome: 'Maria Teste', telefone: '5511999600306', tipo: 'novo' });expect(saved.consultaAgendada).toBe(inicio);}
       if(cenario==='perguntar'){expect(mocks.reservar).not.toHaveBeenCalled();expect(mocks.cancelar).not.toHaveBeenCalled();expect(saved.consultaAgendada).toBe(anterior.inicio);}
@@ -94,7 +94,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='nomePendente'||cenario==='nomePendenteTardio'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBe(inicio);expect(saved.agenteAna?.humano).toBe(false);expect(saved.mensagens.at(-1)?.texto).toContain('confirmada');expect(saved.mensagens.at(-1)?.texto).not.toMatch(/transferir|para a equipe/i);}
       if(cenario==='tarde'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste?.every(s=>new Date(s).getUTCHours()>=16)).toBe(true);}
       expect(saved.agenteAna).toMatchObject({ humano: cenario==='humano' });
-      expect(mocks.enviar, `cenario ${cenario}`).toHaveBeenCalledOnce();
+      expect(mocks.enviar).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
       expect(saved.mensagens.at(-1)?.canal).toBe(canal);
     } finally {
