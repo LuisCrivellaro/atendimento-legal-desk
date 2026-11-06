@@ -36,6 +36,7 @@ export function criarConsultasProjuris(cliente: Pick<ClienteProjuris, 'chamar'> 
   async function processosAtivos(codigoPessoa: number): Promise<ProcessoPJ[]> {
     const ativo = await codigoSituacaoAtivo();
     const todos: ProcessoPJ[] = [];
+    let completa = false;
     for (let pagina = 0; pagina < MAX_PAGINAS_PROCESSOS; pagina++) {
       const raw = await cliente.chamar('processo.consultaCompleta', {
         consulta: { pagina, 'quan-registros': POR_PAGINA },
@@ -43,21 +44,18 @@ export function criarConsultasProjuris(cliente: Pick<ClienteProjuris, 'chamar'> 
       });
       const lote = registros(raw, CHAVES_PROCESSO).map(processoDe).filter(definido);
       todos.push(...lote);
-      if (lote.length < POR_PAGINA || todos.length >= totalRegistros(raw, CHAVES_PROCESSO)) break;
+      const informado = raw && typeof raw === 'object' && !Array.isArray(raw) && typeof (raw as Record<string, unknown>)['totalRegistros'] === 'number';
+      if (informado ? todos.length >= totalRegistros(raw, CHAVES_PROCESSO) : !lote.length) { completa = true; break; }
     }
+    if (!completa) throw new ErroProjuris('resposta', 'Consulta de processos incompleta; nenhuma seleção será divulgada.');
     const unicos = [...new Map(todos.map(p => [p.codigo, p])).values()];
     return processosAtivosDoCliente(unicos, codigoPessoa, ativo);
   }
 
   /** As n últimas movimentações não privadas do processo. */
   async function ultimosAndamentos(codigoProcesso: number, n = 3): Promise<AndamentoLegivel[]> {
-    const pagina = (p: number) => cliente.chamar('processo.andamentos', { parametros: { codigo: codigoProcesso }, consulta: { pagina: p, 'quan-registros': POR_PAGINA } });
-    const primeira = await pagina(0);
-    const andamentos: AndamentoPJ[] = registros(primeira, CHAVES_ANDAMENTO).map(andamentoDe).filter(definido);
-    const total = totalRegistros(primeira, CHAVES_ANDAMENTO);
-    const ultima = Math.ceil(total / POR_PAGINA) - 1;
-    if (ultima > 0) andamentos.push(...registros(await pagina(ultima), CHAVES_ANDAMENTO).map(andamentoDe).filter(definido));
-    return ultimosAndamentosPublicos([...new Map(andamentos.map(a => [a.codigo, a])).values()], n);
+    const { lerTodosAndamentos } = await import('./base.server');
+    return ultimosAndamentosPublicos(await lerTodosAndamentos(codigoProcesso, cliente), n);
   }
 
   /** Pessoas pela busca geral com o CPF (só leitura). A escolha exata fica em vinculo.ts. */
