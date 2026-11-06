@@ -15,7 +15,7 @@ import { useRouterState } from '@tanstack/react-router';
 
 
 export function ProjurisClientes() {
-  const selecionado = useRouterState({ select: s => typeof s.location.search['clientId'] === 'string' ? s.location.search['clientId'] : null });
+  const selecionado = useRouterState({ select: s => new URLSearchParams(s.location.searchStr).get('clientId') });
   const codigoSelecionado = selecionado && /^\d+$/.test(selecionado) ? Number(selecionado) : null;
   const [selecionadoFechado, setSelecionadoFechado] = useState<string | null>(null);
   const listar = useServerFn(listarClientesProjuris);
