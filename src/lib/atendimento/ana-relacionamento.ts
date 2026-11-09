@@ -40,10 +40,11 @@ export function protegerRelacionamentoAna(r: AnaResult, rel: RelacionamentoAna, 
     result.mensagem = 'Sua solicitação fica com a equipe responsável pelo atendimento, que responde por aqui.';
     return result;
   }
-  if (['processo', 'consulta_processo'].includes(result.intencao)) return { ...result, acao: 'rascunho', mensagem: '', motivo_aprovacao: 'Usar exclusivamente a consulta processual revisada.' };
   const material = !!m.arquivo || ['video', 'imagem', 'documento'].includes(m.tipo ?? '');
+  if (!material && ['processo', 'consulta_processo'].includes(result.intencao)) return { ...result, acao: 'rascunho', mensagem: '', motivo_aprovacao: 'Usar exclusivamente a consulta processual revisada.' };
   const comercial = /gratuit|primeira consulta|consulta inicial|30 minutos|hor[aá]rios.*(?:enviei|enviados)|qual.*(?:op[cç][aã]o|hor[aá]rio)|posso verificar.*hor[aá]rio/i.test(result.mensagem);
-  if (material || !permiteAgenda && (comercial || result.intencao === 'agendamento' || result.intencao === 'novo_caso') || rel.situacao === 'cadastro_anterior' || rel.situacao === 'incerto') {
+  const providenciaNaoConfirmada = /(?:salvei|encaminhei|associei|vinculei|analis[ae]i|equipe (?:já )?foi avisada)/i.test(result.mensagem);
+  if (material || providenciaNaoConfirmada || !permiteAgenda && (comercial || result.intencao === 'agendamento' || result.intencao === 'novo_caso') || rel.situacao === 'cadastro_anterior' || rel.situacao === 'incerto') {
     result.intencao = material ? 'documento' : 'duvida_geral';
     result.acao = modo === 'Sugerir' ? 'rascunho' : 'enviar';
     result.motivo_aprovacao = '';
