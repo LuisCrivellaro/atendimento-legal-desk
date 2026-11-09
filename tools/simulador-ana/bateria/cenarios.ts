@@ -248,8 +248,8 @@ export const CENARIOS: Cenario[] = [
   },
   {
     id: 'D27', bloco: 'D', titulo: 'Cliente manda áudio pedindo o andamento', conversas: { A: marina }, projuris: 'Marina: 1 processo', relogio: QUI_10H,
-    passos: [{ cliente: '', arquivo: '[áudio recebido pelo Telegram]', intencao: 'outro' }], esperado: 'Regra atual de áudio sem transcrição: pedir texto', permitidas: ['pedir mensagem escrita'], proibidas: ['consultar sem saber o pedido'],
-    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Pedir com gentileza que escreva a mensagem.',
+    passos: [{ cliente: '', arquivo: '[áudio recebido pelo Telegram]', intencao: 'outro' }], esperado: 'Áudio sem transcrição ou resposta da Anne', permitidas: ['preservar para a equipe'], proibidas: ['consultar sem saber o pedido'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Silêncio da Anne; equipe cuida do áudio.', verificacoes:[anaIgual([])],
   },
   {
     id: 'D29a', bloco: 'D', titulo: 'Cliente novo só cumprimenta: saudação oficial exata', conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
@@ -291,6 +291,11 @@ export const CENARIOS: Cenario[] = [
     passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'Bom dia. É a Sônia.',intencao:'duvida_geral'},{cliente:'Preciso saber sobre minha consulta trabalhista',intencao:'duvida_geral'},{avancarMin:10080,cliente:'Olá, conseguiu verificar?',intencao:'duvida_geral'}],esperado:'Retorno com identidade e contexto preservados, tarefa real para a equipe',permitidas:['registrar pendência'],proibidas:['reiniciar apresentação','pedir nome conhecido','nova oferta automática'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Reconhecer a cliente, registrar tarefa de retorno e encaminhar à equipe.',
     verificacoes:[v('d32-continuidade','Identidade e tarefa após 7 dias','regra',true,e=>e.conversas['A']?.agenteAna?.dados?.nome==='Sônia'&&(e.conversas['A']?.tarefasRetorno?.length??0)>=1?true:'Sem identidade ou tarefa após 7 dias.')],
   },
+  ...(['vídeo de prova','foto complementar','documento complementar','novo acontecimento no atendimento'].map((texto,i):Cenario=>({
+    id:`D35-${i}`,bloco:'D',titulo:`Cliente ativo: ${texto}`,conversas:{A:marina},projuris:'Cliente com processo ativo',relogio:QUI_10H,
+    passos:[{cliente:texto,...(i<3?{arquivo:texto}:{}),intencao:'novo_caso'}],esperado:'Acompanhamento sem captação',permitidas:['reconhecer recebimento'],proibidas:['consulta inicial automática'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:['agenda.consultar','agenda.reservar']},comportamento:'Continuar atendimento existente.',
+    verificacoes:[v('sem-agenda-master','Sem agenda automática para ativo','regra',true,e=>e.ferramentas.some(f=>f==='agenda.consultar'||f==='agenda.reservar')?'Iniciou agenda comercial.':true)],
+  }))),
   // ---------- E. Falhas técnicas ----------
   {
     id:'D34-captacao',bloco:'D',titulo:'Informações → aceite → escolha → nome → reserva única',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,

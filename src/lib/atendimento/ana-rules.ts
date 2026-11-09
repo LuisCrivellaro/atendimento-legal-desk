@@ -182,8 +182,8 @@ export function limparForaEscopoAna(msg:string):string{
   const partes=msg.split(/(?<!\b(?:Dra|Dr|Sra|Sr)\.)(?<=[.!?])\s+|\n/).filter(p=>!FORA_ESCOPO.test(p));
   return partes.join('\n').replace(/\n{3,}/g,'\n\n').trim();
 }
-export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean}={}):AnaResult {
-  if(pedidoInformacoesConsultaAna(texto))r=priorizarAgendamentoAna(r,texto);
+export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibidos:string[],options:{teste?:boolean;horarios?:string[];ultimaResposta?:string;now?:Date;agendaReal?:boolean;tipoCliente?:TipoCliente | undefined;nome?:string;telefone?:string | undefined;emailPendente?:boolean;consultaInicial?:boolean}={}):AnaResult {
+  if(options.consultaInicial!==false&&pedidoInformacoesConsultaAna(texto))r=priorizarAgendamentoAna(r,texto);
   let result = { ...r, dados_coletados:{...r.dados_coletados} };
   const folded = texto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   // O nome do cliente nunca dispara o filtro ético: "Maria Vitória" não é "chance de vitória"

@@ -7,6 +7,7 @@ import { defaultState } from '@/lib/office';
 import type { Conversa } from '@/lib/mock-data';
 
 const mocks = vi.hoisted(() => ({ gerar: vi.fn(), reservar: vi.fn(), enviar: vi.fn(), remarcar: vi.fn(), cancelar: vi.fn(), ocupados:vi.fn() }));
+vi.mock('@/lib/atendimento/ana-relacionamento.server',()=>({reconhecerRelacionamentoAna:async()=>({identidade:{tipo:'nao_encontrado'},rel:{situacao:'novo_lead',consultaInicial:true,quantidadeProcessos:0},nome:''})}));
 vi.mock('@/lib/atendimento/ana.functions', () => ({ gerarRespostaAna: mocks.gerar }));
 vi.mock('@/lib/atendimento/google-calendar.server', () => ({ reservarGoogleCalendar: mocks.reservar, remarcarGoogleCalendar:mocks.remarcar,cancelarGoogleCalendar:mocks.cancelar,ocupadosGoogleCalendar:mocks.ocupados }));
 vi.mock('@/lib/atendimento/projuris-agenda.server',()=>({cancelarAgenda:(_d:unknown,_o:unknown,...a:unknown[])=>(mocks.cancelar as (...x:unknown[])=>unknown)(...a),remarcarAgenda:(_d:unknown,_o:unknown,...a:unknown[])=>(mocks.remarcar as (...x:unknown[])=>unknown)(...a),reservarAgenda:(_d:unknown,_o:unknown,...a:unknown[])=>(mocks.reservar as (...x:unknown[])=>unknown)(...a),ocupadosAgenda:(_d:unknown,_o:unknown,...a:unknown[])=>(mocks.ocupados as (...x:unknown[])=>unknown)(...a)}));
