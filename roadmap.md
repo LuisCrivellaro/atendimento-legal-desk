@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Reconhecimento de clientes — 09/11/2026
+- [ ] Corrigir origem da identificação e contexto central compartilhado, sem reiniciar captação de clientes ativos/em contratação.
+- [ ] Validar os dez cenários do anexo e regressões, preservando áudios sem resposta, revisão e controles humanos.
+- [ ] Publicação e validação externa aguardam autorização e mensagens reais; não enviar nem associar provas a processos apenas para teste.
+
 ## Consulta inteligente pelo WhatsApp — 06/11/2026
 - [x] Reutilizadas identificação e consulta existentes: seleção pública revisada, escolha revalidada e confirmação de dados antigos pelo ProJuris com persistência owner-scoped.
 - [x] Onze cenários do anexo e regressões cobertos; 710 testes em 83 arquivos aprovados, compilação limpa. Leitura oficial real retornou 220 andamentos públicos com datas válidas; nenhum envio/dado fictício em produção. Relatório em docs/consulta-inteligente-whatsapp.md.
