@@ -26,8 +26,8 @@ export function indexarNomesContatos(lista: ContatoUltraNome[]) {
   return { contatos, ambiguos };
 }
 /** Explicit internal names (including the reviewed ProJuris label) are intentional aliases. */
-export function nomeContatoExibido(c: { nome: string; telefone: string; nomePerfilWhatsApp?: string | undefined }, contato?: NomeContatoWhatsApp, interno?: string) {
-  return limparNomeContato(contato?.interno) || limparNomeContato(interno) || limparNomeContato(contato?.agenda) || limparNomeContato(contato?.perfil) || limparNomeContato(c.nomePerfilWhatsApp) || limparNomeContato(c.nome) || c.telefone;
+export function nomeContatoExibido(c: { nome: string; telefone: string; nomePerfilWhatsApp?: string | undefined }, contato?: NomeContatoWhatsApp, nomeProjuris?: string) {
+  return limparNomeContato(contato?.interno) || limparNomeContato(contato?.agenda) || limparNomeContato(nomeProjuris) || limparNomeContato(contato?.perfil) || limparNomeContato(c.nomePerfilWhatsApp) || limparNomeContato(c.nome) || c.telefone;
 }
 export function mesclarNomesAgenda(anterior: AgendaWhatsApp | undefined, novos: Record<string, NomeContatoWhatsApp>, em: string, ambiguos: number): AgendaWhatsApp {
   const contatos = { ...anterior?.contatos };
