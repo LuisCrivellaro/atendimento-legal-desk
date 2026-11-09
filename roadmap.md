@@ -1,9 +1,10 @@
 # Construção dos módulos Manager ADV
 
 ## Nomes da agenda no WhatsApp — 09/11/2026
-- [ ] Verificar campos e recursos oficiais da UltraMsg para nomes da agenda, sem outra conexão.
-- [ ] Prioridade de exibição e sincronização persistente por telefone, preservando nomes internos, clientes, históricos e mensagens.
-- [ ] Testar atualização, busca e persistência; informar limitações e publicação pendente.
+- [x] GET oficial /contacts confirmado HTTP 200: isMyContact/name distingue agenda de pushname. Nenhuma conexão nova.
+- [x] 84 nomes da agenda sincronizados nas conversas da Dra., persistidos separadamente do cadastro legal; duplicatas idênticas consolidadas, conflitos preservados. Botão Atualizar nomes e atualização a cada 15 minutos pela rotina já existente, após publicação.
+- [x] 753 testes aprovados em 87 arquivos, compilação limpa; conta autenticada: sincronização, recarga, pesquisa e cabeçalho conferidos, sem envios. Relatório em docs/nomes-agenda-whatsapp.md.
+- [ ] Publicação e comprovação da atualização automática por alteração nova no celular dependem de autorização e mudança real na agenda; não prometer sincronização instantânea.
 
 ## Reconhecimento de clientes — 09/11/2026
 - [x] Identificação completa por telefone principal e processos ativos, contrato/etapa e histórico do próprio contato; política compartilhada impede captação automática e promessas de providências sem confirmação.
