@@ -18,6 +18,8 @@ import { apenasInsistencia, TEXTOS_CONSULTA } from './consulta-processo';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from './ana-retomada';
 import { podeExecutarAna } from './ana-execution';
 import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from './ana-contexto';
+import { permiteAgendaRelacionamento, protegerRelacionamentoAna } from './ana-relacionamento';
+import { reconhecerRelacionamentoAna } from './ana-relacionamento.server';
 type Db=SupabaseClient<Database>;
 
 async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
@@ -89,18 +91,20 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const lista=await db.from('checklist_itens').select('nome,recebido').eq('caso_id',id).eq('owner_id',row.data.owner_id);
     if(lista.error)throw new Error('Checklist indisponível.');
     const email=c.email||c.agenteAna?.dados?.email||'';
-    const { lerBase, identificarLocal } = await import('../projuris/base.server');
-    const localIdentidade=await identificarLocal(db,row.data.owner_id,telefone);
+    const reconhecimento=await reconhecerRelacionamentoAna(db,row.data.owner_id,c,telefone,canal);
+    const localIdentidade=reconhecimento.rel.situacao==='ativo'&&reconhecimento.identidade.tipo==='unico'?reconhecimento.identidade:reconhecimento.identidade.tipo==='duplicado'?reconhecimento.identidade:undefined;
+    const rel=reconhecimento.rel;
+    const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c);
     // Vínculo ativo vem do cadastro (base local sincronizada), nunca do histórico da conversa.
     const classificacao=classificarAgenda({persistida:c.tipoClienteAgenda,local:localIdentidade,autodeclaracao:identificarTipoCliente(m.texto),contexto:c.agenteAna?.tipoCliente,padraoLead:c.etapa==='inicial'});
     const tipoCliente=classificacao.tipo;
-    const clienteLocal=localIdentidade.tipo==='unico'?(await lerBase(db,row.data.owner_id)).base?.lista.find(p=>p.codigo===localIdentidade.pessoa.codigo):undefined;
+    const clienteLocal=reconhecimento.nome?{nome:reconhecimento.nome,telefone,email}:undefined;
     const identidade=nomeConhecido(c,canal,clienteLocal?.nome??'');
     const introducao=apresentacaoNome(m.texto);
     const gerada=cobranca?resultadoRetorno(c,canal):await gerarRespostaAna(request,{continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:c.agenteAna?.horariosTeste??[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
     const respostaAnterior=c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'';
-    const aceiteCaptacao=aceiteConsultaAna(m.texto,respostaAnterior);
-    const raw=priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada,respostaAnterior);
+    const aceiteCaptacao=rel.consultaInicial&&aceiteConsultaAna(m.texto,respostaAnterior);
+    const raw=rel.consultaInicial?priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada,respostaAnterior):{...gerada};
     raw.dados_coletados.nome=identidade||introducao||raw.dados_coletados.nome;
     if(cobranca){raw.intencao='outro';raw.encaminhar_humano=true;}
     if(retomada){
@@ -120,9 +124,9 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const semConsulta=decisaoCancel==='pedir'&&!c.consultaAgendada;
     if(decisaoCancel&&!pedidoHumano(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;}
     if(alteracao||c.agenteAna?.alteracaoConsulta==='remarcar')raw.intencao='agendamento';
-    const primeiroContato=!pedidoInformacoesConsultaAna(m.texto)&&!cobranca&&!retomada&&!identidade&&!atendimentoIniciado(c,canal,messageId)&&tipoCliente==='novo'&&!c.consultaAgendada&&mode==='Automática'&&!pedidoHumano(m.texto)&&!raw.urgente;
+    const primeiroContato=rel.consultaInicial&&!pedidoInformacoesConsultaAna(m.texto)&&!cobranca&&!retomada&&!identidade&&!atendimentoIniciado(c,canal,messageId)&&tipoCliente==='novo'&&!c.consultaAgendada&&mode==='Automática'&&!pedidoHumano(m.texto)&&!raw.urgente;
     if(primeiroContato){raw.intencao='agendamento';raw.encaminhar_humano=false;}
-    let bloqueada=cobranca||!primeiroContato&&bloqueiaAgenda(m.texto,raw.intencao)||pedidoHumano(m.texto);
+    let bloqueada=!permiteAgenda||cobranca||!primeiroContato&&bloqueiaAgenda(m.texto,raw.intencao)||pedidoHumano(m.texto);
     if(!bloqueada&&(escolherHorarioAna(c.agenteAna?.horariosTeste??[],m.texto)??chosenSlot(c.agenteAna?.horariosTeste??[],m.texto)))raw.intencao='agendamento';
     const teste=config.data.modo_teste===true;
     const previous=c.mensagens.filter(m=>m.canal===canal&&m.de==='escritorio').at(-1)?.texto??'';
@@ -179,7 +183,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         horarios=opcoes.slots;semPeriodo=opcoes.semPeriodo;
       }
     }
-    const r=saudacaoClienteNovo(aplicarRegrasAna(primeiroContato?{...raw,intencao:'duvida_geral'}:raw,mode,m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal,tipoCliente,nome,telefone,emailPendente:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email)}),m.texto,{apresentado:!primeiroContato,tipoCliente,horarios,agendaReal});
+    const r=saudacaoClienteNovo(aplicarRegrasAna(primeiroContato?{...raw,intencao:'duvida_geral'}:raw,mode,m.texto,state.training.proibidos,{teste,horarios,ultimaResposta:previous,agendaReal,tipoCliente,nome,telefone,emailPendente:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),consultaInicial:rel.consultaInicial}),m.texto,{apresentado:!primeiroContato,tipoCliente,horarios,agendaReal});
     if(canal==='ultramsg'&&mode==='Automática') {
       const { fluxoProcessoReal } = await import('./consulta-processo.server');
       efeitosIniciados=true;
@@ -214,6 +218,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(semConsulta&&mode==='Automática'&&!pedidoHumano(m.texto)){r.acao='enviar';r.motivo_aprovacao='';r.encaminhar_humano=false;r.mensagem='Não encontrei consulta marcada por aqui. Quer marcar uma?';r.proximo_passo='Aguardar interesse em novo agendamento.';}
     if(confirmouLembrete&&mode==='Automática'&&c.consultaAgendada&&!pedidoHumano(m.texto)){r.acao='enviar';r.motivo_aprovacao='';r.encaminhar_humano=false;r.mensagem=`Presença confirmada! Sua consulta continua hoje, às ${hora(c.consultaAgendada)}.`;r.proximo_passo='Cliente confirmou presença pelo lembrete do dia.';}
     if(cancelar){r.mensagem='';r.proximo_passo='Cancelar consulta somente após validar o recibo do atendimento.';}
+    Object.assign(r,protegerRelacionamentoAna(r,rel,m,mode,permiteAgenda));
     const agenda=saudou?{slots:horarios,selected:undefined}:!recebeuNome&&!horarioPendente&&!bloqueada&&!perguntar&&!cancelar&&!semConsulta&&teste&&tipoCliente&&telefone&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,horarios,new Date(),agendaReal,tipoCliente,repetida):undefined;
     const resumoTransbordo=r.encaminhar_humano?resumoTransbordoAna(nome,telefone,m.texto):undefined;
     if(resumoTransbordo)r.proximo_passo=resumoTransbordo;
@@ -266,7 +271,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         }
       }
       const ofertasEquipe=(current.horariosOfertados??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
-      const escolhido=escolherReservaAna({texto:m.texto,selecionado,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:pedirNome||(bloqueada&&!pendenteNome)||consultaEspecifica||cancelar||perguntar||!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
+      const escolhido=escolherReservaAna({texto:m.texto,selecionado,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:!permiteAgenda||pedirNome||(bloqueada&&!pendenteNome)||consultaEspecifica||cancelar||perguntar||!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
       if(escolhido){
         efeitosIniciados=true;
         await marcarEfeito();
