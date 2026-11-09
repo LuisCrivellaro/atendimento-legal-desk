@@ -1,5 +1,10 @@
 # Construção dos módulos Manager ADV
 
+## Nomes da agenda no WhatsApp — 09/11/2026
+- [ ] Verificar campos e recursos oficiais da UltraMsg para nomes da agenda, sem outra conexão.
+- [ ] Prioridade de exibição e sincronização persistente por telefone, preservando nomes internos, clientes, históricos e mensagens.
+- [ ] Testar atualização, busca e persistência; informar limitações e publicação pendente.
+
 ## Reconhecimento de clientes — 09/11/2026
 - [x] Identificação completa por telefone principal e processos ativos, contrato/etapa e histórico do próprio contato; política compartilhada impede captação automática e promessas de providências sem confirmação.
 - [x] Dez cenários master e regressões automatizadas; fluxos de mídia, silêncio em áudio, revisão processual e controle humano exercitados com integrações substituídas. Clientes e Atendimento autenticados conferidos sem erro; relatório em docs/reconhecimento-clientes.md.
