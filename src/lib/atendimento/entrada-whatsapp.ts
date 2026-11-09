@@ -24,7 +24,7 @@ export function novaConversaWhatsApp(id: string, numero: string, nomePerfil: str
   return {
     nome: rotulo,
     dados: {
-      modoIA: 'Automática', nome: rotulo, cpf: '', telefone, origem: 'whatsapp',
+      modoIA: 'Automática', nome: rotulo, nomePerfilWhatsApp: nomePerfil?.trim() || '', cpf: '', telefone, origem: 'whatsapp',
       atendimento: `AT-${agora.getUTCFullYear()}-${id.slice(0, 8).toUpperCase()}`,
       etapa: 'inicial', etapaPipeline: 0, naoLidas: 0, syncs: [], processos: [], documentos: [], mensagens: [],
       timeline: [{ data: agora.toISOString(), evento: 'Novo contato pelo WhatsApp do escritório' }],

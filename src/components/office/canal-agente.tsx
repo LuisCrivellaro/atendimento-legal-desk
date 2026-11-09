@@ -16,6 +16,7 @@ import {
   lerEntradaWhatsApp, salvarEntradaWhatsApp,
 } from '@/lib/atendimento/envio.functions';
 import type { Conversa } from '@/lib/mock-data';
+import { atualizarNomesWhatsApp, lerNomesWhatsApp } from '@/lib/atendimento/nomes-contatos.functions';
 
 type ContatoLista = Awaited<ReturnType<typeof listarContatosTeste>>[number];
 
@@ -27,6 +28,11 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGeren
   open: boolean; onOpenChange: (v: boolean) => void; conversas: Conversa[]; onConfig?: (c: CanalConfig) => void; podeGerenciar?: boolean;
 }) {
   const qc = useQueryClient();
+  const lerNomes=useServerFn(lerNomesWhatsApp);
+  const atualizarNomes=useServerFn(atualizarNomesWhatsApp);
+  const agenda=useQuery({queryKey:['whatsapp-nomes'],queryFn:()=>lerNomes(),enabled:open});
+  const [nomesBusy,setNomesBusy]=useState(false);
+  const [nomesInfo,setNomesInfo]=useState('');
   const read = useServerFn(lerConfigCanal);
   const saveConfig = useServerFn(salvarConfigCanal);
   const readContatos = useServerFn(listarContatosTeste);
@@ -95,6 +101,10 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGeren
       </Cartao>
 
       <Cartao title="WhatsApp do escritório">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+          <div className="text-sm"><p className="font-medium">Nomes da agenda</p><p className="text-xs text-muted-foreground">{agenda.data?.sincronizadoEm?`Última atualização: ${new Date(agenda.data.sincronizadoEm).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}`:'Ainda não sincronizada'}</p>{nomesInfo&&<p role="status" className="text-xs text-muted-foreground">{nomesInfo}</p>}</div>
+          <Button size="sm" variant="outline" disabled={!podeGerenciar||nomesBusy} onClick={()=>{setNomesBusy(true);void executar('Atualizar nomes da agenda',async()=>{try{const r=await atualizarNomes();setNomesInfo(`${r.atualizados} nomes da agenda sincronizados${r.ambiguos?`; ${r.ambiguos} números com nomes conflitantes, preservados`:''}.`);await qc.invalidateQueries({queryKey:['whatsapp-nomes']});}finally{setNomesBusy(false);}});}}>{nomesBusy?<Loader2 className="animate-spin"/>:<RefreshCw/>}Atualizar nomes</Button>
+        </div>
         <label className="flex items-center justify-between gap-4 text-sm">Atender todo mundo que escrever
           <Switch checked={entrada.data?.ativa ?? false} disabled={!podeGerenciar} aria-label="Atender todo mundo que escrever no WhatsApp do escritório"
             onCheckedChange={ativa => {
