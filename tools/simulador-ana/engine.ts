@@ -218,7 +218,7 @@ export class SimuladorAna {
       const ativos=identificacao.tipo==='unico'?processosAtivosDoCliente(this.projuris.processos,identificacao.pessoa.codigo,SITUACAO_ATIVO_FICTICIA).length:0;
       const rel=relacionamentoAna(c,telefone,canal,identificacao,ativos);
       const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c);
-      const tipoCliente = classificarAgenda({ persistida: c.tipoClienteAgenda, autodeclaracao: identificarTipoCliente(m.texto), contexto: c.agenteAna?.tipoCliente, padraoLead: c.etapa === 'inicial' }).tipo;
+      const tipoCliente = rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificarAgenda({ persistida: c.tipoClienteAgenda, autodeclaracao: identificarTipoCliente(m.texto), contexto: c.agenteAna?.tipoCliente, padraoLead: c.etapa === 'inicial' }).tipo;
       const etiqueta = etiquetaConversa(c);
       const lista: { nome: string; recebido: boolean }[] = [];
       const email = c.email || c.agenteAna?.dados?.email || '';
@@ -230,6 +230,7 @@ export class SimuladorAna {
       const respostaAnterior=c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'';
       const aceiteCaptacao=rel.consultaInicial&&aceiteConsultaAna(m.texto,respostaAnterior);
       const raw = rel.consultaInicial?priorizarAgendamentoAna(gerada, m.texto, !retomada&&c.agenteAna?.resultado?.intencao === 'agendamento' && !c.consultaAgendada,respostaAnterior):{...gerada};
+      if(!rel.consultaInicial&&(m.arquivo||['video','imagem','documento'].includes(m.tipo??'')))raw.intencao='documento';
       raw.dados_coletados.nome=identidade||introducao||raw.dados_coletados.nome;
       if(retomada){raw.dados_coletados.nome=identidade||introducao||raw.dados_coletados.nome;if(!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';}
       raw.dados_coletados.email = email;
