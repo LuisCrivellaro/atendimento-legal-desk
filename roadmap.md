@@ -1,8 +1,8 @@
 # Construção dos módulos Manager ADV
 
 ## Reconhecimento de clientes — 09/11/2026
-- [ ] Corrigir origem da identificação e contexto central compartilhado, sem reiniciar captação de clientes ativos/em contratação.
-- [ ] Validar os dez cenários do anexo e regressões, preservando áudios sem resposta, revisão e controles humanos.
+- [x] Identificação completa por telefone principal e processos ativos, contrato/etapa e histórico do próprio contato; política compartilhada impede captação automática e promessas de providências sem confirmação.
+- [x] Dez cenários master e regressões automatizadas; fluxos de mídia, silêncio em áudio, revisão processual e controle humano exercitados com integrações substituídas. Clientes e Atendimento autenticados conferidos sem erro; relatório em docs/reconhecimento-clientes.md.
 - [ ] Publicação e validação externa aguardam autorização e mensagens reais; não enviar nem associar provas a processos apenas para teste.
 
 ## Consulta inteligente pelo WhatsApp — 06/11/2026
