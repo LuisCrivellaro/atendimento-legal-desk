@@ -293,7 +293,7 @@ export const CENARIOS: Cenario[] = [
   },
   ...(['vídeo de prova','foto complementar','documento complementar','novo acontecimento no atendimento'].map((texto,i):Cenario=>({
     id:`D35-${i}`,bloco:'D',titulo:`Cliente ativo: ${texto}`,conversas:{A:marina},projuris:'Cliente com processo ativo',relogio:QUI_10H,
-    passos:[{cliente:texto,arquivo:i<3?texto:undefined,intencao:'novo_caso'}],esperado:'Acompanhamento sem captação',permitidas:['reconhecer recebimento'],proibidas:['consulta inicial automática'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:['agenda.consultar','agenda.reservar']},comportamento:'Continuar atendimento existente.',
+    passos:[{cliente:texto,...(i<3?{arquivo:texto}:{}),intencao:'novo_caso'}],esperado:'Acompanhamento sem captação',permitidas:['reconhecer recebimento'],proibidas:['consulta inicial automática'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:['agenda.consultar','agenda.reservar']},comportamento:'Continuar atendimento existente.',
     verificacoes:[v('sem-agenda-master','Sem agenda automática para ativo','regra',true,e=>e.ferramentas.some(f=>f==='agenda.consultar'||f==='agenda.reservar')?'Iniciou agenda comercial.':true)],
   }))),
   // ---------- E. Falhas técnicas ----------

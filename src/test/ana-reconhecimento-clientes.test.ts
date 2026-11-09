@@ -8,10 +8,11 @@ const identidade = { tipo: 'unico' as const, pessoa: { codigo: 101, nome: 'Clien
 function conversa(extra: Partial<Conversa> = {}): Conversa {
   const base = conversas[0];
   if (!base) throw new Error('Fixture ausente');
-  return { ...base, telefone, etapa: 'inicial', contrato: undefined, processos: [], mensagens: [], timeline: [], agenteAna: undefined, ...extra };
+  const {contrato: _contrato, ...limpa}=base;
+  return { ...limpa, telefone, etapa: 'inicial', processos: [], mensagens: [], timeline: [], agenteAna: {}, ...extra };
 }
 const comercial: AnaResult = { acao: 'enviar', mensagem: 'Consulta inicial gratuita de 30 minutos. Qual horário prefere?', intencao: 'novo_caso', urgente: false, encaminhar_humano: false, motivo_aprovacao: '', proximo_passo: '', dados_coletados: { nome: '', cpf: '', assunto: '', email: '' } };
-const mensagem = (tipo: Mensagem['tipo'], texto = '', arquivo?: string): Mensagem => ({ id: 'm', de: 'cliente', canal: 'ultramsg', hora: '', texto, tipo, arquivo });
+const mensagem = (tipo: Mensagem['tipo'], texto = '', arquivo?: string): Mensagem => ({ id: 'm', de: 'cliente', canal: 'ultramsg', hora: '', texto, ...(tipo?{tipo}:{}), ...(arquivo?{arquivo}:{}) });
 
 describe('dez cenários master de reconhecimento', () => {
   it('1 ativo envia vídeo: acompanhamento sem agenda ou associação inventada', () => {
