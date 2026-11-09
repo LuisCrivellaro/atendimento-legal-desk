@@ -7,7 +7,7 @@ export const limparNomeContato = (s: string | undefined) => (s ?? '').replace(/\
 /** Country is retained: a foreign number must never collide with a Brazilian DDD. */
 export function chaveNomeContato(s: string) {
   const valor = s.replace(/@.*$/, '');
-  const n = normalizarTelefone(valor);
+  const n = s.includes('@') || s.trim().startsWith('+') ? valor.replace(/\D/g, '') : normalizarTelefone(valor);
   return /^\d{12,13}$/.test(n) && n.startsWith('55') ? `55${n.slice(2,4)}${n.slice(-8)}` : /^\d{8,15}$/.test(n) ? n : '';
 }
 export function indexarNomesContatos(lista: ContatoUltraNome[]) {
@@ -16,7 +16,7 @@ export function indexarNomesContatos(lista: ContatoUltraNome[]) {
   for (const c of lista) {
     if (c.isGroup || c.isMe || !c.id?.endsWith('@c.us')) continue;
     const chave = chaveNomeContato(c.id);
-    if (!chave || c.number && chaveNomeContato(c.number) !== chave || ambiguos.has(chave)) continue;
+    if (!chave || c.number && chaveNomeContato(`${c.number}@c.us`) !== chave || ambiguos.has(chave)) continue;
     const agenda = c.isMyContact === true ? limparNomeContato(c.name) : '';
     const perfil = limparNomeContato(c.pushname);
     const anterior = contatos[chave];
