@@ -8,7 +8,7 @@ import { criarConsultasProjuris } from '../projuris/consultas.server';
 import { relacionamentoAna } from './ana-relacionamento';
 
 export async function reconhecerRelacionamentoAna(db: SupabaseClient<Database>, owner: string, c: Conversa, telefone: string, canal: string) {
-  const { base } = await lerBase(db, owner);
+  const { base } = await lerBase(db, owner).catch(() => ({ base: undefined }));
   const local = identificarNaBase(base, telefone);
   try {
     // Complete index catches old clients AND duplicates outside the directory cohort.

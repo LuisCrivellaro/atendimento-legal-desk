@@ -68,4 +68,15 @@ describe('dez cenários master de reconhecimento', () => {
   it('falha de identificação não pode significar novo lead', () => {
     expect(relacionamentoAna(conversa(), telefone, 'ultramsg').consultaInicial).toBe(false);
   });
+  it('consulta marcada e convite comercial antigo não autorizam oferta automática', () => {
+    const c = conversa({ consultaAgendada: '2026-11-13T16:30:00Z', agenteAna: { resultado: { ...comercial, intencao: 'agendamento' } } });
+    const rel = relacionamentoAna(c, telefone, 'ultramsg', identidade, 1);
+    expect(permiteAgendaRelacionamento(rel, 'enviei a prova', c)).toBe(false);
+    expect(permiteAgendaRelacionamento(rel, '1', c)).toBe(false);
+    expect(permiteAgendaRelacionamento(rel, 'quero remarcar', c)).toBe(true);
+  });
+  it('ex-cliente confirma nova demanda após esclarecimento e consulta real sem ativos', () => {
+    const c = conversa({ mensagens: [{ id: 'a', de: 'escritorio', canal: 'ultramsg', texto: 'Você está retomando um atendimento anterior ou precisa de ajuda com uma nova situação?', hora: '' }, { id: 'b', de: 'cliente', canal: 'ultramsg', texto: 'É uma nova demanda', hora: '' }] });
+    expect(relacionamentoAna(c, telefone, 'ultramsg', identidade, 0).consultaInicial).toBe(true);
+  });
 });
