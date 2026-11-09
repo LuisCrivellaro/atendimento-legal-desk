@@ -21,7 +21,8 @@ export function indexarNomesContatos(lista: ContatoUltraNome[]) {
     const perfil = limparNomeContato(c.pushname);
     const anterior = contatos[chave];
     if (anterior?.agenda && agenda && anterior.agenda !== agenda) { delete contatos[chave]; ambiguos.add(chave); continue; }
-    contatos[chave] = { telefone: normalizarTelefone(c.id.replace(/@.*$/, '')), ...(anterior?.agenda || agenda ? { agenda: anterior?.agenda || agenda } : {}), ...(perfil || anterior?.perfil ? { perfil: perfil || anterior?.perfil } : {}) };
+    const perfilFinal = perfil || anterior?.perfil || '';
+    contatos[chave] = { telefone: normalizarTelefone(c.id.replace(/@.*$/, '')), ...(anterior?.agenda || agenda ? { agenda: anterior?.agenda || agenda } : {}), ...(perfilFinal ? { perfil: perfilFinal } : {}) };
   }
   return { contatos, ambiguos };
 }
