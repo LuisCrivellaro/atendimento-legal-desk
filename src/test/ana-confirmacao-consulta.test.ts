@@ -1,20 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { mensagemConfirmacaoAna } from '@/lib/atendimento/ana-scheduling';
-
-const INICIO = '2026-10-30T18:00:00.000Z'; // sexta-feira, 15h de Brasília
+const INICIO = '2026-10-30T18:00:00.000Z';
 const LINK = 'https://meet.google.com/csk-dywz-oft';
-
-describe('mensagem de agendamento confirmada', () => {
-  it('usa o formato oficial: horário, linha em branco e link do Meet', () => {
-    expect(mensagemConfirmacaoAna(INICIO, LINK)).toBe(
-      'Sua consulta está confirmada para Sexta-feira, 30/10, às 15h\n\nAcesse a reunião: https://meet.google.com/csk-dywz-oft',
-    );
+describe('mensagem após agendar', () => {
+  it('usa o modelo oficial com primeiro nome, data, horário e link', () => {
+    expect(mensagemConfirmacaoAna(INICIO, LINK, 'maria da silva')).toBe(
+      'Olá, Maria! 😊 Sua consulta inicial com a Dra. Carolina está agendada!\n\n📅 Data: 30/10/2026\n🕒 Horário: 15h\n🔗 Link: https://meet.google.com/csk-dywz-oft\n\nPedimos que entre alguns minutos antes. Até lá!');
   });
-
-  it('confirma só o horário quando a agenda não devolveu um link real', () => {
-    expect(mensagemConfirmacaoAna(INICIO)).toBe('Sua consulta está confirmada para Sexta-feira, 30/10, às 15h');
-    expect(mensagemConfirmacaoAna(INICIO, 'http://meet.google.com/csk-dywz-oft')).toBe(
-      'Sua consulta está confirmada para Sexta-feira, 30/10, às 15h',
-    );
+  it('omite link inválido ou ausente, nunca inventa', () => {
+    expect(mensagemConfirmacaoAna(INICIO, 'http://meet.google.com/x', 'Ana')).not.toContain('Link');
+    expect(mensagemConfirmacaoAna('2026-10-30T17:30:00.000Z')).toContain('🕒 Horário: 14h30');
   });
 });

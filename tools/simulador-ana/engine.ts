@@ -19,7 +19,7 @@ import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } fr
 import { solicitarEmailPendente } from '@/lib/atendimento/email-rules';
 import { iniciarConsultaProcesso, respostaDuranteEspera, apenasInsistencia, deveConsultarProcesso, mensagemNaoCliente, interpretarRespostaRevisora, aplicarDecisao, pendencias, respostaAutorizada, CONFIG_CONSULTA_PADRAO, TEXTOS_CONSULTA, type ConfigConsultaProcesso, type PedidoProcesso, type PortasConsulta, type EntradaRedacao } from '@/lib/atendimento/consulta-processo';
 import { criarProjurisFicticio, projurisFicticioPadrao, type FalhaFicticia, type ProjurisFicticio } from '@/lib/projuris/ficticio';
-import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna } from '@/lib/atendimento/ana-scheduling';
+import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna, mensagemConfirmacaoAna } from '@/lib/atendimento/ana-scheduling';
 
 export interface Treino { instrucoes: string; proibidos: string[]; exemplos: { pergunta: string; resposta: string }[] }
 export interface EventoAgenda { id: string; inicio: string; fim: string; titulo: string; daAna: boolean; conversa?: string; meetUrl?: string; concluido?: boolean }
