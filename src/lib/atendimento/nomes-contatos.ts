@@ -1,6 +1,6 @@
 import { normalizarTelefone } from './telefone';
 
-export interface NomeContatoWhatsApp { telefone: string; agenda?: string; perfil?: string; interno?: string; foto?: string; fotoEm?: string }
+export interface NomeContatoWhatsApp { telefone: string; agenda?: string; perfil?: string; interno?: string; foto?: string; fotoEm?: string; chatId?: string }
 export interface AgendaWhatsApp { contatos: Record<string, NomeContatoWhatsApp>; sincronizadoEm: string; ambiguos: number }
 export interface ContatoUltraNome { id?: string; number?: string; name?: string; pushname?: string; isMyContact?: boolean; isGroup?: boolean; isMe?: boolean }
 export const limparNomeContato = (s: string | undefined) => (s ?? '').replace(/\p{Cc}/gu, '').trim().slice(0, 200);
@@ -22,7 +22,7 @@ export function indexarNomesContatos(lista: ContatoUltraNome[]) {
     const anterior = contatos[chave];
     if (anterior?.agenda && agenda && anterior.agenda !== agenda) { delete contatos[chave]; ambiguos.add(chave); continue; }
     const perfilFinal = perfil || anterior?.perfil || '';
-    contatos[chave] = { telefone: normalizarTelefone(c.id.replace(/@.*$/, '')), ...(anterior?.agenda || agenda ? { agenda: anterior?.agenda || agenda } : {}), ...(perfilFinal ? { perfil: perfilFinal } : {}) };
+    contatos[chave] = { telefone: normalizarTelefone(c.id.replace(/@.*$/, '')), chatId: c.id, ...(anterior?.agenda || agenda ? { agenda: anterior?.agenda || agenda } : {}), ...(perfilFinal ? { perfil: perfilFinal } : {}) };
   }
   return { contatos, ambiguos };
 }

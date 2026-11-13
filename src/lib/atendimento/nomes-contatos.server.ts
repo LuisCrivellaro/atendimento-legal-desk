@@ -28,9 +28,10 @@ export async function sincronizarNomesWhatsApp(db: Db, owner: string, automatico
   const em = new Date().toISOString();
   // Photos refresh at most daily per contact; the UltraMsg lookup is keyed by the exact chat id.
   const pendentes = Object.entries(vinculados).filter(([k]) => { const a = anterior?.contatos[k]; return !a?.fotoEm || Date.now() - Date.parse(a.fotoEm) > 864e5; });
-  for (let i = 0; i < pendentes.length; i += 8) await Promise.all(pendentes.slice(i, i + 8).map(async ([k, c]) => {
+  const comId = pendentes.filter(([, c]) => c.chatId?.endsWith('@c.us'));
+  for (let i = 0; i < comId.length; i += 8) await Promise.all(comId.slice(i, i + 8).map(async ([k, c]) => {
     try {
-      const f = await fetch(`https://api.ultramsg.com/${encodeURIComponent(instance)}/contacts/image?${new URLSearchParams({ token, chatId: `${c.telefone.replace(/\D/g, '')}@c.us` })}`, { signal: AbortSignal.timeout(8000) });
+      const f = await fetch(`https://api.ultramsg.com/${encodeURIComponent(instance)}/contacts/image?${new URLSearchParams({ token, chatId: c.chatId ?? '' })}`, { signal: AbortSignal.timeout(8000) });
       if (!f.ok) return;
       vinculados[k] = { ...c, foto: fotoContatoValida(await f.json()), fotoEm: em };
     } catch { /* keep previous photo; retry next sync */ }
