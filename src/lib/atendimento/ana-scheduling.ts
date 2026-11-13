@@ -156,7 +156,7 @@ export function selecionarOpcoesAna(busy:{start:string;end:string}[],now:Date,ti
 export function mensagemConfirmacaoAna(inicio:string,meetUrl?:string,nome?:string) {
   const link=meetUrl&&/^https:\/\/meet\.google\.com\/[a-z0-9-]+$/i.test(meetUrl)?meetUrl:undefined;
   const d=new Date(inicio);
-  const p=Object.fromEntries(new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(x=>[x.type,x.value]));
+  const p=Object.fromEntries(new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(x=>[x.type,x.value])) as {day:string;month:string;year:string;hour:string;minute:string};
   const horario=p.minute==='00'?`${Number(p.hour)}h`:`${Number(p.hour)}h${p.minute}`;
   const primeiro=(nome??'').trim().split(/\s+/)[0]??'';
   const ola=primeiro?`Olá, ${primeiro.charAt(0).toUpperCase()}${primeiro.slice(1).toLowerCase()}!`:'Olá!';
