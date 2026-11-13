@@ -133,6 +133,15 @@ export function pediuNomeInicialAna(texto:string) {
   return saudacaoInicialAna(texto)||texto.endsWith('nome completo?');
 }
 
+/** Backend: só aceita texto compatível com nome completo; horários, datas, dias, números, e-mails e saudações nunca viram nome. */
+export function validarNome(texto:string):string {
+  const bruto=texto.trim();
+  if(/\d|@|\bhttps?:/i.test(bruto))return '';
+  const sem=bruto.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  if(/\b(?:segunda|terca|quarta|quinta|sexta|sabado|domingo|feira|hoje|amanha|semana|dia|mes|hora|horas|h|as|janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|meio|meia|oi|ola|bom|boa|tudo|bem)\b/.test(sem))return '';
+  const nome=nomeValidoAna(bruto);
+  return nome&&nome.split(/\s+/).length>=2&&nome.split(/\s+/).every(p=>p.length>=2||/^(?:e|y)$/i.test(p))?nome:'';
+}
 function nomeValidoAna(texto:string) {
   const nome=texto.trim().replace(/^(?:sou\s+(?:a|o)\s+|me chamo\s+|meu nome (?:é|e)\s+)/i,'');
   if(/\b(?:quero|preciso|gostaria|consulta|agendar|marcar|horário|horarios|obrigad[oa]|manh[aã]|tarde|sim|ok|pode|qualquer|melhor|prefiro|primeir[oa]|segund[oa])\b/i.test(nome))return '';
@@ -140,12 +149,12 @@ function nomeValidoAna(texto:string) {
 }
 export function nomePrimeiroContatoAna(texto:string,anterior:string) {
   if(!pediuNomeInicialAna(anterior)||apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
-  return nomeValidoAna(texto);
+  return validarNome(texto);
 }
 /** Nome enviado enquanto um horário escolhido aguarda o nome completo, mesmo se outra mensagem entrou no meio. */
 export function nomeParaHorarioPendenteAna(texto:string) {
   if(apenasCumprimentoAna(texto)||pedidoOutrasOpcoesAna(texto)||pedidoHumano(texto))return '';
-  return nomeValidoAna(texto);
+  return validarNome(texto);
 }
 
 /** Mensagem só de cumprimento ("oi", "boa tarde, tudo bem?"), sem pedido. */
