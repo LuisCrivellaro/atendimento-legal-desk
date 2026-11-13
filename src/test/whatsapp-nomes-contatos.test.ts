@@ -16,3 +16,11 @@ describe('nomes da agenda WhatsApp',()=>{
  it('nome exibido é pesquisável sem acento',()=>{expect(matchesConversation({...c,nome:nomeContatoExibido(c,{telefone:c.telefone,agenda:'Márcia trabalho'})} as Parameters<typeof matchesConversation>[0],'marcia')).toBe(true);});
 });
 afterEach(()=>vi.unstubAllGlobals());
+import { fotoContatoValida as fotoValida } from '@/lib/atendimento/nomes-contatos';
+describe('foto do contato', () => {
+  it('aceita só URL HTTPS devolvida pela UltraMsg', () => {
+    expect(fotoValida({ success: 'https://s3.amazonaws.com/x.jpg' })).toBe('https://s3.amazonaws.com/x.jpg');
+    expect(fotoValida({ error: "user don't have picture" })).toBe('');
+    expect(fotoValida({ success: 'http://x/y.jpg' })).toBe('');
+  });
+});

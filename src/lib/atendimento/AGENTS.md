@@ -1,5 +1,5 @@
 # Attendance server and domain rules
-- WhatsApp display names use owner workspace `agendaWhatsApp`, official UltraMsg `isMyContact/name` provenance, country-aware phone keys and CAS merges; monitor polling refreshes the authorized entry owner's names. Legal case names and identity/approval context are never rewritten. Why: phone labels are presentation, not legal identity.
+- WhatsApp display names use owner workspace `agendaWhatsApp`, official UltraMsg `isMyContact/name` provenance, country-aware phone keys and CAS merges; monitor polling refreshes the authorized entry owner's names; photos come only from UltraMsg `contacts/image` by exact chat id, refreshed daily, initials fallback. Legal case names and identity/approval context are never rewritten. Why: phone labels are presentation, not legal identity.
 
 - Anne books and consults recorded process facts through the reviewed server flow; `limparForaEscopoAna` strips investigative questions, internal agenda rules and evaluation/referral promises; domestic violence keeps internal URGENT flag, short acknowledgement leading to real slots, safety question only on stated imminent risk, never spontaneous 190. Why: factual consultation does not authorize legal assessment.
 
