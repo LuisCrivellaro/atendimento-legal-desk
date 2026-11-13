@@ -283,7 +283,7 @@ export const CENARIOS: Cenario[] = [
       if(!e.conversas['A']?.consultaAgendada)return 'Consulta não foi reservada.';
       const msgs=anaDe(e);
       if(msgs.some(m=>/transferir|para a equipe/i.test(m)))return 'Ana falou em transferir para a equipe.';
-      return msgs.some(m=>/confirmada/i.test(m))?true:'Sem mensagem de confirmação.';
+      return msgs.some(m=>/confirmada|está agendada/i.test(m))?true:'Sem mensagem de confirmação.';
     })],
   },
   {

@@ -289,7 +289,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
               await assumirAlteracao(db,id,messageId,current.agenteAna.reservaCalendar.id,'remarcar');
             }
             const reserva=current.consultaAgendada&&current.agenteAna?.reservaCalendar?await remarcarAgenda(db,row.data.owner_id,id,current.agenteAna.reservaCalendar,escolhido,true,new Date(),cliente):await reservarAgenda(db,row.data.owner_id,id,escolhido,new Date(),cliente);
-            r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl);
+            r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl,nome);
             r.proximo_passo='Consulta reservada automaticamente na agenda do ProJuris.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
             await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],horarioPendente:undefined,horarioPendenteDesde:undefined,consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada na agenda do ProJuris · ${formatarHorarioCliente(reserva.inicio)}`}]}));

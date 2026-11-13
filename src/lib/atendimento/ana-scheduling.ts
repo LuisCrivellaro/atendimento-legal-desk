@@ -153,8 +153,12 @@ export function selecionarOpcoesAna(busy:{start:string;end:string}[],now:Date,ti
  * a linha do horário e a linha do link da reunião, separadas por uma linha em branco.
  * O link só sai quando a agenda devolveu um endereço Meet real; nunca é inventado.
  */
-export function mensagemConfirmacaoAna(inicio:string,meetUrl?:string) {
-  const quando=formatarHorarioCliente(inicio);
+export function mensagemConfirmacaoAna(inicio:string,meetUrl?:string,nome?:string) {
   const link=meetUrl&&/^https:\/\/meet\.google\.com\/[a-z0-9-]+$/i.test(meetUrl)?meetUrl:undefined;
-  return link?`Sua consulta está confirmada para ${quando}\n\nAcesse a reunião: ${link}`:`Sua consulta está confirmada para ${quando}`;
+  const d=new Date(inicio);
+  const p=Object.fromEntries(new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(x=>[x.type,x.value])) as {day:string;month:string;year:string;hour:string;minute:string};
+  const horario=p.minute==='00'?`${Number(p.hour)}h`:`${Number(p.hour)}h${p.minute}`;
+  const primeiro=(nome??'').trim().split(/\s+/)[0]??'';
+  const ola=primeiro?`Olá, ${primeiro.charAt(0).toUpperCase()}${primeiro.slice(1).toLowerCase()}!`:'Olá!';
+  return `${ola} 😊 Sua consulta inicial com a Dra. Carolina está agendada!\n\n📅 Data: ${p.day}/${p.month}/${p.year}\n🕒 Horário: ${horario}${link?`\n🔗 Link: ${link}`:''}\n\nPedimos que entre alguns minutos antes. Até lá!`;
 }

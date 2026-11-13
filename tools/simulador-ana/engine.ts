@@ -19,7 +19,7 @@ import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } fr
 import { solicitarEmailPendente } from '@/lib/atendimento/email-rules';
 import { iniciarConsultaProcesso, respostaDuranteEspera, apenasInsistencia, deveConsultarProcesso, mensagemNaoCliente, interpretarRespostaRevisora, aplicarDecisao, pendencias, respostaAutorizada, CONFIG_CONSULTA_PADRAO, TEXTOS_CONSULTA, type ConfigConsultaProcesso, type PedidoProcesso, type PortasConsulta, type EntradaRedacao } from '@/lib/atendimento/consulta-processo';
 import { criarProjurisFicticio, projurisFicticioPadrao, type FalhaFicticia, type ProjurisFicticio } from '@/lib/projuris/ficticio';
-import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna } from '@/lib/atendimento/ana-scheduling';
+import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna, mensagemConfirmacaoAna } from '@/lib/atendimento/ana-scheduling';
 
 export interface Treino { instrucoes: string; proibidos: string[]; exemplos: { pergunta: string; resposta: string }[] }
 export interface EventoAgenda { id: string; inicio: string; fim: string; titulo: string; daAna: boolean; conversa?: string; meetUrl?: string; concluido?: boolean }
@@ -362,7 +362,7 @@ export class SimuladorAna {
               }
               const reserva = current.consultaAgendada && current.agenteAna?.reservaCalendar ? await this.remarcar(id, current.agenteAna.reservaCalendar, escolhido, true, new Date(), cliente) : await this.reservar(id, escolhido, new Date(), cliente);
               log(current.consultaAgendada ? 'Agenda: REMARCADA (novo criado antes de excluir o antigo).' : 'Agenda: consulta RESERVADA com Meet (link simulado).');
-              r.mensagem = `Sua consulta está confirmada para ${formatarHorarioCliente(reserva.inicio)}.${reserva.meetUrl ? `\nAcesse a reunião: ${reserva.meetUrl}` : ''}`;
+              r.mensagem = mensagemConfirmacaoAna(reserva.inicio, reserva.meetUrl, nome);
               r.proximo_passo = 'Consulta reservada automaticamente no Google Calendar.';
               this.atualizar(x => ({ ...x, consultaAgendada: reserva.inicio, horariosOfertados: [], agenteAna: { ...x.agenteAna, operacaoConsulta: undefined, reservaCalendar: reserva, alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, horariosTeste: [], horarioPendente: undefined, horarioPendenteDesde: undefined, consultaTeste: undefined, resultado: r, proximoPasso: r.proximo_passo } }));
             } catch (error) {
