@@ -19,7 +19,8 @@ const corDoNome = (nome: string) => CORES[[...nome].reduce((a, ch) => (a * 31 + 
 const iniciais = (n: string) => n.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
 
 export function ClienteAvatar({ nome, foto, className }: { nome: string; foto?: string | undefined; className?: string }) {
-  if (foto) return <img src={foto} alt="" className={cn('size-8 shrink-0 rounded-full object-cover', className)} />;
+  const [falhou, setFalhou] = useState('');
+  if (foto && falhou !== foto) return <img src={foto} alt="" onError={() => setFalhou(foto)} referrerPolicy="no-referrer" className={cn('size-8 shrink-0 rounded-full object-cover', className)} />;
   return <span aria-hidden="true" style={{ backgroundColor: corDoNome(nome) }} className={cn('flex size-8 shrink-0 select-none items-center justify-center rounded-full text-2xs font-semibold text-white', className)}>{iniciais(nome)}</span>;
 }
 

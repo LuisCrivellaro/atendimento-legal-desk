@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, Json } from '@/integrations/supabase/types';
-import { chaveNomeContato, indexarNomesContatos, mesclarNomesAgenda, type AgendaWhatsApp, type ContatoUltraNome } from './nomes-contatos';
+import { fotoContatoValida, chaveNomeContato, indexarNomesContatos, mesclarNomesAgenda, type AgendaWhatsApp, type ContatoUltraNome } from './nomes-contatos';
 type Db = SupabaseClient<Database>;
 type Workspace = Record<string, unknown> & { agendaWhatsApp?: AgendaWhatsApp };
 
@@ -26,6 +26,15 @@ export async function sincronizarNomesWhatsApp(db: Db, owner: string, automatico
   const chaves = new Set((casos.data ?? []).map(c => chaveNomeContato(String((c.dados as Record<string, Json>)?.['telefone'] ?? ''))).filter(Boolean));
   const vinculados = Object.fromEntries(Object.entries(contatos).filter(([k]) => chaves.has(k)));
   const em = new Date().toISOString();
+  // Photos refresh at most daily per contact; the UltraMsg lookup is keyed by the exact chat id.
+  const pendentes = Object.entries(vinculados).filter(([k]) => { const a = anterior?.contatos[k]; return !a?.fotoEm || Date.now() - Date.parse(a.fotoEm) > 864e5; });
+  for (let i = 0; i < pendentes.length; i += 8) await Promise.all(pendentes.slice(i, i + 8).map(async ([k, c]) => {
+    try {
+      const f = await fetch(`https://api.ultramsg.com/${encodeURIComponent(instance)}/contacts/image?${new URLSearchParams({ token, chatId: `${c.telefone.replace(/\D/g, '')}@c.us` })}`, { signal: AbortSignal.timeout(8000) });
+      if (!f.ok) return;
+      vinculados[k] = { ...c, foto: fotoContatoValida(await f.json()), fotoEm: em };
+    } catch { /* keep previous photo; retry next sync */ }
+  }));
   for (let tentativa = 0; tentativa < 5; tentativa++) {
     const row = await db.from('office_workspace').select('dados,updated_at').eq('owner_id', owner).maybeSingle();
     if (row.error) throw new Error('Agenda local indisponível.');
