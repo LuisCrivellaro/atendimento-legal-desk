@@ -362,7 +362,7 @@ export class SimuladorAna {
               }
               const reserva = current.consultaAgendada && current.agenteAna?.reservaCalendar ? await this.remarcar(id, current.agenteAna.reservaCalendar, escolhido, true, new Date(), cliente) : await this.reservar(id, escolhido, new Date(), cliente);
               log(current.consultaAgendada ? 'Agenda: REMARCADA (novo criado antes de excluir o antigo).' : 'Agenda: consulta RESERVADA com Meet (link simulado).');
-              r.mensagem = `Sua consulta está confirmada para ${formatarHorarioCliente(reserva.inicio)}.${reserva.meetUrl ? `\nAcesse a reunião: ${reserva.meetUrl}` : ''}`;
+              r.mensagem = mensagemConfirmacaoAna(reserva.inicio, reserva.meetUrl, nome);
               r.proximo_passo = 'Consulta reservada automaticamente no Google Calendar.';
               this.atualizar(x => ({ ...x, consultaAgendada: reserva.inicio, horariosOfertados: [], agenteAna: { ...x.agenteAna, operacaoConsulta: undefined, reservaCalendar: reserva, alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, horariosTeste: [], horarioPendente: undefined, horarioPendenteDesde: undefined, consultaTeste: undefined, resultado: r, proximoPasso: r.proximo_passo } }));
             } catch (error) {
