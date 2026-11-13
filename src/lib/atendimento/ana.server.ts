@@ -272,7 +272,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
         }
       }
       const ofertasEquipe=(current.horariosOfertados??[]).filter(s=>tipoCliente&&horarioPermitido(s,tipoCliente)&&Date.parse(s)>Date.now());
-      const escolhido=escolherReservaAna({texto:m.texto,selecionado,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:!permiteAgenda||pedirNome||(bloqueada&&!pendenteNome)||consultaEspecifica||cancelar||perguntar||!tipoCliente||!nome||!telefone||r.intencao!=='agendamento'||r.encaminhar_humano||!!r.motivo_aprovacao});
+      const escolhido=escolherReservaAna({texto:m.texto,selecionado,horarios:agendaReal?[...(c.agenteAna?.horariosTeste??[]),...ofertasEquipe]:ofertasEquipe,real:agendaReal||ofertasEquipe.length>0,tipoCliente,teste:cfg.data.modo_teste===true,modo:current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA,bloqueado:!permiteAgenda||pedirNome||(bloqueada&&!pendenteNome)||consultaEspecifica||cancelar||perguntar||!tipoCliente||!nome||!telefone||(r.intencao!=='agendamento'&&!selecionado)||r.encaminhar_humano||!!r.motivo_aprovacao});
       if(escolhido){
         efeitosIniciados=true;
         await marcarEfeito();
