@@ -21,7 +21,7 @@ describe('sincronização de nomes sem alterar casos',()=>{
   const f=vi.fn().mockResolvedValue({ok:true,json:async()=>[{id:'5511999990001@c.us',isMyContact:true,name:'Agenda da Dra.',pushname:'Perfil'},{id:'5521999990001@c.us',isMyContact:true,name:'Outro proprietário'}]});vi.stubGlobal('fetch',f);
   const h=banco();const r=await sincronizarNomesWhatsApp(h.db,'owner');
   expect(r.atualizados).toBe(1);expect(Object.keys(r.agenda.contatos)).toEqual([chaveNomeContato('5511999990001')]);expect(h.dados['casos']).toEqual({legal:{peticao:'Original'}});expect(h.dados['training']).toEqual({instrucoes:'Preservar'});expect(h.writes).toBe(1);expect(h.owners.every(o=>o==='owner')).toBe(true);
-  const again=await sincronizarNomesWhatsApp(h.db,'owner',true);expect(again.reutilizada).toBe(true);expect(f).toHaveBeenCalledOnce();
+  const antes=f.mock.calls.length;expect(antes).toBe(2);const again=await sincronizarNomesWhatsApp(h.db,'owner',true);expect(again.reutilizada).toBe(true);expect(f).toHaveBeenCalledTimes(antes);
  });
  it('erro do provedor preserva a agenda local',async()=>{
   vi.stubEnv('ULTRAMSG_INSTANCE_ID','test');vi.stubEnv('ULTRAMSG_TOKEN','test');vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:false,status:503}));const h=banco();await expect(sincronizarNomesWhatsApp(h.db,'owner')).rejects.toThrow('503');expect(h.writes).toBe(0);
