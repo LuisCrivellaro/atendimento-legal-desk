@@ -60,7 +60,7 @@ A Ana é uma assistente virtual, não advogada. Ela atende 24h, tira dúvidas ge
 - Cancelamento só depois de uma pergunta com data e hora e de uma confirmação explícita do cliente.
 - Remarcação cria o novo compromisso antes de excluir o antigo, com reversão em caso de falha.
 
-As regras completas estão em [`REGRAS-DA-DOUTORA.md`](REGRAS-DA-DOUTORA.md) e em [`docs/ana-horarios-cancelamento.md`](docs/ana-horarios-cancelamento.md).
+As regras completas estão em [`src/lib/ana-claude/regras.ts`](src/lib/ana-claude/regras.ts) e em [`docs/ana-horarios-cancelamento.md`](docs/ana-horarios-cancelamento.md).
 
 ## Integrações
 
@@ -146,8 +146,8 @@ Para segredos:
 ### Leia antes de alterar qualquer coisa
 
 - [`AGENTS.md`](AGENTS.md): decisões técnicas e o motivo de cada uma.
-- [`REGRAS-DA-DOUTORA.md`](REGRAS-DA-DOUTORA.md): regras de negócio, agenda, documentos e Visual Law.
-- [`CONTINUAR-NO-CLAUDE.md`](CONTINUAR-NO-CLAUDE.md): estado atual, conectores e limites de hospedagem.
+- [`src/lib/ana-claude/regras.ts`](src/lib/ana-claude/regras.ts): regras de negócio, agenda, documentos e Visual Law.
+- [`docs/CONTINUAR-NO-CLAUDE.md`](docs/CONTINUAR-NO-CLAUDE.md): estado atual, conectores e limites de hospedagem.
 - [`roadmap.md`](roadmap.md): histórico das entregas e pendências.
 
 ## Pendências atuais
