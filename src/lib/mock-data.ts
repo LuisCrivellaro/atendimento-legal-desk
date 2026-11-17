@@ -31,6 +31,7 @@ export interface Conversa {
   pastaDrive?: { id: string; url: string } | undefined;
   tipoClienteAgenda?: import('./atendimento/intake-rules').TipoCliente;
   agenteAna?: import('./atendimento/ana-rules').AnaState;
+  funilInternacional?: import('./atendimento/funil-internacional').FunilInternacional;
   id: string; nome: string; cpf: string; telefone: string; atendimento: string; etapa: Etapa;
   naoLidas: number; etapaPipeline: number; syncs: Sync[]; processos: Processo[];
   documentos: DocItem[]; mensagens: Mensagem[]; contrato?: "gerado" | "enviado" | "visualizado" | "assinado";

@@ -13,6 +13,7 @@ import { solicitarEmailPendente } from './email-rules';
 import { lembreteAtivo, respostaLembreteAna } from './lembrete-consulta';
 import { hora } from './ana-scheduling';
 import { pedidoInformacoesConsultaAna, aceiteConsultaAna } from './ana-rules';
+import { gatilhoLandingInternacional, passoFunil, MSG_BOAS_VINDAS, REGRAS_REAGENDAMENTO } from './funil-internacional';
 import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna, mensagemConfirmacaoAna } from './ana-scheduling';
 import { apenasInsistencia, TEXTOS_CONSULTA } from './consulta-processo';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from './ana-retomada';
@@ -79,6 +80,18 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     await marcarEfeito();
     const { enviarAvisoProcesso } = await import('./consulta-processo.server');
     await enviarAvisoProcesso(db,id,TEXTOS_CONSULTA.emConferencia,remetente.data?.contato_externo??'');
+    return;
+  }
+  // Funil de consulta paga Brasil–Portugal: só a partir das mensagens da landing page.
+  if(canal==='ultramsg'&&mode==='Automática'&&(c.funilInternacional?c.funilInternacional.etapa!=='pago':gatilhoLandingInternacional(m.texto)&&!c.mensagens.some(x=>x.de!=='cliente'))){
+    const funil=c.funilInternacional;
+    const passo=funil?passoFunil(funil,m.texto,!!m.arquivo):{mensagem:MSG_BOAS_VINDAS,funil:{etapa:'nome' as const,inicio:new Date().toISOString()}};
+    if(!passo)return;
+    efeitosIniciados=true;
+    await marcarEfeito();
+    const {enviarMensagemSistema}=await import('./envio.functions');
+    const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:passo.mensagem,motivo:'ana-funil-internacional',contatoEsperado:remetente.data?.contato_externo??'',mensagemOrigem:messageId,controleHumanoEm:c.agenteAna?.controleHumanoEm});
+    await atualizarConversa(db,id,x=>({...x,funilInternacional:passo.funil,...(passo.funil.etapa==='conferencia'&&x.funilInternacional?.etapa!=='conferencia'?{timeline:[...x.timeline,{data:new Date().toISOString(),evento:'Funil internacional: comprovante recebido — conferir e clicar em PIX Confirmado.'}]}:{}),agenteAna:{...x.agenteAna,apresentado:true,...(passo.nome?{dados:{...(x.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),nome:passo.nome}}:{})} as NonNullable<typeof x.agenteAna>,mensagens:[...x.mensagens,newMessage(passo.mensagem,{autor:'Ana · assistente virtual',canal,idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
     return;
   }
   if(mensagemSemResposta(m.texto,!!m.arquivo))return;
@@ -289,7 +302,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
               await assumirAlteracao(db,id,messageId,current.agenteAna.reservaCalendar.id,'remarcar');
             }
             const reserva=current.consultaAgendada&&current.agenteAna?.reservaCalendar?await remarcarAgenda(db,row.data.owner_id,id,current.agenteAna.reservaCalendar,escolhido,true,new Date(),cliente):await reservarAgenda(db,row.data.owner_id,id,escolhido,new Date(),cliente);
-            r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl,nome);
+            r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl,nome)+(c.funilInternacional?`\n\n${REGRAS_REAGENDAMENTO}`:'');
             r.proximo_passo='Consulta reservada automaticamente na agenda do ProJuris.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
             await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],horarioPendente:undefined,horarioPendenteDesde:undefined,consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada na agenda do ProJuris · ${formatarHorarioCliente(reserva.inicio)}`}]}));
