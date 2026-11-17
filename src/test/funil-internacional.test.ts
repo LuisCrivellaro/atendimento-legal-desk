@@ -27,3 +27,12 @@ describe('funil internacional', () => {
     expect(passoFunil(p.funil, 'oi?', false)).toBeUndefined();
   });
 });
+import { msgPagoComHorarios } from '@/lib/atendimento/funil-internacional';
+describe('pagamento confirmado', () => {
+  it('confirmação já leva os horários', () => {
+    const m = msgPagoComHorarios('1 - Segunda-feira, 23/11, às 9h', 'O que fica melhor para você?');
+    expect(m).toContain('Pagamento confirmado');
+    expect(m).toContain('Segunda-feira, 23/11, às 9h');
+    expect(m).not.toContain('HORÁRIOS');
+  });
+});
