@@ -3,8 +3,8 @@ import { gatilhoLandingInternacional, passoFunil, MSG_PIX, MSG_LINK, MSG_CONFERE
 const f = { etapa: 'nome' as const, inicio: '2026-11-17T00:00:00Z' };
 describe('funil internacional', () => {
   it('reconhece mensagens da landing page', () => {
-    expect(gatilhoLandingInternacional('Olá, Dra. Carolina Santos! Gostaria de agendar uma consulta internacional sigilosa (Brasil - Portugal).')).toBe(true);
-    expect(gatilhoLandingInternacional('Olá, Dra. Carolina Santos! Gostaria de agendar uma consulta internacional sobre Adoção Internacional.')).toBe(true);
+    expect(gatilhoLandingInternacional('Olá Dra. Carolina, gostaria de agendar uma consulta Família Internacional.')).toBe(true);
+    expect(gatilhoLandingInternacional('Olá, Dra. Carolina Santos! Gostaria de agendar uma consulta internacional sobre Adoção Internacional.')).toBe(false);
   });
   it('não ativa para mensagens comuns', () => {
     expect(gatilhoLandingInternacional('Olá, gostaria de agendar uma consulta')).toBe(false);

@@ -1,6 +1,6 @@
 /**
  * Funil de consulta PAGA — Direito Internacional Brasil–Portugal (Dra. Carolina, 17/11/2026).
- * Só é ativado quando a primeira mensagem é um dos textos da landing page
+ * Só é ativado quando a primeira mensagem é o texto da landing page
  * https://carolinasantos.com.br/advogada-intenacional-brasil-portugal/
  */
 import { validarNome } from './ana-rules';
@@ -13,11 +13,10 @@ export type EtapaFunil = 'nome' | 'pagamento' | 'pix' | 'link' | 'conferencia' |
 export interface FunilInternacional { etapa: EtapaFunil; inicio: string; nome?: string; forma?: 'pix' | 'link'; confirmadoEm?: string; confirmadoPor?: string }
 
 const norm = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9()\- ]/g, ' ').replace(/\s+/g, ' ').trim();
-const BASE = 'ola dra carolina santos gostaria de agendar uma consulta internacional';
-const TEMAS = ['divorcio internacional', 'homologacao de sentencas estrangeiras', 'inventario e sucessao internacional', 'pensao alimenticia transnacional', 'regulamentacao de guarda e visitas internacional', 'adocao internacional', 'testamento e planejamento patrimonial global', 'curatela e tutela internacional'];
-const GATILHOS = new Set([BASE, `${BASE} sigilosa`, `${BASE} sigilosa (brasil - portugal)`, `${BASE} diretamente com a sua equipa`, `${BASE} e conhecer as condicoes de atendimento`, ...TEMAS.map(t => `${BASE} sobre ${t}`)]);
+/** Mensagem única da landing page internacional (Dra. Carolina, 19/11/2026). */
+const GATILHOS = new Set(['ola dra carolina gostaria de agendar uma consulta familia internacional']);
 
-/** Reconhece exatamente as 13 mensagens da landing page (tolerante a acentos, pontuação e espaços). */
+/** Reconhece a mensagem da landing page (tolerante a acentos, pontuação e espaços). */
 export function gatilhoLandingInternacional(texto: string) { return GATILHOS.has(norm(texto)); }
 
 export const MSG_BOAS_VINDAS = 'Olá, seja bem-vindo(a) à Equipe CS Lawyers! É um prazer tê-lo(a) conosco. 😊\n\nVamos iniciar seu agendamento. Por favor, nos informe seu nome completo.';
