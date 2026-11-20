@@ -66,8 +66,13 @@ describe('fluxo central de reconhecimento com integrações substituídas', () =
     const r = await reconhecerRelacionamentoAna(h.db, 'owner', h.saved, h.saved.telefone, 'ultramsg');
     expect(r.rel.situacao).toBe('incerto'); expect(mocks.ativos).not.toHaveBeenCalled(); expect(r.nome).toBe('');
   });
-  it('falha oficial não transforma ausente local em lead', async () => {
+  it('falha oficial com contato novo sem histórico segue para a saudação gratuita', async () => {
     const h = setup(); mocks.indice.mockRejectedValueOnce(new Error('Indisponível'));
+    const r = await reconhecerRelacionamentoAna(h.db, 'owner', h.saved, h.saved.telefone, 'ultramsg');
+    expect(r.rel.situacao).toBe('novo_lead'); expect(r.rel.consultaInicial).toBe(true);
+  });
+  it('falha oficial não transforma ausente local com histórico da equipe em lead', async () => {
+    const h = setup({ mensagens: [{ id: 'e1', de: 'escritorio', canal: 'ultramsg', texto: 'Olá', hora: '', dataHora: '2026-11-01T12:00:00Z' }] }); mocks.indice.mockRejectedValueOnce(new Error('Indisponível'));
     const r = await reconhecerRelacionamentoAna(h.db, 'owner', h.saved, h.saved.telefone, 'ultramsg');
     expect(r.rel.situacao).toBe('incerto'); expect(r.rel.consultaInicial).toBe(false);
   });

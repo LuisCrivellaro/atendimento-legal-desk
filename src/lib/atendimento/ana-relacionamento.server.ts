@@ -19,7 +19,10 @@ export async function reconhecerRelacionamentoAna(db: SupabaseClient<Database>, 
     return { identidade, rel, nome: identidade.tipo === 'unico' ? identidade.pessoa.nome : '' };
   } catch {
     // Absence in the filtered replica is NOT proof of a new lead. Fail closed for acquisition.
-    const rel = relacionamentoAna(c, telefone, canal, local.tipo === 'unico' ? local : undefined);
+    // Exceção da Dra. Carolina (20/11/2026): contato novo, sem histórico da equipe e ausente da base local,
+    // recebe a saudação gratuita com horários mesmo se a consulta completa ao ProJuris falhar.
+    const semHistorico = !c.mensagens.some(m => m.de === 'escritorio') && !c.consultaAgendada && !c.contrato;
+    const rel = relacionamentoAna(c, telefone, canal, local.tipo === 'unico' || local.tipo === 'nao_encontrado' && semHistorico ? local : undefined);
     return { identidade: local, rel, nome: '' };
   }
 }
