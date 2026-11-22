@@ -57,8 +57,11 @@ export async function ocupadosAgenda(db: Db, owner: string, now = new Date(), di
     const compromissos = await listarCompromissos(now.getTime(), now.getTime() + dias * 86400000, portas.cliente);
     return compromissos.map(c => ({ start: new Date(c.inicioMs).toISOString(), end: new Date(c.fimMs).toISOString() }));
   } catch (e) {
-    console.error('Agenda ProJuris indisponível', e);
-    return null;
+    // ProJuris é a agenda principal e é sempre consultado primeiro; só na falha o Google Agenda serve de reserva.
+    console.error('Agenda ProJuris indisponível; usando o Google Agenda como reserva', e);
+    if (portas.cliente) return null; // testes com dublê não consultam o Google
+    const { ocupadosGoogleCalendar } = await import('./google-calendar.server');
+    return ocupadosGoogleCalendar(now, dias);
   }
 }
 
@@ -109,13 +112,20 @@ export async function reservarAgenda(
     meet?.meetUrl ? `Link da reunião (Google Meet): ${meet.meetUrl}` : 'Link da reunião: a equipe envia antes da consulta.',
     'Agendada pela Anne (assistente virtual) no Manager ADV.',
   ].join('\n');
-  const resultado = await reservarCompromisso(db, owner, {
-    titulo,
-    inicioMs: Date.parse(inicio),
-    fimMs: Date.parse(fim),
-    codigoExterno: codigoExternoConsulta(conversaId, Date.parse(inicio)),
-    descricao,
-  }, p.cliente);
+  const codigoExterno = codigoExternoConsulta(conversaId, Date.parse(inicio));
+  let resultado: Awaited<ReturnType<typeof reservarCompromisso>>;
+  try {
+    resultado = await reservarCompromisso(db, owner, { titulo, inicioMs: Date.parse(inicio), fimMs: Date.parse(fim), codigoExterno, descricao }, p.cliente);
+  } catch (e) {
+    // ProJuris fora (credencial/bloqueio/rede) antes de gravar: o evento do Google vale como reserva provisória.
+    const tipo = (e as { tipo?: string }).tipo;
+    if (meet && !portas.cliente && (tipo === 'autenticacao' || tipo === 'configuracao' || tipo === 'indisponivel')) {
+      console.error('ProJuris indisponível; consulta reservada no Google Agenda e pendente no ProJuris', e);
+      return { id: meet.id, inicio, fim, ...(meet.meetUrl ? { meetUrl: meet.meetUrl } : {}), pendenteProjuris: { titulo, descricao, codigoExterno } };
+    }
+    if (meet) await p.apagarMeet(meet.id).catch(() => undefined);
+    throw e;
+  }
 
   if (!resultado.ok) {
     // A reserva oficial falhou: remover o evento-companheiro do Meet para não deixar órfão na agenda do Google.
@@ -186,4 +196,27 @@ export async function remarcarAgenda(
   }
   await p.apagarMeet(await idReservaCalendar(anterior.inicio)).catch(() => undefined);
   return nova;
+}
+
+/** Lança no ProJuris as consultas reservadas só no Google enquanto ele estava fora. Idempotente por codigoExterno. */
+export async function sincronizarReservasPendentes(db: Db): Promise<number> {
+  const rows = await db.from('casos').select('id,owner_id,dados').not('dados->agenteAna->reservaCalendar->pendenteProjuris', 'is', null);
+  if (rows.error) throw new Error('Pendências da agenda indisponíveis.');
+  const { atualizarConversa } = await import('./ana.server');
+  let feitas = 0;
+  for (const row of rows.data ?? []) {
+    const reserva = (row.dados as { agenteAna?: { reservaCalendar?: ReservaCalendar } } | null)?.agenteAna?.reservaCalendar;
+    const pend = reserva?.pendenteProjuris;
+    if (!reserva || !pend) continue;
+    try {
+      const r = await reservarCompromisso(db, row.owner_id, { titulo: pend.titulo, inicioMs: Date.parse(reserva.inicio), fimMs: Date.parse(reserva.fim), codigoExterno: pend.codigoExterno, descricao: pend.descricao });
+      if (!r.ok) { console.error('Pendência ProJuris não lançada', r.motivo); continue; }
+      const nova: ReservaCalendar = { id: idReciboProjuris(r.codigo), inicio: reserva.inicio, fim: reserva.fim, ...(reserva.meetUrl ? { meetUrl: reserva.meetUrl } : {}) };
+      await atualizarConversa(db, row.id, x => x.agenteAna?.reservaCalendar?.pendenteProjuris?.codigoExterno === pend.codigoExterno
+        ? { ...x, agenteAna: { ...x.agenteAna, reservaCalendar: nova }, timeline: [...x.timeline, { data: new Date().toISOString(), evento: 'Consulta lançada no ProJuris após a volta do sistema.' }] }
+        : x);
+      feitas++;
+    } catch (e) { console.error('ProJuris ainda indisponível para pendências', e); break; }
+  }
+  return feitas;
 }

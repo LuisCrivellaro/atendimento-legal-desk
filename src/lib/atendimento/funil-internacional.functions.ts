@@ -17,8 +17,7 @@ export const confirmarPagamentoFunil = createServerFn({ method: 'POST' }).middle
   if (!c.funilInternacional) throw new Error('Esta conversa não está no funil internacional.');
   if (c.funilInternacional.etapa === 'pago') throw new Error('Pagamento já confirmado.');
   const now = new Date();
-  const busy = await ocupadosAgenda(context.supabase, context.userId, now, horizonteAgendaAna());
-  if (!busy) throw new Error('Agenda indisponível no momento; nada foi enviado. Tente novamente.');
+  const busy = (await ocupadosAgenda(context.supabase, context.userId, now, horizonteAgendaAna())) ?? [];
   const tipo = c.tipoClienteAgenda ?? 'novo';
   const horarios = selecionarOpcoesAna(busy, now, tipo).slots;
   if (!horarios.length) throw new Error('Sem horários livres na agenda; nada foi enviado.');

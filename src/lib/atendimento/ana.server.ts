@@ -110,7 +110,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c);
     // Vínculo ativo vem do cadastro (base local sincronizada), nunca do histórico da conversa.
     const classificacao=classificarAgenda({persistida:c.tipoClienteAgenda,local:localIdentidade,autodeclaracao:identificarTipoCliente(m.texto),contexto:c.agenteAna?.tipoCliente,padraoLead:c.etapa==='inicial'});
-    const tipoCliente=rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificacao.tipo;
+    // Funil internacional pago: os horários ofertados após o PIX valem como cliente novo (seg–qui).
+    const tipoCliente=c.funilInternacional?.etapa==='pago'?'novo' as const:rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificacao.tipo;
     const clienteLocal=reconhecimento.nome?{nome:reconhecimento.nome,telefone,email}:undefined;
     const identidade=nomeConhecido(c,canal,clienteLocal?.nome??'');
     const introducao=apresentacaoNome(m.texto);
@@ -186,8 +187,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(classificacao.fonte==='duvida'&&raw.intencao==='agendamento'){raw.encaminhar_humano=true;raw.motivo_aprovacao='Telefone vinculado a mais de um cadastro; a equipe confirma o vínculo antes de agendar.';bloqueada=true;}
     if(teste&&tipoCliente&&telefone&&raw.intencao==='agendamento'&&!bloqueada&&!selecionado&&!gerenciarExistente&&!semConsulta&&!recebeuNome&&(aceiteCaptacao||primeiroContato||nome||consultaEspecifica||/horarios|horários/.test(m.texto))){
       const {ocupadosAgenda}=await import('./projuris-agenda.server');
-      const busy=await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna());
-      if(!busy)throw new Error('Agenda indisponível; nenhum horário oferecido.');
+      // A Anne atende mesmo com o ProJuris fora: usa as regras locais da agenda; a reserva revalida depois.
+      const busy=(await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna()))??[];
       agendaReal=true;
       if(consultaEspecifica&&especifico&&horarioEspecificoLivre(especifico,busy,tipoCliente)){
         horarioPendente=especifico;horarios=[especifico];
@@ -302,7 +303,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
               await assumirAlteracao(db,id,messageId,current.agenteAna.reservaCalendar.id,'remarcar');
             }
             const reserva=current.consultaAgendada&&current.agenteAna?.reservaCalendar?await remarcarAgenda(db,row.data.owner_id,id,current.agenteAna.reservaCalendar,escolhido,true,new Date(),cliente):await reservarAgenda(db,row.data.owner_id,id,escolhido,new Date(),cliente);
-            r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl,nome)+(c.funilInternacional?`\n\n${REGRAS_REAGENDAMENTO}`:'');
+            r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl,nome).replace(/(Horário: [^\n]+)/,c.funilInternacional?'$1 (horário de Brasília)':'$1')+(c.funilInternacional?`\n\n${REGRAS_REAGENDAMENTO}`:'');
             r.proximo_passo='Consulta reservada automaticamente na agenda do ProJuris.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
             await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],horarioPendente:undefined,horarioPendenteDesde:undefined,consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada na agenda do ProJuris · ${formatarHorarioCliente(reserva.inicio)}`}]}));

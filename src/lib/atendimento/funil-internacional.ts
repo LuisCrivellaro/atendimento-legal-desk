@@ -28,7 +28,7 @@ export const MSG_PEDIR_COMPROVANTE = 'Assim que concluir o pagamento, por favor 
 export const MSG_ESCOLHA = 'Por favor, responda 1 para PIX ou 2 para link de pagamento.';
 export const MSG_NOME = 'Para continuar, por favor informe seu nome completo (nome e sobrenome).';
 export const MSG_PAGO = 'Pagamento confirmado! ✅ Muito obrigada.';
-export const msgPagoComHorarios = (linhaHorarios: string, pergunta: string) => `${MSG_PAGO}\n\nEstes são os horários disponíveis para sua consulta com a Dra. Carolina:\n${linhaHorarios}\n\n${pergunta}`;
+export const msgPagoComHorarios = (linhaHorarios: string, pergunta: string) => `${MSG_PAGO}\n\nEstes são os horários disponíveis para sua consulta com a Dra. Carolina (horário de Brasília):\n${linhaHorarios}\n\n${pergunta}`;
 export const REGRAS_REAGENDAMENTO = 'ℹ️ Caso não possa comparecer à reunião virtual, desmarque com até 2 horas de antecedência, para que a consulta não seja contabilizada. É possível reagendar sem custo 1 vez; a partir do segundo reagendamento, será cobrada uma taxa de 35% do valor da consulta.';
 
 export interface PassoFunil { mensagem: string; funil: FunilInternacional; nome?: string }

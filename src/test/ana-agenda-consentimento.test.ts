@@ -79,10 +79,10 @@ describe('Primeiro contato completo',()=>{
   expect(mocks.reservar).toHaveBeenCalledWith(h.saved.id,selected,expect.any(Date),{nome:'Mariana Souza Lima',telefone:'5511999600306',tipo:'novo'});
   expect(h.saved.consultaAgendada).toBe(selected);
  });
- it('indisponibilidade não envia saudação nem opções fictícias',async()=>{
+ it('ProJuris fora do ar: Anne atende mesmo assim com saudação e horários',async()=>{
   const h=setup('ultramsg',false);h.patch(c=>({...c,etapa:'inicial',agenteAna:{apresentado:false}}));
   mocks.ocupados.mockResolvedValueOnce(null);await h.message('oi');
-  expect(mocks.enviar).not.toHaveBeenCalled();expect(h.saved.agenteAna?.apresentado).toBe(false);
+  expect(mocks.enviar).toHaveBeenCalledTimes(1);expect(h.saved.agenteAna?.humano).not.toBe(true);
  });
  it('horário ocupado busca novas opções sem confirmar nem repetir reserva',async()=>{
   const h=setup('ultramsg',false);await h.message('quero agendar');

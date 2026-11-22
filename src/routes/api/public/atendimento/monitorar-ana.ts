@@ -14,6 +14,8 @@ export const Route = createFileRoute('/api/public/atendimento/monitorar-ana')({ 
       try { await sincronizarNomesWhatsApp(supabaseAdmin, dona.ownerId, true); }
       catch { console.error('Atualização automática dos nomes da agenda indisponível; nomes anteriores preservados.'); }
     }
+    try { const { sincronizarReservasPendentes } = await import('@/lib/atendimento/projuris-agenda.server'); await sincronizarReservasPendentes(supabaseAdmin); }
+    catch { console.error('Pendências da agenda no ProJuris ficam para a próxima verificação.'); }
     const s = await verificarESalvar(supabaseAdmin); return Response.json({ geral: s.geral, alertas: s.alertas.length });
   }
   catch (e) { console.error('Monitor da Ana falhou', e); return Response.json({ error: 'Monitor indisponível' }, { status: 503 }); }

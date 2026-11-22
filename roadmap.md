@@ -437,3 +437,8 @@
 - [ ] Validação controlada de criação (aguarda confirmação da Dra.; exclusão está desativada no ProJuris).
 - [ ] Executar migração real individual após conferência da Dra., validar recibos/quantidades no ProJuris e resolver consulta sem nome/eventos não classificados; não criar registros irreversíveis só para teste.
 - [ ] Troca da Anne para ProJuris exclusivo e desativação do Calendar SOMENTE após aprovação da equipe.
+- [x] Anne responde mesmo com o ProJuris fora do ar
+- [x] Funil internacional: reserva do horário escolhido após PIX
+- [x] Funil internacional: horários em fuso de Brasília
+- [x] Google Agenda como reserva quando o ProJuris falhar; marcar no ProJuris depois
+- [x] Google Agenda como reserva quando o ProJuris falhar (ProJuris sempre primeiro); lançar no ProJuris depois
