@@ -442,3 +442,4 @@
 - [x] Funil internacional: horários em fuso de Brasília
 - [x] Google Agenda como reserva quando o ProJuris falhar; marcar no ProJuris depois
 - [x] Google Agenda como reserva quando o ProJuris falhar (ProJuris sempre primeiro); lançar no ProJuris depois
+- [ ] Anne pausada por ordem da Dra. em 23/11/2026 19:30 UTC (pausa global + agente desligado no canal); reativar somente na segunda ordem.
