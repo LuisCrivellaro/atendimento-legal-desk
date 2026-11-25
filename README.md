@@ -59,6 +59,9 @@ A Ana é uma assistente virtual, não advogada. Ela atende 24h, tira dúvidas ge
 - A disponibilidade é conferida na agenda real antes de reservar.
 - Cancelamento só depois de uma pergunta com data e hora e de uma confirmação explícita do cliente.
 - Remarcação cria o novo compromisso antes de excluir o antigo, com reversão em caso de falha.
+- Retorno de cliente da casa: 30 minutos (`DURACAO_RETORNO`, decisão D2 pendente; o transcript fala em 15 a 20).
+- Lembrete do dia às 08:00 (SIM/NÃO), sem mudança.
+- **Confirmação 40 minutos antes** (texto oficial da Dra., saudação Bom dia/Boa tarde/Boa noite pelo horário de São Paulo): rotina do servidor a cada 5 minutos, envia uma vez quando faltam entre 40 e 50 minutos, só com recibo da reserva e contato liberado. Janela perdida, conversa com a equipe ou Anne pausada geram aviso para a equipe, sem envio. "Ok" registra presença; "não", "vou atrasar" ou "preciso remarcar" nunca cancelam: a Anne pergunta com data e hora e a equipe é avisada com prioridade. Detalhes em [`docs/rotinas-agendadas.md`](docs/rotinas-agendadas.md).
 
 As regras completas estão em [`src/lib/ana-claude/regras.ts`](src/lib/ana-claude/regras.ts) e em [`docs/ana-horarios-cancelamento.md`](docs/ana-horarios-cancelamento.md).
 

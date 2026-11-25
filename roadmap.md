@@ -1,3 +1,18 @@
+## Anne completa (Atendimento) — branch local anne-atendimento-completo — 25/11/2026
+Implementado e testado com mocks; nada publicado, nada enviado ao Lovable, rotinas novas não agendadas. Relatório: docs/anne-atendimento-completo.md.
+- [x] P0-1 Confirmação 40 min antes (texto oficial, saudação D1, rotina a cada 5 min, respostas ok/não, avisos)
+- [x] P0-2 Atendimento sem simulação: contrato pendente sem link demo, pasta real no Drive, anexo guardado até recibo, agenda real da equipe, Meet só do recibo, cobrança "não configurado"
+- [x] P0-3 Concierge de coleta: recebimento só com recibo, faltantes do checklist real, lembretes no servidor (24 h / 48 h, até 3), lista de provas no checklist
+- [x] P0-4 Concierge de acompanhamento: pergunta de encerramento (proposta), "sim" oferece sextas, aviso de audiência/perícia na fila da revisora
+- [ ] P0-4 "O que a IA pode dizer" no Treinamento (não feito)
+- [ ] P1-1 ZapSign real (não feito; depende de token e conferência da documentação)
+- [ ] P1-2 Pós-consulta com transcrição/sumarização (não feito; botões agora honestos e desabilitados)
+- [x] P1-3 Atendente vendedor construído e desligado por padrão
+- [ ] P1-4 Tempo limite em todas as chamadas da Anne (não revisado; UltraMsg já tem 15 s)
+- [ ] P2-1 Mercado Pago (não feito; ação mostra "não configurado")
+- [x] P2-2 Etapa concluída vira registro local + item "Lançar no ProJuris" (sem escrita, D5)
+- [ ] P2-3 Nome da pasta com identificação do ProJuris (não feito)
+
 ## Finalização da Anne — Atendimento — 25/11/2026
 - [x] 1.1 Trava geral: ações simuladas bloqueadas com canal real
 - [ ] 1.2–1.6 Videochamada, contrato, cobrança, reserva e horários reais pela equipe
