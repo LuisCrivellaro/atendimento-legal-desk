@@ -8,7 +8,7 @@ const tarde='2026-11-05T17:30:00.000Z'; // qui 14h30 SP
 
 describe('prompt da Ana de 04/11/2026', () => {
   it('saudação inicial exata com 1 horário de manhã e 1 à tarde', () => {
-    expect(primeiraMensagemAna([manha,tarde]).replace(/Temos horários [^\n]+/,'Temos horários X')).toBe('Olá , \n\nSeja bem vindo (a)😊\nEquipe CS Advocacia \nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.\nTemos horários X\n\nO que fica melhor para você?');
+    expect(primeiraMensagemAna([manha,tarde]).replace(/Temos horários [^\n]+/,'Temos horários X')).toBe('Olá!\n\nSeja bem vindo (a)😊\nEquipe CS Advocacia \nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.\nTemos horários X\n\nO que fica melhor para você?');
   });
   it('apresenta só 2 opções: manhã e tarde mais próximas', () => {
     const now=new Date('2026-11-04T09:00:00Z'); // qua 9h SP

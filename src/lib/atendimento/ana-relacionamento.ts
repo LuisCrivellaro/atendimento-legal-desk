@@ -11,6 +11,20 @@ export interface RelacionamentoAna {
   consultaInicial: boolean;
   quantidadeProcessos: number;
 }
+const PERGUNTA_RELACAO = /retomando um atendimento anterior|retoma atendimento|nova situa[cç][aã]o|nova demanda|situa[cç][aã]o nova/i;
+const fold = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+/** Resposta "nova demanda" (com variações informais) dada a uma pergunta de relacionamento; persiste no histórico. */
+export function respondeuNovaDemanda(historico: Mensagem[]): boolean {
+  return historico.some((m, i) => m.de === 'cliente'
+    && historico.slice(0, i).filter(x => x.de === 'escritorio').at(-1) !== undefined
+    && PERGUNTA_RELACAO.test(historico.slice(0, i).filter(x => x.de === 'escritorio').at(-1)!.texto)
+    && /^(?:(?:sim|e|eh|seria|acho que|acredito que)[,\s]+)*(?:(?:e|eh)\s+)?(?:uma?\s+)?(?:nova(?:\s+demanda)?|novo(?:\s+caso)?|(?:situacao|caso|assunto|demanda)\s+nov[oa]|demanda\s+nova|e\s+novo|primeira vez)(?:\s+sim)?[.!\s]*$/.test(fold(m.texto).trim()));
+}
+/** Anne já ofereceu a consulta gratuita e nenhuma pessoa da equipe falou depois: não reclassificar o mesmo contato. */
+function captacaoJaIniciadaPelaAnne(historico: Mensagem[]): boolean {
+  return historico.some(m => m.de === 'escritorio' && /^(?:Ana|Anne)\b/.test(m.autor ?? '') && /primeira consulta [ée] on-line e gratuita/i.test(m.texto))
+    && !historico.some(m => m.de === 'escritorio' && !/^(?:Ana|Anne)\b/.test(m.autor ?? ''));
+}
 export function relacionamentoAna(c: Conversa, telefone: string, canal: string, identidade?: Identificacao, ativos?: number): RelacionamentoAna {
   const ligado = mesmoTelefone(c.telefone, telefone);
   const historico = ligado ? historicoContato(c, canal) : [];
@@ -25,8 +39,9 @@ export function relacionamentoAna(c: Conversa, telefone: string, canal: string, 
     const ultimaEquipe = historico.filter(m => m.de === 'escritorio').at(-1)?.texto ?? '';
     const ultimaPessoa = historico.filter(m => m.de === 'cliente').at(-1)?.texto ?? '';
     const novaConfirmada = /retomando um atendimento anterior|retoma atendimento|nova situa[cç][aã]o|nova demanda/i.test(ultimaEquipe) && /^(?:[ée] (?:uma )?)?(?:nova demanda|(?:uma )?(?:situa[cç][aã]o|caso) nov[oa])[.!\s]*$/i.test(ultimaPessoa.trim());
-    situacao = novaConfirmada ? 'novo_lead' : 'cadastro_anterior';
+    situacao = novaConfirmada || respondeuNovaDemanda(historico) || captacaoJaIniciadaPelaAnne(historico) ? 'novo_lead' : 'cadastro_anterior';
   }
+  else if (respondeuNovaDemanda(historico) || captacaoJaIniciadaPelaAnne(historico)) situacao = 'novo_lead';
   else if (identidade?.tipo === 'unico' || identidade === undefined || c.agenteAna?.tipoCliente === 'cadastrado' || c.tipoClienteAgenda === 'cadastrado') situacao = 'incerto';
   else situacao = 'novo_lead';
   return { situacao, consultaInicial: situacao === 'novo_lead', quantidadeProcessos };

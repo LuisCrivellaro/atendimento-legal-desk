@@ -105,7 +105,7 @@ export function priorizarAgendamentoAna(r:AnaResult,texto:string,emAgendamento=f
   return pedido?{...r,intencao:'agendamento',encaminhar_humano:false}:r;
 }
 /** Saudação oficial ao cliente novo (prompt da Dra. Carolina, 04/11/2026). Texto exato; o nome é pedido só após a escolha. */
-export const SAUDACAO_CLIENTE_NOVO = 'Olá , \n\nSeja bem vindo (a)😊\nEquipe CS Advocacia \nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
+export const SAUDACAO_CLIENTE_NOVO = 'Olá!\n\nSeja bem vindo (a)😊\nEquipe CS Advocacia \nwww.carolinasantos.com.br\n\nVou te ajudar!\nNossa primeira consulta é on-line e gratuita.';
 export const PERGUNTA_HORARIO_ANA = 'O que fica melhor para você?';
 export const PEDIDO_NOME_AGENDA_ANA = 'Ótimo! Para registrar na agenda, qual é o seu nome completo?';
 const horaOferta=(iso:string)=>`às ${hora(iso)}`;
@@ -126,7 +126,7 @@ export function primeiraMensagemAna(horarios:string[],now=new Date()) {
   return `${SAUDACAO_CLIENTE_NOVO}\n${linhaDoisHorariosAna(horarios,now)}\n\n${PERGUNTA_HORARIO_ANA}`;
 }
 export function saudacaoInicialAna(texto:string) {
-  return texto.startsWith('Olá , \n\nSeja bem vindo (a)😊')||texto.startsWith('Olá,\n\nSeja bem vindo (a)😊');
+  return texto.startsWith('Olá!\n\nSeja bem vindo (a)😊')||texto.startsWith('Olá , \n\nSeja bem vindo (a)😊')||texto.startsWith('Olá,\n\nSeja bem vindo (a)😊');
 }
 export function pediuNomeInicialAna(texto:string) {
   // Compatível também com a saudação já enviada pela versão anterior.
