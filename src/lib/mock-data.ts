@@ -18,6 +18,8 @@ export interface Mensagem {
   tipo?: "texto" | "documento" | "audio" | "imagem" | "video"; arquivo?: string | undefined; salvoStart?: boolean | undefined;
   /** Situação da mensagem do escritório no canal: simulada (canal desligado), enviada, entregue ou lida. Só avança com confirmação do canal. */
   status?: StatusMensagem | undefined;
+  /** Anexo da equipe: guardado até haver recibo do canal; reservado antes do envio para não duplicar. */
+  envioAnexo?: { reservadoEm?: string | undefined; enviadoEm?: string | undefined; falhouEm?: string | undefined } | undefined;
 }
 export type StatusMensagem = "simulada" | "enviada" | "entregue" | "lida";
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }

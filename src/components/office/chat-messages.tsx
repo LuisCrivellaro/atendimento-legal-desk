@@ -114,7 +114,7 @@ export function nomeEmissor(autor?: string) {
   if (!autor) return undefined;
   return /^(ana\b|ia\b)/i.test(autor.trim()) ? 'ANA' : autor;
 }
-export function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete }: { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void }) {
+export function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete,onEnviarAnexo }: { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void;onEnviarAnexo?:(m:Mensagem)=>void }) {
   const itens = agruparMensagens(c.mensagens.filter(m=>!userId||!m.ocultaPara?.includes(userId)));
   const porId = new Map(arquivos.map(a => [a.id, a]));
   return <div className="space-y-0.5">{itens.map(({ m, separador, inicio }) => {
@@ -142,6 +142,11 @@ export function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=fals
         {m.pdfStart && <div className="mt-1 min-w-0 px-0.5 text-2xs"><a href={m.pdfStart.url} target="_blank" rel="noreferrer" className="break-all text-primary underline">PDF em Start · {m.pdfStart.nome}</a><p className="text-muted-foreground">Tipo: {m.pdfStart.tipoDocumento} · Descrição: {m.pdfStart.descricao}</p></div>}
         {m.pendenciaPdf && <p className="mt-1 px-0.5 text-2xs text-pending-foreground">{m.pendenciaPdf}</p>}
         {m.confirmarTipo && <p className="mt-1 inline-block rounded bg-pending px-1.5 text-[13px] text-pending-foreground">Confirmar tipo de documento</p>}
+        {out && m.arquivo && !m.status && <p className="mt-1 flex flex-wrap items-center gap-x-2 px-0.5 text-2xs">
+          <span className="rounded bg-pending px-1.5 text-pending-foreground">{m.envioAnexo?.reservadoEm ? 'Envio em andamento' : 'Guardado (não enviado ao cliente)'}</span>
+          {m.envioAnexo?.falhouEm && <span className="text-destructive">Último envio não confirmado; confira a conversa antes de repetir.</span>}
+          {onEnviarAnexo && m.path && !m.envioAnexo?.reservadoEm && <button type="button" className="text-primary underline" onClick={() => onEnviarAnexo(m)}>Enviar ao cliente</button>}
+        </p>}
         {temMeta && !metaNaFoto && <span className={cn('text-2xs text-[var(--zap-meta)]', m.texto && !m.tipoIdentificado && !m.confirmarTipo ? 'absolute bottom-1 right-2' : cn('mt-1 flex justify-end', imagem && 'px-1.5 pb-0.5'))}>{meta}</span>}
       </div>
     </div></div>;

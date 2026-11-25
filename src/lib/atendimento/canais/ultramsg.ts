@@ -77,6 +77,38 @@ async function enviarSemLista(numero: string, texto: string, cred: { instancia: 
   }
 }
 
+/**
+ * Documento ou imagem (documentação oficial conferida em 25/11/2026): POST /messages/document (token, to, filename,
+ * document, caption) e /messages/image (token, to, image, caption); aceitam URL HTTP ou base64. Limites: documento
+ * 30 MB, imagem 16 MB, base64 até 10.000.000 caracteres. Usamos URL assinada de curta duração do Storage privado.
+ * O formato da resposta não está documentado; vale o mesmo critério do texto ("sent" verdadeiro), senão é falha.
+ */
+export async function enviarArquivoUltramsg(numero: string, arquivo: { tipo: 'documento' | 'imagem'; url: string; nome: string; legenda?: string | undefined }, cred: { instancia: string; token: string }, entradaAberta = false): Promise<ResultadoEnvio> {
+  if (!numeroWhatsAppAtendido(numero, entradaAberta)) return { ok: false, erro: 'Número não autorizado nesta fase de produção.' };
+  if (!cred.instancia || !cred.token) return { ok: false, erro: 'WhatsApp não configurado.' };
+  if (!/^https:\/\//.test(arquivo.url)) return { ok: false, erro: 'Arquivo sem endereço seguro.' };
+  const ctrl = new AbortController();
+  const limite = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const corpo = new URLSearchParams({ token: cred.token, to: `+${numeroWhatsApp(numero)}`, caption: (arquivo.legenda ?? '').slice(0, 1024) });
+  if (arquivo.tipo === 'imagem') corpo.set('image', arquivo.url);
+  else { corpo.set('document', arquivo.url); corpo.set('filename', arquivo.nome.slice(0, 255)); }
+  try {
+    const r = await fetch(`https://api.ultramsg.com/${encodeURIComponent(cred.instancia)}/messages/${arquivo.tipo === 'imagem' ? 'image' : 'document'}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: corpo.toString(),
+      signal: ctrl.signal,
+    });
+    const resposta = (await r.json().catch(() => undefined)) as { sent?: string | boolean; id?: string | number } | undefined;
+    if (!r.ok || !(resposta?.sent === 'true' || resposta?.sent === true)) return { ok: false, erro: `UltraMsg recusou o envio do arquivo (HTTP ${r.status}).` };
+    return { ok: true, idExterno: String(resposta.id ?? '') };
+  } catch {
+    return { ok: false, erro: 'Falha de comunicação com o UltraMsg.' };
+  } finally {
+    clearTimeout(limite);
+  }
+}
+
 export const ultramsgAdapter: AdaptadorCanal = {
   nome: 'ultramsg',
   enviarTexto: (contato, texto, ref) => enviarTextoUltramsg(contato, textoComOpcoes(texto, ref?.botoes), {

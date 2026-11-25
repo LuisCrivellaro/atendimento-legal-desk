@@ -1,6 +1,5 @@
 // Ações externas: mensagens do Atendimento passam pelo canal (enviarMensagemCanal);
 // as demais seguem simuladas até uma integração real ser conectada.
-import { freeSlots } from '@/lib/atendimento';
 import { enviarMensagemCanal, lerConfigCanal, registrarAuditoria } from '@/lib/atendimento/envio.functions';
 import { simulacaoPermitida, MSG_INTEGRACAO_NAO_CONECTADA } from '@/lib/atendimento/trava-simulacao';
 
@@ -79,10 +78,9 @@ export const n8n = {
   solicitarDocumentos: (p: { conversaId: string; texto: string }) => viaCanal("solicitarDocumentos", p),
   solicitarFaltantes: (p: { conversaId: string; texto: string }) => viaCanal("solicitarFaltantes", p),
   enviarListaProvas: (p: { conversaId: string; texto: string }) => viaCanal("enviarListaProvas", p),
-  gerarContrato: (p: { clienteId: string; documentos?:string[]; texto?:string }) => call("gerarContrato", () => ({ ok: true, link: "https://app.zapsign.com.br/demo" })),
-  gerarCobranca: (p: { clienteId: string; valor: number; descricao?:string; vencimento?:string }) => call("gerarCobranca", () => ({ ok: true, link: "https://mpago.la/demo" })),
-  agendarRetorno: (p: { clienteId: string; horario: string }) => call("agendarRetorno", ok),
-  criarPastaCliente: (p: { clienteId: string }) => call("criarPastaCliente", ok),
+  // Atendimento (25/11/2026): contrato, cobrança, retorno, pasta, agenda, videochamada e anexo não são mais simulados.
+  // Contrato = link do ProJuris enviado pelo canal; pasta = criarPastaDrive; agenda = agenda-equipe.functions;
+  // Meet = link do recibo; anexo = enviarAnexoCanal; cobrança = "não configurado" até o Mercado Pago.
   iniciarProducao: (p: { casoId: string }) => call("iniciarProducao", ok),
   buscarJurisprudencia: (p: { termo: string }) => call("buscarJurisprudencia", ok),
   executarAuditoriaIA: (p: { casoId: string }) => call("executarAuditoriaIA", ok),
@@ -90,8 +88,4 @@ export const n8n = {
   vincularProcessoProjuris: (p: { casoId: string; cnj: string }) => call("vincularProcessoProjuris", ok),
   sincronizarEtapaProjuris: (p: { casoId: string; etapa: string }) => call("sincronizarEtapaProjuris", ok),
   enviarAvisoAndamento: (p: { processo: string; texto?:string }) => call("enviarAvisoAndamento", ok),
-  obterHorariosLivres: (p:{sextas?:boolean})=>call('obterHorariosLivres',()=>({slots:freeSlots(new Date(),p.sextas)})),
-  agendarConsulta:(p:{clienteId:string;horario:string})=>call('agendarConsulta',ok),
-  iniciarVideochamada:(p:{clienteId:string})=>call('iniciarVideochamada',()=>({link:`https://meet.google.com/demo-${p.clienteId.slice(0,8)}`})),
-  enviarAnexo:(p:{conversaId:string;nome:string})=>call('enviarAnexo',ok),
 };

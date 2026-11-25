@@ -1,5 +1,5 @@
 import type { Conversa, Mensagem } from './mock-data';
-import { gerarHorarios, horarioPermitido } from './atendimento/schedule-rules';
+import { gerarHorarios, horarioPermitido, DURACAO_RETORNO } from './atendimento/schedule-rules';
 import { ultimaMensagem, ordenarConversas } from './atendimento/conversation-order';
 export type AIMode = 'Desligada' | 'Sugerir' | 'Automática';
 export interface AutomationSettings { identificarDocumentos:boolean; criarPasta:boolean; pedirDocumentos:boolean; lembreteContrato:boolean; lembreteFaltantes:boolean; lembreteConsulta:boolean; foraHorario:boolean; vendedor:boolean; modoIA:AIMode }
@@ -19,7 +19,8 @@ export function nextStep(c:Conversa,ultimoAndamento?:string):{title:string;reaso
   if(chosen&&!c.consultaAgendada)return {title:'Confirmar consulta',reason:`Cliente escolheu ${formatarHorarioCliente(chosen)}.`,action:'confirmar'};
   if(c.etapa==='ativo')return needsReply(c)?{title:'Sugerir resposta',reason:'Cliente ativo aguarda atendimento.',action:'ia'}:{title:'Acompanhar processo',reason:ultimoAndamento||(c.processos.length?c.timeline.at(-1)?.evento||c.processos[0]?.status:undefined)||'Nenhum processo vinculado ainda',action:'projuris'};
   if(c.contrato==='enviado'||c.contrato==='visualizado')return c.contratoLink?{title:'Lembrar assinatura',reason:'Contrato ainda não assinado.',action:'lembrete'}:{title:'Registrar link do contrato',reason:'Contrato enviado sem link registrado.',action:'registrarContrato'};
- if(c.consulta&&!c.contrato)return {title:'Gerar contrato',reason:'Consulta realizada, contrato não gerado.',action:'contrato'};
+ // Sem ZapSign: contrato gerado no ProJuris, enviado com o link pelo canal e só então marcado como enviado.
+ if(!c.contrato&&(c.consulta||c.timeline.some(t=>t.evento.startsWith('Trato feito'))))return {title:'Enviar contrato',reason:'Contrato pendente: gere no ProJuris, envie o link pelo canal e ele fica registrado.',action:'contrato'};
   if(c.consultaAgendada&&!c.consulta)return {title:'Iniciar videochamada',reason:`Consulta marcada para ${formatarHorarioCliente(c.consultaAgendada)}.`,action:'video'};
  if(c.horariosOfertados?.length&&!c.consultaAgendada)return {title:'Aguardar escolha de horário',reason:'Horários enviados ao cliente.'};
  if(!c.consulta&&!c.consultaAgendada)return {title:'Enviar horários',reason:'Consulta ainda não marcada.',action:'horarios'};
@@ -51,7 +52,7 @@ export function registrarContratoEnviado(c:Conversa,link:string,now=new Date().t
 export function mensagemPermitida(text:string){return !/link\s+nao\s+registrado/i.test(text.normalize('NFD').replace(/[\u0300-\u036f]/g,''));}
 export function freeSlots(now=new Date(),friday=false):FreeSlot[]{return gerarHorarios([],now,friday?'cadastrado':'novo',12,28).map(iso=>({iso,label:formatarHorarioCliente(iso),ocupado:false}));}
 export function validOffer(slots:FreeSlot[],cadastrado=false){return slots.length>=2&&slots.length<=3&&slots.every(s=>!s.ocupado&&horarioPermitido(s.iso,cadastrado?'cadastrado':'novo'));}
-export function validReturn(iso:string,duration:number){return duration===30&&horarioPermitido(iso,'cadastrado');}
+export function validReturn(iso:string,duration:number){return duration===DURACAO_RETORNO&&horarioPermitido(iso,'cadastrado');}
 export function programmed(c:Conversa,a:AutomationSettings){const jobs:{key:string;when:string;title:string}[]=[];const append=(key:string,start:string|undefined,hours:number,title:string)=>{if(start)jobs.push({key,when:new Date(Date.parse(start)+hours*3600000).toISOString(),title});};if(a.lembreteContrato&&['enviado','visualizado'].includes(c.contrato??''))append('contrato',c.contratoEnviadoEm,24,'Lembrete do contrato');if(a.lembreteFaltantes&&c.etapa==='documentos'&&c.documentos.some(d=>!d.recebido))append('faltantes',c.ultimoPedidoDocumentos,48,'Lembrete dos documentos faltantes');if(a.lembreteConsulta)append('consulta',c.consultaAgendada,-40/60,'Confirmação 40 min antes da consulta');return jobs;}
 export function newMessage(text:string,extra:Partial<Mensagem>={}):Mensagem{const now=new Date();return {id:crypto.randomUUID(),de:'escritorio',texto:text,hora:now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),dataHora:now.toISOString(),...extra};}
 

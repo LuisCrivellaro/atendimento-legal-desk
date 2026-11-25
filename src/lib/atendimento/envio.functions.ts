@@ -102,6 +102,22 @@ interface EnvioBase {
   contaMaster?: boolean;
 }
 
+/** Destino WhatsApp da conversa: contato liberado e vinculado, restrições de produção e credenciais. Mesmo para texto e anexo. */
+async function destinoUltramsg(supabase: Db, ator: Ator, entrada: Pick<EnvioBase, 'conversaId' | 'acao' | 'contatoEsperado' | 'contaMaster'>) {
+  const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','ultramsg').eq('status','liberado').maybeSingle();
+  if (destino.error) throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
+  const contato = destino.data;
+  if (entrada.contatoEsperado && contato?.contato_externo !== entrada.contatoEsperado) throw new Error('Vínculo do contato alterado; envio interrompido.');
+  if (!contato) {
+    await auditar(supabase, ator, entrada.acao, 'Envio recusado: contato WhatsApp não liberado', 'bloqueado');
+    throw new Error('Contato de WhatsApp não liberado para esta conversa. Nada foi enviado.');
+  }
+  const entradaAberta = entrada.contaMaster === true || await entradaWhatsAppAberta();
+  if (!numeroWhatsAppAtendido(contato.contato_externo, entradaAberta)) throw new Error('Número não autorizado nesta fase de produção.');
+  if (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID']) throw new Error('WhatsApp não configurado. Nada foi enviado.');
+  return { contato, entradaAberta };
+}
+
 /** Núcleo do envio: vale para mensagens da equipe e do sistema. O destino é sempre buscado no servidor. */
 async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
   const problema = validarTextoEnvio(entrada.texto);
@@ -140,17 +156,7 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
   }
 
   if (config.canal_ativo === 'ultramsg') {
-    const destino = await supabase.from('atendimento_contatos_teste').select('contato_externo,telefone_ficticio,status').eq('conversa_id',entrada.conversaId).eq('canal','ultramsg').eq('status','liberado').maybeSingle();
-    if (destino.error) throw new Error('Destino indisponível ou ambíguo; nada foi enviado.');
-    const contato = destino.data;
-    if (entrada.contatoEsperado && contato?.contato_externo !== entrada.contatoEsperado) throw new Error('Vínculo do contato alterado; envio interrompido.');
-    if (!contato) {
-      await auditar(supabase, ator, entrada.acao, 'Envio recusado: contato WhatsApp não liberado', 'bloqueado');
-      throw new Error('Contato de WhatsApp não liberado para esta conversa. Nada foi enviado.');
-    }
-    const entradaAberta = entrada.contaMaster === true || await entradaWhatsAppAberta();
-    if (!numeroWhatsAppAtendido(contato.contato_externo, entradaAberta)) throw new Error('Número não autorizado nesta fase de produção.');
-    if (!process.env['ULTRAMSG_TOKEN'] || !process.env['ULTRAMSG_INSTANCE_ID']) throw new Error('WhatsApp não configurado. Nada foi enviado.');
+    const { contato, entradaAberta } = await destinoUltramsg(supabase, ator, entrada);
     if(entrada.acao==='sistema:ana'){
       const { atualizarConversa } = await import('./ana.server');
       const owner=await supabase.from('casos').select('owner_id').eq('id',entrada.conversaId).single();
@@ -194,6 +200,61 @@ export const enviarMensagemCanal = createServerFn({ method: 'POST' })
     await atualizarConversa(context.supabase,data.conversaId,c=>({...c,agenteAna:{...c.agenteAna,humano:true,controleHumanoEm:new Date().toISOString(),proximoPasso:'Equipe assumiu esta conversa. Retomar Ana exige ação explícita.'}}));
     const email = String((context.claims as { email?: unknown } | undefined)?.email ?? '').trim().toLowerCase();
     return enviarComRegras(context.supabase, ator, { ...data, contaMaster: email === 'chamanalei@gmail.com' });
+  });
+
+/**
+ * Anexo guardado pela equipe → cliente, pelo WhatsApp. Só depois da prévia e da confirmação na tela.
+ * O arquivo sai do Storage privado por URL assinada de 10 minutos (nunca pública). Reserva antes do envio;
+ * só vira "enviada" com o recibo do canal. Canal desligado: nada sai e o anexo continua "guardado".
+ */
+export const enviarAnexoCanal = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ conversaId: z.string().uuid(), mensagemId: z.string().min(1).max(120), legenda: z.string().max(1024).optional() }))
+  .handler(async ({ data, context }) => {
+    const ator = await atorDoUsuario(context.supabase, context.userId);
+    const { atualizarConversa } = await import('./ana.server');
+    const row = await context.supabase.from('casos').select('dados').eq('id', data.conversaId).eq('owner_id', context.userId).maybeSingle();
+    if (row.error || !row.data) throw new Error('Atendimento indisponível para seu usuário.');
+    const c = row.data.dados as unknown as Conversa;
+    const m = c.mensagens.find(x => x.id === data.mensagemId);
+    if (!m || m.de !== 'escritorio' || !m.path || !m.arquivo) throw new Error('Anexo não encontrado nesta conversa.');
+    if (!m.path.startsWith(`${context.userId}/${data.conversaId}/`)) throw new Error('Arquivo fora deste caso.');
+    if ((m.status && m.status !== 'simulada') || m.envioAnexo?.reservadoEm) throw new Error('Este anexo já foi enviado ou está em envio. Confira a conversa antes de repetir.');
+    const legenda = data.legenda?.trim() ?? '';
+    const problema = legenda ? validarTextoEnvio(legenda) : undefined;
+    if (problema) throw new Error(problema);
+    const config = await carregarConfig(context.supabase);
+    if (config.canal_ativo !== 'ultramsg') throw new Error('WhatsApp não está ativo. O anexo continua guardado e não foi enviado ao cliente.');
+    const { contato, entradaAberta } = await destinoUltramsg(context.supabase, ator, { conversaId: data.conversaId, acao: 'enviarAnexo' });
+    const agora = new Date().toISOString();
+    let reservado = false;
+    await atualizarConversa(context.supabase, data.conversaId, x => {
+      reservado = false;
+      const alvo = x.mensagens.find(y => y.id === data.mensagemId);
+      if (!alvo || alvo.envioAnexo?.reservadoEm || (alvo.status && alvo.status !== 'simulada')) return x;
+      reservado = true;
+      // Envio da equipe assume a conversa, como qualquer mensagem manual.
+      return { ...x, agenteAna: { ...x.agenteAna, humano: true, controleHumanoEm: agora, proximoPasso: 'Equipe assumiu esta conversa. Retomar Ana exige ação explícita.' }, mensagens: x.mensagens.map(y => y.id === data.mensagemId ? { ...y, envioAnexo: { reservadoEm: agora } } : y) };
+    });
+    if (!reservado) throw new Error('Este anexo já está em envio. Confira a conversa antes de repetir.');
+    const liberar = (falhou: boolean) => atualizarConversa(context.supabase, data.conversaId, x => ({ ...x, mensagens: x.mensagens.map(y => y.id === data.mensagemId ? { ...y, envioAnexo: falhou ? { falhouEm: new Date().toISOString() } : undefined } : y) }));
+    const assinada = await context.supabase.storage.from('case-documents').createSignedUrl(m.path, 600);
+    if (assinada.error || !assinada.data?.signedUrl) { await liberar(false); throw new Error('Não foi possível preparar o arquivo. Nada foi enviado.'); }
+    const { enviarArquivoUltramsg } = await import('./canais/ultramsg');
+    const imagem = m.tipo === 'imagem' || /\.(jpe?g|png|webp)$/i.test(m.arquivo);
+    const r = await enviarArquivoUltramsg(contato.contato_externo, { tipo: imagem ? 'imagem' : 'documento', url: assinada.data.signedUrl, nome: m.arquivo, legenda }, { instancia: process.env['ULTRAMSG_INSTANCE_ID'] ?? '', token: process.env['ULTRAMSG_TOKEN'] ?? '' }, entradaAberta);
+    if (!r.ok) {
+      await liberar(true);
+      await auditar(context.supabase, ator, 'enviarAnexo', 'Falha no envio de anexo pelo WhatsApp', 'erro', r.erro);
+      throw new Error('O envio pelo WhatsApp não foi confirmado. O anexo continua guardado; confira a conversa do cliente antes de tentar de novo.');
+    }
+    await atualizarConversa(context.supabase, data.conversaId, x => ({
+      ...x,
+      mensagens: x.mensagens.map(y => y.id === data.mensagemId ? { ...y, ...(legenda ? { texto: legenda } : {}), canal: 'ultramsg', idExterno: r.idExterno, status: 'enviada' as const, envioAnexo: { reservadoEm: agora, enviadoEm: new Date().toISOString() } } : y),
+      timeline: [...x.timeline, { data: new Date().toISOString(), evento: `Anexo enviado ao cliente pelo WhatsApp: ${m.arquivo}` }],
+    }));
+    await auditar(context.supabase, ator, 'enviarAnexo', resumoEnvio('whatsapp', contato.contato_externo, contato.telefone_ficticio, legenda.length), 'sucesso');
+    return { ok: true as const, idExterno: r.idExterno };
   });
 
 /** Envio pelo sistema (agente/lembretes): só chamável no servidor, pronto para a fase 3. Ainda não usado. */

@@ -2,6 +2,8 @@ import Holidays from 'date-holidays';
 import type { TipoCliente } from './intake-rules';
 
 export const DURACAO_REUNIAO = 30;
+/** Retorno de cliente da casa (D2, 25/11/2026): o transcript fala em 15–20 min; mantido em 30 até decisão da Dra. */
+export const DURACAO_RETORNO = 30;
 /** Dra. Carolina, 04/11/2026: nunca oferecer consulta em cima da hora — mínimo de 3 horas após o contato. */
 export const ANTECEDENCIA_MINIMA_MS = 3 * 3600_000;
 function partes(iso: string) {
