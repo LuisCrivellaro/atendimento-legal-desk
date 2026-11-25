@@ -233,7 +233,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(semConsulta&&mode==='Automática'&&!pedidoHumano(m.texto)){r.acao='enviar';r.motivo_aprovacao='';r.encaminhar_humano=false;r.mensagem='Não encontrei consulta marcada por aqui. Quer marcar uma?';r.proximo_passo='Aguardar interesse em novo agendamento.';}
     if(confirmouLembrete&&mode==='Automática'&&c.consultaAgendada&&!pedidoHumano(m.texto)){r.acao='enviar';r.motivo_aprovacao='';r.encaminhar_humano=false;r.mensagem=`Presença confirmada! Sua consulta continua hoje, às ${hora(c.consultaAgendada)}.`;r.proximo_passo='Cliente confirmou presença pelo lembrete do dia.';}
     if(cancelar){r.mensagem='';r.proximo_passo='Cancelar consulta somente após validar o recibo do atendimento.';}
-    Object.assign(r,protegerRelacionamentoAna(r,rel,m,mode,permiteAgenda));
+    Object.assign(r,protegerRelacionamentoAna(r,rel,m,mode,permiteAgenda,c));
     const agenda=saudou?{slots:horarios,selected:undefined}:!recebeuNome&&!horarioPendente&&!bloqueada&&!perguntar&&!cancelar&&!semConsulta&&teste&&tipoCliente&&telefone&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,horarios,new Date(),agendaReal,tipoCliente,repetida):undefined;
     const resumoTransbordo=r.encaminhar_humano?resumoTransbordoAna(nome,telefone,m.texto):undefined;
     if(resumoTransbordo)r.proximo_passo=resumoTransbordo;

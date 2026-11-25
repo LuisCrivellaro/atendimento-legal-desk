@@ -56,7 +56,7 @@ export function permiteAgendaRelacionamento(rel: RelacionamentoAna, texto: strin
   const confirmarExistente = !!c.consultaAgendada && /^(?:sim|n[aã]o|confirmo|pode|vou manter)[.!\s]*$/i.test(texto.trim());
   return pedido.test(texto) || confirmarExistente || conviteValido && /\b(?:sexta|hor[aá]rio|primeir[oa]|segund[oa]|[12])\b|\d{1,2}[:h]\d{0,2}/i.test(texto);
 }
-export function protegerRelacionamentoAna(r: AnaResult, rel: RelacionamentoAna, m: Mensagem, modo: string, permiteAgenda: boolean): AnaResult {
+export function protegerRelacionamentoAna(r: AnaResult, rel: RelacionamentoAna, m: Mensagem, modo: string, permiteAgenda: boolean, c?: Conversa): AnaResult {
   if (rel.consultaInicial || modo === 'Desligada') return r;
   const result = { ...r, dados_coletados: { ...r.dados_coletados } };
   if (pedidoHumano(m.texto) || result.encaminhar_humano) {
@@ -78,6 +78,7 @@ export function protegerRelacionamentoAna(r: AnaResult, rel: RelacionamentoAna, 
     result.mensagem = rel.situacao === 'incerto' ? 'Esse assunto é de um atendimento que já está em andamento conosco ou é uma nova demanda?'
       : rel.situacao === 'cadastro_anterior' ? 'Você está retomando um atendimento anterior ou precisa de ajuda com uma nova situação?'
       : material ? `Obrigada pelo envio!${rel.quantidadeProcessos > 1 ? ' Esse material está relacionado a qual dos seus atendimentos?' : ' O material está nesta conversa para conferência da equipe responsável pelo seu atendimento.'}`
+      : respondeuNovaDemanda(c?.mensagens ?? []) ? 'Posso verificar a disponibilidade para um atendimento de acompanhamento com a Dra. Carolina.'
       : 'Entendi. Esse acontecimento está relacionado ao atendimento que já acompanhamos para você ou é uma situação nova?';
   } else if (comercial) {
     result.mensagem = 'Posso verificar a disponibilidade para um atendimento de acompanhamento com a Dra. Carolina.';
