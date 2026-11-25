@@ -13,7 +13,7 @@ nenhuma mensagem real enviada, nada escrito no ProJuris.
 
 | | Linha de base (antes) | Final |
 |---|---|---|
-| Testes (Vitest com zod inline, ver abaixo) | 92 arquivos, 776 testes, todos passando | **99 arquivos, 878 testes, todos passando** |
+| Testes (Vitest com zod inline, ver abaixo) | 92 arquivos, 776 testes, todos passando | **99 arquivos, 884 testes, todos passando** (após as correções da revisão) |
 | `bun run test` puro (sem Node) | 61 arquivos e 469 testes passando; 31 arquivos não carregam | 62 arquivos e 474 testes passando; 37 não carregam, todos pelo mesmo erro de zod no Bun |
 | `tsc --noEmit` | sem erros | sem erros |
 | `bun run build` | falha no Windows (plugin do Lovable) | falha igual, antes de compilar o código |
@@ -75,6 +75,14 @@ Alterados (principais): `ana.server.ts`, `ana-rules.ts` (tipos), `ana-prompt.txt
    `select count(*) from casos where dados->>'contratoLink' = 'https://app.zapsign.com.br/demo';`
    Nenhum dado real foi alterado.
 6. Credenciais futuras: ZapSign e Mercado Pago (itens não feitos).
+
+## 5.1 Correções da revisão de código (antes do merge)
+
+- Link de demonstração antigo (`…zapsign.com.br/demo`) nunca entra em lembrete nem em "Lembrar assinatura"; o próximo passo pede o link real.
+- "Tá certo", "ficou bom" sem "?" deixaram de contar como pergunta sobre o documento (não pausam mais a Anne).
+- Primeiro lembrete de coleta só para contrato enviado ou pedido de documentos dos últimos 7 dias: ligar a rotina não dispara mensagens nem avisos em massa para casos antigos.
+- Anexo com envio não confirmado continua reservado; reenviar exige marcar "Conferi a conversa no WhatsApp do cliente e o arquivo não chegou".
+- Aviso de audiência lê "às 14h30"; o rótulo "Guardado (não enviado ao cliente)" só aparece em anexos guardados por este fluxo.
 
 ## 6. Riscos e limitações
 

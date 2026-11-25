@@ -8,6 +8,7 @@ import {
   configPadrao,
   decidirEnvio,
   mascararContato,
+  podeEnviarAnexo,
   podeGerenciarCanal,
   resumoEnvio,
   sanitizarConfig,
@@ -22,7 +23,7 @@ import { enviarTextoTelegram } from './canais/telegram';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
 import { autorizaEnvioAna } from './ana-execution';
 import { defaultAutomations } from '../atendimento';
-import type { Conversa } from '../mock-data';
+import type { Conversa, Mensagem } from '../mock-data';
 
 type Db = SupabaseClient<Database>;
 
@@ -209,7 +210,7 @@ export const enviarMensagemCanal = createServerFn({ method: 'POST' })
  */
 export const enviarAnexoCanal = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ conversaId: z.string().uuid(), mensagemId: z.string().min(1).max(120), legenda: z.string().max(1024).optional() }))
+  .inputValidator(z.object({ conversaId: z.string().uuid(), mensagemId: z.string().min(1).max(120), legenda: z.string().max(1024).optional(), reenvioConferido: z.boolean().optional() }))
   .handler(async ({ data, context }) => {
     const ator = await atorDoUsuario(context.supabase, context.userId);
     const { atualizarConversa } = await import('./ana.server');
@@ -219,7 +220,8 @@ export const enviarAnexoCanal = createServerFn({ method: 'POST' })
     const m = c.mensagens.find(x => x.id === data.mensagemId);
     if (!m || m.de !== 'escritorio' || !m.path || !m.arquivo) throw new Error('Anexo não encontrado nesta conversa.');
     if (!m.path.startsWith(`${context.userId}/${data.conversaId}/`)) throw new Error('Arquivo fora deste caso.');
-    if ((m.status && m.status !== 'simulada') || m.envioAnexo?.reservadoEm) throw new Error('Este anexo já foi enviado ou está em envio. Confira a conversa antes de repetir.');
+    if (m.status && m.status !== 'simulada') throw new Error('Este anexo já foi enviado.');
+    if (!podeEnviarAnexo(m.envioAnexo, data.reenvioConferido === true)) throw new Error(m.envioAnexo?.falhouEm ? 'O envio anterior não foi confirmado e pode ter chegado ao cliente. Confira a conversa no WhatsApp e confirme o reenvio.' : 'Este anexo já está em envio. Confira a conversa antes de repetir.');
     const legenda = data.legenda?.trim() ?? '';
     const problema = legenda ? validarTextoEnvio(legenda) : undefined;
     if (problema) throw new Error(problema);
@@ -231,20 +233,21 @@ export const enviarAnexoCanal = createServerFn({ method: 'POST' })
     await atualizarConversa(context.supabase, data.conversaId, x => {
       reservado = false;
       const alvo = x.mensagens.find(y => y.id === data.mensagemId);
-      if (!alvo || alvo.envioAnexo?.reservadoEm || (alvo.status && alvo.status !== 'simulada')) return x;
+      if (!alvo || !podeEnviarAnexo(alvo.envioAnexo, data.reenvioConferido === true) || (alvo.status && alvo.status !== 'simulada')) return x;
       reservado = true;
       // Envio da equipe assume a conversa, como qualquer mensagem manual.
       return { ...x, agenteAna: { ...x.agenteAna, humano: true, controleHumanoEm: agora, proximoPasso: 'Equipe assumiu esta conversa. Retomar Ana exige ação explícita.' }, mensagens: x.mensagens.map(y => y.id === data.mensagemId ? { ...y, envioAnexo: { reservadoEm: agora } } : y) };
     });
     if (!reservado) throw new Error('Este anexo já está em envio. Confira a conversa antes de repetir.');
-    const liberar = (falhou: boolean) => atualizarConversa(context.supabase, data.conversaId, x => ({ ...x, mensagens: x.mensagens.map(y => y.id === data.mensagemId ? { ...y, envioAnexo: falhou ? { falhouEm: new Date().toISOString() } : undefined } : y) }));
+    // Só libera quando com certeza nada saiu; falha no canal mantém a reserva (o arquivo pode ter chegado).
+    const marcar = (envioAnexo: Mensagem['envioAnexo']) => atualizarConversa(context.supabase, data.conversaId, x => ({ ...x, mensagens: x.mensagens.map(y => y.id === data.mensagemId ? { ...y, envioAnexo } : y) }));
     const assinada = await context.supabase.storage.from('case-documents').createSignedUrl(m.path, 600);
-    if (assinada.error || !assinada.data?.signedUrl) { await liberar(false); throw new Error('Não foi possível preparar o arquivo. Nada foi enviado.'); }
+    if (assinada.error || !assinada.data?.signedUrl) { await marcar(m.envioAnexo?.falhouEm ? m.envioAnexo : undefined); throw new Error('Não foi possível preparar o arquivo. Nada foi enviado.'); }
     const { enviarArquivoUltramsg } = await import('./canais/ultramsg');
     const imagem = m.tipo === 'imagem' || /\.(jpe?g|png|webp)$/i.test(m.arquivo);
     const r = await enviarArquivoUltramsg(contato.contato_externo, { tipo: imagem ? 'imagem' : 'documento', url: assinada.data.signedUrl, nome: m.arquivo, legenda }, { instancia: process.env['ULTRAMSG_INSTANCE_ID'] ?? '', token: process.env['ULTRAMSG_TOKEN'] ?? '' }, entradaAberta);
     if (!r.ok) {
-      await liberar(true);
+      await marcar({ reservadoEm: agora, falhouEm: new Date().toISOString() });
       await auditar(context.supabase, ator, 'enviarAnexo', 'Falha no envio de anexo pelo WhatsApp', 'erro', r.erro);
       throw new Error('O envio pelo WhatsApp não foi confirmado. O anexo continua guardado; confira a conversa do cliente antes de tentar de novo.');
     }

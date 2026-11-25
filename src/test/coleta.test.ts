@@ -74,8 +74,17 @@ describe('regras puras da coleta', () => {
     expect(pergunta.mensagem).toMatch(/quem confere se o documento atende é a equipe/);
   });
   it('perguntas de avaliação do documento', () => {
-    for (const t of ['esse documento serve?', 'Está certo assim?', 'o que é isso?', 'ficou bom?', 'dá pra ler?']) expect(perguntaAvaliacaoDocumento(t)).toBe(true);
-    for (const t of ['segue o RG', 'ok', 'tá bom', 'mandei o comprovante']) expect(perguntaAvaliacaoDocumento(t)).toBe(false);
+    for (const t of ['esse documento serve?', 'esse serve', 'Está certo assim?', 'o que é isso?', 'ficou bom?', 'dá pra ler?', 'tá certo?']) expect(perguntaAvaliacaoDocumento(t)).toBe(true);
+    for (const t of ['segue o RG', 'ok', 'tá bom', 'mandei o comprovante', 'Tá certo, vou mandar o comprovante amanhã', 'está certo, obrigada', 'ficou bom, valeu']) expect(perguntaAvaliacaoDocumento(t)).toBe(false);
+  });
+  it('link de demonstração do fluxo antigo nunca gera lembrete', () => {
+    expect(decidirLembretesColeta(entrada({ contrato: 'enviado', contratoLink: 'https://app.zapsign.com.br/demo', contratoEnviadoEm: SP('2026-11-24T10:00').toISOString() }), SP('2026-11-25T10:00'))).toEqual([]);
+  });
+  it('pendência antiga (pedido de antes da rotina) não dispara o primeiro lembrete', () => {
+    expect(decidirLembretesColeta(entrada({ contrato: 'enviado', contratoLink: LINK, contratoEnviadoEm: SP('2026-10-01T10:00').toISOString() }), SP('2026-11-25T10:00'))).toEqual([]);
+    expect(decidirLembretesColeta(entrada({ faltantes: ['CPF'], ultimoPedidoDocumentos: SP('2026-10-01T10:00').toISOString() }), SP('2026-11-25T10:00'))).toEqual([]);
+    // Depois do primeiro lembrete, a cadência continua pelo estado gravado.
+    expect(decidirLembretesColeta(entrada({ faltantes: ['CPF'], ultimoPedidoDocumentos: SP('2026-10-01T10:00').toISOString(), estado: { itens: { CPF: { enviados: 1 } }, ultimoFaltantesEm: SP('2026-11-20T10:00').toISOString() } }), SP('2026-11-25T10:00'))).toEqual([{ tipo: 'faltantes', itens: ['CPF'] }]);
   });
   it('textos editáveis: versão salva da equipe vence o texto proposto; campos sempre com dado real', () => {
     const t = textosColeta({ itens: [{ id: TEXTOS_COLETA.lembreteContrato.id, titulo: 'x', categoria: 'Documentos', atalho: 'lembrecontrato', texto: 'Olá {nome}, falta assinar: {link}' }], ocultas: [] });
@@ -162,6 +171,14 @@ describe('rotina de lembretes de coleta (servidor)', () => {
     const desligada = criarDb({ 'c-col': { ...comContrato, modoIA: 'Desligada' } });
     expect(await enviarLembretesColeta(desligada.db, SP('2026-11-25T10:00'))).toMatchObject({ enviados: 0, avisos: 0 });
     expect(mocks.enviar).not.toHaveBeenCalled();
+  });
+  it('casos antigos e link de demonstração: nenhum envio e nenhum aviso em massa na primeira execução', async () => {
+    const antigo = { ...base, ultimoPedidoDocumentos: SP('2026-09-10T10:00').toISOString() };
+    const demo = { ...base, id: 'c-demo', contrato: 'enviado' as const, contratoLink: 'https://app.zapsign.com.br/demo', contratoEnviadoEm: SP('2026-11-24T10:00').toISOString() };
+    const { db, ler } = criarDb({ 'c-col': antigo, 'c-demo': demo }, { itens: [{ caso_id: 'c-col', nome: 'CPF', recebido: false }], contatos: [] });
+    expect(await enviarLembretesColeta(db, SP('2026-11-25T10:00'))).toMatchObject({ enviados: 0, avisos: 0 });
+    expect(mocks.enviar).not.toHaveBeenCalled();
+    expect(ler().avisosEquipe ?? []).toHaveLength(0);
   });
   it('automação desligada pelo dono: nada', async () => {
     const { db } = criarDb({ 'c-col': comContrato }, { workspace: { ...defaultState, automations: { ...defaultAutomations, lembreteContrato: false } } });

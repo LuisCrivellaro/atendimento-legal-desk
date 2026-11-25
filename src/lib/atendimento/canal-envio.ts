@@ -2,6 +2,15 @@
 import { mensagemPermitida } from '../atendimento';
 import { mascararTelefone } from './telefone';
 
+/**
+ * Anexo da equipe: novo envio só sem reserva. Depois de falha não confirmada (o arquivo pode ter chegado),
+ * só com confirmação explícita de que a equipe conferiu a conversa do cliente.
+ */
+export function podeEnviarAnexo(e: { reservadoEm?: string | undefined; falhouEm?: string | undefined } | undefined, reenvioConferido: boolean) {
+  if (!e?.reservadoEm) return true;
+  return !!e.falhouEm && reenvioConferido;
+}
+
 export type CanalAtivo = 'desligado' | 'telegram' | 'ultramsg';
 export type FonteSugestoes = 'ia_manager' | 'agente';
 

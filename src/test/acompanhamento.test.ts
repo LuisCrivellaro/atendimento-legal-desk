@@ -51,6 +51,9 @@ describe('aviso de audiência e perícia', () => {
     expect(tipoEventoProcessual('Perícia médica agendada')).toBe('pericia');
     expect(tipoEventoProcessual('Juntada de petição')).toBeUndefined();
     expect(dataHoraDoEvento('designada para 10/12/2026 às 14:30')).toEqual({ data: '10/12/2026', hora: '14h30' });
+    expect(dataHoraDoEvento('designada para 10/12/2026 às 14h30')).toEqual({ data: '10/12/2026', hora: '14h30' });
+    expect(dataHoraDoEvento('Perícia em 05/01/2027, às 9h, no fórum')).toEqual({ data: '05/01/2027', hora: '9h' });
+    expect(dataHoraDoEvento('prazo de 48h para manifestação')).toEqual({});
     expect(dataHoraDoEvento('Audiência redesignada; aguardando nova data')).toEqual({});
   });
   it('andamento privado ou processo em segredo de justiça nunca gera aviso', () => {

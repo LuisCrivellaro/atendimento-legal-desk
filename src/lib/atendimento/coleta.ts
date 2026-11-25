@@ -51,8 +51,19 @@ export function expedienteColeta(agora = new Date()) {
 /** Pergunta de avaliação do documento ("serve?", "está certo?", "o que é isso?"): sempre com a equipe. */
 export function perguntaAvaliacaoDocumento(texto: string) {
   const t = texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  return /\b(?:serve|servem|serviu|esta certo|ta certo|ta bom assim|esta bom assim|ficou bom|esta legivel|ta legivel|da pra ler|da para ler|e suficiente|precisa de mais|o que e isso|o que e esse|qual documento e esse|esta correto|ta correto)\b/.test(t);
+  // Inequívocas mesmo sem "?".
+  if (/\b(?:serve|servem|esta legivel|ta legivel|da pra ler|da para ler|e suficiente|precisa de mais|o que e isso|o que e esse|qual documento e esse)\b/.test(t)) return true;
+  // "Tá certo", "ficou bom"… também são "ok" no dia a dia: só contam como pergunta com "?".
+  return /\?/.test(t) && /\b(?:serviu|esta certo|ta certo|ta bom assim|esta bom assim|ficou bom|esta correto|ta correto|esta ok|ta ok)\b/.test(t);
 }
+
+/** Link de demonstração gravado pelo fluxo antigo (simulado): nunca é enviado ao cliente. */
+export function linkContratoDemonstracao(link: string | undefined) {
+  return !!link && /(?:zapsign\.com\.br|mpago\.la|meet\.google\.com)\/demo(?:[/?#-]|$)/i.test(link);
+}
+
+/** Primeiro lembrete só para pedido recente: pendências antigas (de antes da rotina) nunca disparam em massa. */
+export const JANELA_PRIMEIRO_LEMBRETE_MS = 7 * 86400_000;
 
 /**
  * Resposta da Anne a um anexo recebido na coleta. Só diz que recebeu com recibo do servidor (arquivo guardado);
@@ -95,11 +106,12 @@ export function decidirLembretesColeta(e: EntradaLembretesColeta, agora = new Da
   const out: DecisaoColeta[] = [];
   const expediente = expedienteColeta(agora);
   const vencido = (desde: string | undefined, intervalo: number) => !!desde && Number.isFinite(Date.parse(desde)) && Date.parse(desde) + intervalo <= agora.getTime();
-  if (e.automacoes.contrato && (e.contrato === 'enviado' || e.contrato === 'visualizado') && e.contratoLink && /^https:\/\//.test(e.contratoLink)) {
+  const recente = (desde: string | undefined) => !!desde && Number.isFinite(Date.parse(desde)) && agora.getTime() - Date.parse(desde) <= JANELA_PRIMEIRO_LEMBRETE_MS;
+  if (e.automacoes.contrato && (e.contrato === 'enviado' || e.contrato === 'visualizado') && e.contratoLink && /^https:\/\//.test(e.contratoLink) && !linkContratoDemonstracao(e.contratoLink)) {
     const est = e.estado?.contrato?.link === e.contratoLink ? e.estado.contrato : undefined;
     const enviados = est?.enviados ?? 0;
     if (enviados >= LIMITE_LEMBRETES_COLETA) { if (!est?.avisadoEm) out.push({ tipo: 'limite', pendencia: 'contrato', itens: [] }); }
-    else if (expediente && vencido(est?.ultimoEm ?? e.contratoEnviadoEm, INTERVALO_LEMBRETE_CONTRATO_MS)) out.push({ tipo: 'contrato', link: e.contratoLink, numero: enviados + 1 });
+    else if (expediente && (est || recente(e.contratoEnviadoEm)) && vencido(est?.ultimoEm ?? e.contratoEnviadoEm, INTERVALO_LEMBRETE_CONTRATO_MS)) out.push({ tipo: 'contrato', link: e.contratoLink, numero: enviados + 1 });
   }
   if (e.automacoes.faltantes && e.emColeta && e.faltantes.length) {
     const contagem = (n: string) => e.estado?.itens?.[n]?.enviados ?? 0;
@@ -107,7 +119,9 @@ export function decidirLembretesColeta(e: EntradaLembretesColeta, agora = new Da
     if (esgotados.length) out.push({ tipo: 'limite', pendencia: 'faltantes', itens: esgotados });
     const elegiveis = e.faltantes.filter(n => contagem(n) < LIMITE_LEMBRETES_COLETA);
     const desde = [e.ultimoPedidoDocumentos, e.estado?.ultimoFaltantesEm].filter((x): x is string => !!x && Number.isFinite(Date.parse(x))).sort().at(-1);
-    if (expediente && elegiveis.length && vencido(desde, INTERVALO_LEMBRETE_FALTANTES_MS)) out.push({ tipo: 'faltantes', itens: elegiveis });
+    // Primeira vez: o pedido de documentos precisa ser recente; depois, a cadência segue o último lembrete.
+    const comecou = !!e.estado?.ultimoFaltantesEm || recente(e.ultimoPedidoDocumentos);
+    if (expediente && comecou && elegiveis.length && vencido(desde, INTERVALO_LEMBRETE_FALTANTES_MS)) out.push({ tipo: 'faltantes', itens: elegiveis });
   }
   return out;
 }

@@ -8,6 +8,7 @@ import { enviarArquivoUltramsg } from '@/lib/atendimento/canais/ultramsg';
 import { linkMeetDaReserva, motivoIndisponivel } from '@/components/office/attendance-actions';
 import { ChatMessages } from '@/components/office/chat-messages';
 import { n8n } from '@/services/integracoes';
+import { podeEnviarAnexo } from '@/lib/atendimento/canal-envio';
 
 // Dados fictícios.
 const fixture = conversas[1];
@@ -52,10 +53,30 @@ describe('P0-2 · nenhuma ação do Atendimento finge que executou', () => {
 
 describe('P0-2 · anexo da equipe', () => {
   it('anexo sem recibo aparece como "Guardado (não enviado ao cliente)"', () => {
-    const c = { ...base, mensagens: [{ id: 'a1', de: 'escritorio' as const, texto: '', hora: '10:00', arquivo: 'contrato.pdf', tipo: 'documento' as const, path: 'u/c/1/contrato.pdf' }] };
+    const c = { ...base, mensagens: [{ id: 'a1', de: 'escritorio' as const, texto: '', hora: '10:00', arquivo: 'contrato.pdf', tipo: 'documento' as const, path: 'u/c/1/contrato.pdf', salvoStart: true }] };
     render(createElement(ChatMessages, { c, onEnviarAnexo: () => undefined }));
     expect(screen.getByText('Guardado (não enviado ao cliente)')).toBeTruthy();
     expect(screen.getByText('Enviar ao cliente')).toBeTruthy();
+  });
+  it('anexo do escritório que não veio deste fluxo (importado, sem arquivo guardado) não leva o rótulo', () => {
+    const c = { ...base, mensagens: [{ id: 'a3', de: 'escritorio' as const, texto: '', hora: '10:00', arquivo: '[documento recebido pelo WhatsApp]', tipo: 'documento' as const }] };
+    render(createElement(ChatMessages, { c, onEnviarAnexo: () => undefined }));
+    expect(screen.queryByText('Guardado (não enviado ao cliente)')).toBeNull();
+  });
+  it('envio não confirmado: sem reenvio direto; só "Conferi, enviar de novo" com confirmação explícita', () => {
+    const c = { ...base, mensagens: [{ id: 'a4', de: 'escritorio' as const, texto: '', hora: '10:00', arquivo: 'contrato.pdf', tipo: 'documento' as const, path: 'u/c/1/contrato.pdf', salvoStart: true, envioAnexo: { reservadoEm: '2026-11-25T10:00:00Z', falhouEm: '2026-11-25T10:00:15Z' } }] };
+    render(createElement(ChatMessages, { c, onEnviarAnexo: () => undefined }));
+    expect(screen.getByText('Envio não confirmado')).toBeTruthy();
+    expect(screen.getByText('Conferi, enviar de novo')).toBeTruthy();
+    expect(podeEnviarAnexo({ reservadoEm: 'x', falhouEm: 'y' }, false)).toBe(false);
+    expect(podeEnviarAnexo({ reservadoEm: 'x', falhouEm: 'y' }, true)).toBe(true);
+    expect(podeEnviarAnexo({ reservadoEm: 'x' }, true)).toBe(false);
+    expect(podeEnviarAnexo(undefined, false)).toBe(true);
+  });
+  it('lembrete de assinatura nunca reenvia o link de demonstração antigo', () => {
+    const c = { ...base, contrato: 'enviado' as const, contratoLink: 'https://app.zapsign.com.br/demo' };
+    expect(nextStep(c)).toMatchObject({ action: 'registrarContrato' });
+    expect(motivoIndisponivel(c, 'lembrete')).toMatch(/demonstração/);
   });
   it('anexo com recibo não mostra o aviso de guardado', () => {
     const c = { ...base, mensagens: [{ id: 'a2', de: 'escritorio' as const, texto: '', hora: '10:00', arquivo: 'contrato.pdf', tipo: 'documento' as const, path: 'u/c/1/contrato.pdf', status: 'enviada' as const, idExterno: '77' }] };

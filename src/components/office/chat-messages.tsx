@@ -142,10 +142,11 @@ export function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=fals
         {m.pdfStart && <div className="mt-1 min-w-0 px-0.5 text-2xs"><a href={m.pdfStart.url} target="_blank" rel="noreferrer" className="break-all text-primary underline">PDF em Start · {m.pdfStart.nome}</a><p className="text-muted-foreground">Tipo: {m.pdfStart.tipoDocumento} · Descrição: {m.pdfStart.descricao}</p></div>}
         {m.pendenciaPdf && <p className="mt-1 px-0.5 text-2xs text-pending-foreground">{m.pendenciaPdf}</p>}
         {m.confirmarTipo && <p className="mt-1 inline-block rounded bg-pending px-1.5 text-[13px] text-pending-foreground">Confirmar tipo de documento</p>}
-        {out && m.arquivo && !m.status && <p className="mt-1 flex flex-wrap items-center gap-x-2 px-0.5 text-2xs">
-          <span className="rounded bg-pending px-1.5 text-pending-foreground">{m.envioAnexo?.reservadoEm ? 'Envio em andamento' : 'Guardado (não enviado ao cliente)'}</span>
-          {m.envioAnexo?.falhouEm && <span className="text-destructive">Último envio não confirmado; confira a conversa antes de repetir.</span>}
-          {onEnviarAnexo && m.path && !m.envioAnexo?.reservadoEm && <button type="button" className="text-primary underline" onClick={() => onEnviarAnexo(m)}>Enviar ao cliente</button>}
+        {/* Só anexos guardados pela equipe neste fluxo (Storage + "Start"), ainda sem recibo do canal. */}
+        {out && m.arquivo && m.path && m.salvoStart && !m.idExterno && !m.status && <p className="mt-1 flex flex-wrap items-center gap-x-2 px-0.5 text-2xs">
+          <span className="rounded bg-pending px-1.5 text-pending-foreground">{m.envioAnexo?.falhouEm ? 'Envio não confirmado' : m.envioAnexo?.reservadoEm ? 'Envio em andamento' : 'Guardado (não enviado ao cliente)'}</span>
+          {m.envioAnexo?.falhouEm && <span className="text-destructive">O arquivo pode ter chegado ao cliente; confira a conversa no WhatsApp antes de reenviar.</span>}
+          {onEnviarAnexo && (!m.envioAnexo?.reservadoEm || !!m.envioAnexo.falhouEm) && <button type="button" className="text-primary underline" onClick={() => onEnviarAnexo(m)}>{m.envioAnexo?.falhouEm ? 'Conferi, enviar de novo' : 'Enviar ao cliente'}</button>}
         </p>}
         {temMeta && !metaNaFoto && <span className={cn('text-2xs text-[var(--zap-meta)]', m.texto && !m.tipoIdentificado && !m.confirmarTipo ? 'absolute bottom-1 right-2' : cn('mt-1 flex justify-end', imagem && 'px-1.5 pb-0.5'))}>{meta}</span>}
       </div>

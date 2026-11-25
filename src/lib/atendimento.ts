@@ -1,5 +1,6 @@
 import type { Conversa, Mensagem } from './mock-data';
 import { gerarHorarios, horarioPermitido, DURACAO_RETORNO } from './atendimento/schedule-rules';
+import { linkContratoDemonstracao } from './atendimento/coleta';
 import { ultimaMensagem, ordenarConversas } from './atendimento/conversation-order';
 export type AIMode = 'Desligada' | 'Sugerir' | 'Automática';
 export interface AutomationSettings { identificarDocumentos:boolean; criarPasta:boolean; pedirDocumentos:boolean; lembreteContrato:boolean; lembreteFaltantes:boolean; lembreteConsulta:boolean; foraHorario:boolean; vendedor:boolean; modoIA:AIMode }
@@ -18,7 +19,7 @@ export function nextStep(c:Conversa,ultimoAndamento?:string):{title:string;reaso
  const m=c.mensagens.at(-1);const chosen=m?.de==='cliente'?chosenSlot(c.horariosOfertados??[],m.texto):undefined;
   if(chosen&&!c.consultaAgendada)return {title:'Confirmar consulta',reason:`Cliente escolheu ${formatarHorarioCliente(chosen)}.`,action:'confirmar'};
   if(c.etapa==='ativo')return needsReply(c)?{title:'Sugerir resposta',reason:'Cliente ativo aguarda atendimento.',action:'ia'}:{title:'Acompanhar processo',reason:ultimoAndamento||(c.processos.length?c.timeline.at(-1)?.evento||c.processos[0]?.status:undefined)||'Nenhum processo vinculado ainda',action:'projuris'};
-  if(c.contrato==='enviado'||c.contrato==='visualizado')return c.contratoLink?{title:'Lembrar assinatura',reason:'Contrato ainda não assinado.',action:'lembrete'}:{title:'Registrar link do contrato',reason:'Contrato enviado sem link registrado.',action:'registrarContrato'};
+  if(c.contrato==='enviado'||c.contrato==='visualizado')return c.contratoLink&&!linkContratoDemonstracao(c.contratoLink)?{title:'Lembrar assinatura',reason:'Contrato ainda não assinado.',action:'lembrete'}:{title:'Registrar link do contrato',reason:c.contratoLink?'O link gravado é de demonstração (fluxo antigo): registre o link real do contrato.':'Contrato enviado sem link registrado.',action:'registrarContrato'};
  // Sem ZapSign: contrato gerado no ProJuris, enviado com o link pelo canal e só então marcado como enviado.
  if(!c.contrato&&(c.consulta||c.timeline.some(t=>t.evento.startsWith('Trato feito'))))return {title:'Enviar contrato',reason:'Contrato pendente: gere no ProJuris, envie o link pelo canal e ele fica registrado.',action:'contrato'};
   if(c.consultaAgendada&&!c.consulta)return {title:'Iniciar videochamada',reason:`Consulta marcada para ${formatarHorarioCliente(c.consultaAgendada)}.`,action:'video'};

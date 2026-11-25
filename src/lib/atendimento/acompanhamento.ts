@@ -55,7 +55,9 @@ export function tipoEventoProcessual(texto: string): TipoEvento | undefined {
  */
 export function dataHoraDoEvento(texto: string): { data?: string; hora?: string } {
   const d = /\b(\d{2})\/(\d{2})\/(\d{4})\b/.exec(texto);
-  const h = /\b(?:as|às|a partir das|hora[s]?:?)\s*(\d{1,2})(?::|h)(\d{2})?\b/i.exec(texto) ?? /\b(\d{1,2}):(\d{2})\b/.exec(texto);
+  // Sem \b antes de "às": sem a flag u, "à" não conta como letra e o \b nunca casaria.
+  const h = /(?:^|[\s,;(])(?:as|às|a partir das|horas?:?)\s*(\d{1,2})(?::|h)(\d{2})?(?!\d)/i.exec(texto)
+    ?? /\b(\d{1,2}):(\d{2})\b/.exec(texto);
   const hora = h ? `${Number(h[1])}h${h[2] && h[2] !== '00' ? h[2] : ''}` : undefined;
   return { ...(d ? { data: `${d[1]}/${d[2]}/${d[3]}` } : {}), ...(hora && Number(h?.[1]) < 24 ? { hora } : {}) };
 }

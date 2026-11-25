@@ -14,6 +14,7 @@ import { executar } from '@/lib/executar';
 import { statusDoEnvio, validOffer, validReturn, chosenSlot, newMessage, formatarHorarioCliente, mensagemHorariosCliente, validContractLink, registrarContratoEnviado, mensagemPermitida, type FreeSlot } from '@/lib/atendimento';
 import { horarioPermitido, DURACAO_RETORNO } from '@/lib/atendimento/schedule-rules';
 import { horariosLivresEquipe, reservarHorarioEquipe } from '@/lib/atendimento/agenda-equipe.functions';
+import { linkContratoDemonstracao } from '@/lib/atendimento/coleta';
 import type { Conversa } from '@/lib/mock-data';
 export type AttendanceAction='horarios'|'docs'|'faltantes'|'contrato'|'cobranca'|'retorno'|'provas'|'video'|'confirmar'|'lembrete'|'registrarContrato';
 export const actionLabels:Record<AttendanceAction,string>={horarios:'Enviar horários',docs:'Solicitar documentos base',faltantes:'Pedir faltantes',contrato:'Enviar contrato (link do ProJuris)',cobranca:'Gerar cobrança',retorno:'Agendar retorno',provas:'Lista de provas',video:'Iniciar videochamada',confirmar:'Confirmar consulta',lembrete:'Lembrar assinatura',registrarContrato:'Registrar contrato enviado'};
@@ -28,6 +29,7 @@ export function motivoIndisponivel(c:Conversa,action:AttendanceAction):string|un
  if(action==='video'&&!linkMeetDaReserva(c))return 'Sem link do Meet no recibo da consulta: o Google não devolveu link para esta reserva.';
  if(action==='confirmar'&&!chosenSlot(c.horariosOfertados??[],c.mensagens.at(-1)?.texto??''))return 'O cliente ainda não escolheu um dos horários oferecidos.';
  if(action==='lembrete'&&!c.contratoLink)return 'Registre o link do contrato antes.';
+ if(action==='lembrete'&&linkContratoDemonstracao(c.contratoLink))return 'O link gravado é de demonstração (fluxo antigo): registre o link real do contrato antes.';
  return undefined;
 }
 
