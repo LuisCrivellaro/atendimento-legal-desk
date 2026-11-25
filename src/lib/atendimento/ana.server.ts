@@ -11,6 +11,7 @@ import { horarioPermitido } from './schedule-rules';
 import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } from './appointment-management';
 import { solicitarEmailPendente } from './email-rules';
 import { lembreteAtivo, respostaLembreteAna } from './lembrete-consulta';
+import { confirmacao40Respondivel, registrarRespostaConfirmacao40, respostaConfirmacao40 } from './confirmacao-consulta';
 import { hora } from './ana-scheduling';
 import { pedidoInformacoesConsultaAna, aceiteConsultaAna } from './ana-rules';
 import { gatilhoLandingInternacional, passoFunil, MSG_BOAS_VINDAS, REGRAS_REAGENDAMENTO } from './funil-internacional';
@@ -94,7 +95,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     await atualizarConversa(db,id,x=>({...x,funilInternacional:passo.funil,...(passo.funil.etapa==='conferencia'&&x.funilInternacional?.etapa!=='conferencia'?{timeline:[...x.timeline,{data:new Date().toISOString(),evento:'Funil internacional: comprovante recebido — conferir e clicar em PIX Confirmado.'}]}:{}),agenteAna:{...x.agenteAna,apresentado:true,...(passo.nome?{dados:{...(x.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),nome:passo.nome}}:{})} as NonNullable<typeof x.agenteAna>,mensagens:[...x.mensagens,newMessage(passo.mensagem,{autor:'Ana · assistente virtual',canal,idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
     return;
   }
-  if(mensagemSemResposta(m.texto,!!m.arquivo))return;
+  // "ok" em resposta à confirmação de 40 min registra presença; fora disso, continua sem resposta.
+  if(mensagemSemResposta(m.texto,!!m.arquivo)&&!(confirmacao40Respondivel(c,canal)&&respostaConfirmacao40(m.texto)))return;
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
     const memoria=contextoPersistente(c,canal);
@@ -130,11 +132,15 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     raw.dados_coletados.email=email;
     const consentCancel=c.agenteAna?.confirmacaoCancelamento;
     const pendenteCancel=!!consentCancel&&consentCancel.eventoId===c.agenteAna?.reservaCalendar?.id&&consentCancel.inicio===c.consultaAgendada&&consentCancel.contato===telefone&&Date.parse(consentCancel.expira)>Date.now();
+    // Confirmação de 40 min (última mensagem do escritório): "ok" registra presença; "não" nunca cancela a partir desta mensagem.
+    const ativa40=confirmacao40Respondivel(c,canal);
+    const resposta40=ativa40?respostaConfirmacao40(m.texto):undefined;
     // Resposta ao lembrete das 8h: SIM mantém; NÃO cancela (consentimento gravado após o envio do lembrete) e oferece 2 novos horários.
-    const respostaLembrete=lembreteAtivo(c.agenteAna?.lembreteConsulta,c.consultaAgendada)?respostaLembreteAna(m.texto):undefined;
-    const confirmouLembrete=respostaLembrete==='sim';
+    const respostaLembrete=!ativa40&&lembreteAtivo(c.agenteAna?.lembreteConsulta,c.consultaAgendada)?respostaLembreteAna(m.texto):undefined;
+    const confirmouLembrete=respostaLembrete==='sim'||resposta40==='sim';
     const cancelouLembrete=respostaLembrete==='nao'&&pendenteCancel;
-    const decisaoCancel=cancelouLembrete?'confirmar' as const:confirmouLembrete?undefined:decidirCancelamentoAna(m.texto,pendenteCancel);
+    const decisaoCancel=cancelouLembrete?'confirmar' as const:confirmouLembrete?undefined:decidirCancelamentoAna(m.texto,pendenteCancel&&!ativa40);
+    if(resposta40==='nao'&&!pedidoHumano(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;}
     const alteracao=decisaoCancel==='confirmar'?'cancelar':decisaoCancel==='remarcar'?'remarcar':decisaoCancel==='pedir'||decisaoCancel==='manter'?'perguntar':decidirAlteracaoConsulta(m.texto,!!c.consultaAgendada,c.agenteAna?.alteracaoConsulta);
     const semConsulta=decisaoCancel==='pedir'&&!c.consultaAgendada;
     if(decisaoCancel&&!pedidoHumano(m.texto)){raw.intencao='agendamento';raw.encaminhar_humano=false;}
@@ -226,7 +232,10 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(cobranca)Object.assign(r,resultadoRetorno(c,canal));
     const gerenciar=teste&&mode==='Automática'&&!r.encaminhar_humano&&!r.motivo_aprovacao&&!!c.consultaAgendada;
     const cancelar=gerenciar&&decisaoCancel==='confirmar'&&pendenteCancel;
-    const perguntar=gerenciar&&!confirmouLembrete&&!cancelar&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar'&&r.intencao==='agendamento';
+    // "Não vou conseguir"/"vou atrasar" à confirmação de 40 min: pergunta explícita com data e hora, nunca cancelamento direto.
+    const naoNaConfirmacao=resposta40==='nao'&&!pedidoHumano(m.texto)&&!decisaoCancel;
+    const perguntar=gerenciar&&!confirmouLembrete&&!cancelar&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar'&&(r.intencao==='agendamento'||naoNaConfirmacao);
+    if(perguntar&&naoNaConfirmacao)r.acao='enviar';
     if(perguntar){r.mensagem=`Você já tem uma consulta marcada para ${formatarHorarioCliente(c.consultaAgendada??'')}. Deseja remarcar ou cancelar esse agendamento?`;r.proximo_passo='Aguardar autorização do cliente para cancelar ou remarcar.';}
     if(gerenciar&&decisaoCancel==='pedir'){r.mensagem=`Quer mesmo cancelar a sua consulta de ${formatarHorarioCliente(c.consultaAgendada??'').toLowerCase()}? Se preferir, posso remarcar para outro dia.`;r.proximo_passo='Aguardar confirmação explícita posterior para cancelar esta consulta.';}
     if(gerenciar&&decisaoCancel==='manter'){r.mensagem=`Combinado, sua consulta continua marcada para ${formatarHorarioCliente(c.consultaAgendada??'').toLowerCase()}.`;r.proximo_passo='Consulta mantida por escolha do cliente.';}
@@ -246,7 +255,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       return {...base,...(current.etiquetaAcao||etiqueta==='sem'?{}:{etiquetaAcao:etiqueta}),...(rel.situacao==='ativo'&&reconhecimento.identidade.tipo==='unico'?{tipoClienteAgenda:'cadastrado' as const}:!current.tipoClienteAgenda&&classificacao.fonte==='cadastro'&&tipoCliente?{tipoClienteAgenda:tipoCliente}:{}),agenteAna:{...current.agenteAna,...(gerenciar&&alteracao==='remarcar'&&current.agenteAna?.reservaCalendar?{alteracaoConsulta:'remarcar' as const,autorizacaoRemarcacao:{eventoId:current.agenteAna.reservaCalendar.id,inicio:current.agenteAna.reservaCalendar.inicio,contato:telefone,expira:new Date(Date.now()+30*60000).toISOString()}}:{}),tipoCliente,telefone,horarioPendente:horarioPendente??(aceitouPendente?c.agenteAna?.horarioPendente:undefined),horarioPendenteDesde:horarioPendente?new Date().toISOString():aceitouPendente?c.agenteAna?.horarioPendenteDesde:undefined,...(horarioPendente?{horariosTeste:[horarioPendente],agendaReal:true}:{}),...(agenda&&agendaReal?{horariosTeste:agenda.slots,agendaReal}:{}),resultado:r,dados:{...(current.agenteAna?.dados??{nome:'',cpf:'',assunto:'',email:''}),...Object.fromEntries(Object.entries(r.dados_coletados).filter(([,v])=>v))},humano:r.encaminhar_humano,urgente:r.urgente||current.agenteAna?.urgente||false,motivo:r.motivo_aprovacao,proximoPasso:r.proximo_passo,erro:undefined},iaRetida:r.acao==='rascunho'?r.mensagem:current.iaRetida,...(resumoTransbordo?{timeline:[...base.timeline,{data:new Date().toISOString(),evento:resumoTransbordo}]}:{})};
     });
     if(!accepted)return;
-    if(confirmouLembrete)await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,...(x.agenteAna?.lembreteConsulta?{lembreteConsulta:{...x.agenteAna.lembreteConsulta,confirmadoEm:new Date().toISOString()}}:{})},timeline:[...x.timeline,{data:new Date().toISOString(),evento:'Cliente confirmou presença pelo lembrete'}]}));
+    if(respostaLembrete==='sim')await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,...(x.agenteAna?.lembreteConsulta?{lembreteConsulta:{...x.agenteAna.lembreteConsulta,confirmadoEm:new Date().toISOString()}}:{})},timeline:[...x.timeline,{data:new Date().toISOString(),evento:'Cliente confirmou presença pelo lembrete'}]}));
+    if(resposta40)await atualizarConversa(db,id,x=>registrarRespostaConfirmacao40(x,resposta40));
     if(decisaoCancel==='manter'||decisaoCancel==='remarcar')await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,...(decisaoCancel==='manter'?{alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horarioPendente:undefined,horarioPendenteDesde:undefined}:{})}}));
     if(r.acao==='enviar'&&(r.mensagem.trim()||cancelar)) {
       // Relê bloqueios imediatamente antes de enviar; alteração de modo/canal vence a geração.

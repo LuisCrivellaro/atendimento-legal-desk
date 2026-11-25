@@ -33,6 +33,8 @@ export interface AnaState {
   horariosApresentados?: string[]; listasHorarios?: number; pedidosOutrasOpcoes?: number;
   confirmacaoCancelamento?: {eventoId:string;inicio:string;contato:string;expira:string} | undefined;
   lembreteConsulta?: {inicio:string;enviadoEm:string;confirmadoEm?:string | undefined} | undefined;
+  /** Confirmação 40 minutos antes (rotina do servidor); reservada antes do envio, nunca reenviada. */
+  confirmacao40?: import('./confirmacao-consulta').Confirmacao40 | undefined;
   horarioPendente?: string | undefined; horarioPendenteDesde?: string | undefined;
    reservaCalendar?: import('./calendar-booking').ReservaCalendar | undefined;
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;

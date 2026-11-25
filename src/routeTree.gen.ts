@@ -28,6 +28,7 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as AuthenticatedContenciosoAndamentosRouteImport } from './routes/_authenticated/contencioso.andamentos'
 import { Route as AuthenticatedContenciosoProcessosRouteImport } from './routes/_authenticated/contencioso.processos'
 import { Route as AuthenticatedContenciosoProcessosCodigoRouteImport } from './routes/_authenticated/contencioso.processos_.$codigo'
+import { Route as ApiPublicAtendimentoConfirmacaoConsultaRouteImport } from './routes/api/public/atendimento/confirmacao-consulta'
 import { Route as ApiPublicAtendimentoLembreteConsultaRouteImport } from './routes/api/public/atendimento/lembrete-consulta'
 import { Route as ApiPublicAtendimentoMonitorarAnaRouteImport } from './routes/api/public/atendimento/monitorar-ana'
 import { Route as ApiPublicAtendimentoPendenciasProcessoRouteImport } from './routes/api/public/atendimento/pendencias-processo'
@@ -138,6 +139,12 @@ const AuthenticatedContenciosoProcessosCodigoRoute =
     path: '/contencioso/processos/$codigo',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicAtendimentoConfirmacaoConsultaRoute =
+  ApiPublicAtendimentoConfirmacaoConsultaRouteImport.update({
+    id: '/api/public/atendimento/confirmacao-consulta',
+    path: '/api/public/atendimento/confirmacao-consulta',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAtendimentoLembreteConsultaRoute =
   ApiPublicAtendimentoLembreteConsultaRouteImport.update({
     id: '/api/public/atendimento/lembrete-consulta',
@@ -200,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/contencioso/andamentos': typeof AuthenticatedContenciosoAndamentosRoute
   '/contencioso/processos': typeof AuthenticatedContenciosoProcessosRoute
   '/contencioso/processos/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
+  '/api/public/atendimento/confirmacao-consulta': typeof ApiPublicAtendimentoConfirmacaoConsultaRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
@@ -227,6 +235,7 @@ export interface FileRoutesByTo {
   '/contencioso/andamentos': typeof AuthenticatedContenciosoAndamentosRoute
   '/contencioso/processos': typeof AuthenticatedContenciosoProcessosRoute
   '/contencioso/processos/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
+  '/api/public/atendimento/confirmacao-consulta': typeof ApiPublicAtendimentoConfirmacaoConsultaRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
@@ -256,6 +265,7 @@ export interface FileRoutesById {
   '/_authenticated/contencioso/andamentos': typeof AuthenticatedContenciosoAndamentosRoute
   '/_authenticated/contencioso/processos': typeof AuthenticatedContenciosoProcessosRoute
   '/_authenticated/contencioso/processos_/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
+  '/api/public/atendimento/confirmacao-consulta': typeof ApiPublicAtendimentoConfirmacaoConsultaRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
@@ -285,6 +295,7 @@ export interface FileRouteTypes {
     | '/contencioso/andamentos'
     | '/contencioso/processos'
     | '/contencioso/processos/$codigo'
+    | '/api/public/atendimento/confirmacao-consulta'
     | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
     | '/contencioso/andamentos'
     | '/contencioso/processos'
     | '/contencioso/processos/$codigo'
+    | '/api/public/atendimento/confirmacao-consulta'
     | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
@@ -340,6 +352,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contencioso/andamentos'
     | '/_authenticated/contencioso/processos'
     | '/_authenticated/contencioso/processos_/$codigo'
+    | '/api/public/atendimento/confirmacao-consulta'
     | '/api/public/atendimento/lembrete-consulta'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
@@ -355,6 +368,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  ApiPublicAtendimentoConfirmacaoConsultaRoute: typeof ApiPublicAtendimentoConfirmacaoConsultaRoute
   ApiPublicAtendimentoLembreteConsultaRoute: typeof ApiPublicAtendimentoLembreteConsultaRoute
   ApiPublicAtendimentoMonitorarAnaRoute: typeof ApiPublicAtendimentoMonitorarAnaRoute
   ApiPublicAtendimentoPendenciasProcessoRoute: typeof ApiPublicAtendimentoPendenciasProcessoRoute
@@ -499,6 +513,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedContenciosoProcessosCodigoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/atendimento/confirmacao-consulta': {
+      id: '/api/public/atendimento/confirmacao-consulta'
+      path: '/api/public/atendimento/confirmacao-consulta'
+      fullPath: '/api/public/atendimento/confirmacao-consulta'
+      preLoaderRoute: typeof ApiPublicAtendimentoConfirmacaoConsultaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/atendimento/lembrete-consulta': {
       id: '/api/public/atendimento/lembrete-consulta'
       path: '/api/public/atendimento/lembrete-consulta'
@@ -598,6 +619,8 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  ApiPublicAtendimentoConfirmacaoConsultaRoute:
+    ApiPublicAtendimentoConfirmacaoConsultaRoute,
   ApiPublicAtendimentoLembreteConsultaRoute:
     ApiPublicAtendimentoLembreteConsultaRoute,
   ApiPublicAtendimentoMonitorarAnaRoute: ApiPublicAtendimentoMonitorarAnaRoute,

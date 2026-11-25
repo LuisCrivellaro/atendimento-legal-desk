@@ -17,6 +17,9 @@ import { iniciarAtendimentoAutomatico } from '@/lib/atendimento/initial-attendan
 import { horarioPermitido, DURACAO_REUNIAO } from '@/lib/atendimento/schedule-rules';
 import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } from '@/lib/atendimento/appointment-management';
 import { solicitarEmailPendente } from '@/lib/atendimento/email-rules';
+import { confirmacao40Respondivel, decidirConfirmacao40, registrarRespostaConfirmacao40, respostaConfirmacao40, textoAvisoConfirmacao } from '@/lib/atendimento/confirmacao-consulta';
+import { registrarAviso } from '@/lib/atendimento/avisos-equipe';
+import { hora as horaConsulta } from '@/lib/atendimento/ana-scheduling';
 import { iniciarConsultaProcesso, respostaDuranteEspera, apenasInsistencia, deveConsultarProcesso, mensagemNaoCliente, interpretarRespostaRevisora, aplicarDecisao, pendencias, respostaAutorizada, CONFIG_CONSULTA_PADRAO, TEXTOS_CONSULTA, type ConfigConsultaProcesso, type PedidoProcesso, type PortasConsulta, type EntradaRedacao } from '@/lib/atendimento/consulta-processo';
 import { criarProjurisFicticio, projurisFicticioPadrao, type FalhaFicticia, type ProjurisFicticio } from '@/lib/projuris/ficticio';
 import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifico, horarioEspecificoLivre, selecionarOpcoesAna, linhaHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, frustracaoHorariosAna, temPreferenciaAna, horizonteAgendaAna, limitarNomeAna, mensagemConfirmacaoAna } from '@/lib/atendimento/ana-scheduling';
@@ -179,6 +182,27 @@ export class SimuladorAna {
 
   private atualizar(fn: (c: Conversa) => Conversa) { this.conv = fn(this.conv); return this.conv; }
 
+  /** Bateria: consulta já marcada (com recibo) na agenda fictícia, para testar a confirmação do dia. */
+  marcarConsultaTeste(inicio: string) {
+    const id = `pj:${++this.seqCompromisso}`;
+    const fim = new Date(Date.parse(inicio) + DURACAO_REUNIAO * 60000).toISOString();
+    this.agenda.push({ id, inicio: new Date(inicio).toISOString(), fim, titulo: `Consulta CS Lawyers · ${this.nomeContato}`, daAna: true, conversa: this.conversaId });
+    this.atualizar(c => ({ ...c, consultaAgendada: new Date(inicio).toISOString(), tipoClienteAgenda: 'novo', agenteAna: { ...c.agenteAna, apresentado: true, telefone: this.telefone, tipoCliente: 'novo', dados: { nome: this.nomeContato, cpf: '', assunto: 'Consulta', email: '' }, reservaCalendar: { id, inicio: new Date(inicio).toISOString(), fim } } }));
+  }
+
+  /** Mesma decisão da rotina do servidor (confirmacao-consulta.server.ts), com o canal do simulador. */
+  rotinaConfirmacao40(agora = new Date()) {
+    const c = this.conv;
+    const decisao = decidirConfirmacao40({ consultaAgendada: c.consultaAgendada, reservaInicio: c.agenteAna?.reservaCalendar?.inicio, confirmacao40: c.agenteAna?.confirmacao40, humano: c.agenteAna?.humano, pausa: c.agenteAna?.pausa, modo: c.modoIA ?? this.modoIA, anaPausadaGlobal: false, automacaoLigada: true, contatoLiberado: true }, agora);
+    if (decisao.tipo === 'enviar') {
+      const idExterno = `conf40-${++this.seq}`;
+      this.atualizar(x => ({ ...x, agenteAna: { ...x.agenteAna, confirmacao40: { inicio: decisao.inicio, reservadoEm: agora.toISOString(), enviadoEm: agora.toISOString(), idExterno } }, mensagens: [...x.mensagens, newMessage(decisao.texto, { autor: 'Ana · assistente virtual', canal: 'telegram', idExterno, status: 'enviada' })], timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de 40 minutos enviada pela Anne' }] }));
+    } else if (decisao.tipo === 'aviso') {
+      this.atualizar(x => registrarAviso({ ...x, agenteAna: { ...x.agenteAna, confirmacao40: { inicio: decisao.inicio, avisadoEm: agora.toISOString() } } }, { id: `confirmacao40:${decisao.inicio}`, tipo: 'confirmacao40', prioridade: true, criadoEm: agora.toISOString(), texto: textoAvisoConfirmacao(decisao.motivo, decisao.inicio) }));
+    }
+    return decisao;
+  }
+
   /** Equivale ao webhook do Telegram + processarAna. */
   async receber(texto: string, signal?: AbortSignal, arquivo?: string, tipo?: Conversa['mensagens'][number]['tipo']): Promise<Turno> {
     const agora = new Date();
@@ -211,7 +235,7 @@ export class SimuladorAna {
     // Pedido de processo pendente: insistência sem texto ("??") recebe "em conferência" antes da regra de mensagem curta.
     const pendente = this.central.pendenteDe(this.conversaId);
     if (pendente && !m.arquivo && apenasInsistencia(m.texto)) { this.enviarAna(TEXTOS_CONSULTA.emConferencia); turno.enviada = TEXTOS_CONSULTA.emConferencia; turno.eventos.push(`Pedido ${pendente.codigo} em conferência: insistência sem texto.`); return; }
-    if (mensagemSemResposta(m.texto, !!m.arquivo)) { turno.semResposta = 'Mensagem curta de confirmação ("ok", "obrigado"...): a Ana não responde.'; return; }
+    if (mensagemSemResposta(m.texto, !!m.arquivo) && !(confirmacao40Respondivel(c, 'telegram') && respostaConfirmacao40(m.texto))) { turno.semResposta = 'Mensagem curta de confirmação ("ok", "obrigado"...): a Ana não responde.'; return; }
     try {
       const memoria=contextoPersistente(c,canal);const history=memoria.historico;const cobranca=cobraRetorno(m.texto);const identidade=nomeConhecido(c,canal);const introducao=apresentacaoNome(m.texto);
       const identificacao=identificarPorTelefone(telefone,this.projuris.pessoas);
@@ -236,7 +260,12 @@ export class SimuladorAna {
       raw.dados_coletados.email = email;
       const consentCancel = c.agenteAna?.confirmacaoCancelamento;
       const pendenteCancel = !!consentCancel && consentCancel.eventoId === c.agenteAna?.reservaCalendar?.id && consentCancel.inicio === c.consultaAgendada && consentCancel.contato === telefone && Date.parse(consentCancel.expira) > Date.now();
-      const decisaoCancel = decidirCancelamentoAna(m.texto, pendenteCancel);
+      // Confirmação de 40 min (mesma política do servidor): "ok" confirma presença; "não" nunca cancela daqui.
+      const ativa40 = confirmacao40Respondivel(c, canal);
+      const resposta40 = ativa40 ? respostaConfirmacao40(m.texto) : undefined;
+      const confirmou40 = resposta40 === 'sim';
+      const decisaoCancel = confirmou40 ? undefined : decidirCancelamentoAna(m.texto, pendenteCancel && !ativa40);
+      if (resposta40 === 'nao' && !pedidoHumano(m.texto)) { raw.intencao = 'agendamento'; raw.encaminhar_humano = false; }
       const alteracao = decisaoCancel === 'confirmar' ? 'cancelar' : decisaoCancel === 'remarcar' ? 'remarcar' : decisaoCancel === 'pedir' || decisaoCancel === 'manter' ? 'perguntar' : decidirAlteracaoConsulta(m.texto, !!c.consultaAgendada, c.agenteAna?.alteracaoConsulta);
       const semConsulta = decisaoCancel === 'pedir' && !c.consultaAgendada;
       if (decisaoCancel && !pedidoHumano(m.texto)) { raw.intencao = 'agendamento'; raw.encaminhar_humano = false; }
@@ -308,7 +337,10 @@ export class SimuladorAna {
       if(cobranca)Object.assign(r,resultadoRetorno(c,canal));
       const gerenciar = teste && mode === 'Automática' && !r.encaminhar_humano && !r.motivo_aprovacao && !!c.consultaAgendada;
       const cancelar = gerenciar && decisaoCancel === 'confirmar' && pendenteCancel;
-      const perguntar = gerenciar && !cancelar && alteracao !== 'remarcar' && c.agenteAna?.alteracaoConsulta !== 'remarcar' && r.intencao === 'agendamento';
+      const naoNaConfirmacao = resposta40 === 'nao' && !pedidoHumano(m.texto) && !decisaoCancel;
+      const perguntar = gerenciar && !confirmou40 && !cancelar && alteracao !== 'remarcar' && c.agenteAna?.alteracaoConsulta !== 'remarcar' && (r.intencao === 'agendamento' || naoNaConfirmacao);
+      if (perguntar && naoNaConfirmacao) r.acao = 'enviar';
+      if (confirmou40 && mode === 'Automática' && c.consultaAgendada && !pedidoHumano(m.texto)) { r.acao = 'enviar'; r.motivo_aprovacao = ''; r.encaminhar_humano = false; r.mensagem = `Presença confirmada! Sua consulta continua hoje, às ${horaConsulta(c.consultaAgendada)}.`; r.proximo_passo = 'Cliente confirmou presença pela confirmação de 40 minutos.'; }
       if (perguntar) { r.mensagem = `Você já tem uma consulta marcada para ${formatarHorarioCliente(c.consultaAgendada ?? '')}. Deseja remarcar ou cancelar esse agendamento?`; r.proximo_passo = 'Aguardar autorização do cliente para cancelar ou remarcar.'; }
       if (gerenciar && decisaoCancel === 'pedir') { r.mensagem = `Quer mesmo cancelar a sua consulta de ${formatarHorarioCliente(c.consultaAgendada ?? '').toLowerCase()}? Se preferir, posso remarcar para outro dia.`; r.proximo_passo = 'Aguardar confirmação explícita posterior para cancelar esta consulta.'; }
       if (gerenciar && decisaoCancel === 'manter') { r.mensagem = `Combinado, sua consulta continua marcada para ${formatarHorarioCliente(c.consultaAgendada ?? '').toLowerCase()}.`; r.proximo_passo = 'Consulta mantida por escolha do cliente.'; }
@@ -325,6 +357,7 @@ export class SimuladorAna {
         return { ...base, ...(rel.situacao==='ativo'&&identificacao.tipo==='unico'?{tipoClienteAgenda:'cadastrado' as const}:{}), ...(current.etiquetaAcao || etiqueta === 'sem' ? {} : { etiquetaAcao: etiqueta }), agenteAna: { ...current.agenteAna, ...(gerenciar && alteracao === 'remarcar' && current.agenteAna?.reservaCalendar ? { alteracaoConsulta: 'remarcar' as const, autorizacaoRemarcacao: { eventoId: current.agenteAna.reservaCalendar.id, inicio: current.agenteAna.reservaCalendar.inicio, contato: telefone, expira: new Date(Date.now() + 30 * 60000).toISOString() } } : {}), tipoCliente, telefone, horarioPendente: horarioPendente ?? (aceitouPendente ? c.agenteAna?.horarioPendente : undefined), horarioPendenteDesde: horarioPendente ? new Date().toISOString() : aceitouPendente ? c.agenteAna?.horarioPendenteDesde : undefined, ...(horarioPendente ? { horariosTeste: [horarioPendente], agendaReal: true } : {}), ...(agenda && agendaReal ? { horariosTeste: agenda.slots, agendaReal } : {}), resultado: r, dados: { ...(current.agenteAna?.dados ?? { nome: '', cpf: '', assunto: '', email: '' }), ...Object.fromEntries(Object.entries(r.dados_coletados).filter(([, v]) => v)) }, humano: r.encaminhar_humano, urgente: r.urgente || current.agenteAna?.urgente || false, motivo: r.motivo_aprovacao, proximoPasso: r.proximo_passo, erro: undefined }, iaRetida: r.acao === 'rascunho' ? r.mensagem : current.iaRetida } as Conversa;
       });
       if (!accepted) return;
+      if (resposta40) this.atualizar(x => registrarRespostaConfirmacao40(x, resposta40));
       if (decisaoCancel === 'manter' || decisaoCancel === 'remarcar') this.atualizar(x => ({ ...x, agenteAna: { ...x.agenteAna, confirmacaoCancelamento: undefined, ...(decisaoCancel === 'manter' ? { alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, horarioPendente: undefined, horarioPendenteDesde: undefined } : {}) } }));
       if (r.acao === 'enviar' && (r.mensagem.trim() || cancelar)) {
         const current = this.conv;

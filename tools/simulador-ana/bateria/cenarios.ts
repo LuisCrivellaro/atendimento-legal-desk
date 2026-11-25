@@ -20,12 +20,14 @@ export interface Passo {
   origem?: OrigemRevisora;
   avancarMin?: number;
   pendencias?: boolean;
+  /** Rotina do servidor executada neste passo (ex.: confirmação 40 min antes da consulta). */
+  sistema?: 'confirmacao40';
 }
 export interface Cenario {
   id: string;
   bloco: 'A' | 'B' | 'C' | 'D' | 'E';
   titulo: string;
-  conversas: Record<string, { telefone: string; nome: string; perfil: 'novo' | 'cliente' }>;
+  conversas: Record<string, { telefone: string; nome: string; perfil: 'novo' | 'cliente'; /** Consulta já marcada, com recibo (ISO). */ consultaMarcada?: string }>;
   projuris: string;
   dados?: (base: ProjurisFicticio) => ProjurisFicticio;
   falha?: FalhaFicticia;
@@ -262,6 +264,24 @@ export const CENARIOS: Cenario[] = [
     passos: [{ cliente: 'boa tarde, quero agendar uma consulta', intencao: 'agendamento' }], esperado: 'Boas-vindas e já trata o pedido, sem perguntar como pode ajudar', permitidas: ['saudar e tratar o pedido'], proibidas: ['ignorar o pedido', 'pedir CPF'],
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Linhas de boas-vindas (do "Olá!" até o site) e, em seguida, o atendimento ao pedido de agendamento.',
     verificacoes: [anaNaoDiz(/Como podemos te ajudar\?$/, 'Não pergunta como pode ajudar quando o pedido já veio', 'prompt')],
+  },
+  {
+    id: 'D40a', bloco: 'D', titulo: 'Confirmação de 40 min: "não vou conseguir" nunca cancela', conversas: { A: { telefone: T.desconhecido, nome: 'Bruna Fictícia Lima', perfil: 'novo', consultaMarcada: '2026-11-25T14:30:00-03:00' } }, projuris: 'Não usado', relogio: '2026-11-25T13:45:00-03:00',
+    passos: [{ sistema: 'confirmacao40' }, { avancarMin: 2, cliente: 'não vou conseguir', intencao: 'duvida_geral' }],
+    esperado: 'O servidor envia o texto oficial; a resposta negativa vira pergunta explícita (remarcar ou cancelar), sem cancelamento.', permitidas: ['perguntar se quer remarcar ou cancelar'], proibidas: ['cancelar a consulta', 'dizer que cancelou'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: [...SEM_PROJURIS, 'agenda.cancelar'] }, comportamento: 'Texto oficial da confirmação; resposta "não" nunca cancela e pergunta com data e hora.',
+    verificacoes: [
+      v('conf40-texto', 'Texto oficial exato da confirmação de 40 min', 'regra', true, e => anaDe(e)[0] === 'Olá\nBoa tarde ! 😊\n📍Passando para confirmar o seu atendimento hoje às 14h30, ok?!\nEquipe CS Advocacia ⚖️\nLawyers' ? true : `"${(anaDe(e)[0] ?? '').slice(0, 80)}"`),
+      v('conf40-nao-cancela', 'Resposta negativa não cancela', 'regra', true, e => e.ferramentas.includes('agenda.cancelar') ? 'Cancelou a partir da resposta à confirmação.' : true),
+      v('conf40-pergunta', 'Pergunta explícita com data e hora', 'regra', true, e => /Deseja remarcar ou cancelar/.test(anaDe(e)[1] ?? '') ? true : `"${(anaDe(e)[1] ?? '').slice(0, 80)}"`),
+    ],
+  },
+  {
+    id: 'D40b', bloco: 'D', titulo: 'Confirmação de 40 min: "ok" registra presença', conversas: { A: { telefone: T.desconhecido, nome: 'Bruna Fictícia Lima', perfil: 'novo', consultaMarcada: '2026-11-25T14:30:00-03:00' } }, projuris: 'Não usado', relogio: '2026-11-25T13:45:00-03:00',
+    passos: [{ sistema: 'confirmacao40' }, { avancarMin: 1, cliente: 'ok', intencao: 'duvida_geral' }],
+    esperado: 'Presença confirmada com o texto fixo do servidor.', permitidas: ['confirmar presença'], proibidas: ['repetir a confirmação', 'oferecer horários'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: [...SEM_PROJURIS, 'agenda.cancelar', 'agenda.reservar'] }, comportamento: '"ok" à confirmação de 40 min recebe "Presença confirmada! Sua consulta continua hoje, às 14h30."',
+    verificacoes: [v('conf40-presenca', 'Texto fixo de presença confirmada', 'regra', true, e => anaDe(e)[1] === 'Presença confirmada! Sua consulta continua hoje, às 14h30.' ? true : `"${(anaDe(e)[1] ?? '').slice(0, 80)}"`)],
   },
   {
     id:'D30-paulo',bloco:'D',titulo:'Paulo mantém contexto e cobra retorno',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,

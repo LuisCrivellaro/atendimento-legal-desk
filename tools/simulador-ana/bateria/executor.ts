@@ -81,6 +81,7 @@ export async function executarCenario(c: Cenario, modo: ModoExecucao): Promise<R
     const sims: Record<string, SimuladorAna> = {};
     for (const [k, conv] of Object.entries(c.conversas)) {
       sims[k] = new SimuladorAna(gerar, modo.treino, conv.perfil, { conversaId: `bateria-${c.id}-${k}`, telefone: conv.telefone, nome: conv.nome, projuris: dados, central, ...(falha ? { falhaProjuris: falha } : {}), ...(redigir ? { redigir } : {}) });
+      if (conv.consultaMarcada) sims[k].marcarConsultaTeste(conv.consultaMarcada);
     }
     const transcricao: Linha[] = [];
     const erros: string[] = [];
@@ -99,6 +100,7 @@ export async function executarCenario(c: Cenario, modo: ModoExecucao): Promise<R
       if (modo.signal?.aborted) throw new Error('Interrompido.');
       atual = p;
       if (p.avancarMin) { relogio.avancarMin(p.avancarMin); transcricao.push({ conversa: '-', de: 'sistema', texto: `(relógio: ${relogio.agora().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })})` }); }
+      if (p.sistema === 'confirmacao40') sims[p.conversa ?? 'A']!.rotinaConfirmacao40(new Date());
       if (p.cliente !== undefined || p.arquivo) {
         const turno = await sims[p.conversa ?? 'A']!.receber(p.cliente ?? '', modo.signal, p.arquivo);
         if (turno.erro) erros.push(turno.erro);

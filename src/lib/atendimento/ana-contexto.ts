@@ -49,7 +49,7 @@ export function contextoPersistente(c: Conversa, canal: string) {
   };
 }
 /** Preserves concurrent task creation/completion when an old browser edits other case fields. */
-export function mesclarTarefasRetorno(antes: TarefaRetorno[] = [], depois: TarefaRetorno[] = [], atuais: TarefaRetorno[] = []) {
+export function mesclarTarefasRetorno<T extends { id: string } = TarefaRetorno>(antes: T[] = [], depois: T[] = [], atuais: T[] = []) {
   const map = new Map(atuais.map(t => [t.id, t]));
   for (const t of depois) {
     const baseline = antes.find(a => a.id === t.id);

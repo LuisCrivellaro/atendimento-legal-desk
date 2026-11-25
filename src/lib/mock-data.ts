@@ -25,6 +25,8 @@ export interface DocItem { id?: string | undefined; nome: string; recebido: bool
 export interface Conversa {
   nomePerfilWhatsApp?: string | undefined;
   tarefasRetorno?: import('./atendimento/ana-contexto').TarefaRetorno[] | undefined;
+  /** Avisos operacionais para a equipe (Atendimento e Assessor); nunca vão ao cliente. */
+  avisosEquipe?: import('./atendimento/avisos-equipe').AvisoEquipe[] | undefined;
   lastMessageAt?: string | null;
   email?: string | undefined;
   etiquetaAcao?: import('./atendimento/intake-rules').EtiquetaAcao | undefined;

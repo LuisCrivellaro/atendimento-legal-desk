@@ -1,9 +1,10 @@
 import type { QuickReply } from '../respostas-prontas';
 import type { ReservaCalendar } from './calendar-booking';
+import { preencherConfirmacao } from './confirmacao-consulta';
 
 export type ReplyCalendarData = { horarios?: string[]; reserva?: ReservaCalendar; aviso?: string };
 export const calendarShortcut = (r: Pick<QuickReply, 'atalho' | 'texto'>) =>
-  ['consulta', 'reagendar', 'confirmar', 'lembreteconsulta'].includes(r.atalho) && /\{horario(?:1|2)?\}/.test(r.texto);
+  ['consulta', 'reagendar', 'confirmar', 'lembreteconsulta'].includes(r.atalho) && /\{(?:horario(?:1|2)?|horadaconsulta)\}/.test(r.texto);
 
 export const diaSP = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
 const horaSP = (iso: string) => new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso)).replace(':', 'h');
@@ -30,7 +31,8 @@ export function fillCalendarReply(texto: string, data: ReplyCalendarData, now = 
   }
   const inicio = data.reserva?.inicio;
   if (!inicio || !Number.isFinite(Date.parse(inicio)) || Date.parse(inicio) <= now.getTime()) return texto;
-  let result = texto.replaceAll('{horario}', horaSP(inicio));
+  // Confirmação oficial: hora no formato "14h"/"14h30" e saudação pelo horário do envio; só com reserva real.
+  let result = preencherConfirmacao(texto, inicio, now).replaceAll('{horario}', horaSP(inicio));
   if (diaSP(inicio) !== diaSP(now.toISOString())) {
     result = result.replace('hoje às', `no dia ${dataSP(inicio)} às`).replace('hoje, às', `o dia ${dataSP(inicio)}, às`);
   }
