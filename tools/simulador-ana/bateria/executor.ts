@@ -82,6 +82,7 @@ export async function executarCenario(c: Cenario, modo: ModoExecucao): Promise<R
     for (const [k, conv] of Object.entries(c.conversas)) {
       sims[k] = new SimuladorAna(gerar, modo.treino, conv.perfil, { conversaId: `bateria-${c.id}-${k}`, telefone: conv.telefone, nome: conv.nome, projuris: dados, central, ...(falha ? { falhaProjuris: falha } : {}), ...(redigir ? { redigir } : {}) });
       if (conv.consultaMarcada) sims[k].marcarConsultaTeste(conv.consultaMarcada);
+      if (conv.coleta) sims[k].marcarTratoFeito(conv.coleta);
     }
     const transcricao: Linha[] = [];
     const erros: string[] = [];

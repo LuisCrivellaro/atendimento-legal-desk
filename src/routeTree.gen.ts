@@ -30,6 +30,7 @@ import { Route as AuthenticatedContenciosoProcessosRouteImport } from './routes/
 import { Route as AuthenticatedContenciosoProcessosCodigoRouteImport } from './routes/_authenticated/contencioso.processos_.$codigo'
 import { Route as ApiPublicAtendimentoConfirmacaoConsultaRouteImport } from './routes/api/public/atendimento/confirmacao-consulta'
 import { Route as ApiPublicAtendimentoLembreteConsultaRouteImport } from './routes/api/public/atendimento/lembrete-consulta'
+import { Route as ApiPublicAtendimentoLembretesAtendimentoRouteImport } from './routes/api/public/atendimento/lembretes-atendimento'
 import { Route as ApiPublicAtendimentoMonitorarAnaRouteImport } from './routes/api/public/atendimento/monitorar-ana'
 import { Route as ApiPublicAtendimentoPendenciasProcessoRouteImport } from './routes/api/public/atendimento/pendencias-processo'
 import { Route as ApiPublicAtendimentoRecuperarAnaRouteImport } from './routes/api/public/atendimento/recuperar-ana'
@@ -151,6 +152,12 @@ const ApiPublicAtendimentoLembreteConsultaRoute =
     path: '/api/public/atendimento/lembrete-consulta',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicAtendimentoLembretesAtendimentoRoute =
+  ApiPublicAtendimentoLembretesAtendimentoRouteImport.update({
+    id: '/api/public/atendimento/lembretes-atendimento',
+    path: '/api/public/atendimento/lembretes-atendimento',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAtendimentoMonitorarAnaRoute =
   ApiPublicAtendimentoMonitorarAnaRouteImport.update({
     id: '/api/public/atendimento/monitorar-ana',
@@ -209,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/contencioso/processos/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
   '/api/public/atendimento/confirmacao-consulta': typeof ApiPublicAtendimentoConfirmacaoConsultaRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
+  '/api/public/atendimento/lembretes-atendimento': typeof ApiPublicAtendimentoLembretesAtendimentoRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
@@ -237,6 +245,7 @@ export interface FileRoutesByTo {
   '/contencioso/processos/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
   '/api/public/atendimento/confirmacao-consulta': typeof ApiPublicAtendimentoConfirmacaoConsultaRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
+  '/api/public/atendimento/lembretes-atendimento': typeof ApiPublicAtendimentoLembretesAtendimentoRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
@@ -267,6 +276,7 @@ export interface FileRoutesById {
   '/_authenticated/contencioso/processos_/$codigo': typeof AuthenticatedContenciosoProcessosCodigoRoute
   '/api/public/atendimento/confirmacao-consulta': typeof ApiPublicAtendimentoConfirmacaoConsultaRoute
   '/api/public/atendimento/lembrete-consulta': typeof ApiPublicAtendimentoLembreteConsultaRoute
+  '/api/public/atendimento/lembretes-atendimento': typeof ApiPublicAtendimentoLembretesAtendimentoRoute
   '/api/public/atendimento/monitorar-ana': typeof ApiPublicAtendimentoMonitorarAnaRoute
   '/api/public/atendimento/pendencias-processo': typeof ApiPublicAtendimentoPendenciasProcessoRoute
   '/api/public/atendimento/recuperar-ana': typeof ApiPublicAtendimentoRecuperarAnaRoute
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/contencioso/processos/$codigo'
     | '/api/public/atendimento/confirmacao-consulta'
     | '/api/public/atendimento/lembrete-consulta'
+    | '/api/public/atendimento/lembretes-atendimento'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
@@ -325,6 +336,7 @@ export interface FileRouteTypes {
     | '/contencioso/processos/$codigo'
     | '/api/public/atendimento/confirmacao-consulta'
     | '/api/public/atendimento/lembrete-consulta'
+    | '/api/public/atendimento/lembretes-atendimento'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
@@ -354,6 +366,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contencioso/processos_/$codigo'
     | '/api/public/atendimento/confirmacao-consulta'
     | '/api/public/atendimento/lembrete-consulta'
+    | '/api/public/atendimento/lembretes-atendimento'
     | '/api/public/atendimento/monitorar-ana'
     | '/api/public/atendimento/pendencias-processo'
     | '/api/public/atendimento/recuperar-ana'
@@ -370,6 +383,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicAtendimentoConfirmacaoConsultaRoute: typeof ApiPublicAtendimentoConfirmacaoConsultaRoute
   ApiPublicAtendimentoLembreteConsultaRoute: typeof ApiPublicAtendimentoLembreteConsultaRoute
+  ApiPublicAtendimentoLembretesAtendimentoRoute: typeof ApiPublicAtendimentoLembretesAtendimentoRoute
   ApiPublicAtendimentoMonitorarAnaRoute: typeof ApiPublicAtendimentoMonitorarAnaRoute
   ApiPublicAtendimentoPendenciasProcessoRoute: typeof ApiPublicAtendimentoPendenciasProcessoRoute
   ApiPublicAtendimentoRecuperarAnaRoute: typeof ApiPublicAtendimentoRecuperarAnaRoute
@@ -527,6 +541,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAtendimentoLembreteConsultaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/atendimento/lembretes-atendimento': {
+      id: '/api/public/atendimento/lembretes-atendimento'
+      path: '/api/public/atendimento/lembretes-atendimento'
+      fullPath: '/api/public/atendimento/lembretes-atendimento'
+      preLoaderRoute: typeof ApiPublicAtendimentoLembretesAtendimentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/atendimento/monitorar-ana': {
       id: '/api/public/atendimento/monitorar-ana'
       path: '/api/public/atendimento/monitorar-ana'
@@ -623,6 +644,8 @@ const rootRouteChildren: RootRouteChildren = {
     ApiPublicAtendimentoConfirmacaoConsultaRoute,
   ApiPublicAtendimentoLembreteConsultaRoute:
     ApiPublicAtendimentoLembreteConsultaRoute,
+  ApiPublicAtendimentoLembretesAtendimentoRoute:
+    ApiPublicAtendimentoLembretesAtendimentoRoute,
   ApiPublicAtendimentoMonitorarAnaRoute: ApiPublicAtendimentoMonitorarAnaRoute,
   ApiPublicAtendimentoPendenciasProcessoRoute:
     ApiPublicAtendimentoPendenciasProcessoRoute,

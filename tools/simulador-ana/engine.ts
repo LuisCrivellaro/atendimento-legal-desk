@@ -19,6 +19,7 @@ import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } fr
 import { solicitarEmailPendente } from '@/lib/atendimento/email-rules';
 import { confirmacao40Respondivel, decidirConfirmacao40, registrarRespostaConfirmacao40, respostaConfirmacao40, textoAvisoConfirmacao } from '@/lib/atendimento/confirmacao-consulta';
 import { registrarAviso } from '@/lib/atendimento/avisos-equipe';
+import { emColeta, perguntaAvaliacaoDocumento, respostaDocumentoColeta } from '@/lib/atendimento/coleta';
 import { hora as horaConsulta } from '@/lib/atendimento/ana-scheduling';
 import { iniciarConsultaProcesso, respostaDuranteEspera, apenasInsistencia, deveConsultarProcesso, mensagemNaoCliente, interpretarRespostaRevisora, aplicarDecisao, pendencias, respostaAutorizada, CONFIG_CONSULTA_PADRAO, TEXTOS_CONSULTA, type ConfigConsultaProcesso, type PedidoProcesso, type PortasConsulta, type EntradaRedacao } from '@/lib/atendimento/consulta-processo';
 import { criarProjurisFicticio, projurisFicticioPadrao, type FalhaFicticia, type ProjurisFicticio } from '@/lib/projuris/ficticio';
@@ -182,6 +183,15 @@ export class SimuladorAna {
 
   private atualizar(fn: (c: Conversa) => Conversa) { this.conv = fn(this.conv); return this.conv; }
 
+  /** Checklist fictício (no servidor vem de checklist_itens). */
+  checklist: { nome: string; recebido: boolean }[] = [];
+
+  /** Bateria: conversa depois do Trato feito, com os itens faltantes do checklist. */
+  marcarTratoFeito(faltantes: string[]) {
+    this.checklist = faltantes.map(nome => ({ nome, recebido: false }));
+    this.atualizar(c => ({ ...c, etapa: 'documentos', timeline: [...c.timeline, { data: new Date().toISOString(), evento: 'Trato feito · simulação' }], agenteAna: { ...c.agenteAna, apresentado: true, dados: { nome: this.nomeContato, cpf: '', assunto: '', email: '' } } }));
+  }
+
   /** Bateria: consulta já marcada (com recibo) na agenda fictícia, para testar a confirmação do dia. */
   marcarConsultaTeste(inicio: string) {
     const id = `pj:${++this.seqCompromisso}`;
@@ -244,7 +254,7 @@ export class SimuladorAna {
       const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c);
       const tipoCliente = rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificarAgenda({ persistida: c.tipoClienteAgenda, autodeclaracao: identificarTipoCliente(m.texto), contexto: c.agenteAna?.tipoCliente, padraoLead: c.etapa === 'inicial' }).tipo;
       const etiqueta = etiquetaConversa(c);
-      const lista: { nome: string; recebido: boolean }[] = [];
+      const lista: { nome: string; recebido: boolean }[] = this.checklist;
       const email = c.email || c.agenteAna?.dados?.email || '';
       const contexto = { relacionamento:rel, continuidade:memoria.continuidade, checklist: lista, email_cadastrado: email, solicitar_email: c.etapa === 'documentos' && solicitarEmailPendente(lista as never, email), data_hora_atual: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), dentro_expediente: expedienteAna(), tipo_cliente_agenda: tipoCliente ?? 'desconhecido; perguntar', area_origem: etiqueta, telefone_informado: telefone ?? '', regras_agenda: '30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF', modo_ia: mode, vendedor_ativo: false, cliente: {...(c.agenteAna?.dados??{}),nome:identidade}, apresentado: atendimentoIniciado(c,canal,messageId), consulta_info: !rel.consultaInicial ? {tipo:"acompanhamento"} : c.agenteAna?.reservaCalendar ? { online: true, gratuita: true, duracao_minutos: 30, reserva_confirmada: c.agenteAna.reservaCalendar.inicio } : { online: true, gratuita: true, duracao_minutos: 30 }, horarios_oferecidos: c.agenteAna?.horariosTeste ?? [], temas_proibidos_extra: state.training.proibidos, historico: history, ultima_mensagem: { texto: m.texto, arquivo: m.arquivo ?? '' }, exemplos: state.training.exemplos };
       turno.contexto = contexto;
@@ -347,7 +357,12 @@ export class SimuladorAna {
       if (semConsulta && mode === 'Automática' && !pedidoHumano(m.texto)) { r.acao = 'enviar'; r.motivo_aprovacao = ''; r.encaminhar_humano = false; r.mensagem = 'Não encontrei consulta marcada por aqui. Quer marcar uma?'; r.proximo_passo = 'Aguardar interesse em novo agendamento.'; }
       if (cancelar) { r.mensagem = ''; r.proximo_passo = 'Cancelar consulta somente após validar o recibo do atendimento.'; }
       Object.assign(r,protegerRelacionamentoAna(r,rel,m,mode,permiteAgenda,c));
-      const agenda = saudou ? {slots:horarios,selected:undefined} : !recebeuNome && !horarioPendente && !bloqueada && !perguntar && !cancelar && !semConsulta && teste && tipoCliente && telefone && r.intencao === 'agendamento' && r.acao === 'enviar' ? respostaAgendaTeste(m.texto, horarios, new Date(), agendaReal, tipoCliente, repetida) : undefined;
+      // Concierge de coleta (mesma política do servidor). No simulador, o anexo recebido conta como guardado.
+      if (mode === 'Automática' && emColeta(c) && !r.urgente && !pedidoHumano(m.texto) && !cobranca) {
+        if (m.arquivo) { const resp = respostaDocumentoColeta({ temRecibo: true, faltantes: lista.filter(i => !i.recebido).map(i => i.nome), textoCliente: m.texto }); Object.assign(r, { acao: 'enviar', motivo_aprovacao: '', intencao: 'documento', mensagem: resp.mensagem, encaminhar_humano: resp.humano, proximo_passo: resp.proximo }); }
+        else if (perguntaAvaliacaoDocumento(m.texto)) Object.assign(r, { acao: 'enviar', motivo_aprovacao: '', intencao: 'documento', encaminhar_humano: true, mensagem: 'Quem confere se o documento atende é a equipe. Vou pedir para olharem e te retornam por aqui.', proximo_passo: 'Cliente perguntou se o documento serve: equipe avaliar e responder.' });
+      }
+      const agenda =saudou ? {slots:horarios,selected:undefined} : !recebeuNome && !horarioPendente && !bloqueada && !perguntar && !cancelar && !semConsulta && teste && tipoCliente && telefone && r.intencao === 'agendamento' && r.acao === 'enviar' ? respostaAgendaTeste(m.texto, horarios, new Date(), agendaReal, tipoCliente, repetida) : undefined;
       let accepted = false;
       this.atualizar(current => {
         accepted = false;

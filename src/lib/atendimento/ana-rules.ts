@@ -35,6 +35,8 @@ export interface AnaState {
   lembreteConsulta?: {inicio:string;enviadoEm:string;confirmadoEm?:string | undefined} | undefined;
   /** Confirmação 40 minutos antes (rotina do servidor); reservada antes do envio, nunca reenviada. */
   confirmacao40?: import('./confirmacao-consulta').Confirmacao40 | undefined;
+  /** Lembretes de coleta (contrato e faltantes) enviados pela rotina do servidor; limite por pendência. */
+  lembretesColeta?: import('./coleta').EstadoLembretesColeta | undefined;
   horarioPendente?: string | undefined; horarioPendenteDesde?: string | undefined;
    reservaCalendar?: import('./calendar-booking').ReservaCalendar | undefined;
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;

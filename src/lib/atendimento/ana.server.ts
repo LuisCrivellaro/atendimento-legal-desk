@@ -12,6 +12,8 @@ import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } fr
 import { solicitarEmailPendente } from './email-rules';
 import { lembreteAtivo, respostaLembreteAna } from './lembrete-consulta';
 import { confirmacao40Respondivel, registrarRespostaConfirmacao40, respostaConfirmacao40 } from './confirmacao-consulta';
+import { emColeta, perguntaAvaliacaoDocumento, respostaDocumentoColeta } from './coleta';
+import { textosColeta } from '../respostas-prontas';
 import { hora } from './ana-scheduling';
 import { pedidoInformacoesConsultaAna, aceiteConsultaAna } from './ana-rules';
 import { gatilhoLandingInternacional, passoFunil, MSG_BOAS_VINDAS, REGRAS_REAGENDAMENTO } from './funil-internacional';
@@ -243,6 +245,12 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(confirmouLembrete&&mode==='Automática'&&c.consultaAgendada&&!pedidoHumano(m.texto)){r.acao='enviar';r.motivo_aprovacao='';r.encaminhar_humano=false;r.mensagem=`Presença confirmada! Sua consulta continua hoje, às ${hora(c.consultaAgendada)}.`;r.proximo_passo='Cliente confirmou presença pelo lembrete do dia.';}
     if(cancelar){r.mensagem='';r.proximo_passo='Cancelar consulta somente após validar o recibo do atendimento.';}
     Object.assign(r,protegerRelacionamentoAna(r,rel,m,mode,permiteAgenda,c));
+    // Concierge de coleta (depois do Trato feito): anexo só é "recebido" com recibo do servidor (arquivo guardado);
+    // faltantes pelos nomes do checklist real; avaliação do documento ("serve?") fica com a equipe.
+    if(mode==='Automática'&&emColeta(c)&&!r.urgente&&!pedidoHumano(m.texto)&&!cobranca){
+      if(m.arquivo){const resp=respostaDocumentoColeta({temRecibo:!!m.path&&m.salvoStart===true,faltantes:lista.data.filter(i=>!i.recebido).map(i=>i.nome),textoCliente:m.texto,textos:textosColeta(state.respostasProntas)});Object.assign(r,{acao:'enviar',motivo_aprovacao:'',intencao:'documento',mensagem:resp.mensagem,encaminhar_humano:resp.humano,proximo_passo:resp.proximo});}
+      else if(perguntaAvaliacaoDocumento(m.texto)){Object.assign(r,{acao:'enviar',motivo_aprovacao:'',intencao:'documento',encaminhar_humano:true,mensagem:'Quem confere se o documento atende é a equipe. Vou pedir para olharem e te retornam por aqui.',proximo_passo:'Cliente perguntou se o documento serve: equipe avaliar e responder.'});}
+    }
     const agenda=saudou?{slots:horarios,selected:undefined}:!recebeuNome&&!horarioPendente&&!bloqueada&&!perguntar&&!cancelar&&!semConsulta&&teste&&tipoCliente&&telefone&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,horarios,new Date(),agendaReal,tipoCliente,repetida):undefined;
     const resumoTransbordo=r.encaminhar_humano?resumoTransbordoAna(nome,telefone,m.texto):undefined;
     if(resumoTransbordo)r.proximo_passo=resumoTransbordo;

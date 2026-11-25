@@ -27,7 +27,7 @@ export interface Cenario {
   id: string;
   bloco: 'A' | 'B' | 'C' | 'D' | 'E';
   titulo: string;
-  conversas: Record<string, { telefone: string; nome: string; perfil: 'novo' | 'cliente'; /** Consulta já marcada, com recibo (ISO). */ consultaMarcada?: string }>;
+  conversas: Record<string, { telefone: string; nome: string; perfil: 'novo' | 'cliente'; /** Consulta já marcada, com recibo (ISO). */ consultaMarcada?: string; /** Trato feito com estes itens faltantes no checklist. */ coleta?: string[] }>;
   projuris: string;
   dados?: (base: ProjurisFicticio) => ProjurisFicticio;
   falha?: FalhaFicticia;
@@ -282,6 +282,16 @@ export const CENARIOS: Cenario[] = [
     esperado: 'Presença confirmada com o texto fixo do servidor.', permitidas: ['confirmar presença'], proibidas: ['repetir a confirmação', 'oferecer horários'],
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: [...SEM_PROJURIS, 'agenda.cancelar', 'agenda.reservar'] }, comportamento: '"ok" à confirmação de 40 min recebe "Presença confirmada! Sua consulta continua hoje, às 14h30."',
     verificacoes: [v('conf40-presenca', 'Texto fixo de presença confirmada', 'regra', true, e => anaDe(e)[1] === 'Presença confirmada! Sua consulta continua hoje, às 14h30.' ? true : `"${(anaDe(e)[1] ?? '').slice(0, 80)}"`)],
+  },
+  {
+    id: 'D41', bloco: 'D', titulo: 'Coleta: documento recebido lista faltantes; "serve?" vai para a equipe', conversas: { A: { telefone: T.desconhecido, nome: 'Rogério Fictício Nunes', perfil: 'novo', coleta: ['CPF', 'Comprovante de endereço'] } }, projuris: 'Não usado', relogio: QUI_10H,
+    passos: [{ cliente: '', arquivo: 'rg-frente.pdf', intencao: 'documento' }, { cliente: 'esse documento serve?', intencao: 'documento' }],
+    esperado: 'Acusa o recebimento (com recibo do servidor) e lista os faltantes do checklist; a pergunta sobre o documento vai para a equipe.', permitidas: ['acusar recebimento', 'listar faltantes'], proibidas: ['dizer que o documento serve', 'avaliar o documento'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Mensagem fixa de recebimento com os nomes do checklist; avaliação com a equipe.',
+    verificacoes: [
+      v('coleta-recebido', 'Recebimento com faltantes do checklist', 'regra', true, e => anaDe(e)[0] === 'Recebi o seu arquivo, obrigada! 😊\nA equipe vai conferir.\n\nAinda faltam:\n• CPF\n• Comprovante de endereço' ? true : `"${(anaDe(e)[0] ?? '').slice(0, 80)}"`),
+      v('coleta-avaliacao', 'Avaliação do documento fica com a equipe', 'regra', true, e => /Quem confere se o documento atende é a equipe/.test(anaDe(e)[1] ?? '') && e.pausada['A'] ? true : `"${(anaDe(e)[1] ?? '').slice(0, 80)}"`),
+    ],
   },
   {
     id:'D30-paulo',bloco:'D',titulo:'Paulo mantém contexto e cobra retorno',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,

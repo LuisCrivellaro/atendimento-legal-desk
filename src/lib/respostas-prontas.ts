@@ -3,6 +3,7 @@
 import type { Conversa, Etapa } from './mock-data';
 import { normalized } from './atendimento';
 import { MODELO_CONFIRMACAO_CONSULTA } from './atendimento/confirmacao-consulta';
+import { TEXTOS_COLETA, type ChaveTextoColeta } from './atendimento/coleta';
 
 export const REPLY_CATEGORIES = ['Boas-vindas', 'Documentos', 'Agendamento', 'Processo', 'Geral'] as const;
 export type ReplyCategory = (typeof REPLY_CATEGORIES)[number];
@@ -48,7 +49,19 @@ export const DEFAULT_REPLIES: QuickReply[] = [
   {"id": "oficial-docsiniciais", "titulo": "Documentos iniciais para o contrato", "categoria": "Documentos", "atalho": "docsiniciais", "texto": "Oi, {nome}! Tudo bem? 😊\n\nPara elaborarmos o seu contrato e darmos andamento ao seu caso, preciso que você nos encaminhe, por gentileza:\n\n📍 Documento pessoal com foto, podendo ser RG ou CNH\n📍 CPF, caso não conste no documento enviado\n📍 Comprovante de residência atualizado\n\nNa sequência, enviaremos a lista de documentos necessários e já iniciaremos o processo 😊\n\nFicamos no aguardo 🩵\n\n*Equipe CS Advocacia*\ncarolinasantos.com.br", "etapas": ["inicial"]},
   {"id": "oficial-lembreteconsulta", "titulo": "Lembrete da consulta de hoje", "categoria": "Agendamento", "atalho": "lembreteconsulta", "texto": "Oi, {nome}! Bom dia 😊\n\nPassando para lembrar que:\n\n📆 Sua consulta está confirmada para hoje, às {horario} ✅\n\nCaso precise fazer alguma alteração, pedimos a gentileza de nos avisar com pelo menos 1 hora de antecedência.\n\nEstamos te aguardando!\n\nEquipe CS Advocacia\ncarolinasantos.com.br"},
   {"id": "oficial-docstrabalhista", "titulo": "Documentos do caso trabalhista", "categoria": "Documentos", "atalho": "docstrabalhista", "texto": "Oi, {nome}! Tudo bem? 😊\n\nPara darmos andamento ao seu caso trabalhista com mais segurança, preciso que você nos encaminhe alguns documentos e informações importantes.\n\nPeço, por gentileza, que os documentos sejam enviados em *PDF*, sempre que possível. Caso não tenha algum deles, não tem problema, é só nos avisar, tá bem?\n\n📄 *DOCUMENTOS NECESSÁRIOS*\n\n📍 Carteira de Trabalho — CTPS, principalmente as páginas do contrato e anotações importantes\n📍 Contrato de trabalho, se houver\n📍 Recibos de pagamento, holerites ou contracheques do período trabalhado\n📍 Extrato do FGTS\n📍 Termo de Rescisão do Contrato de Trabalho — TRCT, caso tenha recebido\n📍 Comprovante de aviso-prévio, se houver\n📍 Guias do seguro-desemprego, se tiver recebido\n📍 Conversas, mensagens, e-mails, fotos, vídeos ou qualquer prova relacionada ao trabalho, se houver\n\n📝 *INFORMAÇÃO IMPORTANTE*\n\nPor gentileza, nos informe também se há testemunhas que possam confirmar a situação vivenciada no trabalho.\n\nAssim que recebermos os documentos e essa informação, conseguiremos analisar tudo com mais atenção e dar continuidade aos próximos passos do seu atendimento.\n\nQualquer dúvida, estamos à disposição para te auxiliar, tá bem? 😊\n\n*Equipe CS Advocacia*\ncarolinasantos.com.br", "etapas": ["documentos"]},
+  // Textos PROPOSTOS da coleta (P0-3, 25/11/2026; não oficiais): editáveis aqui; a rotina do servidor usa a versão salva.
+  {"id": TEXTOS_COLETA.recebido.id, "titulo": "Documento recebido, com faltantes (proposto)", "categoria": "Documentos", "atalho": "recebido", "texto": TEXTOS_COLETA.recebido.texto, "etapas": ["documentos"]},
+  {"id": TEXTOS_COLETA.recebidoCompleto.id, "titulo": "Documento recebido, sem faltantes (proposto)", "categoria": "Documentos", "atalho": "recebidotudo", "texto": TEXTOS_COLETA.recebidoCompleto.texto},
+  {"id": TEXTOS_COLETA.lembreteContrato.id, "titulo": "Lembrete do contrato (proposto)", "categoria": "Documentos", "atalho": "lembrecontrato", "texto": TEXTOS_COLETA.lembreteContrato.texto},
+  {"id": TEXTOS_COLETA.lembreteFaltantes.id, "titulo": "Lembrete de faltantes (proposto)", "categoria": "Documentos", "atalho": "lembrefaltantes", "texto": TEXTOS_COLETA.lembreteFaltantes.texto},
 ].map((r) => ({ ...r, padrao: true }) as QuickReply);
+
+/** Textos da coleta com as edições salvas pela equipe (mesmo id); sem edição, vale o texto proposto. */
+export function textosColeta(saved?: Partial<SavedReplies>): Record<ChaveTextoColeta, string> {
+  const todas = mergeReplies(saved);
+  const pega = (k: ChaveTextoColeta) => todas.find(r => r.id === TEXTOS_COLETA[k].id)?.texto?.trim() || TEXTOS_COLETA[k].texto;
+  return { recebido: pega('recebido'), recebidoCompleto: pega('recebidoCompleto'), lembreteContrato: pega('lembreteContrato'), lembreteFaltantes: pega('lembreteFaltantes') };
+}
 
 /** Mensagens padrão antigas, substituídas pela lista oficial; ajustes salvos delas não voltam a aparecer. */
 export const RETIRED_DEFAULT_IDS = new Set(["cs-orcamento", "cs-reagendar", "cs-pericia", "cs-ata", "agendar", "andamento", "cancelado", "cancelar", "confirmado", "cs-boas-vindas", "cs-confirmar-hoje", "cs-contrato-gov", "cs-docs-contrato", "cs-docs-curto", "cs-docs-trabalhista", "cs-fora-horario", "cs-lembrete-consulta", "cs-pericia-amanha", "documentos", "entender", "faltam", "finalizar", "foto", "honorarios", "lembrar", "obrigada", "ola", "presencial", "recebido", "remarcar", "sem-novidades", "valor", "verificar"]);
