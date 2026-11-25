@@ -70,6 +70,9 @@ export async function sincronizarProcesso(db: Db, owner: string, codigo: number)
     const r = await db.rpc('projuris_commit_movimentos', { p_owner: owner, p_codigo: codigo, p_token: token, p_movimentos: json(versoes) });
     if (r.error) throw new Error('Movimentos não persistidos.');
     await db.rpc('registrar_audit_log', { p_ator: owner, p_perfil: 'sistema', p_acao: 'projuris_andamentos_sincronizados', p_resumo: `${r.data} versões novas`, p_status: 'sucesso' });
+    // Audiência/perícia nova para cliente com vínculo confirmado: rascunho na fila da revisora (só leitura no ProJuris).
+    try { const { criarAvisosEventos } = await import('../atendimento/acompanhamento.server'); await criarAvisosEventos(db, owner, codigo, movimentos); }
+    catch { await db.rpc('registrar_audit_log', { p_ator: owner, p_perfil: 'sistema', p_acao: 'aviso_evento_falha', p_resumo: 'Sincronização concluída; avisos de audiência/perícia não preparados', p_status: 'erro' }); }
     return { ok: true as const, novas: r.data, total: movimentos.length };
   } catch (e) {
     const anterior = await db.from('projuris_sync_processos').select('falhas').eq('owner_id', owner).eq('codigo_processo', codigo).single();

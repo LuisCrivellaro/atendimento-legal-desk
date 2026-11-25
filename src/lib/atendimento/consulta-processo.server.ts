@@ -46,7 +46,7 @@ export async function lerPedidosProcesso(db: Db, owner?: string) {
   }
 }
 /** Reserva um código no JSON do proprietário por CAS, evitando códigos repetidos entre conversas simultâneas. */
-async function reservarCodigo(db: Db, owner: string): Promise<string[]> {
+export async function reservarCodigo(db: Db, owner: string): Promise<string[]> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const [ws, pedidos] = await Promise.all([db.from('office_workspace').select('dados,updated_at').eq('owner_id', owner).maybeSingle(), lerPedidosProcesso(db, owner)]);
     if (ws.error) throw new Error('Códigos indisponíveis.');
@@ -67,7 +67,8 @@ async function reservarCodigo(db: Db, owner: string): Promise<string[]> {
 /** Mesma sequência de fluxoProcesso do simulador; muda apenas as portas. */
 export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: string; telefone: string; contato: string; texto: string; intencao: string; messageId: string }): Promise<boolean> {
   const c = e.conversa;
-  const pendente = c.agenteAna?.pedidosProcesso?.some(p => p.status === 'pendente');
+  // Aviso proativo de audiência/perícia em revisão não é um pedido do cliente: não bloqueia nova consulta.
+  const pendente = c.agenteAna?.pedidosProcesso?.some(p => p.status === 'pendente' && !p.evento);
   if (pendente || c.agenteAna?.consultaProcessoEmCurso) {
     const resposta = respostaDuranteEspera(e.texto, e.intencao, true);
     if (!resposta) return false;
@@ -78,7 +79,7 @@ export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: 
   let claimed = false;
   await atualizarConversa(db, c.id, current => {
     claimed = false;
-    if (current.agenteAna?.consultaProcessoEmCurso || current.agenteAna?.pedidosProcesso?.some(p => p.status === 'pendente') || current.agenteAna?.humano || current.agenteAna?.pausa || current.mensagens.at(-1)?.id !== e.messageId) return current;
+    if (current.agenteAna?.consultaProcessoEmCurso || current.agenteAna?.pedidosProcesso?.some(p => p.status === 'pendente' && !p.evento) || current.agenteAna?.humano || current.agenteAna?.pausa || current.mensagens.at(-1)?.id !== e.messageId) return current;
     claimed = true;
     return { ...current, agenteAna: { ...current.agenteAna, consultaProcessoEmCurso: { mensagemId: e.messageId, desde: new Date().toISOString() } } };
   });
@@ -136,6 +137,9 @@ export async function decidirPedidoProcesso(db: Db, id: string, comando: Comando
   if (d.enviarCliente) {
     try { await enviarAvisoProcesso(db, id, d.enviarCliente, contato); }
     catch { await atualizarConversa(db, id, c => ({ ...c, agenteAna: { ...c.agenteAna, humano: true, erro: 'Envio aprovado não confirmado; conferir WhatsApp antes de reenviar.' } })); throw new Error('Decisão salva, mas envio não confirmado. Confira WhatsApp antes de repetir.'); }
+    // Notícia pedida pelo cliente, aprovada e entregue: uma única pergunta de encerramento (S3). Falha não desfaz a entrega.
+    try { const { enviarEncerramentoProcesso } = await import('./acompanhamento.server'); await enviarEncerramentoProcesso(db, id, contato, p, comando.acao); }
+    catch { await auditarProcesso(db, 'encerramento_processo_nao_confirmado'); }
     if (p.selecaoProcessos && comando.acao === 'aprovar') await atualizarConversa(db, id, c => ({ ...c, agenteAna: { ...c.agenteAna, processosOferecidos: p.selecaoProcessos, aguardandoAssuntoProcesso: true, proximoPasso: 'Aguardar escolha do processo pelo cliente.' } }));
   }
   return d.pedido.status;

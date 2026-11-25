@@ -37,6 +37,8 @@ export interface PedidoProcesso {
   lembretesEm: string[];
   avisoRetornoEm?: string;
   decisao?: { por: string; canal: 'revisora' | 'manager'; em: string; textoEnviado?: string; hashEnviado?: string };
+  /** Aviso proativo de audiência ou perícia (P0-4): mesma revisão, deduplicado por processo, tipo, data e hora. */
+  evento?: { tipo: 'audiencia' | 'pericia'; chave: string };
 }
 
 const FUSO = 'America/Sao_Paulo';
@@ -174,7 +176,7 @@ export function mensagemRevisora(p: PedidoProcesso): string {
     ? `• ${f.identificacao}: não detalhado ao cliente.`
     : `• ${f.identificacao}\n${f.andamentos.length ? f.andamentos.map(a => `   - ${a.data}${a.hora ? ` ${a.hora}` : ''} · ${a.tipo ?? 'sem tipo'} · ${a.descricao}`).join('\n') : '   - sem movimentação registrada'}`).join('\n');
   return [
-    `Dra. Carolina, pedido ${p.codigo}: o cliente perguntou sobre o processo.`,
+    p.evento ? `Dra. Carolina, pedido ${p.codigo}: aviso de ${p.evento.tipo === 'audiencia' ? 'audiência' : 'perícia'} registrado no ProJuris (o cliente não perguntou; nada sai sem a sua autorização).` : `Dra. Carolina, pedido ${p.codigo}: o cliente perguntou sobre o processo.`,
     `Resumo da situação\nCliente: ${p.contato.nome} · ${p.contato.telefone}\nIdentificação: ${p.identificadoPor}\nProcesso(s) e andamentos:\n${processos}`,
     `Mensagem que será enviada ao cliente${p.rascunhoPadrao ? ' (rascunho padrão)' : ''}:\n"""\n${p.textoProposto}\n"""`,
     `Posso enviar essa mensagem para o cliente? Responda SIM ${p.codigo} ou NÃO ${p.codigo}. Para trocar o texto: "corrigir ${p.codigo}: seu texto". Nada será enviado sem a sua autorização.`,
@@ -236,7 +238,8 @@ export function pendencias(p: PedidoProcesso, agora: Date, cfg: ConfigConsultaPr
   if (p.status !== 'pendente') return { lembrete: false };
   const ultimo = Date.parse(p.lembretesEm.at(-1) ?? p.criadoEm);
   const lembrete = p.lembretesEm.length < cfg.maxLembretes && agora.getTime() - ultimo >= cfg.lembreteMin * 60000;
-  const aviso = !p.avisoRetornoEm && agora.getTime() - Date.parse(p.criadoEm) >= cfg.avisoRetornoMin * 60000;
+  // Aviso de audiência/perícia: o cliente não perguntou nada, então não recebe "em conferência".
+  const aviso = !p.evento && !p.avisoRetornoEm && agora.getTime() - Date.parse(p.criadoEm) >= cfg.avisoRetornoMin * 60000;
   return { lembrete, ...(aviso ? { avisoCliente: TEXTOS_CONSULTA.avisoRetorno(agora) } : {}) };
 }
 

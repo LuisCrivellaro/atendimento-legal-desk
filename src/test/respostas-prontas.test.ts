@@ -26,7 +26,7 @@ describe('Mensagens prontas', () => {
     expect(pendingFields(fillReply(r.texto, mariana))).toEqual(['horario1', 'horario2']);
   });
 
-  it('cadastra exatamente os atalhos da fixture (12 oficiais + 4 propostos da coleta), com texto idêntico', () => {
+  it('cadastra exatamente os atalhos da fixture (12 oficiais + 5 propostos), com texto idêntico', () => {
     const rows = JSON.parse(require('node:fs').readFileSync('src/test/fixtures/mensagens-oficiais.json', 'utf8')) as { atalho: string; texto: string }[];
     const all = mergeReplies();
     expect(all.map((r) => r.atalho).sort()).toEqual(rows.map((r) => r.atalho).sort());

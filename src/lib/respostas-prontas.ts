@@ -4,6 +4,7 @@ import type { Conversa, Etapa } from './mock-data';
 import { normalized } from './atendimento';
 import { MODELO_CONFIRMACAO_CONSULTA } from './atendimento/confirmacao-consulta';
 import { TEXTOS_COLETA, type ChaveTextoColeta } from './atendimento/coleta';
+import { PERGUNTA_ENCERRAMENTO } from './atendimento/acompanhamento';
 
 export const REPLY_CATEGORIES = ['Boas-vindas', 'Documentos', 'Agendamento', 'Processo', 'Geral'] as const;
 export type ReplyCategory = (typeof REPLY_CATEGORIES)[number];
@@ -54,6 +55,8 @@ export const DEFAULT_REPLIES: QuickReply[] = [
   {"id": TEXTOS_COLETA.recebidoCompleto.id, "titulo": "Documento recebido, sem faltantes (proposto)", "categoria": "Documentos", "atalho": "recebidotudo", "texto": TEXTOS_COLETA.recebidoCompleto.texto},
   {"id": TEXTOS_COLETA.lembreteContrato.id, "titulo": "Lembrete do contrato (proposto)", "categoria": "Documentos", "atalho": "lembrecontrato", "texto": TEXTOS_COLETA.lembreteContrato.texto},
   {"id": TEXTOS_COLETA.lembreteFaltantes.id, "titulo": "Lembrete de faltantes (proposto)", "categoria": "Documentos", "atalho": "lembrefaltantes", "texto": TEXTOS_COLETA.lembreteFaltantes.texto},
+  // D4 (proposto): pergunta única depois de notícia aprovada e entregue; editável aqui.
+  {"id": PERGUNTA_ENCERRAMENTO.id, "titulo": "Pergunta de encerramento do acompanhamento (proposto)", "categoria": "Processo", "atalho": "encerramento", "texto": PERGUNTA_ENCERRAMENTO.texto},
 ].map((r) => ({ ...r, padrao: true }) as QuickReply);
 
 /** Textos da coleta com as edições salvas pela equipe (mesmo id); sem edição, vale o texto proposto. */

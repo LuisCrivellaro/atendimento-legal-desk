@@ -13,6 +13,7 @@ import { solicitarEmailPendente } from './email-rules';
 import { lembreteAtivo, respostaLembreteAna } from './lembrete-consulta';
 import { confirmacao40Respondivel, registrarRespostaConfirmacao40, respostaConfirmacao40 } from './confirmacao-consulta';
 import { emColeta, perguntaAvaliacaoDocumento, respostaDocumentoColeta } from './coleta';
+import { encerramentoRespondivel, respostaEncerramento } from './acompanhamento';
 import { textosColeta } from '../respostas-prontas';
 import { hora } from './ana-scheduling';
 import { pedidoInformacoesConsultaAna, aceiteConsultaAna } from './ana-rules';
@@ -78,7 +79,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   let efeitosIniciados=false;
   const marcarEfeito=()=>atualizarConversa(db,id,x=>({...x,mensagens:x.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:'enviando' as const}}:m)}));
   try {
-  if(mode==='Automática'&&canal==='ultramsg'&&c.agenteAna?.pedidosProcesso?.some(p=>p.status==='pendente')&&apenasInsistencia(m.texto)) {
+  if(mode==='Automática'&&canal==='ultramsg'&&c.agenteAna?.pedidosProcesso?.some(p=>p.status==='pendente'&&!p.evento)&&apenasInsistencia(m.texto)) {
     efeitosIniciados=true;
     await marcarEfeito();
     const { enviarAvisoProcesso } = await import('./consulta-processo.server');
@@ -111,11 +112,13 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const reconhecimento=await reconhecerRelacionamentoAna(db,row.data.owner_id,c,telefone,canal);
     const localIdentidade=reconhecimento.rel.situacao==='ativo'&&reconhecimento.identidade.tipo==='unico'?reconhecimento.identidade:reconhecimento.identidade.tipo==='duplicado'?reconhecimento.identidade:undefined;
     const rel=reconhecimento.rel;
-    const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c);
+    // Pergunta de encerramento (S3): "sim" explícito pede horários de retorno (sexta, cliente da casa).
+    const enc=encerramentoRespondivel(c,canal)?respostaEncerramento(m.texto):undefined;
+    const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c)||enc==='sim';
     // Vínculo ativo vem do cadastro (base local sincronizada), nunca do histórico da conversa.
     const classificacao=classificarAgenda({persistida:c.tipoClienteAgenda,local:localIdentidade,autodeclaracao:identificarTipoCliente(m.texto),contexto:c.agenteAna?.tipoCliente,padraoLead:c.etapa==='inicial'});
     // Funil internacional pago: os horários ofertados após o PIX valem como cliente novo (seg–qui).
-    const tipoCliente=c.funilInternacional?.etapa==='pago'?'novo' as const:rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificacao.tipo;
+    const tipoCliente=enc==='sim'?'cadastrado' as const:c.funilInternacional?.etapa==='pago'?'novo' as const:rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificacao.tipo;
     const clienteLocal=reconhecimento.nome?{nome:reconhecimento.nome,telefone,email}:undefined;
     const identidade=nomeConhecido(c,canal,clienteLocal?.nome??'');
     const introducao=apresentacaoNome(m.texto);
@@ -132,6 +135,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     }
     // Cadastro do e-mail só usa texto validado do cliente, nunca suposição do modelo.
     raw.dados_coletados.email=email;
+    if(enc==='sim'){raw.intencao='agendamento';raw.encaminhar_humano=false;}
     const consentCancel=c.agenteAna?.confirmacaoCancelamento;
     const pendenteCancel=!!consentCancel&&consentCancel.eventoId===c.agenteAna?.reservaCalendar?.id&&consentCancel.inicio===c.consultaAgendada&&consentCancel.contato===telefone&&Date.parse(consentCancel.expira)>Date.now();
     // Confirmação de 40 min (última mensagem do escritório): "ok" registra presença; "não" nunca cancela a partir desta mensagem.
@@ -184,7 +188,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const consultaEspecifica=!!especifico&&(/\?|\b(?:tem|livre|disponivel|disponível)\b/i.test(m.texto)||!oferecidos.includes(especifico));
     const selecionado=pendenteNome?pendenteSalvo:!bloqueada&&!consultaEspecifica?(aceitouPendente?c.agenteAna?.horarioPendente:escolherHorarioAna(oferecidos,m.texto)??chosenSlot([...(c.agenteAna?.horariosTeste??[]),...(c.horariosOfertados??[])],m.texto)):undefined;
     if(!bloqueada&&(especifico||selecionado||aceitouPendente))raw.intencao='agendamento';
-    if(!aceiteCaptacao&&!primeiroContato&&!pendenteNome&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
+    if(!aceiteCaptacao&&!primeiroContato&&!pendenteNome&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&enc!=='sim'&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
     const gerenciarExistente=!!c.consultaAgendada&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar';
     let horarioPendente:string|undefined;
     // Escolheu um dos horários oferecidos sem nome: guardar a escolha e pedir só o nome completo.
@@ -193,7 +197,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     let indisponivel=false;
     // Telefone com mais de um cadastro na base: a Ana não classifica por conta própria; a equipe confirma o vínculo.
     if(classificacao.fonte==='duvida'&&raw.intencao==='agendamento'){raw.encaminhar_humano=true;raw.motivo_aprovacao='Telefone vinculado a mais de um cadastro; a equipe confirma o vínculo antes de agendar.';bloqueada=true;}
-    if(teste&&tipoCliente&&telefone&&raw.intencao==='agendamento'&&!bloqueada&&!selecionado&&!gerenciarExistente&&!semConsulta&&!recebeuNome&&(aceiteCaptacao||primeiroContato||nome||consultaEspecifica||/horarios|horários/.test(m.texto))){
+    if(teste&&tipoCliente&&telefone&&raw.intencao==='agendamento'&&!bloqueada&&!selecionado&&!gerenciarExistente&&!semConsulta&&!recebeuNome&&(aceiteCaptacao||primeiroContato||nome||consultaEspecifica||enc==='sim'||/horarios|horários/.test(m.texto))){
       const {ocupadosAgenda}=await import('./projuris-agenda.server');
       // A Anne atende mesmo com o ProJuris fora: usa as regras locais da agenda; a reserva revalida depois.
       const busy=(await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna()))??[];
@@ -251,6 +255,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       if(m.arquivo){const resp=respostaDocumentoColeta({temRecibo:!!m.path&&m.salvoStart===true,faltantes:lista.data.filter(i=>!i.recebido).map(i=>i.nome),textoCliente:m.texto,textos:textosColeta(state.respostasProntas)});Object.assign(r,{acao:'enviar',motivo_aprovacao:'',intencao:'documento',mensagem:resp.mensagem,encaminhar_humano:resp.humano,proximo_passo:resp.proximo});}
       else if(perguntaAvaliacaoDocumento(m.texto)){Object.assign(r,{acao:'enviar',motivo_aprovacao:'',intencao:'documento',encaminhar_humano:true,mensagem:'Quem confere se o documento atende é a equipe. Vou pedir para olharem e te retornam por aqui.',proximo_passo:'Cliente perguntou se o documento serve: equipe avaliar e responder.'});}
     }
+    if(enc==='nao'&&mode==='Automática'&&!r.urgente){r.acao='nenhuma';r.mensagem='';r.encaminhar_humano=false;r.proximo_passo='Cliente respondeu à pergunta de encerramento; nada mais a enviar.';}
     const agenda=saudou?{slots:horarios,selected:undefined}:!recebeuNome&&!horarioPendente&&!bloqueada&&!perguntar&&!cancelar&&!semConsulta&&teste&&tipoCliente&&telefone&&r.intencao==='agendamento'&&r.acao==='enviar'?respostaAgendaTeste(m.texto,horarios,new Date(),agendaReal,tipoCliente,repetida):undefined;
     const resumoTransbordo=r.encaminhar_humano?resumoTransbordoAna(nome,telefone,m.texto):undefined;
     if(resumoTransbordo)r.proximo_passo=resumoTransbordo;
@@ -265,6 +270,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(!accepted)return;
     if(respostaLembrete==='sim')await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,...(x.agenteAna?.lembreteConsulta?{lembreteConsulta:{...x.agenteAna.lembreteConsulta,confirmadoEm:new Date().toISOString()}}:{})},timeline:[...x.timeline,{data:new Date().toISOString(),evento:'Cliente confirmou presença pelo lembrete'}]}));
     if(resposta40)await atualizarConversa(db,id,x=>registrarRespostaConfirmacao40(x,resposta40));
+    if(enc)await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,...(x.agenteAna?.encerramentoProcesso?{encerramentoProcesso:{...x.agenteAna.encerramentoProcesso,respondidoEm:new Date().toISOString(),resposta:enc}}:{})},timeline:[...x.timeline,{data:new Date().toISOString(),evento:enc==='sim'?'Cliente pediu horários de retorno depois da notícia do processo':'Cliente respondeu que a dúvida foi esclarecida'}]}));
     if(decisaoCancel==='manter'||decisaoCancel==='remarcar')await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,...(decisaoCancel==='manter'?{alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horarioPendente:undefined,horarioPendenteDesde:undefined}:{})}}));
     if(r.acao==='enviar'&&(r.mensagem.trim()||cancelar)) {
       // Relê bloqueios imediatamente antes de enviar; alteração de modo/canal vence a geração.

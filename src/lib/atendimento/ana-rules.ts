@@ -37,6 +37,10 @@ export interface AnaState {
   confirmacao40?: import('./confirmacao-consulta').Confirmacao40 | undefined;
   /** Lembretes de coleta (contrato e faltantes) enviados pela rotina do servidor; limite por pendência. */
   lembretesColeta?: import('./coleta').EstadoLembretesColeta | undefined;
+  /** Pergunta de encerramento depois da notícia aprovada e entregue (uma vez por pedido). */
+  encerramentoProcesso?: import('./acompanhamento').EncerramentoProcesso | undefined;
+  /** Chaves (processo|tipo|data|hora) de avisos de audiência/perícia já criados para revisão. */
+  avisosEventos?: string[] | undefined;
   horarioPendente?: string | undefined; horarioPendenteDesde?: string | undefined;
    reservaCalendar?: import('./calendar-booking').ReservaCalendar | undefined;
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;
