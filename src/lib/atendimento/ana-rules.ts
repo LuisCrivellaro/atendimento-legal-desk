@@ -41,6 +41,8 @@ export interface AnaState {
   encerramentoProcesso?: import('./acompanhamento').EncerramentoProcesso | undefined;
   /** Chaves (processo|tipo|data|hora) de avisos de audiência/perícia já criados para revisão. */
   avisosEventos?: string[] | undefined;
+  /** Follow-up do vendedor: um por oferta de horários (reservado antes do envio). */
+  followupVendedor?: { ofertaEm: string; enviadoEm?: string | undefined } | undefined;
   horarioPendente?: string | undefined; horarioPendenteDesde?: string | undefined;
    reservaCalendar?: import('./calendar-booking').ReservaCalendar | undefined;
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;

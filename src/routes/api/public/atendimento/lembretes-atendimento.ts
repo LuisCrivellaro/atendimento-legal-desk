@@ -7,6 +7,7 @@ export const Route=createFileRoute('/api/public/atendimento/lembretes-atendiment
   if(failure)return failure;
   const {supabaseAdmin}=await import('@/integrations/supabase/client.server');
   const {enviarLembretesColeta}=await import('@/lib/atendimento/coleta.server');
-  try{return Response.json({coleta:await enviarLembretesColeta(supabaseAdmin)});}
+  const {enviarFollowupsVendedor}=await import('@/lib/atendimento/vendedor.server');
+  try{const coleta=await enviarLembretesColeta(supabaseAdmin);return Response.json({coleta,vendedor:await enviarFollowupsVendedor(supabaseAdmin)});}
   catch{return Response.json({error:'Lembretes pendentes'},{status:503});}
 }}}});
