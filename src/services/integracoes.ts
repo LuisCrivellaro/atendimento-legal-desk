@@ -1,7 +1,8 @@
 // Ações externas: mensagens do Atendimento passam pelo canal (enviarMensagemCanal);
 // as demais seguem simuladas até uma integração real ser conectada.
 import { freeSlots } from '@/lib/atendimento';
-import { enviarMensagemCanal, registrarAuditoria } from '@/lib/atendimento/envio.functions';
+import { enviarMensagemCanal, lerConfigCanal, registrarAuditoria } from '@/lib/atendimento/envio.functions';
+import { simulacaoPermitida, MSG_INTEGRACAO_NAO_CONECTADA } from '@/lib/atendimento/trava-simulacao';
 
 export type N8nAction =
   | "enviarMensagem" | "enviarHorarios" | "solicitarDocumentos" | "gerarContrato"
@@ -46,6 +47,9 @@ export function recordAudit(action: string, status: 'sucesso' | 'erro', summary 
 async function call<T = { ok: true }>(acao: N8nAction, mock: () => T | Promise<T>): Promise<T> {
   try {
     if (!identity.id) throw new Error('Identidade do usuário ainda não carregada.');
+    let canal: string | undefined;
+    try { canal = (await lerConfigCanal()).config.canal_ativo; } catch { canal = undefined; }
+    if (!simulacaoPermitida(canal)) throw new Error(MSG_INTEGRACAO_NAO_CONECTADA);
     await new Promise((r) => setTimeout(r, 700 + Math.random() * 600));
     const res = await mock();
     recordAudit(acao, 'sucesso', 'Simulado — nenhum envio real');

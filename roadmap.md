@@ -1,3 +1,11 @@
+## Finalização da Anne — Atendimento — 25/11/2026
+- [x] 1.1 Trava geral: ações simuladas bloqueadas com canal real
+- [ ] 1.2–1.6 Videochamada, contrato, cobrança, reserva e horários reais pela equipe
+- [ ] 2 Lembretes no servidor
+- [ ] 3 Concierge de coleta
+- [ ] 4 Concierge de acompanhamento
+- [ ] 5–6 Demais itens do documento
+
 # Construção dos módulos Manager ADV
 
 ## Nomes da agenda no WhatsApp — 09/11/2026
