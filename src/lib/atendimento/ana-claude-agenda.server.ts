@@ -28,7 +28,7 @@ export function anaDoProjeto(log?: (texto: string, tipo?: 'ok' | 'aviso' | 'erro
   const e = (n: string) => process.env[n] ?? '';
   const faltando = ['ANTHROPIC_API_KEY', 'LOVABLE_API_KEY', 'GOOGLE_CALENDAR_API_KEY'].filter(n => !e(n));
   if (faltando.length) throw new Error(`Configuração ausente: ${faltando.join(', ')}`);
-  const sample = claudeComoSample({ apiKey: e('ANTHROPIC_API_KEY'), orcamento: orcamentoIA(), ...(e('ANA_MODELO') ? { modelo: e('ANA_MODELO') } : {}) });
+  const sample = claudeComoSample({ apiKey: e('ANTHROPIC_API_KEY'), orcamento: orcamentoIA(), maxTokens: 1500, ...(e('ANA_MODELO') ? { modelo: e('ANA_MODELO') } : {}) });
   const mcp = googleCalendarComoMcp({ clientId: '', clientSecret: '', refreshToken: '', fetch: fetchPeloConector(e('LOVABLE_API_KEY'), e('GOOGLE_CALENDAR_API_KEY')) });
   return {
     responder(conversa: Conversa, texto: string, opcoes: { modo?: AIMode; agora?: Date } = {}): Promise<Resposta> {
