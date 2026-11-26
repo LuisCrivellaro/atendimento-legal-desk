@@ -20,8 +20,8 @@ verificados (e converter Markdown para o WhatsApp, sem mudar o que aparece).
 | Modelo | Situação | Como entra |
 |---|---|---|
 | 01 Lembrete do dia | Lembrete das 08:00 | Substitui o lembrete anterior. Exige nome do cadastro e envio antes das 12h ("Bom dia"); senão, aviso para a equipe e nada sai. Não pede mais SIM/NÃO, então não grava consentimento de cancelamento: um "não" do cliente passa pela pergunta e confirmação de cancelamento. |
-| 02 Confirmação do dia | Confirmação 40 min antes, de manhã | Texto automático antes do meio-dia. |
-| 08.2 Confirmação de agendamento | Confirmação 40 min antes, a partir do meio-dia | Texto automático da tarde (02 diz "Bom dia"). |
+| 02 Confirmação do dia | Confirmação de presença (padrão 2 h antes, configurável), de manhã | Texto automático antes do meio-dia. |
+| 08.2 Confirmação de agendamento | Confirmação de presença (padrão 2 h antes), a partir do meio-dia | Texto automático da tarde (02 diz "Bom dia"). |
 | 03 Fora do horário | Cliente ativo escreve fora do expediente (seg–sex 8h–18h) | Só com a automação "Resposta fora do horário" ligada (desligada por padrão); uma vez por período; nesse período a equipe responde. |
 | 05 Documentos para o contrato | Botão TRATO FEITO | Substitui o texto anterior. Sem nome do cadastro, o Trato feito para antes de criar a pasta e avisa a equipe. |
 | 06 Reagendamento | Reagendamento conduzido pela Anne (secretaria digital) | Só quando há dois horários livres **hoje** (o texto diz "Hoje"); senão, a lista de opções verificadas. |

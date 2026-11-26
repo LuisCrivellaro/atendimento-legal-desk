@@ -1,24 +1,56 @@
 # Rotinas agendadas do Atendimento
 
-Este repositório não tem o script `supabase/scripts/agendar-rotinas-pg-cron.sql` do clone ManagerADV-Claude.
-As rotinas aqui são chamadas pelo agendador gerenciado do Lovable, com o segredo `LOVABLE_CRON_SECRET`
-(`Authorization: Bearer <segredo>`), conferido em `authenticateCronRequest`.
+Desde 26/11/2026 existe **um único agendamento**: o monitor central `monitorar-ana`, a cada 5 minutos.
+Ele executa todas as automações da Anne no servidor (sem navegador aberto e sem ninguém conectado) e grava o
+resultado de cada etapa em `ana_monitoramento` (id `monitor-operacional`), que aparece em
+**Atendimento → Automações do atendimento → Monitor das automações**. Detalhes em `docs/automacoes-operacionais.md`.
 
-Nada nesta lista foi agendado automaticamente. Quem agenda é a equipe, depois de revisar.
+## O único agendamento necessário
 
-| Rota (POST) | Frequência prevista | O que faz | Estado |
-|---|---|---|---|
-| `/api/public/atendimento/lembrete-consulta` | diária, 08:00 (São Paulo) | Lembrete do dia (SIM/NÃO) | já existia |
-| `/api/public/atendimento/relatorio-diario` | diária, 08:00 (São Paulo) | Relatório do dia anterior | já existia |
-| `/api/public/atendimento/monitorar-ana` | a cada 5 min | Saúde da Anne e pendências do ProJuris | já existia |
-| `/api/public/atendimento/confirmacao-consulta` | **a cada 5 min** | Confirmação 40 min antes da consulta (texto oficial) | **nova, não agendada** |
-| `/api/public/atendimento/lembretes-atendimento` | **a cada 30 min** | Lembretes de coleta (contrato 24 h, faltantes 48 h, até 3 por pendência) e follow-up do vendedor | **nova, não agendada** |
+| Campo | Valor |
+|---|---|
+| Método | `POST` |
+| URL | `https://cslawyers.lovable.app/api/public/atendimento/monitorar-ana` |
+| Frequência | a cada 5 minutos (`*/5 * * * *`) |
+| Cabeçalho | `Authorization: Bearer <LOVABLE_CRON_SECRET>` (o segredo já cadastrado no projeto; nunca na URL) |
 
-Equivalente para pg_cron, caso o projeto migre para o script do ManagerADV-Claude (não executar sem revisão):
+A autenticação é conferida em `authenticateCronRequest`. O domínio antigo devolve 404: use só `cslawyers.lovable.app`.
+
+## O que o monitor executa (ordem de prioridade, orçamento de ~45 s por ciclo)
+
+| Etapa | Quando | O que faz |
+|---|---|---|
+| `agenda-projuris` | todo ciclo | Reconhece consultas marcadas direto no ProJuris, segue horários alterados e confere cancelamentos pelo código oficial |
+| `confirmacoes` | todo ciclo | Confirmação de presença (padrão 2 h antes, configurável) |
+| `lembretes` | 8h–12h (São Paulo) | Lembrete do dia (modelo oficial 01, "Bom dia"); nunca a menos de 30 min da consulta |
+| `registro-consultas` | todo ciclo | Consulta passada sem registro de realizada/ausência → um aviso à equipe |
+| `pendencias-processo` | WhatsApp ativo | Notícias processuais aprovadas e pendentes |
+| `recuperar-ana` | todo ciclo | Recuperação segura de respostas da Anne |
+| `coleta` | a cada 30 min | Contrato (24 h) e documentos faltantes (48 h), dias úteis 9h–17h30 |
+| `vendedor` | a cada 30 min | Follow-up comercial |
+| `reservas-pendentes` | todo ciclo | Lança no ProJuris reservas provisórias feitas no Google Calendar |
+| `relatorio-diario` | 8h–10h | Relatório do dia anterior (uma vez por dia) |
+
+Depois das etapas, o monitor atualiza os nomes da agenda do WhatsApp e a saúde da Anne (como antes).
+Cada etapa é isolada (a falha de uma não para as outras) e idempotente (reserva antes do envio), então ciclos
+repetidos ou agendamentos duplicados não duplicam mensagens.
+
+## Rotinas antigas (agora redundantes)
+
+As rotas abaixo continuam respondendo, mas **não precisam mais de agendamento próprio**. Se estiverem cadastradas
+no agendador do Lovable, podem ser removidas (manter não duplica envio, só gasta execuções):
+
+- `/api/public/atendimento/confirmacao-consulta`
+- `/api/public/atendimento/lembrete-consulta`
+- `/api/public/atendimento/lembretes-atendimento`
+- `/api/public/atendimento/pendencias-processo`
+- `/api/public/atendimento/recuperar-ana`
+- `/api/public/atendimento/relatorio-diario`
+
+## Alternativa com pg_cron (só se o projeto migrar; não executar sem revisão)
 
 ```sql
-select cron.schedule('manageradv-confirmacao-consulta', '*/5 * * * *', $$select rotinas.chamar('/api/public/atendimento/confirmacao-consulta')$$);
-select cron.schedule('manageradv-lembretes-atendimento', '*/30 * * * *', $$select rotinas.chamar('/api/public/atendimento/lembretes-atendimento')$$);
+select cron.schedule('manageradv-monitorar-ana', '*/5 * * * *', $$select rotinas.chamar('/api/public/atendimento/monitorar-ana')$$);
 ```
 
 ## Lembretes de coleta (P0-3)
@@ -28,10 +60,11 @@ select cron.schedule('manageradv-lembretes-atendimento', '*/30 * * * *', $$selec
 - Chaves `lembreteContrato` e `lembreteFaltantes` do dono; modo Desligada não faz nada; Sugerir, controle humano, pausa ou contato não liberado geram aviso com texto pronto, sem envio.
 - Textos propostos editáveis em Mensagens prontas (`/lembrecontrato`, `/lembrefaltantes`); o servidor usa a versão salva.
 
-## Confirmação 40 min antes (P0-1)
+## Confirmação de presença
 
-- Envia no primeiro ciclo em que faltam entre 40 (inclusive) e 50 minutos para a consulta; nunca com menos de 40.
+- Envia no primeiro ciclo em que faltam no máximo a antecedência configurada (padrão **2 h**, de 30 min a 24 h em
+  Automações → Secretaria digital) e mais de 30 minutos; com 30 minutos ou menos vira aviso à equipe.
 - Só para consultas de hoje com recibo verificado (`agenteAna.reservaCalendar.inicio === consultaAgendada`), canal UltraMsg ativo e contato liberado e vinculado à conversa.
-- Reserva antes de enviar (`agenteAna.confirmacao40`, CAS em `atualizarConversa`); nunca reenvia depois de falha.
-- Janela perdida, controle humano, Anne pausada, modo Desligada, conversa sem vínculo ou sem recibo: nada é enviado; a equipe recebe um aviso (Atendimento e Assessor).
+- Não sai quando a presença já foi confirmada (resposta ao lembrete ou registro), quando o lembrete saiu há menos de 90 minutos, quando a equipe já falou da consulta nas últimas 3 h, ou quando a consulta foi registrada como realizada, ausência ou cancelada.
+- Reserva antes de enviar (`agenteAna.confirmacao40`, nome mantido por compatibilidade; CAS em `atualizarConversa`); nunca reenvia depois de falha.
 - Processa no máximo 20 envios e cerca de 40 s por ciclo; o restante fica para o ciclo seguinte.

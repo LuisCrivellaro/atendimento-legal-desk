@@ -1,7 +1,9 @@
 # Anne secretária digital: duas camadas, quatro modos, motor de permissões
 
-Entrega de 26/11/2026. Tudo fica atrás de uma feature flag **desligada por padrão**: com ela desligada, o atendimento
-funciona exatamente como antes (mesmo código, mesmos campos). Auditoria que motivou o desenho:
+Entrega de 26/11/2026. Tudo fica atrás de uma feature flag que, desde a finalização das automações operacionais
+(26/11/2026, [automacoes-operacionais.md](automacoes-operacionais.md)), vem **ligada por padrão**: a equipe assumir a
+conversa desliga só a camada conversacional. Desligada explicitamente (`ativa: false` ou `ANNE_SECRETARIA_DESLIGADA=1`),
+o atendimento funciona exatamente como antes (mesmo código, mesmos campos). Auditoria que motivou o desenho:
 [anne-secretaria-auditoria.md](anne-secretaria-auditoria.md).
 
 ## Visão geral
@@ -12,7 +14,7 @@ WhatsApp (webhook) ──► processarAna ──┬─ flag desligada ou modo Au
                                       │                                          bloqueio de prompt injection (flag ligada)
                                       └─ flag ligada e modo ≠ Automático ───► camada operacional (secretaria/operacional.ts)
                                                                                respostas dentro de automações ativas
-Rotinas do servidor (confirmação 40 min, lembrete 08:00) ──► motor (secretaria/motor.ts) ──► envio com reserva da automação
+Monitor central (confirmação de presença 2 h, lembrete 08h, reagendamento) ──► motor (secretaria/motor.ts) ──► envio com reserva da automação
 Equipe no Atendimento ──► seletor de modo, painel de automações, delegação de reagendamento, configuração (sênior/admin)
 Camada de envio (envio.functions.ts) ──► conferência final da reserva da automação imediatamente antes do UltraMsg
 ```
@@ -24,7 +26,7 @@ conversacional (modo Automático), com o mesmo provedor e o mesmo prompt.
 
 | Arquivo | Papel |
 |---|---|
-| `config.ts` | Feature flag (`ativa`, padrão `false`), matriz de permissões por funcionalidade, janela de prioridade humana, regra opcional de volta ao Automático, horário das automações, textos dos modelos. Leitura tolerante (campo inválido volta ao padrão) e níveis máximos que a configuração não afrouxa (andamento processual nunca é automático). Chave mestra do servidor: `ANNE_SECRETARIA_DESLIGADA=1`. |
+| `config.ts` | Feature flag (`ativa`, padrão `true` desde 26/11/2026; só `false` explícito desliga), antecedência da confirmação de presença (padrão 120 min), modo de teste com número autorizado, matriz de permissões por funcionalidade, janela de prioridade humana, regra opcional de volta ao Automático, horário das automações, textos dos modelos. Leitura tolerante (campo inválido volta ao padrão) e níveis máximos que a configuração não afrouxa (andamento processual nunca é automático). Chave mestra do servidor: `ANNE_SECRETARIA_DESLIGADA=1`. |
 | `modos.ts` | Modos Automático, Híbrido, Humano e Bloqueado; migração dos estados antigos; modo efetivo; gravação com campos antigos equivalentes. |
 | `motor.ts` | Motor determinístico: recebe fatos verificados e devolve `executar`, `bloquear`, `adiar`, `encaminhar`, `aprovacao` ou `ignorar`, com o motivo (texto para a equipe). |
 | `automacoes.ts` | Ciclo de vida (id determinístico, estado, validade, histórico) e associação segura de respostas. |
@@ -88,7 +90,7 @@ Ordem das regras (a primeira que impede vence; a ordem é testada):
 14. `executar`.
 
 Matriz padrão (conservadora; reproduz o que já estava validado): conversa, resposta dentro de automação, sugestões,
-confirmação 40 min, lembrete 08:00, reagendamento, solicitação de documentos e lembretes de coleta = automático;
+confirmação de presença, lembrete 08:00, reagendamento, solicitação de documentos e lembretes de coleta = automático;
 cancelamento = com aprovação; andamento processual = com aprovação (máximo); follow-up comercial e mensagens
 programadas = desligado.
 
@@ -148,18 +150,22 @@ programadas = desligado.
   motivo no título); itens antigos "Assumir/Pausar/Reativar Anne" e o botão "Retomar Anne" saem (o seletor cobre);
   painel recolhível "Anne" com automações ativas (pausar, retomar, cancelar), botão "Anne remarca a consulta" e as
   últimas decisões com o motivo de cada bloqueio; rótulo interno Anne / Automação / Equipe nas mensagens.
-- "Automações do atendimento": nova seção "Secretaria digital" com a flag, a matriz de permissões, prioridade humana,
-  volta ao Automático, horário das automações e modelos de mensagem. Só sênior/admin edita (servidor confere).
-- Com a flag desligada a tela é a mesma de antes.
+- "Automações do atendimento": monitor das automações no topo; seção "Secretaria digital" com a flag, a matriz de
+  permissões, prioridade humana, volta ao Automático, horário das automações, antecedência da confirmação de presença e
+  modo de teste. Os modelos de texto provisórios saíram: textos ao cliente vêm só da biblioteca oficial e de frases já
+  aprovadas. Só sênior/admin edita (servidor confere).
+- Painel "Anne" da conversa: situação da consulta e botões "Realizada" / "Cliente faltou" (a falta inicia o reagendamento).
+- Com a flag desligada explicitamente, a tela é a mesma de antes.
 
-## Como ligar com segurança
+## Como testar com segurança
 
-1. Publicar (push pelo GitHub Desktop) — nada muda com a flag desligada.
-2. Em "Automações do atendimento", com perfil sênior/admin, conferir a matriz (padrões conservadores) e ligar
-   "Secretaria digital". Para desligar tudo de imediato: desligar ali ou definir `ANNE_SECRETARIA_DESLIGADA=1` no servidor.
-3. Testar com um contato liberado de teste: assumir a conversa (vira Híbrido), esperar a confirmação de 40 min, responder
-   "ok" e conferir a resposta e o histórico da Anne.
-4. Só depois disso usar "Anne remarca a consulta" com um horário de teste na agenda.
+1. Publicar (push pelo GitHub Desktop e Publish/Update no Lovable).
+2. Em "Automações do atendimento", com perfil sênior/admin, ligar **Modo de teste das automações** com o número
+   autorizado e salvar: só esse número recebe automações. Para desligar tudo de imediato: desligar a secretaria ali ou
+   definir `ANNE_SECRETARIA_DESLIGADA=1` no servidor.
+3. Com o número de teste: marcar uma consulta para hoje, assumir a conversa (vira Híbrido), esperar a confirmação de
+   presença (2 h antes), responder "ok" e depois "não vou conseguir" em outra consulta; conferir respostas e histórico.
+4. Desligar o modo de teste para valer para todos os clientes.
 
 ## Testes (dados fictícios, canal e agenda em memória)
 

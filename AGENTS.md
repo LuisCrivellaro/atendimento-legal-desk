@@ -36,6 +36,8 @@
 - Quick replies use owner overrides, authenticated Calendar reads and verified receipts; locks never send/store offers and braces block sends. Why: safe live drafts.
 - Attendance channel management is directly accessible from the list header with existing senior/admin permissions; why: channel setup must not depend on selecting a conversation.
 
+- Operational automations run from one managed 5-minute `monitorar-ana` schedule with per-step state in `ana_monitoramento`; ProJuris-made consultations link only with an unequivocal client match and official code, cancel only after official confirmation; realizada/ausência only by staff record; the digital secretary is on by default so staff takeover pauses only the conversational layer. Why: browser-independent automations without invented receipts, presumed outcomes or speaking over staff.
+
 - National Brazilian public holidays are checked using date-holidays; local office closures remain Calendar busy blocks until a location-specific policy is supplied. Why: avoid inventing municipal holiday jurisdiction.
 - Trato feito rules (base docs, AC/RT folder, phase, production notice) live in src/lib/atendimento/trato-feito.ts with tests; Production start stays manual; why: future automation must respect legal gates.
 - Subdirectories may have their own `AGENTS.md`; read it before changing files there.
