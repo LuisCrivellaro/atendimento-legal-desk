@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { officeDashboard } from "@/lib/office.functions";
 import { buildAssessor } from "@/lib/assessor";
+import { replyQueue } from "@/lib/atendimento";
+import { consultaCasos } from "@/lib/casos";
+import { useCasosRealtime } from "@/hooks/use-casos-realtime";
 import { localDay } from "@/lib/dashboard";
 import { setAuditUser } from "@/services/integracoes";
 import { useOfficeNotifications } from "@/hooks/use-office-notifications";
@@ -46,9 +49,15 @@ function Layout() {
   });
 
   const read=useServerFn(officeDashboard);
-  const dashboard=useQuery({queryKey:["dashboard",user.id],queryFn:()=>read(),refetchInterval:15000});
+  // Painel pesado (escritório inteiro + status de aprovação por caso): 60 s bastam; conversas chegam pelo tempo real.
+  const dashboard=useQuery({queryKey:["dashboard",user.id],queryFn:()=>read(),refetchInterval:60000});
+  useCasosRealtime(user.id);
+  // Só observa o cache das conversas (nunca busca aqui): quando o Atendimento já carregou, o contador do menu usa
+  // exatamente a mesma lista e a mesma regra da aba "Aguardando".
+  const {data:casos}=useQuery({...consultaCasos,enabled:false});
   useOfficeNotifications(dashboard.data?.cases);
-  const badges=buildAssessor(dashboard.data?.cases??[],localDay()).badges;
+  const assessor=buildAssessor(dashboard.data?.cases??[],localDay()).badges;
+  const badges=casos?{...assessor,'/atendimento':replyQueue(casos).length}:assessor;
   useEffect(()=>{if(perfil)setAuditUser({id:user.id,nome:perfil.nome,perfil:perfil.roles.join(", ")});},[perfil,user.id]);
   const sair = async () => {
     setAuditUser({id:"",nome:"",perfil:""});

@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import { z } from 'zod';
 import { canViewOffice } from '@/lib/approval-rules';
+import { mensagensRecentes } from '@/lib/atendimento/sincronizacao';
 import { reviewReady, revisionHash, REVIEW_CATEGORIES, type OfficeState } from '@/lib/office';
 export const officeDashboard = createServerFn({method:'GET'}).middleware([requireSupabaseAuth]).handler(async({context})=>{
  const roles=await context.supabase.from('user_roles').select('role').eq('user_id',context.userId);
@@ -20,7 +21,7 @@ export const officeDashboard = createServerFn({method:'GET'}).middleware([requir
    const ws=workspaces.data?.find(w=>w.owner_id===c.owner_id);const work=(ws?.dados as unknown as OfficeState)?.casos?.[c.id]??{};
    const data=c.dados as unknown as import('./mock-data').Conversa;
    const status=statuses[i]?.data as {checklist?:boolean}|null;
-   return {tarefasRetorno:data.tarefasRetorno??[],avisosEquipe:data.avisosEquipe??[],mensagens:data.mensagens??[],movements:work.movements??[],consultaAgendada:data.consultaAgendada,retornoAgendado:data.retornoAgendado,id:c.id,nome:c.nome,responsavel:profiles.data?.find(p=>p.id===c.owner_id)?.nome||'Equipe',mine:c.owner_id===context.userId,etapa:c.etapa,pipeline:data.etapaPipeline??0,fase:work.fase??'',area:work.area??'',atendimento:data.atendimento??'',checklistApproved:Boolean(status?.checklist),pendencias:[...(work.pendencias??[]),...(checklist.data??[]).filter(i=>i.caso_id===c.id&&!i.recebido).map(i=>`Documento: ${i.nome}`)],prazos:(work.movements??[]).filter(m=>!m.concluido&&m.prazo).map(m=>({data:m.prazo??'',texto:m.texto,fatal:m.fatal??false})),updatedAt:ws&&ws.updated_at>c.updated_at?ws.updated_at:c.updated_at};
+   return {tarefasRetorno:data.tarefasRetorno??[],avisosEquipe:data.avisosEquipe??[],mensagens:mensagensRecentes(data.mensagens??[]),movements:work.movements??[],consultaAgendada:data.consultaAgendada,retornoAgendado:data.retornoAgendado,id:c.id,nome:c.nome,responsavel:profiles.data?.find(p=>p.id===c.owner_id)?.nome||'Equipe',mine:c.owner_id===context.userId,etapa:c.etapa,pipeline:data.etapaPipeline??0,fase:work.fase??'',area:work.area??'',atendimento:data.atendimento??'',checklistApproved:Boolean(status?.checklist),pendencias:[...(work.pendencias??[]),...(checklist.data??[]).filter(i=>i.caso_id===c.id&&!i.recebido).map(i=>`Documento: ${i.nome}`)],prazos:(work.movements??[]).filter(m=>!m.concluido&&m.prazo).map(m=>({data:m.prazo??'',texto:m.texto,fatal:m.fatal??false})),updatedAt:ws&&ws.updated_at>c.updated_at?ws.updated_at:c.updated_at};
   })};
 });
 export const runLegalAI=createServerFn({method:'POST'}).middleware([requireSupabaseAuth]).inputValidator(z.object({casoId:z.string().uuid(),kind:z.enum(['petition','audit','training']),question:z.string().max(8000).optional()})).handler(async({data,context})=>{

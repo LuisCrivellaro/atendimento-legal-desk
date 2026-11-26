@@ -23,7 +23,7 @@ const pendenciasConfig = { total: { label: 'Pendências', color: CHART_COLORS.pe
 
 export function DashboardPage(){
  const {user}=AuthRoute.useRouteContext();const read=useServerFn(officeDashboard);
- const query=useQuery({queryKey:['dashboard',user.id],queryFn:()=>read(),refetchInterval:15000,refetchOnWindowFocus:true});
+ const query=useQuery({queryKey:['dashboard',user.id],queryFn:()=>read(),refetchInterval:60000,refetchOnWindowFocus:true});
  const [search,setSearch]=useState('');const [status,setStatus]=useState('all');const [owner,setOwner]=useState('all');const [filter,setFilter]=useState('all');
  const today=localDay();const cases=query.data?.cases??[];
  const visible=cases.filter(c=>(`${c.nome} ${c.atendimento}`.toLowerCase().includes(search.toLowerCase()))&&(status==='all'||String(c.pipeline)===status)&&(owner==='all'||c.responsavel===owner)&&(filter==='all'||(filter==='pending'?c.pendencias.length>0:c.prazos.some(p=>p.data<=today))));

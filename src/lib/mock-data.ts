@@ -20,6 +20,10 @@ export interface Mensagem {
   status?: StatusMensagem | undefined;
   /** Anexo da equipe: guardado até haver recibo do canal; reservado antes do envio para não duplicar. */
   envioAnexo?: { reservadoEm?: string | undefined; enviadoEm?: string | undefined; falhouEm?: string | undefined } | undefined;
+  /** Texto da equipe enviado pelo servidor: reservado com o id gerado no navegador antes de chamar o canal (nova tentativa nunca duplica). */
+  envio?: { estado: 'enviando' | 'falhou'; reservadoEm: string; falhouEm?: string | undefined; erro?: string | undefined; ambiguo?: boolean | undefined } | undefined;
+  /** Id da mensagem no WhatsApp, lido do eco (message_create): liga os recibos de entrega e leitura à mensagem. */
+  idWhatsApp?: string | undefined;
 }
 export type StatusMensagem = "simulada" | "enviada" | "entregue" | "lida";
 export interface Processo { cnj: string; vara: string; status: string; homologado: boolean }

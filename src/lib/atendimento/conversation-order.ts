@@ -1,12 +1,14 @@
 import type { Conversa, Mensagem } from '../mock-data';
 export function ultimaMensagem(mensagens: Mensagem[]): Mensagem | undefined {
   let last: Mensagem | undefined; let time = -Infinity;
+  // Envio da equipe que falhou não conta como resposta: a conversa continua aguardando.
+  const conta = (m: Mensagem) => m.de !== 'sistema' && m.status !== 'simulada' && m.envio?.estado !== 'falhou';
   for (const m of mensagens) {
-    if (m.de === 'sistema' || m.status === 'simulada') continue;
+    if (!conta(m)) continue;
     const t = Date.parse(m.dataHora ?? '');
     if (Number.isFinite(t) && t >= time) { time = t; last = m; }
   }
-  return last ?? mensagens.filter(m => m.de !== 'sistema' && m.status !== 'simulada').at(-1);
+  return last ?? mensagens.filter(conta).at(-1);
 }
 export function ordenarConversas(a: Conversa, b: Conversa) {
   const timestamp = (c: Conversa) => { const t = Date.parse(c.lastMessageAt ?? ultimaMensagem(c.mensagens)?.dataHora ?? ''); return Number.isFinite(t) ? t : -Infinity; };
