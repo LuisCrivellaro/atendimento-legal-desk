@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Conversa } from '@/lib/mock-data';
 import { CONFIG_SECRETARIA_PADRAO, lerConfigSecretaria, nivelPermissao, secretariaAtiva } from '@/lib/atendimento/secretaria/config';
+import { esquemaConfigSecretaria } from '@/lib/atendimento/secretaria/config-schema';
 import { aoIntervirEquipe, aplicarModo, derivarModoLegado, modoEfetivo, retornoAutomaticoDevido } from '@/lib/atendimento/secretaria/modos';
 import { decidirAcao, dentroDaJanela, proximaJanela, type EntradaMotor } from '@/lib/atendimento/secretaria/motor';
 import { origemMensagem, ultimaIntervencaoHumana } from '@/lib/atendimento/secretaria/origem';
@@ -36,6 +37,23 @@ describe('configuração da secretaria (feature flag)', () => {
     expect(c.permissoes.followup).toBe('desligado');
     expect(c.janelaPrioridadeHumanaMin).toBe(0);
     expect(c.janelaAutomacoes).toEqual({ inicio: '09:00', fim: '18:00', diasUteis: true });
+  });
+});
+
+describe('validação ao salvar a configuração (tela de Automações)', () => {
+  const tela = { ativa: true, permissoes: CONFIG_SECRETARIA_PADRAO.permissoes, janelaPrioridadeHumanaMin: 30, retornoAutomaticoHoras: null, janelaAutomacoes: { inicio: '09:00', fim: '18:00', diasUteis: true } };
+  it('aceita salvar sem nenhum modelo de mensagem escrito (erro real de 26/11: exigia todos)', () => {
+    expect(esquemaConfigSecretaria.safeParse({ ...tela, templates: {} }).success).toBe(true);
+    expect(esquemaConfigSecretaria.safeParse({ ...tela, templates: { presenca_confirmada: 'Até mais tarde, às {hora}!' } }).success).toBe(true);
+  });
+  it('recusa nível ou modelo desconhecido e horário inválido', () => {
+    expect(esquemaConfigSecretaria.safeParse({ ...tela, templates: { qualquer: 'x' } }).success).toBe(false);
+    expect(esquemaConfigSecretaria.safeParse({ ...tela, templates: {}, permissoes: { ...tela.permissoes, followup: 'sempre' } }).success).toBe(false);
+    expect(esquemaConfigSecretaria.safeParse({ ...tela, templates: {}, janelaAutomacoes: { inicio: '9h', fim: '18:00', diasUteis: true } }).success).toBe(false);
+  });
+  it('o que passa na validação ainda é normalizado na gravação (andamento nunca automático)', () => {
+    const r = esquemaConfigSecretaria.parse({ ...tela, templates: {}, permissoes: { ...tela.permissoes, andamento_processual: 'automatico' } });
+    expect(lerConfigSecretaria(r).permissoes.andamento_processual).toBe('aprovacao');
   });
 });
 

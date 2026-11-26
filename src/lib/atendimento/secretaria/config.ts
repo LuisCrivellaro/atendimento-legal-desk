@@ -5,6 +5,7 @@
  * pelo servidor (`salvarConfigSecretaria`, sênior/admin). O modelo nunca lê nem escreve esta configuração.
  * Desligada por padrão: com `ativa: false` todo o atendimento segue exatamente o fluxo anterior.
  */
+import { CHAVES_TEMPLATE } from './templates';
 
 /** Funcionalidades controladas pela matriz de permissões. */
 export type Funcionalidade =
@@ -127,7 +128,7 @@ export function lerConfigSecretaria(salvo: unknown): ConfigSecretaria {
   const fim = typeof j['fim'] === 'string' && HHMM.test(j['fim']) && j['fim'] > inicio ? j['fim'] : CONFIG_SECRETARIA_PADRAO.janelaAutomacoes.fim;
   const retorno = s['retornoAutomaticoHoras'];
   const t = (s['templates'] && typeof s['templates'] === 'object' ? s['templates'] : {}) as Record<string, unknown>;
-  const templates = Object.fromEntries(Object.entries(t).filter(([k, v]) => /^[a-z_]{1,40}$/.test(k) && typeof v === 'string' && v.trim().length > 0 && v.length <= 1000)) as Record<string, string>;
+  const templates = Object.fromEntries(Object.entries(t).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && typeof v === 'string' && v.trim().length > 0 && v.length <= 1000)) as Record<string, string>;
   return {
     ativa: s['ativa'] === true,
     permissoes,

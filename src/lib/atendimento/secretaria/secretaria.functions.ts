@@ -4,8 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import type { Database, Json } from '@/integrations/supabase/types';
 import type { Conversa } from '../../mock-data';
-import { CHAVES_TEMPLATE } from './templates';
-import { lerConfigSecretaria, PERMISSOES_PADRAO, type Funcionalidade } from './config';
+import { lerConfigSecretaria } from './config';
+import { esquemaConfigSecretaria } from './config-schema';
 
 /**
  * Funções autenticadas da secretaria digital para o Atendimento e a configuração.
@@ -113,19 +113,9 @@ export const lerConfigSecretariaAnne = createServerFn({ method: 'GET' })
     return { config, podeEditar: await ehGestor(context.supabase, context.userId), chaveMestraDesligada: ['1', 'true'].includes(process.env['ANNE_SECRETARIA_DESLIGADA'] ?? '') };
   });
 
-const NIVEL = z.enum(['automatico', 'aprovacao', 'desligado']);
-const HHMM = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
-
 export const salvarConfigSecretariaAnne = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({
-    ativa: z.boolean(),
-    permissoes: z.object(Object.fromEntries((Object.keys(PERMISSOES_PADRAO) as Funcionalidade[]).map(f => [f, NIVEL])) as Record<Funcionalidade, typeof NIVEL>),
-    janelaPrioridadeHumanaMin: z.number().int().min(0).max(1440),
-    retornoAutomaticoHoras: z.number().int().min(1).max(720).nullable(),
-    janelaAutomacoes: z.object({ inicio: HHMM, fim: HHMM, diasUteis: z.boolean() }),
-    templates: z.record(z.enum(CHAVES_TEMPLATE as [string, ...string[]]), z.string().max(1000)),
-  }))
+  .inputValidator(esquemaConfigSecretaria)
   .handler(async ({ data, context }) => {
     if (!(await ehGestor(context.supabase, context.userId))) throw new Error('Seu perfil não permite alterar as permissões da Anne.');
     const autor = await nomeDoUsuario(context.supabase, context.userId);

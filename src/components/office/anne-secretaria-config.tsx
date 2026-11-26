@@ -35,7 +35,7 @@ export function AnneSecretariaConfig() {
   const editar = data.podeEditar;
   const mudar = (fn: (x: ConfigSecretaria) => ConfigSecretaria) => setC(x => (x ? fn(x) : x));
   const gravar = () => void executar('Salvar secretaria digital', async () => {
-    const r = await salvar({ data: { ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([, v]) => !!v?.trim())) as Record<string, string> } });
+    const r = await salvar({ data: { ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
     await qc.invalidateQueries({ queryKey: ['secretaria-config'] });
     return r;
   });
