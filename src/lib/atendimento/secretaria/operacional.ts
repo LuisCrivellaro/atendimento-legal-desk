@@ -11,7 +11,7 @@ import { nivelPermissao, type ConfigSecretaria, type Funcionalidade } from './co
 import { registrarAcao, type RegistroAcao } from './estado';
 import { associarResposta, automacoesAguardandoResposta, automacoesAtivas, automacaoVencida, expirarAutomacoes, novaAutomacao, registrarAutomacao, transicionarAutomacao, type AutomacaoAtiva, type EstadoAutomacao, type RespostaAutomacao, type TipoAutomacao } from './automacoes';
 import { decidirAcao, MOTIVOS, type AmbienteMotor, type CodigoMotivo, type DecisaoMotor } from './motor';
-import { modoEfetivo } from './modos';
+import { aplicarModo, modoEfetivo } from './modos';
 import { equipeEscreveuDepois, origemMensagem, ultimaIntervencaoHumana, ultimaMensagemEscritorio } from './origem';
 import { iniciarReagendamento, passoReagendamento, type AcaoReagendamento, type EstadoReagendamento, type EventoReagendamento } from './reagendamento';
 import { pedidoForaDoEscopo, possivelInjecao } from './seguranca';
@@ -291,7 +291,8 @@ async function conduzirReagendamento(x: Execucao, a: AutomacaoAtiva, evento: Eve
           recibo = await agenda.remarcar(atual, ac.para);
           proximo = { tipo: 'execucao', ok: true, recibo: { id: recibo.id, inicio: recibo.inicio, ...(recibo.meetUrl ? { meetUrl: recibo.meetUrl } : {}) } };
         } catch (error) {
-          const indisponivel = /ocupado|indispon/i.test((error as Error)?.message ?? '') && (error as { indisponivel?: boolean }).indisponivel !== false;
+          // Só "horário acabou de ficar ocupado" (conflito na reserva) reoferece; qualquer outra falha vai para a equipe.
+          const indisponivel = /acabou de ficar ocupado/i.test((error as Error)?.message ?? '') && (error as { indisponivel?: boolean }).indisponivel !== false;
           proximo = { tipo: 'execucao', ok: false, indisponivel };
         }
         const novo = recibo;
@@ -442,6 +443,30 @@ export async function iniciarReagendamentoDelegado(p: PortasOperacionais, ctx: C
   }
   const r = await conduzirReagendamento(x, automacao, { tipo: 'agenda', livres: opcoes });
   return { ok: !!r.enviada, motivo: r.motivo };
+}
+
+/**
+ * Camada conversacional (modo Automático) com a secretaria ligada: resposta com dado não verificado não sai.
+ * Fica retida como rascunho para a equipe revisar, com aviso e registro do motivo (sem os dados por extenso).
+ */
+export function reterRespostaNaoVerificada(c: Conversa, texto: string, faltando: string[], mensagemId: string, agora = new Date()): Conversa {
+  const retida: Conversa = { ...c, iaRetida: texto, mensagens: c.mensagens.map(m => m.id === mensagemId && m.iaExecucao ? { ...m, iaExecucao: { ...m.iaExecucao, estado: 'concluida' as const } } : m) };
+  return registrarDecisao(retida, { resultado: 'aprovacao', funcionalidade: 'resposta_conversacional', camada: 'conversacional', motivo: 'dados_nao_verificados', texto: MOTIVOS.dados_nao_verificados, avisarEquipe: true, prioridade: false }, agora, undefined, `Resposta da Anne retida para revisão (${faltando.slice(0, 4).join(', ')}).`);
+}
+
+/** Mensagem com instruções dirigidas à IA no modo Automático: sem chamada ao modelo; passa para a equipe (Híbrido). */
+export function encaminharInjecao(c: Conversa, mensagemId: string, modoPadrao: AIMode, agora = new Date()): Conversa {
+  const base: Conversa = { ...c, mensagens: c.mensagens.map(m => m.id === mensagemId && m.iaExecucao ? { ...m, iaExecucao: { ...m.iaExecucao, estado: 'concluida' as const } } : m) };
+  const comModo = modoEfetivo(base, modoPadrao).modo === 'automatico' ? aplicarModo(base, 'hibrido', { tipo: 'sistema', autor: 'regra' }, agora, 'mensagem com instruções dirigidas à IA') : base;
+  return registrarDecisao(comModo, { resultado: 'encaminhar', funcionalidade: 'resposta_conversacional', camada: 'conversacional', motivo: 'possivel_injecao', texto: MOTIVOS.possivel_injecao, avisarEquipe: true, prioridade: false }, agora, `injecao:${mensagemId}`);
+}
+
+/** Resposta tratada pelo fluxo existente (modo Automático): encerra a automação correspondente. */
+export function encerrarAutomacaoRespondida(c: Conversa, tipo: TipoAutomacao, resposta: 'sim' | 'nao', agora = new Date()): Conversa {
+  const inicio = c.consultaAgendada;
+  const alvo = automacoesAtivas(c.agenteAna?.secretaria?.automacoes, agora).find(a => a.tipo === tipo && a.referencia.inicio === inicio);
+  if (!alvo) return c;
+  return comSecretaria(c, s => ({ ...s, automacoes: transicionarAutomacao(s.automacoes, alvo.id, resposta === 'sim' ? 'concluida' : 'encaminhada', resposta === 'sim' ? 'cliente confirmou (fluxo Automático)' : 'cliente não poderá comparecer (fluxo Automático)', agora) }));
 }
 
 /** Registra a automação proativa já enviada (confirmação, lembrete...) para associar a resposta do cliente depois. */

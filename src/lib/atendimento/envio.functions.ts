@@ -24,7 +24,7 @@ import { ultramsgAdapter } from './canais/ultramsg';
 import { enviarTextoTelegram } from './canais/telegram';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
 import { autorizaEnvioAna } from './ana-execution';
-import { defaultAutomations } from '../atendimento';
+import { defaultAutomations, type AIMode } from '../atendimento';
 import type { Conversa, Mensagem } from '../mock-data';
 
 type Db = SupabaseClient<Database>;
@@ -103,6 +103,8 @@ interface EnvioBase {
   horarios?: string[] | undefined;
   /** Conta da Dra. (e-mail verificado no login): envia a qualquer contato liberado, sem a lista de números. */
   contaMaster?: boolean;
+  /** Secretaria digital: envio de uma automação; só sai se a reserva dessa automação ainda valer (conferência final). */
+  automacaoId?: string | undefined;
 }
 
 /** Destino WhatsApp da conversa: contato liberado e vinculado, restrições de produção e credenciais. Mesmo para texto e anexo. */
@@ -180,6 +182,20 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
       const c=latest.data?.dados as unknown as Conversa|undefined;
       const origem=entrada.mensagemOrigem??c?.mensagens.at(-1)?.id;
       if(latest.error||!c||!origem||!autorizaEnvioAna(c,origem,entrada.controleHumanoEm,entrada.permitirEncaminhamento))throw Object.assign(new Error('Conversa assumida; Ana não enviou.'),{code:'ana_envio_bloqueado'});
+    }
+    if(entrada.automacaoId){
+      // Secretaria digital: conferência final imediatamente antes do canal (reserva vigente, equipe não escreveu,
+      // modo ainda permite, pausa global e agente). Qualquer dúvida: nada sai.
+      const owner=await supabase.from('casos').select('owner_id,dados').eq('id',entrada.conversaId).single();
+      if(owner.error)throw new Error('Conversa indisponível.');
+      const ws=await supabase.from('office_workspace').select('dados').eq('owner_id',owner.data.owner_id).maybeSingle();
+      const state=ws.data?.dados as {anaPausa?:{ativa?:boolean};automations?:{modoIA?:AIMode}}|undefined;
+      const { conferirReservaEnvio } = await import('./secretaria/operacional');
+      const conferencia=ws.error||state?.anaPausa?.ativa||!config.agente_ativo?{ok:false as const,motivo:'pausa_global' as const}:conferirReservaEnvio(owner.data.dados as unknown as Conversa,{automacaoId:entrada.automacaoId,texto:entrada.texto},state?.automations?.modoIA??defaultAutomations.modoIA);
+      if(!conferencia.ok){
+        await auditar(supabase, ator, entrada.acao, 'Automação barrada na conferência final', 'bloqueado', conferencia.motivo);
+        throw Object.assign(new Error('Automação barrada na conferência final; nada foi enviado.'),{code:'ana_envio_bloqueado'});
+      }
     }
     const resultado = await ultramsgAdapter.enviarTexto(contato.contato_externo, entrada.texto, { ...(entrada.horarios?.length ? { botoes: botoesHorarios(entrada.horarios) } : {}), entradaAberta });
     if (!resultado.ok) {
@@ -311,11 +327,11 @@ export const enviarAnexoCanal = createServerFn({ method: 'POST' })
   });
 
 /** Envio pelo sistema (agente/lembretes): só chamável no servidor, pronto para a fase 3. Ainda não usado. */
-export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string; contatoEsperado?:string; horarios?: string[]; mensagemOrigem?:string; controleHumanoEm?:string|undefined; permitirEncaminhamento?:boolean }) {
+export async function enviarMensagemSistema(deps: { supabase: Db; conversaId: string; texto: string; motivo: string; contatoEsperado?:string; horarios?: string[]; mensagemOrigem?:string; controleHumanoEm?:string|undefined; permitirEncaminhamento?:boolean; automacaoId?:string }) {
   return enviarComRegras(
     deps.supabase,
     { nome: 'agente', perfil: 'sistema' },
-    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto,mensagemOrigem:deps.mensagemOrigem,controleHumanoEm:deps.controleHumanoEm,permitirEncaminhamento:deps.permitirEncaminhamento, ...(deps.contatoEsperado?{contatoEsperado:deps.contatoEsperado}:{}), ...(deps.horarios?.length?{horarios:deps.horarios}:{}) },
+    { conversaId: deps.conversaId, acao: `sistema:${deps.motivo}`.slice(0, 60), texto: deps.texto,mensagemOrigem:deps.mensagemOrigem,controleHumanoEm:deps.controleHumanoEm,permitirEncaminhamento:deps.permitirEncaminhamento, ...(deps.contatoEsperado?{contatoEsperado:deps.contatoEsperado}:{}), ...(deps.horarios?.length?{horarios:deps.horarios}:{}), ...(deps.automacaoId?{automacaoId:deps.automacaoId}:{}) },
   );
 }
 

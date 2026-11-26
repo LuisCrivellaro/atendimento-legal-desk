@@ -7,6 +7,7 @@
  * - pedidos de orientação jurídica, resultado ou honorários ficam com a equipe.
  * Nada aqui usa a confiança do próprio modelo.
  */
+import type { Conversa } from '../../mock-data';
 
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -64,6 +65,16 @@ export function extrairFatos(texto: string): Fato[] {
     if (h <= 23 && min <= 59) fatos.push({ categoria: 'horario', chave: `${dois(h)}:${dois(min)}` });
   }
   return fatos;
+}
+
+/**
+ * Fontes desta conversa (nunca de outra): horários com recibo ou oferecidos pela agenda oficial, mensagens já
+ * registradas (escritório e cliente) e textos oficiais extras (regras da agenda, modelos fixos).
+ */
+export function fontesDaConversa(c: Pick<Conversa, 'consultaAgendada' | 'agenteAna' | 'horariosOfertados' | 'mensagens'>, extras: { horarios?: (string | undefined)[]; textos?: string[] } = {}): FontesVerificadas {
+  const a = c.agenteAna;
+  const horarios = [c.consultaAgendada, a?.reservaCalendar?.inicio, a?.horarioPendente, ...(a?.horariosTeste ?? []), ...(a?.horariosApresentados ?? []), ...(c.horariosOfertados ?? []), ...(extras.horarios ?? [])].filter((x): x is string => !!x && Number.isFinite(Date.parse(x)));
+  return { horarios: [...new Set(horarios)], textos: [...c.mensagens.map(m => m.texto ?? ''), ...(extras.textos ?? [])] };
 }
 
 /**

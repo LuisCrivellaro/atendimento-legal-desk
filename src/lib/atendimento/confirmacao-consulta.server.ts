@@ -7,6 +7,8 @@ import { atualizarConversa } from './ana.server';
 import { hora } from './ana-scheduling';
 import { registrarAviso } from './avisos-equipe';
 import { consultaNoDia, decidirConfirmacao40, faseConfirmacao, textoAvisoConfirmacao, type MotivoAvisoConfirmacao } from './confirmacao-consulta';
+import { secretariaLigada } from './secretaria/secretaria.server';
+import { concluirEnvioRotina, contextoRotina, decidirConfirmacaoSecretaria, motorPermiteRotina, reservarEnvioRotina } from './secretaria/rotinas';
 
 type Db = SupabaseClient<Database>;
 
@@ -56,7 +58,7 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
     const c = row.dados as unknown as Conversa;
     const state = estados.get(row.owner_id);
     const contato = porConversa.get(row.id);
-    const decisao = decidirConfirmacao40({
+    const entrada = {
       consultaAgendada: c.consultaAgendada,
       reservaInicio: c.agenteAna?.reservaCalendar?.inicio,
       confirmacao40: c.agenteAna?.confirmacao40,
@@ -66,31 +68,43 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
       anaPausadaGlobal: !!state?.anaPausa?.ativa,
       automacaoLigada: (state?.automations?.lembreteConsulta ?? defaultAutomations.lembreteConsulta) !== false,
       contatoLiberado: !!contato,
-    }, agora);
+    };
+    // Secretaria digital ligada: o motor decide pelo modo (Híbrido envia; Humano/Bloqueado avisam a equipe).
+    const ctxSecretaria = secretariaLigada(state) ? contextoRotina({ state, agenteAtivo: cfg.data.agente_ativo === true, canalAtivo: cfg.data.canal_ativo === 'ultramsg', contato, modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA }) : undefined;
+    const decisao = ctxSecretaria ? decidirConfirmacaoSecretaria(c, entrada, ctxSecretaria, agora) : decidirConfirmacao40(entrada, agora);
     if (decisao.tipo === 'ignorar') continue;
     if (decisao.tipo === 'aviso') {
       if (await avisarEquipe(db, row.id, decisao.inicio, decisao.motivo, decisao.texto, agora)) resultado.avisos++;
       continue;
     }
     const { inicio, texto } = decisao;
+    const automacaoId = `confirmacao_consulta:${inicio}`;
     let reservado = false;
+    let eventoId = '';
     await atualizarConversa(db, row.id, x => {
       reservado = false;
       const r = x.agenteAna?.reservaCalendar;
-      if (!r || x.consultaAgendada !== inicio || r.inicio !== inicio || x.agenteAna?.confirmacao40?.inicio === inicio || x.agenteAna?.humano || x.agenteAna?.pausa) return x;
+      const bloqueada = ctxSecretaria ? !motorPermiteRotina(x, ctxSecretaria, 'confirmacao_consulta', agora) : x.agenteAna?.humano || x.agenteAna?.pausa;
+      if (!r || x.consultaAgendada !== inicio || r.inicio !== inicio || x.agenteAna?.confirmacao40?.inicio === inicio || bloqueada) return x;
       reservado = true;
-      return { ...x, agenteAna: { ...x.agenteAna, confirmacao40: { inicio, reservadoEm: agora.toISOString() }, envioAna: { mensagemId: `confirmacao40:${r.id}`, texto, desde: agora.toISOString() } } };
+      eventoId = r.id;
+      const comReserva = { ...x, agenteAna: { ...x.agenteAna, confirmacao40: { inicio, reservadoEm: agora.toISOString() }, envioAna: { mensagemId: `confirmacao40:${r.id}`, texto, desde: agora.toISOString() } } };
+      return ctxSecretaria ? reservarEnvioRotina(comReserva, automacaoId, texto, agora) : comReserva;
     });
     if (!reservado) continue;
     try {
-      const sent = await enviarMensagemSistema({ supabase: db, conversaId: row.id, texto, motivo: 'confirmacao', ...(contato ? { contatoEsperado: contato } : {}) });
+      const sent = await enviarMensagemSistema({ supabase: db, conversaId: row.id, texto, motivo: 'confirmacao', ...(contato ? { contatoEsperado: contato } : {}), ...(ctxSecretaria ? { automacaoId } : {}) });
       if (sent.simulado) throw new Error('Canal desligado.');
-      await atualizarConversa(db, row.id, x => ({
-        ...x,
-        agenteAna: { ...x.agenteAna, confirmacao40: { ...(x.agenteAna?.confirmacao40 ?? { inicio }), inicio, enviadoEm: agora.toISOString(), idExterno: sent.idExterno } },
-        mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada' })],
-        timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de 40 minutos enviada pela Anne' }],
-      }));
+      await atualizarConversa(db, row.id, x => {
+        const enviada: Conversa = {
+          ...x,
+          agenteAna: { ...x.agenteAna, confirmacao40: { ...(x.agenteAna?.confirmacao40 ?? { inicio }), inicio, enviadoEm: agora.toISOString(), idExterno: sent.idExterno } },
+          mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada', ...(ctxSecretaria ? { automacaoKey: automacaoId } : {}) })],
+          timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de 40 minutos enviada pela Anne' }],
+        };
+        // Com a secretaria ligada, a resposta do cliente fica associada a esta automação (até 1 h depois do início).
+        return ctxSecretaria ? concluirEnvioRotina(enviada, { tipo: 'confirmacao_consulta', id: automacaoId, referencia: { inicio, eventoId }, expiraEm: new Date(Date.parse(inicio) + 3600000).toISOString(), idExterno: sent.idExterno, texto }, agora) : enviada;
+      });
       resultado.enviados++;
     } catch (error) {
       // A reserva continua gravada: nunca reenviar automaticamente depois de falha ambígua.

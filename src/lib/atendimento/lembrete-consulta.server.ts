@@ -1,9 +1,14 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import type { Conversa } from '../mock-data';
-import { newMessage } from '../atendimento';
+import type { OfficeState } from '../office';
+import { defaultAutomations, newMessage } from '../atendimento';
 import { consultaDeHoje, mensagemLembreteAna } from './lembrete-consulta';
 import { atualizarConversa } from './ana.server';
+import { hora } from './ana-scheduling';
+import { registrarAviso } from './avisos-equipe';
+import { secretariaLigada } from './secretaria/secretaria.server';
+import { concluirEnvioRotina, contextoRotina, decidirLembreteSecretaria, motorPermiteRotina, reservarEnvioRotina } from './secretaria/rotinas';
 
 /**
  * Envia o lembrete do dia às consultas com recibo real do Calendar, uma única vez por consulta.
@@ -20,36 +25,58 @@ export async function enviarLembretesConsulta(db: SupabaseClient<Database>, agor
   const rows = await db.from('casos').select('id,owner_id,dados').in('id', [...porConversa.keys()]);
   if (rows.error) throw new Error('Conversas indisponíveis.');
   const { enviarMensagemSistema } = await import('./envio.functions');
+  // Secretaria digital: só é consultada quando a área de trabalho do dono a liga (falha de leitura = fluxo anterior).
+  const donos = [...new Set(rows.data.map(r => r.owner_id))];
+  const ws = await db.from('office_workspace').select('owner_id,dados').in('owner_id', donos);
+  const estados = new Map<string, OfficeState>(ws.error ? [] : (ws.data ?? []).map(w => [w.owner_id, w.dados as unknown as OfficeState]));
   let enviados = 0, falhas = 0;
   for (const row of rows.data) {
     const c = row.dados as unknown as Conversa;
     const reserva = c.agenteAna?.reservaCalendar;
     if (!reserva || reserva.inicio !== c.consultaAgendada || !consultaDeHoje(c.consultaAgendada, agora)) continue;
     if (c.agenteAna?.lembreteConsulta?.inicio === reserva.inicio) continue;
-    if (c.agenteAna?.humano || c.agenteAna?.pausa) continue;
     const contato = porConversa.get(row.id);
+    const state = estados.get(row.owner_id);
+    const ctxSecretaria = secretariaLigada(state) ? contextoRotina({ state, agenteAtivo: cfg.data.agente_ativo === true, canalAtivo: cfg.data.canal_ativo === 'ultramsg', contato, modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA }) : undefined;
+    if (!ctxSecretaria && (c.agenteAna?.humano || c.agenteAna?.pausa)) continue;
     const telefone = c.agenteAna?.telefone;
     if (!contato) continue;
     const texto = mensagemLembreteAna(c.agenteAna?.dados?.nome || '', reserva.inicio);
+    const automacaoId = `lembrete_consulta:${reserva.inicio}`;
+    if (ctxSecretaria) {
+      // Híbrido envia; Humano, Bloqueado, pausa ou equipe escrevendo agora viram aviso com texto pronto (uma vez por consulta).
+      const d = decidirLembreteSecretaria(c, ctxSecretaria, agora);
+      if (d.tipo === 'ignorar') continue;
+      if (d.tipo === 'aviso') {
+        await atualizarConversa(db, row.id, x => registrarAviso(x, { id: `lembrete-consulta:${reserva.inicio}`, tipo: 'confirmacao40', criadoEm: agora.toISOString(), texto: `Lembrete do dia (consulta às ${hora(reserva.inicio)}) não enviado pela Anne: ${d.motivo} Texto pronto para enviar.`.slice(0, 300), textoPronto: texto }));
+        continue;
+      }
+    }
     // Reserva o lembrete antes da chamada externa: nunca reenviado automaticamente, mesmo após falha ambígua.
     let reservado = false;
     await atualizarConversa(db, row.id, x => {
       reservado = false;
       if (x.agenteAna?.lembreteConsulta?.inicio === reserva.inicio || x.consultaAgendada !== reserva.inicio) return x;
+      if (ctxSecretaria && !motorPermiteRotina(x, ctxSecretaria, 'lembrete_consulta', agora)) return x;
       reservado = true;
-      return { ...x, agenteAna: { ...x.agenteAna, lembreteConsulta: { inicio: reserva.inicio, enviadoEm: agora.toISOString() }, envioAna: { mensagemId: `lembrete:${reserva.id}`, texto, desde: agora.toISOString() } } };
+      const comReserva = { ...x, agenteAna: { ...x.agenteAna, lembreteConsulta: { inicio: reserva.inicio, enviadoEm: agora.toISOString() }, envioAna: { mensagemId: `lembrete:${reserva.id}`, texto, desde: agora.toISOString() } } };
+      return ctxSecretaria ? reservarEnvioRotina(comReserva, automacaoId, texto, agora) : comReserva;
     });
     if (!reservado) continue;
     try {
-      const sent = await enviarMensagemSistema({ supabase: db, conversaId: row.id, texto, motivo: 'lembrete', contatoEsperado: contato });
+      const sent = await enviarMensagemSistema({ supabase: db, conversaId: row.id, texto, motivo: 'lembrete', contatoEsperado: contato, ...(ctxSecretaria ? { automacaoId } : {}) });
       if (sent.simulado) throw new Error('Canal desligado.');
       const fimDoDia = new Date(Date.parse(reserva.inicio) + 12 * 3600000).toISOString();
-      await atualizarConversa(db, row.id, x => ({
-        ...x,
-        agenteAna: { ...x.agenteAna, ...(x.agenteAna?.reservaCalendar?.id === reserva.id && telefone ? { confirmacaoCancelamento: { eventoId: reserva.id, inicio: reserva.inicio, contato: telefone, expira: fimDoDia } } : {}) },
-        mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada' })],
-        timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Lembrete do dia da consulta enviado pela Ana' }],
-      }));
+      await atualizarConversa(db, row.id, x => {
+        const enviada: Conversa = {
+          ...x,
+          agenteAna: { ...x.agenteAna, ...(x.agenteAna?.reservaCalendar?.id === reserva.id && telefone ? { confirmacaoCancelamento: { eventoId: reserva.id, inicio: reserva.inicio, contato: telefone, expira: fimDoDia } } : {}) },
+          mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada', ...(ctxSecretaria ? { automacaoKey: automacaoId } : {}) })],
+          timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Lembrete do dia da consulta enviado pela Ana' }],
+        };
+        // Com a secretaria ligada, o SIM/NÃO fica associado a esta automação até o início da consulta.
+        return ctxSecretaria ? concluirEnvioRotina(enviada, { tipo: 'lembrete_consulta', id: automacaoId, referencia: { inicio: reserva.inicio, eventoId: reserva.id }, expiraEm: reserva.inicio, idExterno: sent.idExterno, texto }, agora) : enviada;
+      });
       enviados++;
     } catch (error) {
       falhas++;

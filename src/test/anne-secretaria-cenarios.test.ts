@@ -277,7 +277,8 @@ describe('cenários da secretaria digital (dados fictícios, canal em memória)'
   it('reagendamento: falha da agenda nunca vira confirmação', async () => {
     const base = conversaComConfirmacao();
     const inicial = { ...base, consultaAgendada: '2026-11-30T13:00:00.000Z', agenteAna: { ...base.agenteAna, reservaCalendar: { id: 'ev1', inicio: '2026-11-30T13:00:00.000Z', fim: '2026-11-30T13:30:00.000Z' }, confirmacao40: undefined, secretaria: { automacoes: [] } } };
-    const db = fake(inicial, { agenda: { remarcar: async () => { throw new Error('ProJuris 500'); } } });
+    // "Consulta original indisponível" não é "horário ocupado": nunca reoferece, vai para a equipe.
+    const db = fake(inicial, { agenda: { remarcar: async () => { throw new Error('Consulta original indisponível para remarcação.'); } } });
     await iniciarReagendamentoDelegado(db.portas, ctx(), 'c-teste', 'Dra.');
     await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', receber(db, cliente('b1', '1', '2026-11-26T16:20:00.000Z')));
     await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', receber(db, cliente('b2', 'confirmo', '2026-11-26T16:21:00.000Z')));
