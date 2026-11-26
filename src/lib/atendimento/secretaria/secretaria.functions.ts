@@ -183,11 +183,19 @@ export const salvarConfigSecretariaAnne = createServerFn({ method: 'POST' })
   .handler(async ({ data, context }) => {
     if (!(await ehGestor(context.supabase, context.userId))) throw new Error('Seu perfil não permite alterar as permissões da Anne.');
     const autor = await nomeDoUsuario(context.supabase, context.userId);
-    // Normaliza com as mesmas regras da leitura (ex.: andamento processual nunca automático).
-    const config = lerConfigSecretaria({ ...data, atualizadoEm: new Date().toISOString(), atualizadoPor: autor });
     for (let tentativa = 0; tentativa < 5; tentativa++) {
       const row = await context.supabase.from('office_workspace').select('dados,updated_at').eq('owner_id', context.userId).maybeSingle();
       if (row.error) throw new Error('Não foi possível salvar a configuração.');
+      // Aprovação de texto: autor e data vêm do servidor; texto igual ao já aprovado preserva a aprovação original.
+      const anterior = lerConfigSecretaria((row.data?.dados as { secretaria?: unknown } | null)?.secretaria);
+      const agoraIso = new Date().toISOString();
+      const aprovacoesTexto = Object.fromEntries(Object.entries(data.aprovacoesTexto ?? {}).flatMap(([k, v]) => {
+        if (!v) return [];
+        const antes = anterior.aprovacoesTexto[k as keyof typeof anterior.aprovacoesTexto];
+        return [[k, antes?.texto === v.texto ? antes : { texto: v.texto, por: autor, em: agoraIso }]];
+      }));
+      // Normaliza com as mesmas regras da leitura (ex.: andamento processual nunca automático).
+      const config = lerConfigSecretaria({ ...data, aprovacoesTexto, atualizadoEm: agoraIso, atualizadoPor: autor });
       const dados = { ...((row.data?.dados as Record<string, unknown> | null) ?? {}), secretaria: config };
       const r = row.data
         ? await context.supabase.from('office_workspace').update({ dados: dados as unknown as Json, updated_at: new Date().toISOString() }).eq('owner_id', context.userId).eq('updated_at', row.data.updated_at).select('owner_id')

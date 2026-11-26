@@ -1,7 +1,7 @@
 import type { Conversa } from '../mock-data';
 import type { ConfigSecretaria } from './secretaria/config';
 import { politicaConsultaDia, textoLembreteDoDia } from './biblioteca/selecao';
-import { situacaoConsulta } from './situacao-consulta';
+import { consultaSuspensa, situacaoConsulta } from './situacao-consulta';
 import { origemMensagem } from './secretaria/origem';
 
 /**
@@ -34,7 +34,7 @@ export function programadasDaConta(casos: { id: string; nome: string; dados: Con
     if (!Number.isFinite(t) || t < agora.getTime() || t > agora.getTime() + 36 * 3600000) continue;
     const situacao = situacaoConsulta(c).estado;
     if (situacao === 'cancelada' || situacao === 'realizada' || situacao === 'ausente') continue;
-    const semRecibo = c.agenteAna?.reservaCalendar?.inicio !== inicio ? 'sem recibo da agenda oficial' : undefined;
+    const semRecibo = c.agenteAna?.reservaCalendar?.inicio !== inicio ? 'sem recibo da agenda oficial' : consultaSuspensa(c) ? 'compromisso concluído ou ausente no ProJuris: equipe conferindo' : undefined;
     // Lembrete das 08h do dia da consulta.
     const oito = new Date(`${diaSP(new Date(t))}T08:00:00-03:00`);
     const lembrete = c.agenteAna?.lembreteConsulta?.inicio === inicio;

@@ -7,7 +7,7 @@ import { consultaDeHoje } from './lembrete-consulta';
 import { lerBiblioteca } from './biblioteca/renderizar';
 import { politicaConsultaDia, textoLembreteDoDia } from './biblioteca/selecao';
 import { bloqueadoPorTeste, lerConfigSecretaria } from './secretaria/config';
-import { situacaoConsulta } from './situacao-consulta';
+import { consultaSuspensa, situacaoConsulta } from './situacao-consulta';
 import { atualizarConversa } from './ana.server';
 import { hora } from './ana-scheduling';
 import { registrarAviso } from './avisos-equipe';
@@ -49,7 +49,7 @@ export async function enviarLembretesConsulta(db: SupabaseClient<Database>, agor
     if (!contato) continue;
     // Modo de teste controlado: só o número autorizado recebe. Consulta já cancelada/realizada nunca recebe lembrete.
     if (bloqueadoPorTeste(lerConfigSecretaria((state as { secretaria?: unknown } | undefined)?.secretaria), contato)) { bloqueados++; continue; }
-    if (['cancelada', 'realizada', 'ausente'].includes(situacaoConsulta(c).estado)) continue;
+    if (['cancelada', 'realizada', 'ausente'].includes(situacaoConsulta(c).estado) || consultaSuspensa(c)) continue;
     // Biblioteca oficial: modelo 01, só com nome do cadastro, de manhã ("Bom dia") e sem lembrete/confirmação redundante.
     const politica = politicaConsultaDia(c, reserva.inicio, 'lembrete', agora);
     if (!politica.permitido) continue;

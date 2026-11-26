@@ -97,9 +97,13 @@ describe('regras puras da coleta', () => {
   });
 });
 
-function criarDb(casos: Record<string, Conversa>, opts: { itens?: { caso_id: string; nome: string; recebido: boolean }[]; contatos?: { conversa_id: string; contato_externo: string }[]; workspace?: OfficeState } = {}) {
+/** Textos de coleta aprovados pela Dra. (texto exato) — sem isso nenhum lembrete de coleta sai sozinho. */
+const APROVADO = { ...defaultState, secretaria: { ativa: true, aprovacoesTexto: { lembrete_contrato: { texto: TEXTOS_COLETA.lembreteContrato.texto }, lembrete_faltantes: { texto: TEXTOS_COLETA.lembreteFaltantes.texto } } } } as OfficeState;
+
+function criarDb(casos: Record<string, Conversa>, opts: { itens?: { caso_id: string; nome: string; recebido: boolean }[]; itensDepois?: { caso_id: string; nome: string; recebido: boolean }[]; contatos?: { conversa_id: string; contato_externo: string }[]; workspace?: OfficeState } = {}) {
   const store = new Map(Object.entries(casos).map(([id, d]) => [id, JSON.parse(JSON.stringify(d)) as Conversa]));
   const audit: Record<string, unknown>[] = [];
+  let leiturasChecklist = 0;
   const db = {
     from(table: string) {
       const f: { col: string; op: string; val: unknown }[] = [];
@@ -107,8 +111,8 @@ function criarDb(casos: Record<string, Conversa>, opts: { itens?: { caso_id: str
       const exec = (single: boolean) => {
         if (table === 'atendimento_canal_config') return { error: null, data: { canal_ativo: 'ultramsg', agente_ativo: true } };
         if (table === 'atendimento_contatos_teste') return { error: null, data: opts.contatos ?? [...store.keys()].map(id => ({ conversa_id: id, contato_externo: '5511900000002' })) };
-        if (table === 'office_workspace') return { error: null, data: single ? { dados: opts.workspace ?? defaultState } : [{ owner_id: 'owner-1', dados: opts.workspace ?? defaultState }] };
-        if (table === 'checklist_itens') return { error: null, data: opts.itens ?? [] };
+        if (table === 'office_workspace') { const w = 'workspace' in opts ? opts.workspace : APROVADO; return { error: null, data: single ? { dados: w ?? defaultState } : [{ owner_id: 'owner-1', dados: w ?? defaultState }] }; }
+        if (table === 'checklist_itens') { leiturasChecklist++; return { error: null, data: (leiturasChecklist > 1 ? opts.itensDepois : undefined) ?? opts.itens ?? [] }; }
         if (table === 'casos') {
           const id = f.find(x => x.col === 'id' && x.op === 'eq')?.val as string | undefined;
           if (patch && id) { store.set(id, JSON.parse(JSON.stringify(patch.dados)) as Conversa); return { error: null, data: [{ id }] }; }
@@ -161,15 +165,53 @@ describe('rotina de lembretes de coleta (servidor)', () => {
     await enviarLembretesColeta(db, SP('2026-11-26T10:00'));
     expect(ler().avisosEquipe).toHaveLength(1);
   });
-  it('modo Sugerir ou controle humano: aviso com texto pronto, sem envio; Desligada: nada', async () => {
+  it('secretaria ligada: equipe assumiu a conversa (Híbrido) e o lembrete do contrato sai mesmo assim, com reserva da automação', async () => {
+    const { db, ler } = criarDb({ 'c-col': { ...comContrato, agenteAna: { humano: true } } });
+    expect(await enviarLembretesColeta(db, SP('2026-11-25T10:00'))).toMatchObject({ enviados: 1 });
+    expect(mocks.enviar.mock.calls[0]?.[0]).toMatchObject({ motivo: 'lembreteContrato', automacaoId: expect.stringMatching(/^lembrete_coleta:contrato:/) });
+    expect(ler().agenteAna?.humano).toBe(true);
+    expect(ler().agenteAna?.secretaria?.envio).toBeUndefined();
+    expect(ler().mensagens.at(-1)?.automacaoKey).toMatch(/^lembrete_coleta:contrato:/);
+  });
+  it('secretaria ligada: equipe escreveu há pouco (prioridade humana) adia; Humano e Bloqueado nunca enviam', async () => {
+    const recente = { id: 'e1', de: 'escritorio' as const, texto: 'Oi! Já te mando o contrato de novo.', hora: '', dataHora: SP('2026-11-25T09:50').toISOString(), autor: 'Dra. Carolina' };
+    const adiada = criarDb({ 'c-col': { ...comContrato, mensagens: [recente], agenteAna: { humano: true } } });
+    expect(await enviarLembretesColeta(adiada.db, SP('2026-11-25T10:00'))).toMatchObject({ enviados: 0, adiados: 1 });
     const sugerir = criarDb({ 'c-col': { ...comContrato, modoIA: 'Sugerir' } });
     await enviarLembretesColeta(sugerir.db, SP('2026-11-25T10:00'));
     expect(sugerir.ler().avisosEquipe?.[0]?.textoPronto).toContain(LINK);
-    const humano = criarDb({ 'c-col': { ...comContrato, agenteAna: { humano: true } } });
+    const desligada = criarDb({ 'c-col': { ...comContrato, modoIA: 'Desligada' } });
+    expect((await enviarLembretesColeta(desligada.db, SP('2026-11-25T10:00'))).enviados).toBe(0);
+    expect(mocks.enviar).not.toHaveBeenCalled();
+  });
+  it('secretaria desligada: regra anterior (equipe no controle ou Sugerir → aviso; Desligada → nada)', async () => {
+    const off = { ...APROVADO, secretaria: { ...(APROVADO as unknown as { secretaria: object }).secretaria, ativa: false } } as OfficeState;
+    const humano = criarDb({ 'c-col': { ...comContrato, agenteAna: { humano: true } } }, { workspace: off });
     await enviarLembretesColeta(humano.db, SP('2026-11-25T10:00'));
     expect(humano.ler().avisosEquipe?.[0]?.texto).toMatch(/conversa com a equipe/);
-    const desligada = criarDb({ 'c-col': { ...comContrato, modoIA: 'Desligada' } });
+    const desligada = criarDb({ 'c-col': { ...comContrato, modoIA: 'Desligada' } }, { workspace: off });
     expect(await enviarLembretesColeta(desligada.db, SP('2026-11-25T10:00'))).toMatchObject({ enviados: 0, avisos: 0 });
+    expect(mocks.enviar).not.toHaveBeenCalled();
+  });
+  it('texto proposto não aprovado pela Dra. (ou alterado depois da aprovação) nunca sai sozinho: vira aviso com texto pronto', async () => {
+    const semAprovacao = criarDb({ 'c-col': comContrato }, { workspace: defaultState });
+    expect(await enviarLembretesColeta(semAprovacao.db, SP('2026-11-25T10:00'))).toMatchObject({ enviados: 0, avisos: 1 });
+    expect(semAprovacao.ler().avisosEquipe?.[0]).toMatchObject({ texto: expect.stringMatching(/não aprovado pela Dra/), textoPronto: expect.stringContaining(LINK) });
+    const alterado = { ...APROVADO, respostasProntas: { itens: [{ id: TEXTOS_COLETA.lembreteContrato.id, titulo: 'x', categoria: 'Documentos', atalho: 'lembrecontrato', texto: 'Olá {nome}, assine logo: {link}' }], ocultas: [] } } as OfficeState;
+    const outro = criarDb({ 'c-col': comContrato }, { workspace: alterado });
+    expect(await enviarLembretesColeta(outro.db, SP('2026-11-25T10:00'))).toMatchObject({ enviados: 0, avisos: 1 });
+    expect(mocks.enviar).not.toHaveBeenCalled();
+  });
+  it('documento chegou entre a leitura e o envio: nada é cobrado (checklist relido antes de enviar)', async () => {
+    const c = { ...base, ultimoPedidoDocumentos: SP('2026-11-23T10:00').toISOString() };
+    const { db } = criarDb({ 'c-col': c }, { itens: [{ caso_id: 'c-col', nome: 'CPF', recebido: false }], itensDepois: [{ caso_id: 'c-col', nome: 'CPF', recebido: true }] });
+    expect((await enviarLembretesColeta(db, SP('2026-11-25T10:00'))).enviados).toBe(0);
+    expect(mocks.enviar).not.toHaveBeenCalled();
+  });
+  it('modo de teste: só o número autorizado recebe lembrete de coleta', async () => {
+    const teste = { ...APROVADO, secretaria: { ...(APROVADO as unknown as { secretaria: object }).secretaria, testeAutomacoes: { ativo: true, numero: '5511988887777' } } } as OfficeState;
+    const { db } = criarDb({ 'c-col': comContrato }, { workspace: teste });
+    expect(await enviarLembretesColeta(db, SP('2026-11-25T10:00'))).toMatchObject({ enviados: 0, bloqueados: 1 });
     expect(mocks.enviar).not.toHaveBeenCalled();
   });
   it('casos antigos e link de demonstração: nenhum envio e nenhum aviso em massa na primeira execução', async () => {
@@ -181,7 +223,7 @@ describe('rotina de lembretes de coleta (servidor)', () => {
     expect(ler().avisosEquipe ?? []).toHaveLength(0);
   });
   it('automação desligada pelo dono: nada', async () => {
-    const { db } = criarDb({ 'c-col': comContrato }, { workspace: { ...defaultState, automations: { ...defaultAutomations, lembreteContrato: false } } });
+    const { db } = criarDb({ 'c-col': comContrato }, { workspace: { ...APROVADO, automations: { ...defaultAutomations, lembreteContrato: false } } });
     await enviarLembretesColeta(db, SP('2026-11-25T10:00'));
     expect(mocks.enviar).not.toHaveBeenCalled();
   });

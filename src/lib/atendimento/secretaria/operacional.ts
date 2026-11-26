@@ -455,7 +455,7 @@ export async function iniciarReagendamentoAutomatico(p: PortasOperacionais, ctx:
   const modo = modoEfetivo(c, ctx.modoPadrao).modo;
   if (modo === 'humano' || modo === 'bloqueado') return { ok: false, motivo: modo === 'humano' ? MOTIVOS.modo_humano : MOTIVOS.modo_bloqueado };
   const reserva = c.agenteAna?.reservaCalendar;
-  if (!reserva || reserva.inicio !== c.consultaAgendada || (origemPedido !== 'ausencia' && Date.parse(reserva.inicio) <= agora.getTime())) return { ok: false, motivo: MOTIVOS.dados_nao_verificados };
+  if (!reserva || reserva.inicio !== c.consultaAgendada || c.agenteAna?.consultaSuspensa?.inicio === reserva.inicio || (origemPedido !== 'ausencia' && Date.parse(reserva.inicio) <= agora.getTime())) return { ok: false, motivo: MOTIVOS.dados_nao_verificados };
   if (automacoesAtivas(c.agenteAna?.secretaria?.automacoes, agora).some(a => a.tipo === 'reagendamento') || automacoesAguardandoResposta(c.agenteAna?.secretaria?.automacoes, agora).some(a => a.tipo !== 'confirmacao_consulta' && a.tipo !== 'lembrete_consulta')) return { ok: false, motivo: MOTIVOS.ambiguidade };
   const origemMsg: Mensagem = opcoes.mensagemOrigem ?? { id: `equipe:${agora.toISOString()}`, de: 'escritorio', texto: '', hora: '' };
   // Pedido explícito (resposta do cliente, falta registrada ou delegação da equipe): sem espera de prioridade humana.

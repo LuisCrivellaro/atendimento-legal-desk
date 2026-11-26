@@ -30,6 +30,8 @@ export interface ResultadoEtapa {
   resumo?: Record<string, ValorResumo> | undefined;
   erro?: string | undefined;
   pulada?: string | undefined;
+  /** Não executada por falta de tempo no ciclo: roda primeiro no próximo (os demais campos são da última execução real). */
+  adiada?: boolean | undefined;
 }
 
 export interface EstadoMonitor {
@@ -38,9 +40,11 @@ export interface EstadoMonitor {
   duracaoMs: number;
   ok: boolean;
   etapas: Record<string, ResultadoEtapa>;
+  /** Etapas adiadas neste ciclo por falta de tempo (rodam primeiro no próximo). */
+  adiadas?: string[] | undefined;
   integracoes: { projuris: 'ok' | 'falha' | 'nao_verificado'; whatsapp: 'ativo' | 'desligado' | 'desconhecido' };
   pendenciasAgenda: { quando: string; titulo: string; motivo: string }[];
-  historico: { em: string; ok: boolean; duracaoMs: number; falhas: string[] }[];
+  historico: { em: string; ok: boolean; duracaoMs: number; falhas: string[]; adiadas?: string[] | undefined }[];
 }
 
 export const ROTULOS_ETAPA: Record<string, string> = {

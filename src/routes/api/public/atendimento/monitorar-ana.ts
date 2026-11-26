@@ -13,11 +13,11 @@ export const Route = createFileRoute('/api/public/atendimento/monitorar-ana')({ 
   const failure = await authenticateCronRequest(request);
   if (failure) return failure;
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
-  let operacional: { ok: boolean; falhas: string[] } | { erro: string };
+  let operacional: { ok: boolean; falhas: string[]; adiadas: string[] } | { ignorado: string } | { erro: string };
   try {
     const { executarMonitorOperacional } = await import('@/lib/atendimento/monitor-operacional.server');
     const estado = await executarMonitorOperacional(supabaseAdmin, request);
-    operacional = { ok: estado.ok, falhas: estado.historico[0]?.falhas ?? [] };
+    operacional = 'ignorado' in estado ? { ignorado: estado.ignorado } : { ok: estado.ok, falhas: estado.historico[0]?.falhas ?? [], adiadas: estado.adiadas ?? [] };
   } catch (e) {
     console.error('Monitor operacional falhou', e);
     operacional = { erro: 'Monitor operacional indisponível' };

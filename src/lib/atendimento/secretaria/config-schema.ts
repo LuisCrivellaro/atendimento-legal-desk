@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PERMISSOES_PADRAO, type Funcionalidade } from './config';
+import { CHAVES_TEXTO_APROVADO, PERMISSOES_PADRAO, type Funcionalidade } from './config';
 import { CHAVES_TEMPLATE } from './templates';
 
 /**
@@ -19,6 +19,8 @@ export const esquemaConfigSecretaria = z.object({
   templates: z.partialRecord(z.enum(CHAVES_TEMPLATE as [string, ...string[]]), z.string().max(1000)).optional(),
   confirmacaoAntecedenciaMin: z.number().int().min(30).max(1440).optional(),
   testeAutomacoes: z.object({ ativo: z.boolean(), numero: z.string().max(20).nullable() }).optional(),
+  /** Aprovação dos textos que não são da biblioteca oficial (lembretes de coleta): vale para o texto exato aprovado. */
+  aprovacoesTexto: z.partialRecord(z.enum(CHAVES_TEXTO_APROVADO), z.object({ texto: z.string().min(1).max(2000) })).optional(),
 });
 
 export type EntradaConfigSecretaria = z.infer<typeof esquemaConfigSecretaria>;

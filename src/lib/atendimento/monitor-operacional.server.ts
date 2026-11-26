@@ -4,7 +4,7 @@ import type { Conversa } from '../mock-data';
 import type { CompromissoPJ } from '../projuris/agenda';
 import { registrarAviso } from './avisos-equipe';
 import { aplicarNovoHorario, aplicarVinculo, planejarSincronizacao, type ConversaAgenda } from './sincronizacao-agenda';
-import { avisarRegistroPendente, aguardaRegistro, registrarCancelamentoOficial } from './situacao-consulta';
+import { avisarRegistroPendente, aguardaRegistro, retomarPorAgenda, suspenderPorAgenda } from './situacao-consulta';
 import { dataOficial, horarioOficial } from './biblioteca/selecao';
 import { ID_MONITOR, INTERVALO_MONITOR_MIN, resumoSeguro, type EstadoMonitor, type ResultadoEtapa } from './monitor-estado';
 
@@ -33,23 +33,26 @@ export interface PortasAgendaMonitor {
 
 /**
  * Sincroniza as consultas das conversas com a agenda oficial. Falha do ProJuris não muda nada (próximo ciclo).
- * Cancelamento só com o compromisso conferido pelo código como concluído ou inexistente.
+ * Compromisso concluído/inexistente (conferido pelo código) antes do horário suspende as automações para a equipe
+ * conferir; nunca vira "cancelada", "realizada" ou "ausência" sozinho.
  */
 export async function sincronizarConsultasProjuris(db: Db, agora = new Date(), portas: PortasAgendaMonitor = {}) {
+  const vazio = () => ({ vinculadas: 0, atualizadas: 0, suspensas: 0, retomadas: 0, pendencias: [] as EstadoMonitor['pendenciasAgenda'], erro: undefined as string | undefined });
   const contatos = await db.from('atendimento_contatos_teste').select('conversa_id,contato_externo').eq('canal', 'ultramsg').eq('status', 'liberado');
   if (contatos.error) throw new Error('Contatos indisponíveis.');
   const porConversa = new Map((contatos.data ?? []).filter(c => c.conversa_id).map(c => [c.conversa_id as string, c.contato_externo]));
-  if (!porConversa.size) return { ok: true, vinculadas: 0, atualizadas: 0, canceladas: 0, pendencias: [] as EstadoMonitor['pendenciasAgenda'] };
-  const rows = await db.from('casos').select('id,owner_id,dados').in('id', [...porConversa.keys()]);
+  if (!porConversa.size) return { ok: true, ...vazio() };
+  const rows = await db.from('casos').select('id,owner_id,dados,updated_at').in('id', [...porConversa.keys()]);
   if (rows.error) throw new Error('Conversas indisponíveis.');
   const conversas: ConversaAgenda[] = rows.data.map(r => ({ id: r.id, conversa: r.dados as unknown as Conversa, contato: porConversa.get(r.id) }));
+  const atualizadas = new Map(rows.data.map(r => [r.id, (r as { updated_at?: string }).updated_at ?? '']));
   const listar = portas.listar ?? (async (i: number, f: number) => (await import('../projuris/agenda.server')).listarCompromissos(i, f));
   const situacao = portas.situacao ?? (async (codigo: number) => (await import('../projuris/agenda.server')).situacaoCompromisso(codigo));
   let compromissos: CompromissoPJ[];
   try { compromissos = await listar(agora.getTime() - 2 * 3600000, agora.getTime() + 15 * 86400000); }
-  catch { return { ok: false, erro: 'Agenda do ProJuris indisponível; nada foi alterado.', vinculadas: 0, atualizadas: 0, canceladas: 0, pendencias: [] as EstadoMonitor['pendenciasAgenda'] }; }
+  catch { return { ok: false, ...vazio(), erro: 'Agenda do ProJuris indisponível; nada foi alterado.' }; }
   const { atualizarConversa } = await import('./ana.server');
-  const resultado = { ok: true, vinculadas: 0, atualizadas: 0, canceladas: 0, pendencias: [] as EstadoMonitor['pendenciasAgenda'] };
+  const resultado = { ok: true, ...vazio() };
   for (const acao of planejarSincronizacao(compromissos, conversas, agora)) {
     if (acao.tipo === 'vincular') {
       let feito = false;
@@ -66,21 +69,28 @@ export async function sincronizarConsultasProjuris(db: Db, agora = new Date(), p
       await atualizarConversa(db, acao.conversaId, x => x.agenteAna?.reservaCalendar?.id === `pj:${acao.compromisso.codigo}` ? aplicarNovoHorario(x, acao.compromisso, agora) : x);
       resultado.atualizadas++;
     } else if (acao.tipo === 'verificar_cancelamento') {
+      // Concluído/inexistente não prova cancelamento: antes do horário, suspende e pede conferência; erro não muda nada.
       const s = await situacao(acao.codigo);
       if (s !== 'concluido' && s !== 'ausente') continue;
-      let cancelada = false;
+      let suspensa = false;
       await atualizarConversa(db, acao.conversaId, x => {
-        cancelada = false;
+        suspensa = false;
         if (x.agenteAna?.reservaCalendar?.id !== `pj:${acao.codigo}` || !x.consultaAgendada) return x;
-        cancelada = true;
-        const inicio = x.consultaAgendada;
-        return registrarAviso(registrarCancelamentoOficial(x, s === 'concluido' ? 'compromisso concluído no ProJuris' : 'compromisso não existe mais no ProJuris', agora), { id: `agenda-cancelada:${inicio}`, tipo: 'projuris', criadoEm: agora.toISOString(), texto: `A consulta de ${dataOficial(inicio)} às ${horarioOficial(inicio)} foi concluída ou removida no ProJuris: lembrete e confirmação suspensos.` }, false);
+        const y = suspenderPorAgenda(x, s === 'concluido' ? 'compromisso concluído no ProJuris antes do horário' : 'compromisso não encontrado no ProJuris', agora);
+        suspensa = y !== x;
+        return y;
       });
-      if (cancelada) resultado.canceladas++;
+      if (suspensa) resultado.suspensas++;
+    } else if (acao.tipo === 'retomar') {
+      await atualizarConversa(db, acao.conversaId, x => x.agenteAna?.reservaCalendar?.id === `pj:${acao.compromisso.codigo}` ? retomarPorAgenda(x, agora) : x);
+      resultado.retomadas++;
     } else {
       const quando = new Date(acao.compromisso.inicioMs).toISOString();
       resultado.pendencias.push({ quando, titulo: acao.compromisso.titulo.slice(0, 80), motivo: acao.motivo });
-      if (acao.conversaId) await atualizarConversa(db, acao.conversaId, x => registrarAviso(x, { id: `agenda-pendencia:${acao.compromisso.codigo}`, tipo: 'projuris', criadoEm: agora.toISOString(), texto: `Compromisso no ProJuris em ${dataOficial(quando)} às ${horarioOficial(quando)} parece deste cliente, mas ${acao.motivo}: conferir antes de qualquer automação.` }, false));
+      // Reserva órfã: só avisa na conversa se ela não mudou nos últimos 10 min (evita alarme falso durante uma reserva em curso).
+      const alteradaEm = Date.parse(atualizadas.get(acao.conversaId ?? '') ?? '');
+      const recente = !!acao.reconciliacao && Number.isFinite(alteradaEm) && agora.getTime() - alteradaEm < 10 * 60000;
+      if (acao.conversaId && !recente) await atualizarConversa(db, acao.conversaId, x => registrarAviso(x, { id: `agenda-pendencia:${acao.compromisso.codigo}`, tipo: 'projuris', prioridade: !!acao.reconciliacao, criadoEm: agora.toISOString(), texto: acao.reconciliacao ? `Compromisso no ProJuris em ${dataOficial(quando)} às ${horarioOficial(quando)}: ${acao.motivo}.` : `Compromisso no ProJuris em ${dataOficial(quando)} às ${horarioOficial(quando)} parece deste cliente, mas ${acao.motivo}: conferir antes de qualquer automação.` }, false));
     }
   }
   return resultado;
@@ -106,10 +116,53 @@ export async function avisarRegistrosPendentes(db: Db, agora = new Date()) {
   return { avisos };
 }
 
-type Etapa = { nome: string; quando?: (agora: Date, anterior: EstadoMonitor | undefined) => string | undefined; executar: () => Promise<Record<string, unknown>> };
+type Etapa = { nome: string; quando?: (agora: Date, anterior: EstadoMonitor | undefined) => string | undefined; executar: () => Promise<Record<string, unknown>>; limiteMs?: number };
 
-/** Executa todas as automações em ordem de prioridade, dentro do orçamento de tempo, e grava o estado. */
-export async function executarMonitorOperacional(db: Db, request: Request, agora = new Date(), opcoes: { relogio?: () => number; portasAgenda?: PortasAgendaMonitor; etapas?: Etapa[] } = {}): Promise<EstadoMonitor> {
+/** Trava do ciclo (linha própria em `ana_monitoramento`): dois disparos simultâneos nunca executam juntos. */
+export const ID_TRAVA_MONITOR = 'monitor-operacional-trava';
+/** Trava vencida (ciclo interrompido no meio) pode ser retomada depois deste tempo. */
+const TRAVA_MS = 2 * 60000;
+/** Tempo máximo de uma etapa; a etapa lenta vira falha registrada e as demais continuam. */
+const LIMITE_ETAPA_MS = 20000;
+/** Abaixo disto de orçamento restante, a etapa fica para o próximo ciclo (com prioridade). */
+const MINIMO_RESTANTE_MS = 5000;
+
+async function adquirirTrava(db: Db, agora: Date, token: string): Promise<boolean> {
+  const nova = await db.from('ana_monitoramento').insert({ id: ID_TRAVA_MONITOR, estado: { token } as unknown as Json, verificado_em: agora.toISOString() });
+  if (!nova.error) return true;
+  // Já existe: só toma a trava vencida (atualização condicional, atômica na linha).
+  const vencida = await db.from('ana_monitoramento').update({ estado: { token } as unknown as Json, verificado_em: agora.toISOString() })
+    .eq('id', ID_TRAVA_MONITOR).lt('verificado_em', new Date(agora.getTime() - TRAVA_MS).toISOString()).select('id');
+  return !vencida.error && !!vencida.data?.length;
+}
+
+async function liberarTrava(db: Db, token: string) {
+  await db.from('ana_monitoramento').update({ verificado_em: new Date(0).toISOString() }).eq('id', ID_TRAVA_MONITOR).eq('estado->>token', token);
+}
+
+function comLimite<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limite = new Promise<never>((_, rej) => { timer = setTimeout(() => rej(new Error(`tempo limite de ${Math.round(ms / 1000)} s; continua no próximo ciclo`)), ms); });
+  return Promise.race([p, limite]).finally(() => { if (timer) clearTimeout(timer); });
+}
+
+export type ResultadoMonitor = EstadoMonitor | { ignorado: string };
+
+/**
+ * Executa todas as automações dentro do orçamento de tempo e grava o estado. Justiça: etapas adiadas no ciclo anterior
+ * rodam primeiro; cada etapa tem limite próprio; etapa adiada nunca é marcada como executada (mantém a data real).
+ */
+export async function executarMonitorOperacional(db: Db, request: Request, agora = new Date(), opcoes: { relogio?: () => number; portasAgenda?: PortasAgendaMonitor; etapas?: Etapa[]; token?: string } = {}): Promise<ResultadoMonitor> {
+  const token = opcoes.token ?? `${agora.getTime()}-${Math.random().toString(36).slice(2, 10)}`;
+  if (!(await adquirirTrava(db, agora, token))) return { ignorado: 'outra execução do monitor em andamento' };
+  try {
+    return await executarCiclo(db, request, agora, opcoes);
+  } finally {
+    await liberarTrava(db, token).catch(() => undefined);
+  }
+}
+
+async function executarCiclo(db: Db, request: Request, agora: Date, opcoes: { relogio?: () => number; portasAgenda?: PortasAgendaMonitor; etapas?: Etapa[] }): Promise<EstadoMonitor> {
   const relogio = opcoes.relogio ?? (() => Date.now());
   const comeco = relogio();
   const anteriorRow = await db.from('ana_monitoramento').select('estado').eq('id', ID_MONITOR).maybeSingle();
@@ -122,7 +175,7 @@ export async function executarMonitorOperacional(db: Db, request: Request, agora
   let pendenciasAgenda: EstadoMonitor['pendenciasAgenda'] = anterior?.pendenciasAgenda ?? [];
   let projuris: EstadoMonitor['integracoes']['projuris'] = 'nao_verificado';
   const etapas: Etapa[] = opcoes.etapas ?? [
-    { nome: 'agenda-projuris', executar: async () => { const r = await sincronizarConsultasProjuris(db, agora, opcoes.portasAgenda); projuris = r.ok ? 'ok' : 'falha'; if (!r.ok) throw new Error(r.erro); pendenciasAgenda = r.pendencias; return { vinculadas: r.vinculadas, atualizadas: r.atualizadas, canceladas: r.canceladas, pendencias: r.pendencias.length }; } },
+    { nome: 'agenda-projuris', executar: async () => { const r = await sincronizarConsultasProjuris(db, agora, opcoes.portasAgenda); projuris = r.ok ? 'ok' : 'falha'; if (!r.ok) throw new Error(r.erro); pendenciasAgenda = r.pendencias; return { vinculadas: r.vinculadas, atualizadas: r.atualizadas, suspensas: r.suspensas, retomadas: r.retomadas, pendencias: r.pendencias.length }; }, limiteMs: 25000 },
     { nome: 'confirmacoes', executar: async () => (await import('./confirmacao-consulta.server')).enviarConfirmacoesConsulta(db, agora) },
     { nome: 'lembretes', quando: () => (h >= 8 && h < 12 ? undefined : 'lembrete do dia só entre 8h e 12h ("Bom dia")'), executar: async () => (await import('./lembrete-consulta.server')).enviarLembretesConsulta(db, agora) },
     { nome: 'registro-consultas', executar: () => avisarRegistrosPendentes(db, agora) },
@@ -134,13 +187,23 @@ export async function executarMonitorOperacional(db: Db, request: Request, agora
     { nome: 'relatorio-diario', quando: () => (h >= 8 && h < 10 ? undefined : 'relatório só entre 8h e 10h'), executar: async () => (await import('./relatorio-diario.server')).enviarRelatorioDiario(db) as unknown as Promise<Record<string, unknown>> },
   ];
   const resultados: Record<string, ResultadoEtapa> = {};
-  for (const e of etapas) {
+  // Justiça: as etapas adiadas por falta de tempo no ciclo anterior vão para a frente (ordem relativa preservada).
+  const ordem = [...etapas.filter(e => anterior?.etapas?.[e.nome]?.adiada), ...etapas.filter(e => !anterior?.etapas?.[e.nome]?.adiada)];
+  const adiadas: string[] = [];
+  for (const e of ordem) {
     const inicio = relogio();
+    const previa = anterior?.etapas?.[e.nome];
     const pular = e.quando?.(agora, anterior);
-    if (pular) { resultados[e.nome] = { ...(anterior?.etapas?.[e.nome] ?? { ok: true, executadoEm: '', duracaoMs: 0 }), pulada: pular }; continue; }
-    if (inicio - comeco > ORCAMENTO_MS) { resultados[e.nome] = { ok: false, executadoEm: agora.toISOString(), duracaoMs: 0, pulada: 'tempo do ciclo esgotado; fica para o próximo' }; continue; }
+    if (pular) { resultados[e.nome] = { ...(previa ?? { ok: true, executadoEm: '', duracaoMs: 0 }), adiada: undefined, pulada: pular }; continue; }
+    const restante = ORCAMENTO_MS - (inicio - comeco);
+    if (restante < MINIMO_RESTANTE_MS) {
+      // Adiada não é executada: mantém a data e o resultado reais da última execução.
+      resultados[e.nome] = { ...(previa ?? { ok: true, executadoEm: '', duracaoMs: 0 }), pulada: 'tempo do ciclo esgotado; roda primeiro no próximo ciclo', adiada: true };
+      adiadas.push(e.nome);
+      continue;
+    }
     try {
-      const resumo = resumoSeguro(await e.executar());
+      const resumo = resumoSeguro(await comLimite(e.executar(), Math.min(e.limiteMs ?? LIMITE_ETAPA_MS, restante)));
       resultados[e.nome] = { ok: true, executadoEm: agora.toISOString(), duracaoMs: relogio() - inicio, resumo };
     } catch (error) {
       resultados[e.nome] = { ok: false, executadoEm: agora.toISOString(), duracaoMs: relogio() - inicio, erro: (error as Error)?.message?.slice(0, 200) ?? 'falha' };
@@ -153,11 +216,14 @@ export async function executarMonitorOperacional(db: Db, request: Request, agora
     duracaoMs: relogio() - comeco,
     ok: falhas.length === 0,
     etapas: resultados,
+    adiadas,
     integracoes: { projuris, whatsapp },
     pendenciasAgenda,
-    historico: [{ em: agora.toISOString(), ok: falhas.length === 0, duracaoMs: relogio() - comeco, falhas }, ...(anterior?.historico ?? [])].slice(0, HISTORICO),
+    historico: [{ em: agora.toISOString(), ok: falhas.length === 0, duracaoMs: relogio() - comeco, falhas, ...(adiadas.length ? { adiadas } : {}) }, ...(anterior?.historico ?? [])].slice(0, HISTORICO),
   };
-  await db.from('ana_monitoramento').upsert({ id: ID_MONITOR, estado: estado as unknown as Json, verificado_em: agora.toISOString() });
+  const gravado = await db.from('ana_monitoramento').upsert({ id: ID_MONITOR, estado: estado as unknown as Json, verificado_em: agora.toISOString() });
+  // Sem o registro gravado o painel mostraria um estado falso: a falha sobe para a rota (resposta 503 e log).
+  if (gravado.error) throw new Error('Estado do monitor não foi gravado.');
   // Auditoria só na transição (etapa que passou a falhar ou voltou a funcionar), sem uma linha a cada 5 minutos.
   const antes = anterior?.historico?.[0]?.falhas ?? [];
   const novas = falhas.filter(f => !antes.includes(f)), recuperadas = antes.filter(f => !falhas.includes(f));

@@ -2,9 +2,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import type { Conversa } from '../mock-data';
 import type { OfficeState } from '../office';
-import { newMessage } from '../atendimento';
+import { defaultAutomations, newMessage } from '../atendimento';
 import { mergeReplies, DEFAULT_REPLIES } from '../respostas-prontas';
 import { atualizarConversa } from './ana.server';
+import { registrarAviso } from './avisos-equipe';
+import { bloqueadoPorTeste, lerConfigSecretaria, textoAprovado } from './secretaria/config';
+import { decisaoRotina } from './secretaria/operacional';
+import { contextoRotina, reservarEnvioRotina } from './secretaria/rotinas';
+import { secretariaLigada } from './secretaria/secretaria.server';
 import { PERGUNTA_ENCERRAMENTO, chaveEvento, dataHoraDoEvento, deveEnviarEncerramento, eventoPodeAvisar, rascunhoAvisoEvento, tipoEventoProcessual, type EventoOficial } from './acompanhamento';
 import { hashTexto, mensagemRevisora, proximoCodigo, type PedidoProcesso } from './consulta-processo';
 import type { AndamentoPJ } from '../projuris/processos';
@@ -21,26 +26,45 @@ async function estadoDoDono(db: Db, conversaId: string) {
 /**
  * Pergunta de encerramento (S3/D4) logo depois de uma notícia aprovada ser entregue com recibo.
  * Uma vez por pedido; reservada antes do envio; nunca reenvia. Falha não desfaz a notícia já entregue.
+ * O texto não é da biblioteca oficial: só sai sozinho com o texto exato aprovado pela Dra. (senão, aviso com texto
+ * pronto). Secretaria ligada: o motor decide (Híbrido envia; Humano/Bloqueado não); desligada: regra anterior.
  */
 export async function enviarEncerramentoProcesso(db: Db, conversaId: string, contato: string, p: Pick<PedidoProcesso, 'codigo' | 'selecaoProcessos' | 'evento'>, acao: 'aprovar' | 'corrigir' | 'recusar') {
   const state = await estadoDoDono(db, conversaId);
   const texto = mergeReplies(state?.respostasProntas).find(r => r.id === PERGUNTA_ENCERRAMENTO.id)?.texto?.trim() || PERGUNTA_ENCERRAMENTO.texto;
+  const config = lerConfigSecretaria((state as { secretaria?: unknown } | undefined)?.secretaria);
+  const agoraData = new Date();
+  const agora = agoraData.toISOString();
+  if (bloqueadoPorTeste(config, contato)) return false;
+  if (!textoAprovado(config, 'pergunta_encerramento', texto)) {
+    await atualizarConversa(db, conversaId, x => deveEnviarEncerramento(p, acao, x.agenteAna?.encerramentoProcesso)
+      ? registrarAviso(x, { id: `encerramento-aprovacao:${p.codigo}`, tipo: 'projuris', criadoEm: agora, texto: 'Notícia processual entregue. Pergunta de encerramento não enviada: texto ainda não aprovado pela Dra. em Automações → Secretaria digital. Texto pronto para enviar.', textoPronto: texto }, false)
+      : x);
+    return false;
+  }
+  const ctx = secretariaLigada(state) ? contextoRotina({ state, agenteAtivo: true, canalAtivo: true, contato, modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA, config }) : undefined;
+  const automacaoId = `encerramento_processo:${p.codigo}`;
   let reservado = false;
-  const agora = new Date().toISOString();
   await atualizarConversa(db, conversaId, x => {
     reservado = false;
-    if (!deveEnviarEncerramento(p, acao, x.agenteAna?.encerramentoProcesso) || x.agenteAna?.humano || x.agenteAna?.pausa) return x;
+    if (!deveEnviarEncerramento(p, acao, x.agenteAna?.encerramentoProcesso)) return x;
+    if (ctx) {
+      // Motor: Híbrido envia; Humano/Bloqueado/equipe escrevendo agora/permissão desligada não — vira aviso com texto pronto.
+      const d = decisaoRotina(x, ctx, 'acompanhamento_aprovado', { agora: agoraData, dadosVerificados: true });
+      if (d.resultado !== 'executar') return d.resultado === 'ignorar' ? x : registrarAviso(x, { id: `encerramento-nao-enviado:${p.codigo}`, tipo: 'projuris', criadoEm: agora, texto: `Notícia entregue; pergunta de encerramento não enviada pela Anne: ${d.texto}`.slice(0, 300), textoPronto: texto }, false);
+    } else if (x.agenteAna?.humano || x.agenteAna?.pausa) return x;
     reservado = true;
-    return { ...x, agenteAna: { ...x.agenteAna, encerramentoProcesso: { codigo: p.codigo, reservadoEm: agora }, envioAna: { mensagemId: `encerramento:${p.codigo}`, texto, desde: agora } } };
+    const comReserva = { ...x, agenteAna: { ...x.agenteAna, encerramentoProcesso: { codigo: p.codigo, reservadoEm: agora }, envioAna: { mensagemId: `encerramento:${p.codigo}`, texto, desde: agora } } };
+    return ctx ? reservarEnvioRotina(comReserva, automacaoId, texto, agoraData) : comReserva;
   });
   if (!reservado) return false;
   const { enviarMensagemSistema } = await import('./envio.functions');
-  const sent = await enviarMensagemSistema({ supabase: db, conversaId, texto, contatoEsperado: contato, motivo: 'encerramento_processo' });
+  const sent = await enviarMensagemSistema({ supabase: db, conversaId, texto, contatoEsperado: contato, motivo: 'encerramento_processo', ...(ctx ? { automacaoId } : {}) });
   if (sent.simulado) throw new Error('Canal desligado; pergunta não enviada.');
   await atualizarConversa(db, conversaId, x => ({
     ...x,
-    agenteAna: { ...x.agenteAna, encerramentoProcesso: { codigo: p.codigo, reservadoEm: agora, enviadoEm: new Date().toISOString(), idExterno: sent.idExterno } },
-    mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada' })],
+    agenteAna: { ...x.agenteAna, encerramentoProcesso: { codigo: p.codigo, reservadoEm: agora, enviadoEm: new Date().toISOString(), idExterno: sent.idExterno }, secretaria: x.agenteAna?.secretaria?.envio?.automacaoId === automacaoId ? { ...x.agenteAna.secretaria, envio: undefined } : x.agenteAna?.secretaria },
+    mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada', ...(ctx ? { automacaoKey: automacaoId } : {}) })],
   }));
   return true;
 }

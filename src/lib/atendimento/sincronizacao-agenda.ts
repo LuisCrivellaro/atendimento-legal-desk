@@ -24,7 +24,18 @@ export type AcaoAgenda =
   | { tipo: 'vincular'; conversaId: string; compromisso: CompromissoPJ; evidencia: 'telefone' | 'nome do cadastro' }
   | { tipo: 'atualizar_horario'; conversaId: string; compromisso: CompromissoPJ }
   | { tipo: 'verificar_cancelamento'; conversaId: string; codigo: number }
-  | { tipo: 'pendencia'; compromisso: CompromissoPJ; motivo: string; conversaId?: string | undefined };
+  /** Compromisso voltou a aparecer ativo: a suspensão por conferência da agenda deixa de valer. */
+  | { tipo: 'retomar'; conversaId: string; compromisso: CompromissoPJ }
+  | { tipo: 'pendencia'; compromisso: CompromissoPJ; motivo: string; conversaId?: string | undefined; reconciliacao?: boolean };
+
+/** Motivo da pendência de reconciliação (reserva do Manager ADV no ProJuris sem consulta correspondente na conversa). */
+export const MOTIVO_RESERVA_ORFA = 'reserva da Anne ativa no ProJuris sem consulta correspondente na conversa (gravação local falhou ou duplicidade): confirmar com o cliente ou concluir o compromisso no ProJuris';
+
+/** Conversa de origem de um compromisso criado pelo Manager ADV (`manageradv:consulta:<conversa>:<inicioMs>`). */
+export function conversaDoCodigoExterno(codigoExterno: string | undefined): { conversaId: string; inicioMs: number } | undefined {
+  const m = /^manageradv:consulta:([^:]+):(\d+)$/.exec(codigoExterno ?? '');
+  return m ? { conversaId: m[1]!, inicioMs: Number(m[2]) } : undefined;
+}
 
 /** Janela olhada pelo monitor: de 2 h atrás até 15 dias à frente. */
 export const JANELA_SINCRONIZACAO = { antesMs: 2 * 3600000, depoisMs: 15 * 86400000 } as const;
@@ -58,8 +69,10 @@ export function planejarSincronizacao(compromissos: CompromissoPJ[], conversas: 
     const inicio = Date.parse(r.inicio);
     if (!Number.isFinite(inicio) || inicio < ini || inicio > fim || item.conversa.consultaAgendada !== r.inicio) continue;
     const c = porCodigo.get(codigo);
-    if (!c) acoes.push({ tipo: 'verificar_cancelamento', conversaId: item.id, codigo });
+    const suspensa = item.conversa.agenteAna?.consultaSuspensa?.inicio === r.inicio;
+    if (!c) { if (!suspensa) acoes.push({ tipo: 'verificar_cancelamento', conversaId: item.id, codigo }); }
     else if (c.inicioMs !== inicio || c.fimMs !== Date.parse(r.fim)) acoes.push({ tipo: 'atualizar_horario', conversaId: item.id, compromisso: c });
+    else if (suspensa) acoes.push({ tipo: 'retomar', conversaId: item.id, compromisso: c });
   }
 
   // 2. Compromissos marcados direto no ProJuris (sem codigoExterno do Manager ADV) ainda sem conversa.
@@ -76,7 +89,18 @@ export function planejarSincronizacao(compromissos: CompromissoPJ[], conversas: 
   });
   for (const c of compromissos) {
     if (vinculados.has(c.codigo) || c.concluido || c.inicioMs <= agora.getTime() || c.inicioMs > fim) continue;
-    if (c.codigoExterno?.startsWith(PREFIXO_EXTERNO_MANAGER)) continue;
+    if (c.codigoExterno?.startsWith(PREFIXO_EXTERNO_MANAGER)) {
+      // Reconciliação: reserva criada pela Anne (identificador estruturado da conversa) sem recibo local. Nunca vincula
+      // sozinha — o cliente pode ter recebido "não consegui concluir a reserva" —, vira pendência para a equipe.
+      const origem = conversaDoCodigoExterno(c.codigoExterno);
+      const item = origem ? conversas.find(x => x.id === origem.conversaId) : undefined;
+      if (!item) continue;
+      const reserva = item.conversa.agenteAna?.reservaCalendar;
+      if (reserva?.pendenteProjuris?.codigoExterno === c.codigoExterno) continue; // lançamento da reserva provisória em curso
+      if (item.conversa.consultaAgendada && Date.parse(item.conversa.consultaAgendada) === c.inicioMs && reserva && codigoDaReserva(reserva.id) === undefined) continue;
+      acoes.push({ tipo: 'pendencia', compromisso: c, conversaId: item.id, motivo: MOTIVO_RESERVA_ORFA, reconciliacao: true });
+      continue;
+    }
     const texto = `${c.titulo} ${c.descricao ?? ''}`;
     const porFone = new Set(telefonesNoTexto(texto).flatMap(k => porTelefone.get(k) ?? []));
     const t = fold(texto);

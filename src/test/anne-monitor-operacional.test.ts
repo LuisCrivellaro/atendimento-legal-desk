@@ -5,7 +5,7 @@ import { conversas, type Conversa } from '@/lib/mock-data';
 import { defaultState, type OfficeState } from '@/lib/office';
 import type { CompromissoPJ } from '@/lib/projuris/agenda';
 import { planejarSincronizacao, telefonesNoTexto, type ConversaAgenda } from '@/lib/atendimento/sincronizacao-agenda';
-import { avisarRegistrosPendentes, executarMonitorOperacional, sincronizarConsultasProjuris, type PortasAgendaMonitor } from '@/lib/atendimento/monitor-operacional.server';
+import { avisarRegistrosPendentes, executarMonitorOperacional, ID_TRAVA_MONITOR, sincronizarConsultasProjuris, type PortasAgendaMonitor, type ResultadoMonitor } from '@/lib/atendimento/monitor-operacional.server';
 import { monitorAtrasado, resumoSeguro, type EstadoMonitor } from '@/lib/atendimento/monitor-estado';
 import { enviarConfirmacoesConsulta } from '@/lib/atendimento/confirmacao-consulta.server';
 import { enviarLembretesConsulta } from '@/lib/atendimento/lembrete-consulta.server';
@@ -38,14 +38,17 @@ function compromisso(codigo: number, inicio: string, extra: Partial<CompromissoP
 function criarDb(casos: Record<string, Conversa>, opts: { workspace?: OfficeState; contatos?: { conversa_id: string; contato_externo: string }[] } = {}) {
   const store = new Map(Object.entries(casos).map(([id, dados]) => [id, { owner_id: 'owner-1', dados: JSON.parse(JSON.stringify(dados)) as Conversa, rev: 0 }]));
   const monitor = new Map<string, unknown>();
+  const verificados = new Map<string, string>();
   const audit: Record<string, unknown>[] = [];
+  const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
   const contatos = opts.contatos ?? [...store.keys()].map(id => ({ conversa_id: id, contato_externo: CONTATO }));
   const db = {
     from(table: string) {
       const filtros: { col: string; op: string; val: unknown }[] = [];
       let cols = '';
-      let patch: { dados: Conversa } | undefined;
-      let upsert: { id: string; estado: unknown } | undefined;
+      let patch: { dados?: Conversa; estado?: unknown; verificado_em?: string } | undefined;
+      let upsert: { id: string; estado: unknown; verificado_em?: string } | undefined;
+      let insert: { id: string; estado: unknown; verificado_em?: string } | undefined;
       const exec = (single: boolean) => {
         if (table === 'atendimento_canal_config') return { error: null, data: { canal_ativo: 'ultramsg', agente_ativo: true } };
         if (table === 'atendimento_contatos_teste') {
@@ -54,17 +57,32 @@ function criarDb(casos: Record<string, Conversa>, opts: { workspace?: OfficeStat
         }
         if (table === 'office_workspace') return { error: null, data: single ? { dados: opts.workspace ?? defaultState } : [{ owner_id: 'owner-1', dados: opts.workspace ?? defaultState }] };
         if (table === 'ana_monitoramento') {
-          if (upsert) { monitor.set(upsert.id, JSON.parse(JSON.stringify(upsert.estado))); return { error: null, data: null }; }
           const id = filtros.find(f => f.col === 'id')?.val as string;
+          if (insert) {
+            if (monitor.has(insert.id)) return { error: { code: '23505', message: 'duplicate key' }, data: null };
+            monitor.set(insert.id, clone(insert.estado)); verificados.set(insert.id, insert.verificado_em ?? '');
+            return { error: null, data: null };
+          }
+          if (upsert) { monitor.set(upsert.id, clone(upsert.estado)); verificados.set(upsert.id, upsert.verificado_em ?? ''); return { error: null, data: null }; }
+          if (patch) {
+            if (!monitor.has(id)) return { error: null, data: [] };
+            const lt = filtros.find(f => f.op === 'lt');
+            if (lt && !((verificados.get(id) ?? '') < String(lt.val))) return { error: null, data: [] };
+            const tok = filtros.find(f => f.col === 'estado->>token');
+            if (tok && (monitor.get(id) as { token?: string } | undefined)?.token !== tok.val) return { error: null, data: [] };
+            if (patch.estado !== undefined) monitor.set(id, clone(patch.estado));
+            if (patch.verificado_em) verificados.set(id, patch.verificado_em);
+            return { error: null, data: [{ id }] };
+          }
           return { error: null, data: monitor.has(id) ? { estado: monitor.get(id) } : null };
         }
         if (table === 'casos') {
           const id = filtros.find(f => f.col === 'id' && f.op === 'eq')?.val as string | undefined;
           const rev = filtros.find(f => f.col === 'updated_at')?.val as string | undefined;
-          if (patch && id) {
+          if (patch?.dados && id) {
             const row = store.get(id);
             if (!row || (rev !== undefined && rev !== String(row.rev))) return { error: null, data: [] };
-            row.dados = JSON.parse(JSON.stringify(patch.dados)) as Conversa; row.rev++;
+            row.dados = clone(patch.dados); row.rev++;
             return { error: null, data: [{ id }] };
           }
           if (single && id) { const row = store.get(id); return { error: null, data: row ? { owner_id: row.owner_id, dados: JSON.parse(JSON.stringify(row.dados)) as Conversa, updated_at: String(row.rev) } : null }; }
@@ -79,8 +97,10 @@ function criarDb(casos: Record<string, Conversa>, opts: { workspace?: OfficeStat
         eq: (col: string, val: unknown) => { filtros.push({ col, op: 'eq', val }); return q; },
         not: (col: string, _op: string, val: unknown) => { filtros.push({ col, op: 'not', val }); return q; },
         in: (col: string, val: unknown) => { filtros.push({ col, op: 'in', val }); return q; },
-        update: (v: { dados: Conversa }) => { patch = v; return q; },
-        upsert: (v: { id: string; estado: unknown }) => { upsert = v; return q; },
+        lt: (col: string, val: unknown) => { filtros.push({ col, op: 'lt', val }); return q; },
+        update: (v: { dados?: Conversa; estado?: unknown; verificado_em?: string }) => { patch = v; return q; },
+        upsert: (v: { id: string; estado: unknown; verificado_em?: string }) => { upsert = v; return q; },
+        insert: (v: { id: string; estado: unknown; verificado_em?: string }) => { insert = v; return q; },
         single: async () => exec(true), maybeSingle: async () => exec(true),
         then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) => Promise.resolve(exec(false)).then(res, rej),
       };
@@ -88,7 +108,13 @@ function criarDb(casos: Record<string, Conversa>, opts: { workspace?: OfficeStat
     },
     rpc: async (_nome: string, args: Record<string, unknown>) => { audit.push(args); return { error: null }; },
   };
-  return { db: db as unknown as SupabaseClient<Database>, ler: (id = 'c-1') => store.get(id)?.dados as Conversa, audit, monitor, alterar: (id: string, fn: (c: Conversa) => Conversa) => { const r = store.get(id); if (r) r.dados = fn(r.dados); } };
+  return { db: db as unknown as SupabaseClient<Database>, ler: (id = 'c-1') => store.get(id)?.dados as Conversa, audit, monitor, verificados, alterar: (id: string, fn: (c: Conversa) => Conversa) => { const r = store.get(id); if (r) r.dados = fn(r.dados); } };
+}
+
+/** Resultado de um ciclo que executou (não ignorado pela trava). */
+function est(r: ResultadoMonitor): EstadoMonitor {
+  if ('ignorado' in r) throw new Error(r.ignorado);
+  return r;
 }
 
 beforeEach(() => { mocks.enviar.mockReset(); mocks.enviar.mockResolvedValue({ ok: true, simulado: false, canal: 'ultramsg', idExterno: 'wamid-1' }); });
@@ -161,23 +187,58 @@ describe('consulta criada no ProJuris: sincronização, confirmação e cancelam
     expect(mocks.enviar.mock.calls[0]?.[0].texto).toContain('às 16h');
   });
 
-  it('compromisso sumiu e o ProJuris confirma que foi concluído/excluído: consulta cancelada, nada é enviado', async () => {
+  it('compromisso concluído/excluído no ProJuris antes do horário: não vira "cancelada"; automações suspensas e equipe avisada', async () => {
     const { db, ler } = criarDb({ 'c-1': conversa() });
     await sincronizarConsultasProjuris(db, SP('09:00'), { listar: async () => [compromisso(703, iso('14:30'))] });
-    expect(await sincronizarConsultasProjuris(db, SP('10:00'), { listar: async () => [], situacao: async () => 'ausente' })).toMatchObject({ canceladas: 1 });
+    expect(await sincronizarConsultasProjuris(db, SP('10:00'), { listar: async () => [], situacao: async () => 'concluido' })).toMatchObject({ suspensas: 1 });
+    expect(await sincronizarConsultasProjuris(db, SP('10:05'), { listar: async () => [], situacao: async () => 'concluido' })).toMatchObject({ suspensas: 0 });
     const c = ler();
-    expect(c.consultaAgendada).toBeUndefined();
-    expect(situacaoConsulta(c).estado).toBe('cancelada');
-    expect(c.avisosEquipe?.some(a => a.id === `agenda-cancelada:${iso('14:30')}`)).toBe(true);
+    expect(c.consultaAgendada).toBe(iso('14:30'));
+    expect(situacaoConsulta(c).estado).toBe('agendada');
+    expect(c.avisosEquipe?.filter(a => a.id === `agenda-suspensa:${iso('14:30')}` && a.prioridade)).toHaveLength(1);
     expect((await enviarConfirmacoesConsulta(db, SP('12:30'))).enviados).toBe(0);
     expect(mocks.enviar).not.toHaveBeenCalled();
+    // Equipe reabre o compromisso no ProJuris: as automações voltam sozinhas.
+    expect(await sincronizarConsultasProjuris(db, SP('12:00'), { listar: async () => [compromisso(703, iso('14:30'))] })).toMatchObject({ retomadas: 1 });
+    expect(ler().agenteAna?.consultaSuspensa).toBeUndefined();
+    expect(ler().avisosEquipe?.find(a => a.id === `agenda-suspensa:${iso('14:30')}`)?.resolvidoEm).toBeTruthy();
+    expect((await enviarConfirmacoesConsulta(db, SP('12:30'))).enviados).toBe(1);
+  });
+
+  it('compromisso concluído depois do início (consulta aconteceu): nada muda, a equipe registra realizada/ausência', async () => {
+    const { db, ler } = criarDb({ 'c-1': conversa() });
+    await sincronizarConsultasProjuris(db, SP('09:00'), { listar: async () => [compromisso(706, iso('14:30'))] });
+    expect(await sincronizarConsultasProjuris(db, SP('15:10'), { listar: async () => [], situacao: async () => 'concluido' })).toMatchObject({ suspensas: 0 });
+    expect(ler().agenteAna?.consultaSuspensa).toBeUndefined();
+    expect(situacaoConsulta(ler()).estado).toBe('agendada');
+  });
+
+  it('reconciliação: reserva da Anne no ProJuris sem gravação local vira pendência (nunca vínculo silencioso nem nova reserva)', async () => {
+    const { db, ler } = criarDb({ 'c-1': conversa() });
+    const orfa = compromisso(707, iso('15:00'), { codigoExterno: `manageradv:consulta:c-1:${Date.parse(iso('15:00'))}`, titulo: 'Consulta - Maria Teste' });
+    const r1 = await sincronizarConsultasProjuris(db, SP('09:00'), { listar: async () => [orfa] });
+    expect(r1.pendencias).toEqual([expect.objectContaining({ motivo: expect.stringMatching(/reserva da Anne/) })]);
+    expect(ler().consultaAgendada).toBeUndefined();
+    expect(ler().agenteAna?.reservaCalendar).toBeUndefined();
+    expect(ler().avisosEquipe?.find(a => a.id === 'agenda-pendencia:707')).toMatchObject({ prioridade: true });
+    expect((await enviarConfirmacoesConsulta(db, SP('13:00'))).enviados).toBe(0);
+  });
+
+  it('reserva da Anne já vinculada à conversa ou em lançamento provisório: sem pendência', async () => {
+    const externo = `manageradv:consulta:c-1:${Date.parse(iso('15:00'))}`;
+    const vinculada = conversa({ consultaAgendada: iso('15:00') }, { reservaCalendar: { id: 'pj:708', inicio: iso('15:00'), fim: iso('15:30') } });
+    const a = criarDb({ 'c-1': vinculada });
+    expect((await sincronizarConsultasProjuris(a.db, SP('09:00'), { listar: async () => [compromisso(708, iso('15:00'), { codigoExterno: externo })] })).pendencias).toEqual([]);
+    const provisoria = conversa({ consultaAgendada: iso('15:00') }, { reservaCalendar: { id: 'google-1', inicio: iso('15:00'), fim: iso('15:30'), pendenteProjuris: { titulo: 't', descricao: 'd', codigoExterno: externo } } });
+    const b = criarDb({ 'c-1': provisoria });
+    expect((await sincronizarConsultasProjuris(b.db, SP('09:00'), { listar: async () => [compromisso(709, iso('15:00'), { codigoExterno: externo })] })).pendencias).toEqual([]);
   });
 
   it('falha do ProJuris (listagem ou conferência): nada é alterado nem cancelado', async () => {
     const { db, ler } = criarDb({ 'c-1': conversa() });
     await sincronizarConsultasProjuris(db, SP('09:00'), { listar: async () => [compromisso(704, iso('14:30'))] });
     expect(await sincronizarConsultasProjuris(db, SP('10:00'), { listar: async () => { throw new Error('503'); } })).toMatchObject({ ok: false });
-    expect(await sincronizarConsultasProjuris(db, SP('10:05'), { listar: async () => [], situacao: async () => 'erro' })).toMatchObject({ ok: true, canceladas: 0 });
+    expect(await sincronizarConsultasProjuris(db, SP('10:05'), { listar: async () => [], situacao: async () => 'erro' })).toMatchObject({ ok: true, suspensas: 0 });
     expect(ler().consultaAgendada).toBe(iso('14:30'));
     expect(ler().agenteAna?.reservaCalendar?.id).toBe('pj:704');
   });
@@ -240,8 +301,48 @@ describe('monitor operacional central', () => {
     expect(estado.etapas['agenda-projuris']).toMatchObject({ ok: true });
     expect(estado.historico).toHaveLength(3);
     // Presença: lembrete enviado às 9h05 → a confirmação das 12h30 respeita a política (sem redundância de 90 min, sai).
-    const tarde = await executarMonitorOperacional(db, new Request('http://localhost'), SP('12:30'), { etapas: etapas(SP('12:30')) });
+    const tarde = est(await executarMonitorOperacional(db, new Request('http://localhost'), SP('12:30'), { etapas: etapas(SP('12:30')) }));
     expect(tarde.etapas['confirmacoes']?.resumo).toMatchObject({ enviados: 1 });
+  });
+
+  it('dois disparos simultâneos: a trava deixa só um executar; trava presa de ciclo interrompido é retomada depois de 2 min', async () => {
+    const { db, monitor, verificados } = criarDb({});
+    let liberar!: () => void;
+    const espera = new Promise<void>(r => { liberar = r; });
+    let execucoes = 0;
+    const lenta = executarMonitorOperacional(db, new Request('http://localhost'), SP('09:00'), { etapas: [{ nome: 'a', executar: async () => { execucoes++; await espera; return {}; } }] });
+    const segunda = await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:00'), { etapas: [{ nome: 'a', executar: async () => { execucoes++; return {}; } }] });
+    expect(segunda).toEqual({ ignorado: expect.stringMatching(/outra execução/) });
+    liberar();
+    expect('ignorado' in (await lenta)).toBe(false);
+    expect(execucoes).toBe(1);
+    expect('ignorado' in (await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:05'), { etapas: [] }))).toBe(false);
+    // Ciclo interrompido no meio deixou a trava presa às 9h06.
+    monitor.set(ID_TRAVA_MONITOR, { token: 'ciclo-interrompido' }); verificados.set(ID_TRAVA_MONITOR, SP('09:06').toISOString());
+    expect(await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:07'), { etapas: [] })).toEqual({ ignorado: expect.any(String) });
+    expect('ignorado' in (await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:10'), { etapas: [] }))).toBe(false);
+  });
+
+  it('etapa lenta (integração travada) vira falha por tempo limite e as demais continuam', async () => {
+    const { db } = criarDb({});
+    const r = est(await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:00'), { etapas: [
+      { nome: 'travada', limiteMs: 30, executar: () => new Promise<Record<string, unknown>>(() => undefined) },
+      { nome: 'seguinte', executar: async () => ({ enviados: 0 }) },
+    ] }));
+    expect(r.etapas['travada']).toMatchObject({ ok: false, erro: expect.stringMatching(/tempo limite/) });
+    expect(r.etapas['seguinte']).toMatchObject({ ok: true });
+  });
+
+  it('gravação do estado falhou: o ciclo não finge sucesso', async () => {
+    const { db } = criarDb({});
+    const solto = db as unknown as { from: (t: string) => unknown };
+    const original = solto.from.bind(solto);
+    solto.from = (t: string) => {
+      const q = original(t) as Record<string, unknown>;
+      if (t === 'ana_monitoramento') q['upsert'] = () => ({ then: (res: (v: unknown) => unknown) => Promise.resolve({ error: { message: 'falha' }, data: null }).then(res) });
+      return q;
+    };
+    await expect(executarMonitorOperacional(db, new Request('http://localhost'), SP('09:00'), { etapas: [] })).rejects.toThrow(/não foi gravado/);
   });
 
   it('falha numa etapa (ex.: UltraMsg fora) não impede as outras; auditoria só na transição', async () => {
@@ -250,7 +351,7 @@ describe('monitor operacional central', () => {
       { nome: 'confirmacoes', executar: async () => { throw new Error('UltraMsg indisponível'); } },
       { nome: 'lembretes', executar: async () => ({ enviados: 0 }) },
     ];
-    const r1 = await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:00'), { etapas });
+    const r1 = est(await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:00'), { etapas }));
     expect(r1.ok).toBe(false);
     expect(r1.etapas['confirmacoes']).toMatchObject({ ok: false, erro: 'UltraMsg indisponível' });
     expect(r1.etapas['lembretes']).toMatchObject({ ok: true });
@@ -261,13 +362,21 @@ describe('monitor operacional central', () => {
     expect((monitor.get('monitor-operacional') as EstadoMonitor).ok).toBe(true);
   });
 
-  it('tempo do ciclo esgotado: as etapas restantes ficam para o próximo ciclo, sem falha falsa', async () => {
+  it('tempo do ciclo esgotado: etapa adiada não é marcada como executada e roda primeiro no ciclo seguinte', async () => {
     const { db } = criarDb({});
     let t = 0;
-    const r = await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:00'), { relogio: () => (t += 30000), etapas: [{ nome: 'a', executar: async () => ({}) }, { nome: 'b', executar: async () => ({}) }] });
+    const ordem: string[] = [];
+    const etapas = [{ nome: 'a', executar: async () => { ordem.push('a'); return {}; } }, { nome: 'b', executar: async () => { ordem.push('b'); return {}; } }];
+    const r = est(await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:00'), { relogio: () => (t += 30000), etapas }));
     expect(r.etapas['a']?.ok).toBe(true);
-    expect(r.etapas['b']).toMatchObject({ pulada: expect.stringMatching(/tempo do ciclo/) });
+    expect(r.etapas['b']).toMatchObject({ adiada: true, executadoEm: '', pulada: expect.stringMatching(/tempo do ciclo/) });
+    expect(r.adiadas).toEqual(['b']);
     expect(r.ok).toBe(true);
+    ordem.length = 0;
+    const r2 = est(await executarMonitorOperacional(db, new Request('http://localhost'), SP('09:05'), { etapas }));
+    expect(ordem).toEqual(['b', 'a']);
+    expect(r2.etapas['b']).toMatchObject({ ok: true, executadoEm: SP('09:05').toISOString() });
+    expect(r2.etapas['b']?.adiada).toBeUndefined();
   });
 
   it('rotina parada: alerta quando a última execução tem mais de 15 minutos (ou nunca rodou)', () => {

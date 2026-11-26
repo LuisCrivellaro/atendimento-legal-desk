@@ -10,7 +10,7 @@ import { consultaNoDia, decidirConfirmacao40, faseConfirmacao, textoAvisoConfirm
 import { secretariaLigada } from './secretaria/secretaria.server';
 import { lerBiblioteca } from './biblioteca/renderizar';
 import { bloqueadoPorTeste, lerConfigSecretaria } from './secretaria/config';
-import { situacaoConsulta } from './situacao-consulta';
+import { consultaSuspensa, situacaoConsulta } from './situacao-consulta';
 import { politicaConsultaDia } from './biblioteca/selecao';
 import { concluirEnvioRotina, contextoRotina, decidirConfirmacaoSecretaria, motorPermiteRotina, reservarEnvioRotina } from './secretaria/rotinas';
 
@@ -67,6 +67,8 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
     const configSec = lerConfigSecretaria((state as { secretaria?: unknown } | undefined)?.secretaria);
     // Modo de teste controlado: só o número autorizado recebe; os demais nem geram aviso.
     if (bloqueadoPorTeste(configSec, contato)) { contar('modo de teste'); continue; }
+    // Compromisso concluído/inexistente no ProJuris antes do horário: a equipe já recebeu o aviso; nada sai.
+    if (consultaSuspensa(c)) { contar('agenda oficial em conferência'); continue; }
     const entrada = {
       antecedenciaMin: configSec.confirmacaoAntecedenciaMin,
       situacao: situacaoConsulta(c).estado,

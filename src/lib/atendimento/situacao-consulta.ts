@@ -4,8 +4,9 @@ import { dataOficial, horarioOficial } from './biblioteca/selecao';
 
 /**
  * Situação da consulta: agendada, presença confirmada, realizada, ausência (faltou) ou cancelada.
- * Realizada e ausência só por registro da equipe (nunca porque o horário passou); cancelada por cancelamento
- * autorizado ou porque o compromisso foi concluído/excluído na agenda oficial (ProJuris, conferido pelo monitor).
+ * Realizada e ausência só por registro da equipe (nunca porque o horário passou); cancelada só por cancelamento
+ * autorizado (cliente com a Anne ou equipe no Manager). Compromisso concluído/inexistente no ProJuris não prova
+ * cancelamento: antes do horário, suspende as automações e pede conferência à equipe (`suspenderPorAgenda`).
  */
 
 export type SituacaoConsulta = 'sem_consulta' | 'agendada' | 'confirmada' | 'realizada' | 'ausente' | 'cancelada';
@@ -68,16 +69,38 @@ export function registrarSituacao<T extends Conversa>(c: T, estado: 'realizada' 
   };
 }
 
-/** Compromisso concluído/excluído na agenda oficial: consulta cancelada, lembretes e confirmações suspensos. */
-export function registrarCancelamentoOficial<T extends Conversa>(c: T, motivo: string, agora = new Date()): T {
+/** Automações da consulta suspensas por conferência da agenda oficial. */
+export function consultaSuspensa(c: Pick<Conversa, 'consultaAgendada' | 'agenteAna'>) {
+  return !!c.consultaAgendada && c.agenteAna?.consultaSuspensa?.inicio === c.consultaAgendada;
+}
+
+/**
+ * Compromisso concluído ou inexistente no ProJuris ANTES do horário. Concluído não prova cancelamento (nem realização
+ * ou ausência): lembrete, confirmação e reagendamento ficam suspensos e a equipe decide (cancelar no Manager ou reabrir
+ * o compromisso). Depois do início, nada muda aqui: vale o registro de realizada/ausência pela equipe.
+ */
+export function suspenderPorAgenda<T extends Conversa>(c: T, motivo: string, agora = new Date()): T {
   const inicio = c.consultaAgendada;
-  if (!inicio) return c;
+  if (!inicio || Date.parse(inicio) <= agora.getTime() || consultaSuspensa(c)) return c;
+  const stamp = agora.toISOString();
+  const quando = `${dataOficial(inicio)} às ${horarioOficial(inicio)}`;
+  const suspensa: T = {
+    ...c,
+    agenteAna: { ...c.agenteAna, consultaSuspensa: { inicio, motivo: motivo.slice(0, 120), em: stamp } },
+    timeline: [...(c.timeline ?? []), { data: stamp, evento: `Consulta de ${quando}: ${motivo}. Lembrete e confirmação suspensos até a equipe conferir.` }],
+  };
+  return registrarAviso(suspensa, { id: `agenda-suspensa:${inicio}`, tipo: 'projuris', prioridade: true, criadoEm: stamp, texto: `Consulta de ${quando}: ${motivo}. Nada foi enviado ao cliente. Se foi cancelada, cancele no Manager; se não, reabra o compromisso no ProJuris (as automações voltam sozinhas).` }, false);
+}
+
+/** Compromisso voltou a aparecer ativo no ProJuris: a suspensão deixa de valer. */
+export function retomarPorAgenda<T extends Conversa>(c: T, agora = new Date()): T {
+  if (!consultaSuspensa(c) || !c.consultaAgendada) return c;
+  const inicio = c.consultaAgendada;
   const stamp = agora.toISOString();
   return {
     ...c,
-    consultaAgendada: undefined,
-    horariosOfertados: [],
-    agenteAna: { ...c.agenteAna, reservaCalendar: undefined, confirmacaoCancelamento: undefined, autorizacaoRemarcacao: undefined, alteracaoConsulta: undefined, situacaoConsulta: { inicio, estado: 'cancelada', em: stamp, por: 'agenda oficial' } },
-    timeline: [...(c.timeline ?? []), { data: stamp, evento: `Consulta de ${dataOficial(inicio)} às ${horarioOficial(inicio)} cancelada: ${motivo}` }],
+    agenteAna: { ...c.agenteAna, consultaSuspensa: undefined },
+    avisosEquipe: (c.avisosEquipe ?? []).map(a => a.id === `agenda-suspensa:${inicio}` && !a.resolvidoEm ? { ...a, resolvidoEm: stamp, resolvidoPor: 'agenda oficial (compromisso reaberto)' } : a),
+    timeline: [...(c.timeline ?? []), { data: stamp, evento: `Compromisso da consulta de ${dataOficial(inicio)} às ${horarioOficial(inicio)} ativo de novo no ProJuris: automações retomadas.` }],
   };
 }

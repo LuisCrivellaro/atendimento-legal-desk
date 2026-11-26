@@ -20,7 +20,8 @@ export type Funcionalidade =
   | 'solicitacao_documentos'
   | 'lembrete_coleta'
   | 'followup'
-  | 'mensagem_programada';
+  | 'mensagem_programada'
+  | 'acompanhamento_aprovado';
 
 /** automatico: a Anne executa sozinha; aprovacao: vira texto pronto para a equipe; desligado: nada acontece. */
 export type NivelPermissao = 'automatico' | 'aprovacao' | 'desligado';
@@ -43,6 +44,7 @@ export const FUNCIONALIDADES: Record<Funcionalidade, { titulo: string; descricao
   lembrete_coleta: { titulo: 'Lembretes de coleta', descricao: 'Lembretes do contrato e dos documentos faltantes.', camada: 'operacional', maximo: 'automatico' },
   followup: { titulo: 'Follow-up comercial', descricao: 'Retomada de oferta de horários sem resposta.', camada: 'operacional', maximo: 'automatico' },
   mensagem_programada: { titulo: 'Mensagens programadas', descricao: 'Mensagens agendadas pela equipe; revalidadas antes de sair.', camada: 'operacional', maximo: 'automatico' },
+  acompanhamento_aprovado: { titulo: 'Acompanhamento de comunicações aprovadas', descricao: 'Pergunta de encerramento e lembretes de audiência/perícia (T04, T12.2) só depois que a Dra. aprovou a comunicação.', camada: 'operacional', maximo: 'automatico' },
 };
 
 /**
@@ -62,6 +64,7 @@ export const PERMISSOES_PADRAO: MatrizPermissoes = {
   lembrete_coleta: 'automatico',
   followup: 'desligado',
   mensagem_programada: 'desligado',
+  acompanhamento_aprovado: 'automatico',
 };
 
 export interface JanelaAutomacoes {
@@ -79,7 +82,17 @@ export interface TesteAutomacoes {
   numero: string | null;
 }
 
+/**
+ * Textos automáticos que NÃO estão na biblioteca oficial (lembretes de coleta, propostos em 25/11/2026). Só saem
+ * sozinhos depois que a Dra. aprova o texto exato; texto alterado depois da aprovação volta a precisar de aprovação.
+ */
+export const CHAVES_TEXTO_APROVADO = ['lembrete_contrato', 'lembrete_faltantes', 'pergunta_encerramento'] as const;
+export type ChaveTextoAprovado = (typeof CHAVES_TEXTO_APROVADO)[number];
+export interface AprovacaoTexto { texto: string; por?: string | undefined; em?: string | undefined }
+
 export interface ConfigSecretaria {
+  /** Aprovação, pelo texto exato, dos textos automáticos fora da biblioteca oficial. */
+  aprovacoesTexto: Partial<Record<ChaveTextoAprovado, AprovacaoTexto>>;
   /**
    * Camadas independentes (automações operacionais continuam com a equipe na conversa). Ligada por padrão desde
    * 26/11/2026 (pedido da Dra.); desliga só com `false` explícito ou com a chave mestra do servidor.
@@ -104,6 +117,7 @@ export interface ConfigSecretaria {
 export const ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN = 120;
 
 export const CONFIG_SECRETARIA_PADRAO: ConfigSecretaria = {
+  aprovacoesTexto: {},
   ativa: true,
   confirmacaoAntecedenciaMin: ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN,
   testeAutomacoes: { ativo: false, numero: null },
@@ -148,7 +162,14 @@ export function lerConfigSecretaria(salvo: unknown): ConfigSecretaria {
   const templates = Object.fromEntries(Object.entries(t).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && typeof v === 'string' && v.trim().length > 0 && v.length <= 1000)) as Record<string, string>;
   const teste = (s['testeAutomacoes'] && typeof s['testeAutomacoes'] === 'object' ? s['testeAutomacoes'] : {}) as Record<string, unknown>;
   const numeroTeste = typeof teste['numero'] === 'string' ? teste['numero'].replace(/\D/g, '') : '';
+  const ap = (s['aprovacoesTexto'] && typeof s['aprovacoesTexto'] === 'object' ? s['aprovacoesTexto'] : {}) as Record<string, unknown>;
+  const aprovacoesTexto = Object.fromEntries(CHAVES_TEXTO_APROVADO.flatMap(k => {
+    const v = ap[k] as Record<string, unknown> | undefined;
+    if (!v || typeof v !== 'object' || typeof v['texto'] !== 'string' || !v['texto'].trim() || v['texto'].length > 2000) return [];
+    return [[k, { texto: v['texto'], ...(typeof v['por'] === 'string' ? { por: v['por'].slice(0, 80) } : {}), ...(typeof v['em'] === 'string' ? { em: v['em'] } : {}) }]];
+  })) as ConfigSecretaria['aprovacoesTexto'];
   return {
+    aprovacoesTexto,
     ativa: s['ativa'] !== false,
     confirmacaoAntecedenciaMin: inteiro(s['confirmacaoAntecedenciaMin'], 30, 24 * 60, ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN),
     // Sem número válido o modo de teste não liga (nunca vira "ninguém recebe nada" por engano silencioso).
@@ -178,6 +199,11 @@ export function bloqueadoPorTeste(config: ConfigSecretaria, contato: string | un
   const n = config.testeAutomacoes.numero;
   // Compara pelos últimos 10 dígitos (DDD + número), aceitando contato com ou sem DDI/nono dígito no início.
   return !c || c.slice(-10) !== n.slice(-10);
+}
+
+/** O texto (modelo com campos, antes do preenchimento) é exatamente o aprovado pela Dra.? */
+export function textoAprovado(config: ConfigSecretaria, chave: ChaveTextoAprovado, modelo: string) {
+  return config.aprovacoesTexto[chave]?.texto === modelo;
 }
 
 export function nivelPermissao(config: ConfigSecretaria, f: Funcionalidade): NivelPermissao {
