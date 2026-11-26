@@ -47,7 +47,7 @@ export interface Conversa {
   id: string; nome: string; cpf: string; telefone: string; atendimento: string; etapa: Etapa;
   naoLidas: number; etapaPipeline: number; syncs: Sync[]; processos: Processo[];
   documentos: DocItem[]; mensagens: Mensagem[]; contrato?: "gerado" | "enviado" | "visualizado" | "assinado";
-  consulta?: { duracao: string; resumo: string; transcricao: string };
+  consulta?: { duracao: string; resumo: string; transcricao: string; arquivos?: ArquivoConsulta[] | undefined };
   timeline: { data: string; evento: string }[];
   lidoAte?: string | undefined; modoIA?: import('./atendimento').AIMode | undefined; iaRetida?: string | undefined; horariosOfertados?: string[];
   consultaAgendada?: string | undefined; retornoAgendado?: string | undefined; retornoDuracao?: number | undefined; contratoLink?: string | undefined; contratoEnviadoEm?: string | undefined;
@@ -121,3 +121,6 @@ export const sugestoesIA: Record<string, string> = {
   c4: "Paulo, recebi seu áudio. Você consegue garantia de que vai ganhar esse caso, o período rural é bem aceito.",
   c5: "Juliana, recebemos o laudo. Ainda faltam o comprovante de residência e a carteira de trabalho.",
 };
+
+/** Transcrição/resumo da consulta anexados pela equipe (equipamento externo): recibo do armazenamento e do Drive. */
+export interface ArquivoConsulta { tipo: 'transcricao' | 'resumo'; nome: string; mime: string; path: string; hash: string; em: string; por: string; driveUrl?: string | undefined; pendenciaDrive?: string | undefined }

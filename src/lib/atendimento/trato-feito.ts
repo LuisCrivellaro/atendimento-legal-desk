@@ -53,3 +53,20 @@ export function avisoProducao(c: Pick<Conversa, 'nome' | 'atendimento' | 'docume
   if (faseTrato(c) !== 'pronto_producao') return undefined;
   return `Dra. Carolina, o atendimento ${c.atendimento} (${c.nome}) está com contrato assinado e todos os documentos juntados. Aperte "Produção" para iniciar.`;
 }
+
+/**
+ * Requisitos para indicar "pronto para a Produção" (a Produção continua começando pelo botão da Dra.): cliente
+ * identificado, contrato assinado (registro manual), checklist completo ou aprovado, pasta do Drive e, quando a
+ * consulta foi registrada como realizada, transcrição ou resumo anexados. Só indica; nunca inicia peça.
+ */
+export function requisitosProducao(c: Pick<Conversa, 'agenteAna' | 'cpf' | 'nome' | 'contrato' | 'documentos' | 'pastaDrive' | 'consulta'>, opcoes: { checklistAprovado?: boolean } = {}) {
+  const realizada = c.agenteAna?.situacaoConsulta?.estado === 'realizada';
+  const itens = [
+    { nome: 'Cliente identificado', ok: c.agenteAna?.vinculoProjuris?.status === 'confirmado' || (!!c.cpf?.trim() && !!c.nome?.trim()) },
+    { nome: 'Contrato assinado', ok: c.contrato === 'assinado' },
+    { nome: 'Checklist completo ou aprovado', ok: !!opcoes.checklistAprovado || (c.documentos.length > 0 && c.documentos.every(d => d.recebido)) },
+    { nome: 'Pasta do Drive', ok: !!c.pastaDrive?.id },
+    ...(realizada ? [{ nome: 'Transcrição ou resumo da consulta', ok: !!c.consulta?.arquivos?.length || !!c.consulta?.resumo?.trim() }] : []),
+  ];
+  return { pronto: itens.every(i => i.ok), itens };
+}

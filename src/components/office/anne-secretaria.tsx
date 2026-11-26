@@ -1,5 +1,5 @@
 import { useServerFn } from '@tanstack/react-start';
-import { Ban, Bot, CalendarCheck, CalendarClock, CalendarX, ClipboardList, History, Pause, Play, UserRound, Users, X } from 'lucide-react';
+import { Ban, Bot, CalendarCheck, CalendarClock, CalendarX, ClipboardList, FileText, History, Pause, Play, UserRound, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { AIMode } from '@/lib/atendimento';
@@ -12,6 +12,8 @@ import { origemMensagem, ROTULOS_ORIGEM } from '@/lib/atendimento/secretaria/ori
 import { controlarAutomacaoAnne, definirModoAnne, delegarReagendamentoAnne, registrarSituacaoConsultaAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
 import { situacaoConsulta, type SituacaoConsulta } from '@/lib/atendimento/situacao-consulta';
 import { enviarChecklistTrabalhistaAnne } from '@/lib/atendimento/checklist-trabalhista.functions';
+import { anexarRegistroConsultaAnne } from '@/lib/atendimento/registro-consulta.functions';
+import { requisitosProducao } from '@/lib/atendimento/trato-feito';
 import { executar } from '@/lib/executar';
 
 const ROTULO_SITUACAO: Record<SituacaoConsulta, string> = { sem_consulta: 'sem consulta', agendada: 'agendada', confirmada: 'presença confirmada', realizada: 'realizada', ausente: 'cliente faltou', cancelada: 'cancelada' };
@@ -63,6 +65,7 @@ export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { 
   const delegar = useServerFn(delegarReagendamentoAnne);
   const registrarSit = useServerFn(registrarSituacaoConsultaAnne);
   const checklistT09 = useServerFn(enviarChecklistTrabalhistaAnne);
+  const anexarRegistro = useServerFn(anexarRegistroConsultaAnne);
   const agora = new Date();
   const s = c.agenteAna?.secretaria;
   const ativas = automacoesAtivas(s?.automacoes, agora);
@@ -73,9 +76,30 @@ export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { 
   const situacao = situacaoConsulta(c);
   const podeRegistrar = (situacao.estado === 'agendada' || situacao.estado === 'confirmada') && !!situacao.inicio && Date.parse(situacao.inicio) <= agora.getTime();
   const mostraSituacao = situacao.estado !== 'sem_consulta' && (!!c.consultaAgendada || situacao.estado !== 'cancelada');
+  const realizada = situacao.estado === 'realizada';
+  const arquivosConsulta = c.consulta?.arquivos ?? [];
+  const producao = c.contrato === 'assinado' || c.etapa === 'documentos' ? requisitosProducao(c) : undefined;
+  const anexar = (tipo: 'transcricao' | 'resumo') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.txt,.md,.pdf,.docx,.odt,text/plain,text/markdown,application/pdf';
+    input.onchange = () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      void executar(tipo === 'transcricao' ? 'Anexar transcrição' : 'Anexar resumo', async () => {
+        if (f.size > 10 * 1024 * 1024) throw new Error('Arquivo acima de 10 MB.');
+        const buf = new Uint8Array(await f.arrayBuffer());
+        let bin = '';
+        for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+        const mime = f.type || (f.name.endsWith('.md') ? 'text/markdown' : f.name.endsWith('.txt') ? 'text/plain' : '');
+        return anexarRegistro({ data: { conversaId: c.id, tipo, nome: f.name, mime, base64: btoa(bin) } });
+      }, onAlterado);
+    };
+    input.click();
+  };
   const t09 = c.agenteAna?.checklistTrabalhista;
   const podeT09 = !t09 && (c.etapa === 'documentos' || c.contrato === 'assinado');
-  if (!ativas.length && !acoes.length && !podeDelegar && !mostraSituacao && !podeT09 && !t09) return null;
+  if (!ativas.length && !acoes.length && !podeDelegar && !mostraSituacao && !podeT09 && !t09 && !producao && !arquivosConsulta.length) return null;
   const enviarT09 = () => {
     if (!window.confirm('Confirma que este caso é TRABALHISTA e autoriza enviar agora o checklist oficial (T09) ao cliente? Os itens entram no checklist.')) return;
     void executar('Checklist trabalhista (T09)', () => checklistT09({ data: { conversaId: c.id, confirmarTrabalhista: true } }), onAlterado);
@@ -119,6 +143,21 @@ export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { 
             <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} onClick={() => acao(a.id, 'cancelar', 'Cancelar automação')}><X className="size-3.5" />Cancelar</Button>
           </div>
         ))}
+        {(realizada || arquivosConsulta.length > 0) && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5">
+            <FileText className="size-3.5 shrink-0 text-muted-foreground" />
+            <p className="min-w-0 flex-1 break-words text-xs">
+              Registro da consulta: {arquivosConsulta.length ? arquivosConsulta.map(a => `${a.tipo === 'transcricao' ? 'transcrição' : 'resumo'} (${a.driveUrl ? 'no Drive' : a.pendenciaDrive ?? 'guardado'})`).join(' · ') : 'sem transcrição/resumo anexados'}
+            </p>
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} onClick={() => anexar('transcricao')}>Anexar transcrição</Button>
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} onClick={() => anexar('resumo')}>Anexar resumo</Button>
+          </div>
+        )}
+        {producao && (
+          <p className={`text-xs ${producao.pronto ? 'font-medium text-primary' : 'text-muted-foreground'}`}>
+            {producao.pronto ? 'Pronto para a Produção: a Dra. inicia pelo botão Produção.' : `Para a Produção falta: ${producao.itens.filter(i => !i.ok).map(i => i.nome.toLowerCase()).join(', ')}.`}
+          </p>
+        )}
         {podeT09 && (
           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} title="Envia o texto oficial T09 (checklist trabalhista) e inclui os itens no checklist. Só com a sua confirmação de que o caso é trabalhista." onClick={enviarT09}>
             <ClipboardList className="size-3.5" />Enviar checklist trabalhista (T09)
