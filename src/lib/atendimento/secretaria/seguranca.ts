@@ -49,12 +49,18 @@ function partesSP(iso: string) {
 
 const dois = (n: number) => String(n).padStart(2, '0');
 
-interface Fato { categoria: 'horario' | 'data' | 'valor' | 'processo' | 'cpf' | 'percentual'; chave: string }
+interface Fato { categoria: 'horario' | 'data' | 'valor' | 'processo' | 'cpf' | 'percentual' | 'link'; chave: string }
+
+/** Links (com ou sem protocolo para os domínios usuais de reunião/assinatura/mensagem) normalizados para comparação. */
+const LINK = /\b(?:https?:\/\/[^\s<>"'()]+|(?:meet\.google\.com|wa\.me|zoom\.us|app\.zapsign\.com\.br)\/[^\s<>"'()]+)/g;
+const chaveLink = (u: string) => u.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[.,;:!?…]+$/, '').replace(/\/+$/, '');
 
 /** Extrai os fatos verificáveis de um texto em forma normalizada. */
 export function extrairFatos(texto: string): Fato[] {
-  const t = fold(texto);
   const fatos: Fato[] = [];
+  // Links primeiro (antes de minúsculas/acentos e dos padrões de data/horário que poderiam casar dentro da URL).
+  const semLinks = texto.replace(LINK, m => { fatos.push({ categoria: 'link', chave: chaveLink(m).toLowerCase() }); return ' '; });
+  const t = fold(semLinks);
   const semProcessos = t.replace(/\b\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}\b/g, m => { fatos.push({ categoria: 'processo', chave: m.replace(/\D/g, '') }); return ' '; });
   const semCpf = semProcessos.replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, m => { fatos.push({ categoria: 'cpf', chave: m.replace(/\D/g, '') }); return ' '; });
   const semValores = semCpf.replace(/r\$\s?\d[\d.]*(?:,\d{1,2})?/g, m => { fatos.push({ categoria: 'valor', chave: m.replace(/[^\d,]/g, '').replace(/,00$/, '') }); return ' '; });
@@ -71,10 +77,17 @@ export function extrairFatos(texto: string): Fato[] {
  * Fontes desta conversa (nunca de outra): horários com recibo ou oferecidos pela agenda oficial, mensagens já
  * registradas (escritório e cliente) e textos oficiais extras (regras da agenda, modelos fixos).
  */
-export function fontesDaConversa(c: Pick<Conversa, 'consultaAgendada' | 'agenteAna' | 'horariosOfertados' | 'mensagens'>, extras: { horarios?: (string | undefined)[]; textos?: string[] } = {}): FontesVerificadas {
+export function fontesDaConversa(c: Pick<Conversa, 'consultaAgendada' | 'agenteAna' | 'horariosOfertados' | 'mensagens'> & { contratoLink?: string | undefined }, extras: { horarios?: (string | undefined)[]; textos?: string[] } = {}): FontesVerificadas {
   const a = c.agenteAna;
   const horarios = [c.consultaAgendada, a?.reservaCalendar?.inicio, a?.horarioPendente, ...(a?.horariosTeste ?? []), ...(a?.horariosApresentados ?? []), ...(c.horariosOfertados ?? []), ...(extras.horarios ?? [])].filter((x): x is string => !!x && Number.isFinite(Date.parse(x)));
-  return { horarios: [...new Set(horarios)], textos: [...c.mensagens.map(m => m.texto ?? ''), ...(extras.textos ?? [])] };
+  // Links só de recibos reais (reunião da reserva, contrato enviado) e das mensagens já registradas.
+  const links = [a?.reservaCalendar?.meetUrl, a?.reservaCalendar?.url, c.contratoLink].filter((x): x is string => !!x && /^https:\/\//.test(x));
+  return { horarios: [...new Set(horarios)], textos: [...c.mensagens.map(m => m.texto ?? ''), ...links, ...(extras.textos ?? [])] };
+}
+
+/** Links oficiais da biblioteca (site, Instagram, LinkedIn): fonte verificada para a resposta conversacional. */
+export function linksOficiais(textos: string[]): string[] {
+  return textos.flatMap(t => [...t.matchAll(LINK)].map(m => m[0]));
 }
 
 /**

@@ -16,6 +16,7 @@ import { equipeEscreveuDepois, origemMensagem, ultimaIntervencaoHumana, ultimaMe
 import { iniciarReagendamento, passoReagendamento, type AcaoReagendamento, type EstadoReagendamento, type EventoReagendamento } from './reagendamento';
 import { pedidoForaDoEscopo, possivelInjecao } from './seguranca';
 import { nomeVerificado } from '../biblioteca/selecao';
+import type { BibliotecaSalva } from '../biblioteca/renderizar';
 import { textoTemplate } from './templates';
 
 /**
@@ -53,6 +54,8 @@ export interface ContextoOperacional {
   contato: string | undefined;
   modoPadrao: AIMode;
   canal?: string | undefined;
+  /** Versões e ativação da biblioteca oficial salvas pela equipe (06, 08.1 no reagendamento). */
+  biblioteca?: BibliotecaSalva | undefined;
 }
 
 /** `tratada: false` = a camada operacional não agiu e o fluxo conversacional existente segue. */
@@ -289,7 +292,7 @@ async function conduzirReagendamento(x: Execucao, a: AutomacaoAtiva, evento: Eve
   let proximo: EventoReagendamento | undefined = evento;
   let avisoEquipe: string | undefined;
   for (let i = 0; proximo && i < 6; i++) {
-    const passo: { estado: EstadoReagendamento; acoes: AcaoReagendamento[] } = passoReagendamento(estado, proximo);
+    const passo: { estado: EstadoReagendamento; acoes: AcaoReagendamento[] } = passoReagendamento(estado, proximo, x.ctx.biblioteca);
     estado = passo.estado;
     proximo = undefined;
     for (const ac of passo.acoes) {

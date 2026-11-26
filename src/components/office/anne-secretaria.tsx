@@ -1,5 +1,5 @@
 import { useServerFn } from '@tanstack/react-start';
-import { Ban, Bot, CalendarCheck, CalendarClock, CalendarX, History, Pause, Play, UserRound, Users, X } from 'lucide-react';
+import { Ban, Bot, CalendarCheck, CalendarClock, CalendarX, ClipboardList, History, Pause, Play, UserRound, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { AIMode } from '@/lib/atendimento';
@@ -11,6 +11,7 @@ import { MODOS, modoEfetivo, ROTULOS_MODO, type ModoAnne } from '@/lib/atendimen
 import { origemMensagem, ROTULOS_ORIGEM } from '@/lib/atendimento/secretaria/origem';
 import { controlarAutomacaoAnne, definirModoAnne, delegarReagendamentoAnne, registrarSituacaoConsultaAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
 import { situacaoConsulta, type SituacaoConsulta } from '@/lib/atendimento/situacao-consulta';
+import { enviarChecklistTrabalhistaAnne } from '@/lib/atendimento/checklist-trabalhista.functions';
 import { executar } from '@/lib/executar';
 
 const ROTULO_SITUACAO: Record<SituacaoConsulta, string> = { sem_consulta: 'sem consulta', agendada: 'agendada', confirmada: 'presença confirmada', realizada: 'realizada', ausente: 'cliente faltou', cancelada: 'cancelada' };
@@ -61,6 +62,7 @@ export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { 
   const controlar = useServerFn(controlarAutomacaoAnne);
   const delegar = useServerFn(delegarReagendamentoAnne);
   const registrarSit = useServerFn(registrarSituacaoConsultaAnne);
+  const checklistT09 = useServerFn(enviarChecklistTrabalhistaAnne);
   const agora = new Date();
   const s = c.agenteAna?.secretaria;
   const ativas = automacoesAtivas(s?.automacoes, agora);
@@ -71,7 +73,13 @@ export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { 
   const situacao = situacaoConsulta(c);
   const podeRegistrar = (situacao.estado === 'agendada' || situacao.estado === 'confirmada') && !!situacao.inicio && Date.parse(situacao.inicio) <= agora.getTime();
   const mostraSituacao = situacao.estado !== 'sem_consulta' && (!!c.consultaAgendada || situacao.estado !== 'cancelada');
-  if (!ativas.length && !acoes.length && !podeDelegar && !mostraSituacao) return null;
+  const t09 = c.agenteAna?.checklistTrabalhista;
+  const podeT09 = !t09 && (c.etapa === 'documentos' || c.contrato === 'assinado');
+  if (!ativas.length && !acoes.length && !podeDelegar && !mostraSituacao && !podeT09 && !t09) return null;
+  const enviarT09 = () => {
+    if (!window.confirm('Confirma que este caso é TRABALHISTA e autoriza enviar agora o checklist oficial (T09) ao cliente? Os itens entram no checklist.')) return;
+    void executar('Checklist trabalhista (T09)', () => checklistT09({ data: { conversaId: c.id, confirmarTrabalhista: true } }), onAlterado);
+  };
   const acao = (automacaoId: string, controle: 'pausar' | 'retomar' | 'cancelar', rotulo: string) =>
     void executar(rotulo, () => controlar({ data: { conversaId: c.id, automacaoId, controle } }), onAlterado);
   const registrar = (estado: 'realizada' | 'ausente') => {
@@ -111,6 +119,12 @@ export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { 
             <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} onClick={() => acao(a.id, 'cancelar', 'Cancelar automação')}><X className="size-3.5" />Cancelar</Button>
           </div>
         ))}
+        {podeT09 && (
+          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} title="Envia o texto oficial T09 (checklist trabalhista) e inclui os itens no checklist. Só com a sua confirmação de que o caso é trabalhista." onClick={enviarT09}>
+            <ClipboardList className="size-3.5" />Enviar checklist trabalhista (T09)
+          </Button>
+        )}
+        {t09 && <p className="text-xs text-muted-foreground">Checklist trabalhista (T09): {t09.enviadoEm ? `enviado em ${dataHoraCurta(t09.enviadoEm)} por autorização de ${t09.autorizadoPor}` : t09.falhouEm ? 'envio sem recibo do WhatsApp — conferir a conversa antes de repetir' : 'em envio'}.</p>}
         {podeDelegar && (
           <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} title="A Anne oferece horários livres verificados, pede confirmação e só confirma ao cliente com o recibo da agenda. O restante da conversa continua com a equipe."
             onClick={() => void executar('Anne remarca a consulta', () => delegar({ data: { conversaId: c.id } }), onAlterado)}>

@@ -5,7 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { FUNCIONALIDADES, limitarNivel, type ConfigSecretaria, type Funcionalidade, type NivelPermissao } from '@/lib/atendimento/secretaria/config';
+import { FUNCIONALIDADES, limitarNivel, type ChaveTextoAprovado, type ConfigSecretaria, type Funcionalidade, type NivelPermissao } from '@/lib/atendimento/secretaria/config';
+import { dataHoraCurta } from '@/lib/atendimento';
+import { PERGUNTA_ENCERRAMENTO } from '@/lib/atendimento/acompanhamento';
+import { mergeReplies, textosColeta } from '@/lib/respostas-prontas';
 import { CHAVES_TEMPLATE } from '@/lib/atendimento/secretaria/templates';
 import { lerConfigSecretariaAnne, salvarConfigSecretariaAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
 import { executar } from '@/lib/executar';
@@ -16,6 +19,17 @@ const NIVEIS: { valor: NivelPermissao; rotulo: string }[] = [
   { valor: 'desligado', rotulo: 'Desligado' },
 ];
 const ANTECEDENCIAS = [30, 45, 60, 90, 120, 180, 240];
+
+/** Textos automáticos propostos (não oficiais) com a versão atual salva em Mensagens prontas. */
+function textosParaAprovar(respostasProntas: Parameters<typeof textosColeta>[0]): { chave: ChaveTextoAprovado; titulo: string; texto: string }[] {
+  const coleta = textosColeta(respostasProntas);
+  const encerramento = mergeReplies(respostasProntas).find(r => r.id === PERGUNTA_ENCERRAMENTO.id)?.texto?.trim() || PERGUNTA_ENCERRAMENTO.texto;
+  return [
+    { chave: 'lembrete_contrato', titulo: 'Lembrete do contrato (24 h, até 3)', texto: coleta.lembreteContrato },
+    { chave: 'lembrete_faltantes', titulo: 'Lembrete de documentos faltantes (48 h, até 3)', texto: coleta.lembreteFaltantes },
+    { chave: 'pergunta_encerramento', titulo: 'Pergunta de encerramento depois de notícia aprovada', texto: encerramento },
+  ];
+}
 const RETORNO = [{ valor: 'nunca', rotulo: 'Nunca (só a equipe devolve)' }, { valor: '12', rotulo: '12 h sem mensagem da equipe' }, { valor: '24', rotulo: '24 h sem mensagem da equipe' }, { valor: '48', rotulo: '48 h sem mensagem da equipe' }];
 
 /**
@@ -23,7 +37,7 @@ const RETORNO = [{ valor: 'nunca', rotulo: 'Nunca (só a equipe devolve)' }, { v
  * funcionalidade, prioridade humana, volta ao Automático, horário das automações e modelos fixos.
  * Só sênior/admin edita; a gravação é do servidor e nunca passa pelo modelo.
  */
-export function AnneSecretariaConfig() {
+export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: Parameters<typeof textosColeta>[0] } = {}) {
   const ler = useServerFn(lerConfigSecretariaAnne);
   const salvar = useServerFn(salvarConfigSecretariaAnne);
   const qc = useQueryClient();
@@ -36,7 +50,8 @@ export function AnneSecretariaConfig() {
   const mudar = (fn: (x: ConfigSecretaria) => ConfigSecretaria) => setC(x => (x ? fn(x) : x));
   const gravar = () => void executar('Salvar secretaria digital', async () => {
     if (c.testeAutomacoes.ativo && (c.testeAutomacoes.numero ?? '').length < 10) throw new Error('Informe o número autorizado (com DDD) para ligar o modo de teste.');
-    const r = await salvar({ data: { ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, confirmacaoAntecedenciaMin: c.confirmacaoAntecedenciaMin, testeAutomacoes: c.testeAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
+    const aprovacoesTexto = Object.fromEntries(Object.entries(c.aprovacoesTexto).flatMap(([k, v]) => (v ? [[k, { texto: v.texto }]] : [])));
+    const r = await salvar({ data: { aprovacoesTexto, ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, confirmacaoAntecedenciaMin: c.confirmacaoAntecedenciaMin, testeAutomacoes: c.testeAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
     await qc.invalidateQueries({ queryKey: ['secretaria-config'] });
     return r;
   });
@@ -113,6 +128,28 @@ export function AnneSecretariaConfig() {
           <Input inputMode="tel" placeholder="Número autorizado com DDD (ex.: 5511999999999)" value={c.testeAutomacoes.numero ?? ''} disabled={!editar} onChange={e => mudar(x => ({ ...x, testeAutomacoes: { ...x.testeAutomacoes, numero: e.target.value.replace(/\D/g, '').slice(0, 15) || null } }))} aria-label="Número autorizado para teste" />
           <span className="block text-xs text-muted-foreground">Ligado, lembretes, confirmações e reagendamentos automáticos só vão para este número; os demais clientes ficam sem automação (com aviso no monitor).</span>
         </div>
+      </div>
+
+      <div>
+        <p className="mb-1 text-xs font-medium text-muted-foreground">Textos fora da biblioteca oficial: só saem sozinhos com o texto exato aprovado pela Dra.</p>
+        {textosParaAprovar(respostasProntas).map(t => {
+          const salvo = c.aprovacoesTexto[t.chave];
+          const aprovado = salvo?.texto === t.texto;
+          return (
+            <label key={t.chave} className="flex items-start justify-between gap-3 border-b py-1.5">
+              <span className="min-w-0">
+                <span className="block">{t.titulo}</span>
+                <span className="block whitespace-pre-wrap break-words text-xs text-muted-foreground">{t.texto}</span>
+                {salvo && !aprovado && <span className="block text-xs font-medium text-destructive">O texto mudou depois da aprovação: aprove de novo para voltar a sair sozinho.</span>}
+                {aprovado && salvo?.por && <span className="block text-xs text-muted-foreground">Aprovado por {salvo.por}{salvo.em ? ` em ${dataHoraCurta(salvo.em)}` : ''}.</span>}
+                {!salvo && <span className="block text-xs text-muted-foreground">Sem aprovação: a equipe recebe o texto pronto para enviar.</span>}
+              </span>
+              <span title={!editar ? 'Só sênior/admin aprova' : undefined}>
+                <Switch checked={aprovado} disabled={!editar} aria-label={`Aprovar texto: ${t.titulo}`} onCheckedChange={v => mudar(x => ({ ...x, aprovacoesTexto: Object.fromEntries([...Object.entries(x.aprovacoesTexto).filter(([k]) => k !== t.chave), ...(v ? [[t.chave, { texto: t.texto }]] : [])]) as ConfigSecretaria['aprovacoesTexto'] }))} />
+              </span>
+            </label>
+          );
+        })}
       </div>
 
       {editar && <Button size="sm" onClick={gravar}>Salvar secretaria digital</Button>}

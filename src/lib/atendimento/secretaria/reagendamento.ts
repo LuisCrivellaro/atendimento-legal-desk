@@ -1,6 +1,7 @@
 import { formatarHorarioCliente } from '../../atendimento';
 import { escolherHorarioAna, linhaHorarioAna, listaHorariosAna, pedidoHorarioEspecifico, pedidoHumano } from '../ana-scheduling';
 import { textoAgendamentoConfirmado, textoReagendamentoHoje } from '../biblioteca/selecao';
+import type { BibliotecaSalva } from '../biblioteca/renderizar';
 
 /**
  * Reagendamento como automação de várias etapas, sem modelo (cliente avisou que não pode, faltou ou a equipe pediu):
@@ -68,8 +69,8 @@ const NAO = /^(?:nao|n|nao quero|nao pode|melhor nao|outro|outro horario)[!.\s]*
 const MANTER = /\b(?:manter|mantem|mantenha|deixa como esta|deixa assim|desisti|nao precisa (?:mais )?remarcar|vou manter|fica como esta|continua (?:o )?mesmo|vou conseguir ir|consigo ir sim)\b/;
 
 /** Texto das opções: modelo oficial 06 (dois horários hoje) ou a lista aprovada do agendamento. */
-function oferta(estado: EstadoReagendamento, livres: string[], agora: Date): { texto: string; opcoes: string[] } | undefined {
-  const oficial = textoReagendamentoHoje(estado.nome, livres, agora);
+function oferta(estado: EstadoReagendamento, livres: string[], agora: Date, biblioteca?: BibliotecaSalva): { texto: string; opcoes: string[] } | undefined {
+  const oficial = textoReagendamentoHoje(estado.nome, livres, agora, biblioteca);
   if (oficial) return { texto: oficial.texto, opcoes: oficial.opcoes };
   // Contato proativo depois de uma falta, sem dois horários hoje: não há texto oficial compatível (a equipe envia ou
   // aprova uma variante). Pedido do cliente ou delegação da equipe na conversa: lista aprovada do agendamento.
@@ -97,7 +98,7 @@ function encaminhar(estado: EstadoReagendamento, motivo: string, texto?: string)
  * Próximo passo. Eventos fora da etapa esperada são ignorados (sem ações): repetição de webhook ou de rotina
  * nunca dispara um segundo envio ou uma segunda remarcação.
  */
-export function passoReagendamento(estado: EstadoReagendamento, evento: EventoReagendamento): { estado: EstadoReagendamento; acoes: AcaoReagendamento[] } {
+export function passoReagendamento(estado: EstadoReagendamento, evento: EventoReagendamento, biblioteca?: BibliotecaSalva): { estado: EstadoReagendamento; acoes: AcaoReagendamento[] } {
   const nada = { estado, acoes: [] as AcaoReagendamento[] };
 
   if (evento.tipo === 'agenda' || evento.tipo === 'agenda_falhou') {
@@ -105,7 +106,7 @@ export function passoReagendamento(estado: EstadoReagendamento, evento: EventoRe
     // Agenda fora do ar antes de qualquer oferta: nenhuma mensagem improvisada; a equipe é avisada.
     if (evento.tipo === 'agenda_falhou') return encaminhar(estado, 'agenda oficial indisponível');
     const livres = [...new Set(evento.livres)].filter(s => Date.parse(s) !== Date.parse(estado.consultaAtual)).sort((a, b) => Date.parse(a) - Date.parse(b));
-    const o = oferta(estado, livres, evento.agora ?? new Date());
+    const o = oferta(estado, livres, evento.agora ?? new Date(), biblioteca);
     if (!o) {
       const motivo = livres.length ? 'sem dois horários livres hoje para o modelo oficial 06 (contato depois da falta): enviar manualmente ou aprovar uma variante' : 'sem horários livres verificados';
       // Cliente que pediu e não há horário: resposta aprovada do agendamento ("Não encontrei novas opções…").
@@ -127,7 +128,7 @@ export function passoReagendamento(estado: EstadoReagendamento, evento: EventoRe
       // Sucesso só com recibo coerente: mesmo horário escolhido e id do evento devolvido pela agenda.
       if (!evento.recibo.id || Date.parse(evento.recibo.inicio) !== Date.parse(estado.escolhido)) return encaminhar(estado, 'recibo da agenda divergente do horário escolhido', FRASES_APROVADAS.falha);
       // Confirmação oficial: 08.1 quando compatível (manhã, sem link a entregar); senão a confirmação aprovada com o link real.
-      const confirmado = textoAgendamentoConfirmado(evento.recibo, estado.nome, evento.agora ?? new Date());
+      const confirmado = textoAgendamentoConfirmado(evento.recibo, estado.nome, evento.agora ?? new Date(), biblioteca ? { biblioteca } : undefined);
       return { estado: { ...estado, etapa: 'concluido', reciboNovo: { id: evento.recibo.id, inicio: evento.recibo.inicio } }, acoes: [{ tipo: 'concluir', texto: confirmado.texto, recibo: evento.recibo }] };
     }
     if (evento.indisponivel && estado.consultasAgenda < MAX_CONSULTAS_AGENDA) {

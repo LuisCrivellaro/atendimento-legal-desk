@@ -5,6 +5,7 @@ import type { OfficeState } from '../../office';
 import { defaultAutomations } from '../../atendimento';
 import { horarioEspecificoLivre, horizonteAgendaAna, selecionarOpcoesAna } from '../ana-scheduling';
 import { lerConfigSecretaria, secretariaAtiva, type ConfigSecretaria } from './config';
+import { lerBiblioteca } from '../biblioteca/renderizar';
 import type { ContextoOperacional, PortasOperacionais } from './operacional';
 
 type Db = SupabaseClient<Database>;
@@ -37,6 +38,7 @@ export async function contextoSecretaria(db: Db, conversaId: string, canal = 'ul
   const ativa = !ws.error && !cfg.error && !contato.error && secretariaAtiva(config, process.env['ANNE_SECRETARIA_DESLIGADA']);
   return {
     ownerId, state, config, ativa, canal,
+    biblioteca: lerBiblioteca((state as { bibliotecaMensagens?: unknown } | undefined)?.bibliotecaMensagens),
     ambiente: { agenteAtivo: cfg.data?.agente_ativo === true, canalAtivo: cfg.data?.canal_ativo === canal, pausaGlobal: !!state?.anaPausa?.ativa },
     contato: contato.data?.contato_externo ?? undefined,
     modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA,

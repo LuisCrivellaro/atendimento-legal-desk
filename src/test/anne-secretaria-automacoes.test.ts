@@ -4,7 +4,7 @@ import { associarResposta, controlarAutomacao, expirarAutomacoes, novaAutomacao,
 import { iniciarReagendamento, passoReagendamento, type EstadoReagendamento } from '@/lib/atendimento/secretaria/reagendamento';
 import { classificarAndamento } from '@/lib/atendimento/secretaria/andamentos';
 import { revalidarProgramada } from '@/lib/atendimento/secretaria/programadas';
-import { dadosNaoVerificados, pedidoForaDoEscopo, possivelInjecao } from '@/lib/atendimento/secretaria/seguranca';
+import { dadosNaoVerificados, fontesDaConversa, linksOficiais, pedidoForaDoEscopo, possivelInjecao } from '@/lib/atendimento/secretaria/seguranca';
 import { memoriaEstruturada } from '@/lib/atendimento/secretaria/memoria';
 import { baseTemplate, textoTemplate } from '@/lib/atendimento/secretaria/templates';
 
@@ -222,5 +222,22 @@ describe('memória estruturada', () => {
     expect(m.resumo).not.toContain('123.456');
     expect(m.resumo).not.toContain('99999');
     expect(m.resumo.length).toBeLessThanOrEqual(1400);
+  });
+});
+
+describe('anti-alucinação: links', () => {
+  const conversaBase = { consultaAgendada: undefined, horariosOfertados: [], mensagens: [{ id: 'm1', de: 'cliente' as const, texto: 'Qual o link da reunião?', hora: '' }] };
+  it('link de reunião inventado pelo modelo é retido; o link real do recibo da agenda passa', () => {
+    const semRecibo = fontesDaConversa({ ...conversaBase, agenteAna: {} });
+    expect(dadosNaoVerificados('Segue o link: https://meet.google.com/abc-defg-hij', semRecibo)).toEqual(['link meet.google.com/abc-defg-hij']);
+    expect(dadosNaoVerificados('Entre por meet.google.com/xyz-abcd-efg.', semRecibo)).toEqual(['link meet.google.com/xyz-abcd-efg']);
+    const comRecibo = fontesDaConversa({ ...conversaBase, agenteAna: { reservaCalendar: { id: 'pj:1', inicio: '2026-12-01T13:00:00.000Z', fim: '2026-12-01T13:30:00.000Z', meetUrl: 'https://meet.google.com/abc-defg-hij' } } });
+    expect(dadosNaoVerificados('Segue o link: https://meet.google.com/abc-defg-hij.', comRecibo)).toEqual([]);
+  });
+  it('link de contrato só o realmente enviado; links oficiais da biblioteca passam', () => {
+    const fontes = fontesDaConversa({ ...conversaBase, agenteAna: {}, contratoLink: 'https://app.zapsign.com.br/verificar/real123' }, { textos: linksOficiais(['Siga: https://www.instagram.com/carolinasantoslawyer']) });
+    expect(dadosNaoVerificados('Assine aqui: https://app.zapsign.com.br/verificar/real123', fontes)).toEqual([]);
+    expect(dadosNaoVerificados('Assine aqui: https://app.zapsign.com.br/verificar/falso999', fontes)).toEqual(['link app.zapsign.com.br/verificar/falso999']);
+    expect(dadosNaoVerificados('Nosso Instagram: https://www.instagram.com/carolinasantoslawyer', fontes)).toEqual([]);
   });
 });
