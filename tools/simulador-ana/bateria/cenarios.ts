@@ -326,6 +326,61 @@ export const CENARIOS: Cenario[] = [
     passos:[{cliente:texto,...(i<3?{arquivo:texto}:{}),intencao:'novo_caso'}],esperado:'Acompanhamento sem captação',permitidas:['reconhecer recebimento'],proibidas:['consulta inicial automática'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:['agenda.consultar','agenda.reservar']},comportamento:'Continuar atendimento existente.',
     verificacoes:[v('sem-agenda-master','Sem agenda automática para ativo','regra',true,e=>e.ferramentas.some(f=>f==='agenda.consultar'||f==='agenda.reservar')?'Iniciou agenda comercial.':true)],
   }))),
+  // Filtro comercial (filtro-comercial.ts): propaganda, prospecção e robôs não recebem resposta nem chamam o modelo.
+  ...([
+    ['D50a', 'Promoção com link de contato novo', '🔥 BLACK FRIDAY! Aproveite 50% OFF em todos os planos. Garanta já o seu: https://loja.exemplo.com/promo?utm_source=whatsapp'],
+    ['D50b', 'Prospecção de marketing para o escritório', 'Olá! Somos uma agência especializada em marketing jurídico para escritórios de advocacia. Gostaria de apresentar nossa solução de captação de clientes. Podemos agendar uma reunião?'],
+    ['D50c', 'Robô de atendimento de outra empresa', 'Olá! Sou a assistente virtual da Clínica Exemplo. Digite o número da opção desejada: 1 - Agendamentos 2 - Financeiro'],
+    ['D50d', 'Curso com inscrições abertas e descadastro', 'Inscrições abertas para o curso online de oratória! Vagas limitadas, garanta a sua. Para não receber mais mensagens, responda SAIR.'],
+  ] as const).map(([id, titulo, texto]): Cenario => ({
+    id, bloco: 'D', titulo, conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
+    passos: [{ cliente: texto, intencao: 'outro' }],
+    esperado: 'Nenhuma resposta, nenhuma saudação, nenhum atendimento iniciado; mensagem fica no histórico marcada como comercial',
+    permitidas: ['ignorar em silêncio'], proibidas: ['responder', 'saudar', 'oferecer horários', 'chamar o modelo'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', ...SEM_PROJURIS] },
+    comportamento: 'Ignorar a comunicação comercial sem responder; a equipe vê a mensagem no histórico.',
+    verificacoes: [
+      anaIgual([]),
+      v('sem-modelo', 'Modelo não chamado', 'regra', true, e => e.intencoes.length === 0 ? true : `Modelo chamado: ${e.intencoes.join(', ')}`),
+      v('marcada-comercial', 'Mensagem marcada como comercial no histórico', 'regra', true, e => e.conversas['A']?.mensagens.some(m => m.de === 'cliente' && m.filtroComercial?.resultado === 'comercial') ? true : 'Mensagem sem marcação comercial.'),
+      v('sem-aviso', 'Comercial certo não gera aviso para a equipe', 'regra', true, e => (e.conversas['A']?.avisosEquipe ?? []).length === 0 ? true : 'Gerou aviso desnecessário.'),
+      pausada(false),
+    ],
+  })),
+  {
+    id: 'D50e', bloco: 'D', titulo: 'Na dúvida (apresentação de serviços), equipe confere em silêncio', conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
+    passos: [{ cliente: 'Bom dia! Gostaria de apresentar nossos serviços, com quem posso falar?', intencao: 'outro' }],
+    esperado: 'Sem resposta da Anne; aviso interno para a equipe conferir se é cliente', permitidas: ['avisar a equipe em silêncio'], proibidas: ['responder', 'chamar o modelo'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Encaminhar em silêncio para análise humana.',
+    verificacoes: [
+      anaIgual([]),
+      v('sem-modelo', 'Modelo não chamado', 'regra', true, e => e.intencoes.length === 0 ? true : `Modelo chamado: ${e.intencoes.join(', ')}`),
+      v('aviso-triagem', 'Equipe avisada para conferir', 'regra', true, e => e.conversas['A']?.avisosEquipe?.some(a => a.tipo === 'triagem') ? true : 'Sem aviso de triagem.'),
+    ],
+  },
+  ...([
+    ['D50f', 'Cliente sobre plano de saúde e cobrança continua atendido', 'Boa tarde, meu plano de saúde negou a cirurgia e continuam cobrando a mensalidade. Vocês atendem esse tipo de caso?'],
+    ['D50g', 'Cliente sobre oferta de acordo recebida continua atendido', 'Recebi uma oferta de acordo do banco com desconto de 40% para quitar a dívida. É golpe? Quero uma consulta.'],
+    ['D50h', 'Cliente sobre curso que não consegue cancelar continua atendido', 'Comprei um curso online com desconto e não consigo cancelar, eles continuam me cobrando. Preciso de ajuda.'],
+  ] as const).map(([id, titulo, texto]): Cenario => ({
+    id, bloco: 'D', titulo, conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
+    passos: [{ cliente: texto, intencao: 'novo_caso' }],
+    esperado: 'Fluxo normal da Anne (não confundir cliente falando de oferta, plano ou cobrança com propaganda)', permitidas: ['acolher e conduzir à consulta'], proibidas: ['ignorar o cliente'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Atender normalmente.',
+    verificacoes: [
+      v('atendido', 'Cliente recebe resposta normal', 'regra', true, e => anaDe(e).length >= 1 && e.intencoes.length === 1 ? true : `Respostas: ${anaDe(e).length} · modelo: ${e.intencoes.length}`),
+      v('sem-marcacao', 'Mensagem não marcada como comercial', 'regra', true, e => e.conversas['A']?.mensagens.some(m => m.filtroComercial) ? 'Marcada como comercial.' : true),
+    ],
+  })),
+  {
+    id: 'D50i', bloco: 'D', titulo: 'Propaganda ignorada e depois pedido real do mesmo número é atendido', conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
+    passos: [{ cliente: 'Promoção imperdível! Cupom de 30% de desconto só hoje: www.exemplo.com', intencao: 'outro' }, { cliente: 'Desculpa, mandei errado. Fui demitido e não pagaram minha rescisão, a doutora atende?', intencao: 'novo_caso' }],
+    esperado: 'Primeira mensagem ignorada; a segunda segue o fluxo normal', permitidas: ['ignorar a propaganda', 'atender o pedido real'], proibidas: ['responder a propaganda', 'ignorar o pedido real'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Classificar cada mensagem pela intenção.',
+    verificacoes: [
+      v('so-pedido-real', 'Só o pedido real recebe resposta e chama o modelo', 'regra', true, e => e.intencoes.length === 1 && anaDe(e).length >= 1 ? true : `Respostas: ${anaDe(e).length} · modelo: ${e.intencoes.length}`),
+    ],
+  },
   // ---------- E. Falhas técnicas ----------
   {
     id:'D34-captacao',bloco:'D',titulo:'Informações → aceite → escolha → nome → reserva única',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,

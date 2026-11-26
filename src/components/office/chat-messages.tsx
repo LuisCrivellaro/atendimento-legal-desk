@@ -10,6 +10,7 @@ import type { Conversa, Mensagem, StatusMensagem } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { RotuloOrigem } from './anne-secretaria';
+import { TEXTO_FILTRO } from '@/lib/atendimento/filtro-comercial';
 
 // Conversa no padrão visual do WhatsApp: balões com "rabinho" no início de cada bloco, horário e status dentro do
 // balão, separador de dia, foto (ou iniciais) do cliente ao lado das mensagens dele, imagens como foto e documentos
@@ -175,6 +176,7 @@ export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId
         {audio ? <Audio m={m} /> : imagem ? <Imagem m={m} arquivo={arquivo} meta={meta} /> : m.arquivo && <Documento m={m} arquivo={arquivo} />}
         {m.texto && <p className={cn('whitespace-pre-wrap px-0.5', m.arquivo && 'mt-1.5', imagem && 'px-1.5 pb-1')}>{m.texto}<span aria-hidden="true" className="invisible ml-3 inline-block text-2xs">{meta}</span></p>}
         {m.tipoIdentificado && <p className="mt-1 px-0.5 text-[13px] text-primary">{m.tipoIdentificado}</p>}
+        {m.filtroComercial && <p className="mt-1 px-0.5 text-[12px] italic text-muted-foreground" title={m.filtroComercial.motivos.join(', ')}>{TEXTO_FILTRO[m.filtroComercial.resultado]}</p>}
         {m.pdfStart && <div className="mt-1 min-w-0 px-0.5 text-2xs"><a href={m.pdfStart.url} target="_blank" rel="noreferrer" className="break-all text-primary underline">PDF em Start · {m.pdfStart.nome}</a><p className="text-muted-foreground">Tipo: {m.pdfStart.tipoDocumento} · Descrição: {m.pdfStart.descricao}</p></div>}
         {m.pendenciaPdf && <p className="mt-1 px-0.5 text-2xs text-pending-foreground">{m.pendenciaPdf}</p>}
         {m.confirmarTipo && <p className="mt-1 inline-block rounded bg-pending px-1.5 text-[13px] text-pending-foreground">Confirmar tipo de documento</p>}

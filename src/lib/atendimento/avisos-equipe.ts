@@ -4,7 +4,7 @@ import type { Conversa } from '../mock-data';
  * Avisos operacionais para a equipe, gravados no JSON da conversa (sem migração).
  * Aparecem no Atendimento e no Assessor; nunca são enviados ao cliente.
  */
-export type TipoAvisoEquipe = 'confirmacao40' | 'coleta' | 'audiencia' | 'projuris' | 'contrato' | 'anexo';
+export type TipoAvisoEquipe = 'confirmacao40' | 'coleta' | 'audiencia' | 'projuris' | 'contrato' | 'anexo' | 'triagem';
 
 export interface AvisoEquipe {
   /** Determinístico: o mesmo fato nunca gera dois avisos. */

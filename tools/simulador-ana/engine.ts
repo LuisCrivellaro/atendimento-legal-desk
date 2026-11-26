@@ -19,6 +19,7 @@ import { decidirAlteracaoConsulta, decidirCancelamentoAna, operacaoExpirada } fr
 import { solicitarEmailPendente } from '@/lib/atendimento/email-rules';
 import { confirmacao40Respondivel, decidirConfirmacao40, registrarRespostaConfirmacao40, respostaConfirmacao40, textoAvisoConfirmacao } from '@/lib/atendimento/confirmacao-consulta';
 import { registrarAviso } from '@/lib/atendimento/avisos-equipe';
+import { classificarMensagemComercial, contextoFiltroComercial, registrarFiltroComercial } from '@/lib/atendimento/filtro-comercial';
 import { emColeta, perguntaAvaliacaoDocumento, respostaDocumentoColeta } from '@/lib/atendimento/coleta';
 import { hora as horaConsulta } from '@/lib/atendimento/ana-scheduling';
 import { iniciarConsultaProcesso, respostaDuranteEspera, apenasInsistencia, deveConsultarProcesso, mensagemNaoCliente, interpretarRespostaRevisora, aplicarDecisao, pendencias, respostaAutorizada, CONFIG_CONSULTA_PADRAO, TEXTOS_CONSULTA, type ConfigConsultaProcesso, type PedidoProcesso, type PortasConsulta, type EntradaRedacao } from '@/lib/atendimento/consulta-processo';
@@ -246,6 +247,14 @@ export class SimuladorAna {
     const pendente = this.central.pendenteDe(this.conversaId);
     if (pendente && !m.arquivo && apenasInsistencia(m.texto)) { this.enviarAna(TEXTOS_CONSULTA.emConferencia); turno.enviada = TEXTOS_CONSULTA.emConferencia; turno.eventos.push(`Pedido ${pendente.codigo} em conferência: insistência sem texto.`); return; }
     if (mensagemSemResposta(m.texto, !!m.arquivo) && !(confirmacao40Respondivel(c, 'telegram') && respostaConfirmacao40(m.texto))) { turno.semResposta = 'Mensagem curta de confirmação ("ok", "obrigado"...): a Ana não responde.'; return; }
+    // Mesmo filtro comercial da produção (filtro-comercial.ts), antes de qualquer chamada ao modelo.
+    const filtro = classificarMensagemComercial(m.texto, contextoFiltroComercial(c, messageId));
+    if (filtro.resultado !== 'atender') {
+      this.atualizar(cur => registrarFiltroComercial(cur, messageId, filtro));
+      turno.semResposta = filtro.resultado === 'comercial' ? `Comunicação comercial (${filtro.sinaisComerciais.join(', ')}): a Anne não responde; fica no histórico.` : `Parece comercial (${filtro.sinaisComerciais.join(', ')}): sem resposta; a equipe confere.`;
+      log(`Filtro comercial: ${filtro.resultado} · ${filtro.pontos} pontos`);
+      return;
+    }
     try {
       const memoria=contextoPersistente(c,canal);const history=memoria.historico;const cobranca=cobraRetorno(m.texto);const identidade=nomeConhecido(c,canal);const introducao=apresentacaoNome(m.texto);
       const identificacao=identificarPorTelefone(telefone,this.projuris.pessoas);

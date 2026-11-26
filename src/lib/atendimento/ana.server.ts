@@ -32,6 +32,7 @@ import { ultimaIntervencaoHumana } from './secretaria/origem';
 import { encaminharInjecao, encerrarAutomacaoRespondida, reterRespostaNaoVerificada, tratarMensagemOperacional } from './secretaria/operacional';
 import { dadosNaoVerificados, fontesDaConversa, possivelInjecao } from './secretaria/seguranca';
 import { memoriaEstruturada, REGRAS_MEMORIA } from './secretaria/memoria';
+import { classificarMensagemComercial, contextoFiltroComercial, registrarFiltroComercial } from './filtro-comercial';
 type Db=SupabaseClient<Database>;
 
 async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
@@ -122,6 +123,14 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   }
   // "ok" em resposta à confirmação de 40 min registra presença; fora disso, continua sem resposta.
   if(mensagemSemResposta(m.texto,!!m.arquivo)&&!(confirmacao40Respondivel(c,canal)&&respostaConfirmacao40(m.texto)))return;
+  // Filtro comercial (sem modelo): propaganda, curso, assinatura, prospecção ou robô de outra empresa não recebe
+  // resposta nem inicia atendimento; fica no histórico marcada. Na dúvida, a equipe confere em silêncio.
+  const filtro=classificarMensagemComercial(m.texto,contextoFiltroComercial(c,messageId));
+  if(filtro.resultado!=='atender'){
+    await atualizarConversa(db,id,x=>registrarFiltroComercial(x,messageId,filtro));
+    await db.rpc('registrar_audit_log',{p_ator:'Anne',p_perfil:'sistema',p_acao:'filtroComercial',p_resumo:`${filtro.resultado==='comercial'?'Comunicação comercial ignorada':'Possível comunicação comercial enviada à equipe'} · ${filtro.sinaisComerciais.slice(0,2).join(', ')}`,p_status:'bloqueado'});
+    return;
+  }
   // Instruções dirigidas à IA no texto do cliente: sem chamada ao modelo; a equipe assume (Híbrido) e é avisada.
   if(secretaria&&possivelInjecao(m.texto)){
     await atualizarConversa(db,id,x=>encaminharInjecao(x,messageId,modoPadrao));
