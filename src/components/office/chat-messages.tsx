@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Download, FileText, Image as ImageIcon, Play, MoreHorizontal, Trash2 } from 'lucide-react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Download, FileText, Image as ImageIcon, Play, MoreHorizontal, Trash2, AlertCircle } from 'lucide-react';
 import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from '@/components/ui/dropdown-menu';
 import {mensagemDoAgente,podeApagarParaTodos} from '@/lib/atendimento/apagar-mensagem';
 import { cn } from '@/lib/utils';
@@ -114,10 +114,36 @@ export function nomeEmissor(autor?: string) {
   if (!autor) return undefined;
   return /^(ana\b|ia\b)/i.test(autor.trim()) ? 'ANA' : autor;
 }
-export function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete,onEnviarAnexo }: { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void;onEnviarAnexo?:(m:Mensagem)=>void }) {
-  const itens = agruparMensagens(c.mensagens.filter(m=>!userId||!m.ocultaPara?.includes(userId)));
-  const porId = new Map(arquivos.map(a => [a.id, a]));
-  return <div className="space-y-0.5">{itens.map(({ m, separador, inicio }) => {
+
+/** Relógio do WhatsApp enquanto o envio da equipe não tem recibo do canal. */
+function Enviando() {
+  return <svg role="img" aria-label="Enviando" viewBox="0 0 16 16" className="inline size-3.5 shrink-0 text-[#8696A0]"><title>Enviando</title><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M8 4.6V8l2.3 1.4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>;
+}
+
+/** Quantas mensagens desenhar de cada vez: conversas longas abrem rápido e carregam o histórico ao subir. */
+export const JANELA_MENSAGENS = 80;
+
+type PropsMensagens = { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void;onEnviarAnexo?:(m:Mensagem)=>void;onReenviar?:(m:Mensagem)=>void };
+
+// memo: digitar no campo de texto não redesenha a conversa (as props só mudam quando a conversa muda).
+export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete,onEnviarAnexo,onReenviar }: PropsMensagens) {
+  const todos = useMemo(() => agruparMensagens(c.mensagens.filter(m=>!userId||!m.ocultaPara?.includes(userId))), [c.mensagens, userId]);
+  const [mostrar, setMostrar] = useState(JANELA_MENSAGENS);
+  const ocultas = Math.max(0, todos.length - mostrar);
+  const itens = ocultas ? todos.slice(ocultas) : todos;
+  const porId = useMemo(() => new Map(arquivos.map(a => [a.id, a])), [arquivos]);
+  const raiz = useRef<HTMLDivElement>(null);
+  const ancora = useRef<{ altura: number; topo: number } | null>(null);
+  const anteriores = () => { const el = raiz.current?.parentElement; if (el) ancora.current = { altura: el.scrollHeight, topo: el.scrollTop }; setMostrar(n => n + JANELA_MENSAGENS); };
+  // Mantém na tela a mesma mensagem depois de inserir as anteriores acima (sem pulo na rolagem).
+  useLayoutEffect(() => { const el = raiz.current?.parentElement; const a = ancora.current; if (el && a) { el.scrollTop = a.topo + (el.scrollHeight - a.altura); ancora.current = null; } }, [mostrar]);
+  useEffect(() => {
+    const el = raiz.current?.parentElement; if (!el || !ocultas) return;
+    const rolar = () => { if (el.scrollTop < 120 && !ancora.current) anteriores(); };
+    el.addEventListener('scroll', rolar, { passive: true });
+    return () => el.removeEventListener('scroll', rolar);
+  }, [ocultas]);
+  return <div ref={raiz} className="space-y-0.5">{ocultas > 0 && <div className="flex justify-center py-2"><button type="button" className="zap-pill text-primary underline-offset-2 hover:underline" onClick={anteriores}>Mostrar {Math.min(ocultas, JANELA_MENSAGENS)} mensagens anteriores</button></div>}{itens.map(({ m, separador, inicio }) => {
     const sep = separador && <div className="flex justify-center py-2"><span className="zap-pill">{separador}</span></div>;
     if (m.de === 'sistema') return <div key={m.id}>{sep}<div data-message="true" className="flex justify-center py-1.5"><p className="zap-pill max-w-[85%] text-center">{m.texto}{(m.dataHora || m.hora) && <span className="ml-1.5 opacity-80">· {horaMensagem(m)}</span>}</p></div></div>;
     const out = m.de === 'escritorio';
@@ -125,8 +151,9 @@ export function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=fals
     const imagem = !audio && !!m.arquivo && (m.tipo === 'imagem' || /\.(jpe?g|png|webp|heic|gif)$/i.test(m.arquivo));
     const arquivo = porId.get(m.id);
     const status = out ? m.status : undefined;
-    const meta = <span className="inline-flex items-center gap-1"><span>{horaMensagem(m)}</span>{status && <StatusTique status={status} />}</span>;
-    const temMeta = !!(m.dataHora || m.hora || status);
+    const envio = out && !status ? m.envio : undefined;
+    const meta = <span className="inline-flex items-center gap-1"><span>{horaMensagem(m)}</span>{status ? <StatusTique status={status} /> : envio?.estado === 'enviando' ? <Enviando /> : envio?.estado === 'falhou' ? <AlertCircle role="img" aria-label="Não enviada" className="size-3.5 text-destructive" /> : null}</span>;
+    const temMeta = !!(m.dataHora || m.hora || status || envio);
     const emissor = out ? nomeEmissor(m.autor) : undefined;
     if(m.apagadaParaTodos)return <div key={m.id}>{sep}<div data-message="true" className="flex justify-end py-2"><p className="zap-bubble zap-out px-3 py-2 text-sm italic text-muted-foreground">Mensagem apagada <span className="ml-2 text-2xs">{horaMensagem(m)}</span></p></div></div>;
     // Imagem sem legenda: horário vai por cima da foto, como no WhatsApp.
@@ -148,8 +175,12 @@ export function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=fals
           {m.envioAnexo?.falhouEm && <span className="text-destructive">O arquivo pode ter chegado ao cliente; confira a conversa no WhatsApp antes de reenviar.</span>}
           {onEnviarAnexo && (!m.envioAnexo?.reservadoEm || !!m.envioAnexo.falhouEm) && <button type="button" className="text-primary underline" onClick={() => onEnviarAnexo(m)}>{m.envioAnexo?.falhouEm ? 'Conferi, enviar de novo' : 'Enviar ao cliente'}</button>}
         </p>}
+        {envio?.estado === 'falhou' && <p className="mt-1 flex flex-wrap items-center gap-x-2 px-0.5 text-2xs">
+          <span className="text-destructive">Não enviada{envio.ambiguo ? ' · pode ter chegado ao cliente, confira antes' : ''}</span>
+          {onReenviar && <button type="button" className="text-primary underline" onClick={() => onReenviar(m)}>{envio.ambiguo ? 'Conferi, enviar de novo' : 'Tentar de novo'}</button>}
+        </p>}
         {temMeta && !metaNaFoto && <span className={cn('text-2xs text-[var(--zap-meta)]', m.texto && !m.tipoIdentificado && !m.confirmarTipo ? 'absolute bottom-1 right-2' : cn('mt-1 flex justify-end', imagem && 'px-1.5 pb-0.5'))}>{meta}</span>}
       </div>
     </div></div>;
   })}</div>;
-}
+});

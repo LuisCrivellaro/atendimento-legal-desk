@@ -62,10 +62,21 @@ export interface MensagemPendente {
  * Quando o servidor já tem a mensagem, vale a versão do servidor (status real do canal).
  */
 export function comPendentes(c: Conversa, pendentes: readonly MensagemPendente[]): Conversa {
-  if (!pendentes.length) return c;
-  const ids = new Set(c.mensagens.map(m => m.id));
-  const extras = pendentes.filter(p => p.conversaId === c.id && !ids.has(p.id)).map(pendenteParaMensagem);
-  return extras.length ? { ...c, mensagens: [...c.mensagens, ...extras] } : c;
+  const daqui = pendentes.filter(p => p.conversaId === c.id);
+  if (!daqui.length) return c;
+  const porId = new Map(daqui.map(p => [p.id, p]));
+  const ids = new Set<string>();
+  let mudou = false;
+  // Nova tentativa de uma falha já gravada: mostra "enviando" até o servidor responder.
+  const mensagens = c.mensagens.map(m => {
+    ids.add(m.id);
+    const p = porId.get(m.id);
+    if (!p || p.estado === 'falhou' || m.status || m.envio?.estado !== 'falhou') return m;
+    mudou = true;
+    return { ...m, envio: { estado: 'enviando' as const, reservadoEm: m.envio.reservadoEm } };
+  });
+  const extras = daqui.filter(p => !ids.has(p.id)).map(pendenteParaMensagem);
+  return extras.length || mudou ? { ...c, mensagens: [...mensagens, ...extras] } : c;
 }
 
 export function pendenteParaMensagem(p: MensagemPendente): Mensagem {

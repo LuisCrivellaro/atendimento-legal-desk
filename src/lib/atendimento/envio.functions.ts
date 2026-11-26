@@ -19,6 +19,7 @@ import {
 import { normalizarTelefone } from './telefone';
 import { numeroWhatsAppAtendido } from './production-channel';
 import { conferirWebhookWhatsApp, urlPublicaApp, urlWebhookWhatsApp } from './url-publica';
+import { concluirEnvioEquipe, falhaAmbigua, falharEnvioEquipe, reservarEnvioEquipe, type DecisaoReserva } from './envio-equipe';
 import { ultramsgAdapter } from './canais/ultramsg';
 import { enviarTextoTelegram } from './canais/telegram';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
@@ -202,6 +203,54 @@ export const enviarMensagemCanal = createServerFn({ method: 'POST' })
     await atualizarConversa(context.supabase,data.conversaId,c=>({...c,agenteAna:{...c.agenteAna,humano:true,controleHumanoEm:new Date().toISOString(),proximoPasso:'Equipe assumiu esta conversa. Retomar Ana exige ação explícita.'}}));
     const email = String((context.claims as { email?: unknown } | undefined)?.email ?? '').trim().toLowerCase();
     return enviarComRegras(context.supabase, ator, { ...data, contaMaster: email === 'chamanalei@gmail.com' });
+  });
+
+/**
+ * Texto da equipe pelo Atendimento, em um passo só: reserva a mensagem na conversa com o id gerado no navegador
+ * (já assume a conversa e pausa a Anne), envia pelas mesmas regras de enviarComRegras e grava o recibo do canal.
+ * Nova tentativa com o mesmo id devolve a já enviada; reserva em andamento ou falha incerta nunca reenvia sozinha.
+ * Falhas voltam como resultado (não exceção) para a tela saber se pode haver chegado ao cliente.
+ */
+export const enviarMensagemEquipe = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ conversaId: z.string().uuid(), mensagemId: z.string().uuid(), texto: z.string().min(1).max(4096), automatico: z.boolean().optional(), reenvioConferido: z.boolean().optional() }))
+  .handler(async ({ data, context }) => {
+    const t0 = Date.now();
+    const email = String((context.claims as { email?: unknown } | undefined)?.email ?? '').trim().toLowerCase();
+    const problema = validarTextoEnvio(data.texto);
+    if (problema) return { ok: false as const, erro: problema, ambiguo: false };
+    const ator = await atorDoUsuario(context.supabase, context.userId);
+    const autor = data.automatico ? 'IA (automático)' : (ator.nome !== 'usuário' ? ator.nome : email || 'Atendente');
+    const { atualizarConversa } = await import('./ana.server');
+    let decisao: DecisaoReserva | undefined;
+    try {
+      await atualizarConversa(context.supabase, data.conversaId, c => {
+        decisao = reservarEnvioEquipe(c, { id: data.mensagemId, texto: data.texto, autor, agora: new Date(), reenvioConferido: data.reenvioConferido });
+        return decisao.acao === 'reservar' ? decisao.conversa : c;
+      });
+    } catch (e) {
+      return { ok: false as const, erro: e instanceof Error ? e.message : 'Conversa indisponível.', ambiguo: false };
+    }
+    const d = decisao as DecisaoReserva | undefined;
+    if (!d) return { ok: false as const, erro: 'Conversa indisponível.', ambiguo: false };
+    if (d.acao === 'jaEnviada') return { ok: true as const, repetida: true, mensagem: d.mensagem };
+    if (d.acao === 'emAndamento') return { ok: false as const, erro: 'Esta mensagem já está sendo enviada.', ambiguo: true };
+    if (d.acao === 'conferir') return { ok: false as const, erro: 'O envio anterior não foi confirmado e pode ter chegado ao cliente. Confira o WhatsApp antes de reenviar.', ambiguo: true };
+    const tReserva = Date.now();
+    try {
+      const r = await enviarComRegras(context.supabase, ator, { conversaId: data.conversaId, acao: 'enviarMensagem', texto: data.texto, contaMaster: email === 'chamanalei@gmail.com' });
+      const tCanal = Date.now();
+      const final = await atualizarConversa(context.supabase, data.conversaId, c => concluirEnvioEquipe(c, data.mensagemId, { status: r.simulado === false ? 'enviada' : 'simulada', canal: r.canal, idExterno: 'idExterno' in r ? r.idExterno : undefined }));
+      // Log estruturado sem texto nem telefone: onde o tempo foi gasto (banco, provedor, banco).
+      console.log(JSON.stringify({ evento: 'envio_equipe', canal: r.canal, reservaMs: tReserva - t0, canalMs: tCanal - tReserva, conclusaoMs: Date.now() - tCanal, totalMs: Date.now() - t0 }));
+      return { ok: true as const, repetida: false, mensagem: final.mensagens.find(m => m.id === data.mensagemId) };
+    } catch (e) {
+      const erro = e instanceof Error ? e.message : 'O envio não foi concluído.';
+      const ambiguo = falhaAmbigua(erro);
+      await atualizarConversa(context.supabase, data.conversaId, c => falharEnvioEquipe(c, data.mensagemId, erro, ambiguo, new Date())).catch(() => undefined);
+      console.log(JSON.stringify({ evento: 'envio_equipe_falhou', ambiguo, totalMs: Date.now() - t0 }));
+      return { ok: false as const, erro, ambiguo };
+    }
   });
 
 /**
