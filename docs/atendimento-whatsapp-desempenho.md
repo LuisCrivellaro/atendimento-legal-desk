@@ -12,7 +12,14 @@ Commits locais na `main` (não enviados; o push é feito pelo GitHub Desktop):
 
 ## 1. Incidente: mensagens novas não chegavam (só havia conversas de 25/11)
 
-**Diagnóstico (conferido em 26/11):**
+> **Atualização (26/11/2026, à tarde): o domínio inverteu.** O app publicado voltou para
+> `atendimento-legal-desk.lovable.app` (login e rotas respondendo; `/api/public/atendimento/whatsapp` → 401) e
+> `cslawyers.lovable.app` passou a responder 404. O escritório escolheu **`atendimento-legal-desk.lovable.app` como
+> endereço oficial**: `url-publica.ts` voltou a usá-lo como padrão e qualquer host diferente do app publicado aparece
+> como recebimento quebrado no painel. O webhook do UltraMsg precisa apontar para `atendimento-legal-desk.lovable.app`
+> e o segredo `PUBLIC_APP_URL` deve ser configurado com esse endereço. O texto abaixo descreve o diagnóstico da manhã.
+
+**Diagnóstico (conferido em 26/11, de manhã):**
 
 - `https://atendimento-legal-desk.lovable.app/api/public/atendimento/whatsapp` responde **404** (página do Lovable, domínio não existe mais).
 - `https://cslawyers.lovable.app/api/public/atendimento/whatsapp` responde **401** sem o segredo, ou seja, a rota está no ar e protegida.

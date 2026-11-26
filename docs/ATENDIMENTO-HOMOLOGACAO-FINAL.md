@@ -65,7 +65,7 @@ fornecedores. Contrato, assinatura e pagamento continuam manuais e nunca são si
 
 1. GitHub Desktop → **Push origin** (commits locais desta missão e da anterior).
 2. Lovable → **Publish / Update**.
-3. Agendamento único no Lovable: `POST https://cslawyers.lovable.app/api/public/atendimento/monitorar-ana`, a cada
+3. Agendamento único no Lovable: `POST https://atendimento-legal-desk.lovable.app/api/public/atendimento/monitorar-ana`, a cada
    5 minutos, cabeçalho `Authorization: Bearer <LOVABLE_CRON_SECRET>`. Remover agendamentos antigos das rotas
    `confirmacao-consulta`, `lembrete-consulta`, `lembretes-atendimento`, `pendencias-processo`, `recuperar-ana`,
    `relatorio-diario` (manter não duplica envios).

@@ -10,11 +10,11 @@ resultado de cada etapa em `ana_monitoramento` (id `monitor-operacional`), que a
 | Campo | Valor |
 |---|---|
 | Método | `POST` |
-| URL | `https://cslawyers.lovable.app/api/public/atendimento/monitorar-ana` |
+| URL | `https://atendimento-legal-desk.lovable.app/api/public/atendimento/monitorar-ana` |
 | Frequência | a cada 5 minutos (`*/5 * * * *`) |
 | Cabeçalho | `Authorization: Bearer <LOVABLE_CRON_SECRET>` (o segredo já cadastrado no projeto; nunca na URL) |
 
-A autenticação é conferida em `authenticateCronRequest`. O domínio antigo devolve 404: use só `cslawyers.lovable.app`.
+A autenticação é conferida em `authenticateCronRequest`. Endereço oficial (decisão de 26/11/2026, à tarde): `atendimento-legal-desk.lovable.app`. `cslawyers.lovable.app` ficou fora do ar e devolve 404; não use. Configure também o segredo `PUBLIC_APP_URL` com o endereço oficial.
 
 ## O que o monitor executa (ordem de prioridade, orçamento de ~45 s por ciclo)
 
