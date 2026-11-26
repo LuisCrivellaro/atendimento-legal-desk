@@ -128,14 +128,15 @@ function Enviando() {
 }
 
 /** Quantas mensagens desenhar de cada vez: conversas longas abrem rápido e carregam o histórico ao subir. */
-export const JANELA_MENSAGENS = 80;
+const JANELA_MENSAGENS = 80;
 
-type PropsMensagens = { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void;onEnviarAnexo?:(m:Mensagem)=>void;onReenviar?:(m:Mensagem)=>void };
+/** `janela`: quantas mensagens desenhar ao abrir (padrão 80; as medições usam Infinity para reproduzir o comportamento antigo). */
+type PropsMensagens = { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void;onEnviarAnexo?:(m:Mensagem)=>void;onReenviar?:(m:Mensagem)=>void;janela?:number };
 
 // memo: digitar no campo de texto não redesenha a conversa (as props só mudam quando a conversa muda).
-export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete,onEnviarAnexo,onReenviar }: PropsMensagens) {
+export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete,onEnviarAnexo,onReenviar,janela=JANELA_MENSAGENS }: PropsMensagens) {
   const todos = useMemo(() => agruparMensagens(c.mensagens.filter(m=>!userId||!m.ocultaPara?.includes(userId))), [c.mensagens, userId]);
-  const [mostrar, setMostrar] = useState(JANELA_MENSAGENS);
+  const [mostrar, setMostrar] = useState(janela);
   const ocultas = Math.max(0, todos.length - mostrar);
   const itens = ocultas ? todos.slice(ocultas) : todos;
   const porId = useMemo(() => new Map(arquivos.map(a => [a.id, a])), [arquivos]);

@@ -2,6 +2,25 @@
 // mudou, preservando a referência das demais para que a tela não redesenhe tudo a cada mensagem.
 import type { Conversa, Mensagem } from '../mock-data';
 import { ordenarConversas, ultimaMensagem } from './conversation-order';
+import { matchesConversation, normalized } from '../atendimento';
+
+/**
+ * Busca da lista: nome exibido, nome, telefone e CPF como antes; com 3 ou mais letras, também o texto das
+ * mensagens (da mais nova para a mais antiga), devolvendo o trecho encontrado para a prévia.
+ */
+export function buscarNaConversa(c: Conversa, termo: string, nomeExibido: string): { combina: boolean; trecho?: string } {
+  const t = normalized(termo);
+  if (!t) return { combina: true };
+  if (matchesConversation({ ...c, nome: `${nomeExibido} ${c.nome}` }, termo)) return { combina: true };
+  if (t.length < 3) return { combina: false };
+  for (let i = c.mensagens.length - 1; i >= 0; i--) {
+    const m = c.mensagens[i]!;
+    // Apagadas (para todos ou para alguém) nunca aparecem na busca, embora o original fique guardado.
+    if (m.de === 'sistema' || !m.texto || m.apagadaParaTodos || m.ocultaPara?.length) continue;
+    if (normalized(m.texto).includes(t)) return { combina: true, trecho: m.texto.replace(/\s+/g, ' ').slice(0, 140) };
+  }
+  return { combina: false };
+}
 
 /**
  * Painel e notificações só precisam do fim da conversa (o "aguardando resposta" olha a última mensagem): manda as

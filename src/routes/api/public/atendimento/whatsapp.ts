@@ -121,7 +121,7 @@ const AUDIO = ['audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/amr',
  * Áudio recebido: só guarda o original no armazenamento privado do caso para a equipe ouvir no Atendimento.
  * Não entra em Documentos, no Drive nem na Anne (áudio continua sem resposta automática).
  */
-async function guardarAudio(admin: any, url: string, caso: { id: string; owner_id: string }) {
+async function guardarAudio(admin: Admin, url: string, caso: { id: string; owner_id: string }) {
   try {
     if (!/^https:\/\//.test(url)) return undefined;
     const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
