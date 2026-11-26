@@ -159,3 +159,9 @@ Para segredos:
 - [ ] Avaliar como recuperar o atendimento quando a agenda é alterada mas o salvamento falha (as duas operações não formam uma transação única).
 - [ ] Liberar a Ana para todos os clientes. Esta é a última etapa e depende de pedido explícito e de testes.
 - [ ] Voltar para o WhatsApp (UltraMsg) quando a Dra. autorizar.
+
+## Atendimento (Anne) — estado em 26/11/2026
+
+Concluído no código e coberto por testes, aguardando publicação e as aprovações da Dra.: veja
+`docs/ATENDIMENTO-HOMOLOGACAO-FINAL.md` (o que está pronto, o que depende de publicação/aprovação e o roteiro de
+homologação), `docs/automacoes-operacionais.md` e `docs/rotinas-agendadas.md` (agendamento único `monitorar-ana`).

@@ -106,3 +106,15 @@ reagendamento automáticos só saem para esse número; todos os outros contatos 
 - `src/test/anne-secretaria-cenarios.test.ts`: não poderá comparecer (Híbrido) → lista real → remarcação com recibo; agenda fora; falta registrada → modelo 06 → remarcação; falta sem dois horários hoje; Humano; modo de teste; webhooks duplicados; falha de integração.
 - `src/test/anne-secretaria-rotinas.test.ts`: 2 h padrão e configurável, presença confirmada, realizada/ausência/cancelada, modo de teste, falha do UltraMsg, secretaria padrão ligada.
 - `src/test/anne-secretaria-modos-motor.test.ts`: padrão ligado, antecedência, modo de teste no motor e no esquema de gravação.
+
+## 8. Missão final (26/11/2026)
+
+- Coleta, pergunta de encerramento e lembretes de audiência/perícia também passam pelo motor (Híbrido envia;
+  Humano/Bloqueado avisam a equipe). Lembretes de coleta e a pergunta de encerramento não são da biblioteca oficial:
+  só saem sozinhos com o texto exato aprovado pela Dra. em Automações → Secretaria digital.
+- Compromisso concluído/sumido no ProJuris antes do horário não cancela mais a consulta: suspende as automações e
+  avisa a equipe; reabrir o compromisso retoma. Reserva da Anne sem gravação local vira pendência prioritária.
+- Audiências e perícias: registro por evento, redesignação/cancelamento, lembretes T04/T12.2 e confirmações
+  T11.2/T12.3 prontos (saem depois que a Dra. ativar os modelos); sincronização automática de andamentos.
+- Checklist trabalhista T09 por autorização da equipe; transcrição/resumo da consulta com Drive; indicador de pronto
+  para a Produção; resumo do Atendimento no painel. Detalhes: `docs/ATENDIMENTO-HOMOLOGACAO-FINAL.md`.

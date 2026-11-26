@@ -1,3 +1,12 @@
+## Atendimento — missão final de homologação — 26/11/2026
+
+Relatório completo: `docs/ATENDIMENTO-HOMOLOGACAO-FINAL.md` (matriz de requisitos, testes, publicação, pendências).
+- P0: monitor com trava, limite por etapa e adiamento justo; agenda do ProJuris sem falso cancelamento e com
+  reconciliação de reservas; coleta e encerramento no modo híbrido; textos fora da biblioteca só com aprovação exata.
+- P1: checklist trabalhista T09 por autorização da equipe; audiências e perícias (registro, redesignação, cancelamento,
+  T04/T11.2/T12.2/T12.3 prontos aguardando ativação da Dra.); sincronização automática de andamentos por prioridade;
+  transcrição/resumo da consulta com Drive; indicador de pronto para a Produção; resumo no painel de Automações.
+- Pendente: publicação (Push + Publish), agendamento único conferido, aprovações da Dra., homologação com número de teste.
 ## Anne completa (Atendimento) — branch local anne-atendimento-completo — 25/11/2026
 Implementado e testado com mocks; nada publicado, nada enviado ao Lovable, rotinas novas não agendadas. Relatório: docs/anne-atendimento-completo.md.
 - [x] P0-1 Confirmação 40 min antes (texto oficial, saudação D1, rotina a cada 5 min, respostas ok/não, avisos)

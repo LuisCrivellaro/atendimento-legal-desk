@@ -20,10 +20,12 @@ A autenticação é conferida em `authenticateCronRequest`. O domínio antigo de
 
 | Etapa | Quando | O que faz |
 |---|---|---|
-| `agenda-projuris` | todo ciclo | Reconhece consultas marcadas direto no ProJuris, segue horários alterados e confere cancelamentos pelo código oficial |
+| `agenda-projuris` | todo ciclo | Reconhece consultas marcadas direto no ProJuris, segue horários alterados; compromisso concluído/sumido antes do horário suspende as automações para conferência (nunca cancela); reserva da Anne sem gravação local vira pendência |
 | `confirmacoes` | todo ciclo | Confirmação de presença (padrão 2 h antes, configurável) |
 | `lembretes` | 8h–12h (São Paulo) | Lembrete do dia (modelo oficial 01, "Bom dia"); nunca a menos de 30 min da consulta |
 | `registro-consultas` | todo ciclo | Consulta passada sem registro de realizada/ausência → um aviso à equipe |
+| `eventos-processuais` | todo ciclo (envia só em dia útil 9h–18h) | T12.2 na véspera da perícia, T04 para audiência presencial, T11.2/T12.3 se a equipe ligar; só com modelo ativado pela Dra. |
+| `andamentos-projuris` | a cada 30 min | Sincroniza até 3 processos de clientes com vínculo confirmado (prioridade: evento futuro, depois o mais antigo) |
 | `pendencias-processo` | WhatsApp ativo | Notícias processuais aprovadas e pendentes |
 | `recuperar-ana` | todo ciclo | Recuperação segura de respostas da Anne |
 | `coleta` | a cada 30 min | Contrato (24 h) e documentos faltantes (48 h), dias úteis 9h–17h30 |
@@ -33,7 +35,12 @@ A autenticação é conferida em `authenticateCronRequest`. O domínio antigo de
 
 Depois das etapas, o monitor atualiza os nomes da agenda do WhatsApp e a saúde da Anne (como antes).
 Cada etapa é isolada (a falha de uma não para as outras) e idempotente (reserva antes do envio), então ciclos
-repetidos ou agendamentos duplicados não duplicam mensagens.
+repetidos ou agendamentos duplicados não duplicam mensagens. Desde 26/11/2026 (missão final):
+- trava atômica do ciclo (`ana_monitoramento` id `monitor-operacional-trava`): dois disparos simultâneos nunca
+  executam juntos; trava de ciclo interrompido é retomada depois de 2 minutos;
+- limite de tempo por etapa (20 s; 25 s para o ProJuris): integração lenta vira falha registrada e as demais seguem;
+- etapa sem tempo no ciclo fica "adiada", roda primeiro no ciclo seguinte e nunca é marcada como executada;
+- se o estado do monitor não for gravado, a rota responde 503 (nunca sucesso falso).
 
 ## Rotinas antigas (agora redundantes)
 
