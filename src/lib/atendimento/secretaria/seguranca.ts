@@ -105,3 +105,12 @@ export function dadosNaoVerificados(texto: string, fontes: FontesVerificadas): s
   const faltando = extrairFatos(texto).filter(f => !permitidos.has(`${f.categoria}:${f.chave}`));
   return [...new Set(faltando.map(f => f.categoria === 'cpf' || f.categoria === 'processo' ? `${f.categoria} ••••${f.chave.slice(-4)}` : `${f.categoria} ${f.chave}`))];
 }
+
+/** Relê depois dos efeitos de agenda: o recibo recém-salvo, não o snapshot anterior, valida a confirmação. */
+export async function conferirRespostaAtual(
+  texto: string,
+  lerConversa: () => Promise<Parameters<typeof fontesDaConversa>[0]>,
+  extras: Parameters<typeof fontesDaConversa>[1] = {},
+): Promise<string[]> {
+  return dadosNaoVerificados(texto, fontesDaConversa(await lerConversa(), extras));
+}

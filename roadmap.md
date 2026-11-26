@@ -1,3 +1,9 @@
+## Correção da confirmação de consulta — 26/11/2026
+- [x] Identificar reserva real de 30/11 às 17h30 e bloqueio do Meet por leitura anterior ao recibo.
+- [x] Conferir fatos contra recibo atualizado, preservando bloqueios e controle humano.
+- [ ] Executar regressões e enviar confirmação da reserva existente ao número autorizado, sem nova reserva.
+- [ ] Publicar a correção e verificar o envio real.
+
 ## Atendimento — missão final de homologação — 26/11/2026
 
 Relatório completo: `docs/ATENDIMENTO-HOMOLOGACAO-FINAL.md` (matriz de requisitos, testes, publicação, pendências).
