@@ -9,6 +9,7 @@ import type { CaseFile } from '@/lib/office';
 import type { Conversa, Mensagem, StatusMensagem } from '@/lib/mock-data';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { RotuloOrigem } from './anne-secretaria';
 
 // Conversa no padrão visual do WhatsApp: balões com "rabinho" no início de cada bloco, horário e status dentro do
 // balão, separador de dia, foto (ou iniciais) do cliente ao lado das mensagens dele, imagens como foto e documentos
@@ -131,10 +132,10 @@ function Enviando() {
 const JANELA_MENSAGENS = 80;
 
 /** `janela`: quantas mensagens desenhar ao abrir (padrão 80; as medições usam Infinity para reproduzir o comportamento antigo). */
-type PropsMensagens = { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void;onEnviarAnexo?:(m:Mensagem)=>void;onReenviar?:(m:Mensagem)=>void;janela?:number };
+type PropsMensagens = { c: Conversa; arquivos?: CaseFile[] | undefined;userId?:string;canDeleteForEveryone?:boolean;onDelete?:(m:Mensagem,paraTodos:boolean)=>void;onEnviarAnexo?:(m:Mensagem)=>void;onReenviar?:(m:Mensagem)=>void;janela?:number;/** Secretaria digital: rótulo interno Anne / Automação / Equipe. */mostrarOrigem?:boolean };
 
 // memo: digitar no campo de texto não redesenha a conversa (as props só mudam quando a conversa muda).
-export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete,onEnviarAnexo,onReenviar,janela=JANELA_MENSAGENS }: PropsMensagens) {
+export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId,canDeleteForEveryone=false,onDelete,onEnviarAnexo,onReenviar,janela=JANELA_MENSAGENS,mostrarOrigem=false }: PropsMensagens) {
   const todos = useMemo(() => agruparMensagens(c.mensagens.filter(m=>!userId||!m.ocultaPara?.includes(userId))), [c.mensagens, userId]);
   const [mostrar, setMostrar] = useState(janela);
   const ocultas = Math.max(0, todos.length - mostrar);
@@ -170,7 +171,7 @@ export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId
       {!out && (inicio ? <ClienteAvatar nome={c.nome} className="mt-0.5" /> : <span className="w-8 shrink-0" aria-hidden="true" />)}
       <div className={cn('zap-bubble relative max-w-[78%] break-words text-sm leading-[1.45] lg:max-w-[65%]', imagem ? 'p-1' : 'px-2.5 pb-1.5 pt-1.5', out ? 'zap-out' : 'zap-in', inicio && 'zap-tail')}>
         {onDelete&&mensagemDoAgente(m)&&<DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="float-right ml-2 size-6" aria-label="Opções da mensagem da Ana"><MoreHorizontal className="size-3.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={()=>onDelete(m,false)}><Trash2/>Apagar para mim</DropdownMenuItem>{canDeleteForEveryone&&<DropdownMenuItem disabled={!podeApagarParaTodos(m)} onSelect={()=>onDelete(m,true)}><Trash2/>Apagar para todos</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>}
-        {emissor && <p className={cn('px-0.5 text-[13px] font-bold', emissor === 'ANA' ? 'text-primary' : 'text-foreground', imagem && 'px-1.5 pt-0.5')}>{emissor}</p>}
+        {emissor && <p className={cn('px-0.5 text-[13px] font-bold', emissor === 'ANA' ? 'text-primary' : 'text-foreground', imagem && 'px-1.5 pt-0.5')}>{emissor}{mostrarOrigem && <> <RotuloOrigem m={m} /></>}</p>}
         {audio ? <Audio m={m} /> : imagem ? <Imagem m={m} arquivo={arquivo} meta={meta} /> : m.arquivo && <Documento m={m} arquivo={arquivo} />}
         {m.texto && <p className={cn('whitespace-pre-wrap px-0.5', m.arquivo && 'mt-1.5', imagem && 'px-1.5 pb-1')}>{m.texto}<span aria-hidden="true" className="invisible ml-3 inline-block text-2xs">{meta}</span></p>}
         {m.tipoIdentificado && <p className="mt-1 px-0.5 text-[13px] text-primary">{m.tipoIdentificado}</p>}
