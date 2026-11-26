@@ -86,7 +86,8 @@ describe('fila de envio no navegador (otimista, em ordem, sem travar)', () => {
     const exibicao = performance.now() - t0;
     expect(pendentesAtuais().map(p => p.texto)).toEqual(['m1', 'm2', 'm3', 'm4', 'm5']);
     expect(exibicao).toBeLessThan(100);
-    await esperar(80);
+    // Espera a fila esvaziar (até 2 s) em vez de uma folga fixa: com a suíte inteira em paralelo, 80 ms não bastavam.
+    for (const limite = Date.now() + 2000; ordem.length < 5 && Date.now() < limite;) await esperar(5);
     expect(ordem).toEqual(['m1', 'm2', 'm3', 'm4', 'm5']);
     expect(maxSimultaneas).toBe(1);
     expect(pendentesAtuais()).toHaveLength(0);
