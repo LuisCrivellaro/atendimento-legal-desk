@@ -5,7 +5,7 @@ import { conversas, type Conversa } from '@/lib/mock-data';
 import { defaultState, type OfficeState } from '@/lib/office';
 import {
   MODELO_CONFIRMACAO_CONSULTA, confirmacao40Respondivel, decidirConfirmacao40, faseConfirmacao, mensagemConfirmacaoConsulta,
-  registrarRespostaConfirmacao40, respostaConfirmacao40, saudacaoPorHorario,
+  registrarRespostaConfirmacao40, respostaConfirmacao40, saudacaoPorHorario, textoConfirmacao40,
 } from '@/lib/atendimento/confirmacao-consulta';
 import { enviarConfirmacoesConsulta } from '@/lib/atendimento/confirmacao-consulta.server';
 import { enviarLembretesConsulta } from '@/lib/atendimento/lembrete-consulta.server';
@@ -147,27 +147,37 @@ describe('rotina de confirmação 40 min (cenários P0-1)', () => {
     expect(mocks.enviar).not.toHaveBeenCalled();
     expect(await enviarConfirmacoesConsulta(db, SP('13:45'))).toMatchObject({ enviados: 1 });
     expect(mocks.enviar).toHaveBeenCalledOnce();
-    expect(mocks.enviar.mock.calls[0]?.[0]).toMatchObject({ conversaId: 'c-conf', motivo: 'confirmacao', contatoEsperado: '5511900000001', texto: 'Olá\nBoa tarde ! 😊\n📍Passando para confirmar o seu atendimento hoje às 14h30, ok?!\nEquipe CS Advocacia ⚖️\nLawyers' });
+    // Biblioteca oficial (26/11/2026): à tarde vale o modelo 08.2, exatamente como recebido.
+    expect(mocks.enviar.mock.calls[0]?.[0]).toMatchObject({ conversaId: 'c-conf', motivo: 'confirmacao', contatoEsperado: '5511900000001', texto: 'Olá! 👋🏻\nTudo bem? 😊\n📍 Estamos passando para confirmar a sua consulta.\n📆 Agendada para hoje, quarta-feira, 25/11/2026, às 14h30. ✅\nCaso haja alguma alteração, pedimos a gentileza de avisar com antecedência. 🙏🏻\nEquipe CS Advocacia\ncarolinasantos.com.br' });
     expect(await enviarConfirmacoesConsulta(db, SP('13:50'))).toMatchObject({ enviados: 0 });
     expect(mocks.enviar).toHaveBeenCalledOnce();
     const c = ler();
-    expect(c.mensagens.at(-1)).toMatchObject({ autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: 'wamid-1', status: 'enviada' });
+    expect(c.mensagens.at(-1)).toMatchObject({ autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: 'wamid-1', status: 'enviada', modeloOficial: { id: 'T08.2', versao: 1 } });
     expect(c.timeline.at(-1)?.evento).toBe('Confirmação de 40 minutos enviada pela Anne');
-    expect(c.agenteAna?.confirmacao40).toMatchObject({ inicio: iso('14:30'), enviadoEm: SP('13:45').toISOString(), idExterno: 'wamid-1' });
-    expect(c.agenteAna?.envioAna?.texto).toContain('📍Passando para confirmar');
+    expect(c.agenteAna?.confirmacao40).toMatchObject({ inicio: iso('14:30'), enviadoEm: SP('13:45').toISOString(), idExterno: 'wamid-1', modelo: { id: 'T08.2' } });
+    expect(c.agenteAna?.envioAna?.texto).toContain('📍 Estamos passando para confirmar a sua consulta.');
   });
-  it('2 e 11. consulta às 9h: lembrete das 08:00 continua igual e a confirmação sai às 8h15 com "Bom dia"', async () => {
+  it('2 e 11. consulta às 9h: lembrete oficial 01 às 08:00; a confirmação das 8h15 seria redundante e não sai', async () => {
     const nove = conversa(iso('09:00'));
     nove.agenteAna = { ...nove.agenteAna, telefone: '5511900000001' };
     const { db, ler } = criarDb({ casos: { 'c-conf': nove } });
     expect(await enviarLembretesConsulta(db, SP('08:00'))).toMatchObject({ enviados: 1 });
-    expect(mocks.enviar.mock.calls[0]?.[0]).toMatchObject({ motivo: 'lembrete', texto: mensagemLembreteAna('Maria Teste', iso('09:00')) });
-    expect(await enviarConfirmacoesConsulta(db, SP('08:15'))).toMatchObject({ enviados: 1 });
-    expect(mocks.enviar.mock.calls[1]?.[0].texto).toContain('Bom dia ! 😊');
-    expect(mocks.enviar.mock.calls[1]?.[0].texto).toContain('hoje às 9h, ok?!');
+    expect(mocks.enviar.mock.calls[0]?.[0]).toMatchObject({ motivo: 'lembrete', texto: 'Oi, Maria! Bom dia 😊\nPassando para lembrar que:\n📆 Sua consulta está confirmada para hoje, às 9h. ✅\nCaso precise fazer alguma alteração, pedimos a gentileza de nos avisar com pelo menos 1 hora de antecedência.\nEstamos te aguardando!\nEquipe CS Advocacia\ncarolinasantos.com.br' });
+    // Política anti-redundância (01/02/08.2): lembrete enviado há menos de 90 min → sem confirmação e sem aviso.
+    expect(await enviarConfirmacoesConsulta(db, SP('08:15'))).toMatchObject({ enviados: 0, avisos: 0 });
+    expect(mocks.enviar).toHaveBeenCalledOnce();
     const c = ler();
     expect(c.agenteAna?.lembreteConsulta?.inicio).toBe(iso('09:00'));
-    expect(c.agenteAna?.confirmacaoCancelamento?.eventoId).toBe('evt-1');
+    expect(c.mensagens.at(-1)?.modeloOficial).toEqual({ id: 'T01', versao: 1 });
+    // O modelo 01 não pede SIM/NÃO: nenhum consentimento de cancelamento fica gravado.
+    expect(c.agenteAna?.confirmacaoCancelamento).toBeUndefined();
+  });
+  it('2b. consulta às 11h: lembrete às 08:00 e confirmação oficial 02 ("Bom dia") às 10h15', async () => {
+    const onze = conversa(iso('11:00'));
+    const { db } = criarDb({ casos: { 'c-conf': onze } });
+    await enviarLembretesConsulta(db, SP('08:00'));
+    expect(await enviarConfirmacoesConsulta(db, SP('10:15'))).toMatchObject({ enviados: 1 });
+    expect(mocks.enviar.mock.calls[1]?.[0].texto).toBe('Olá! Bom dia 😊\nPassando para confirmar o seu atendimento hoje às 11h ✅, ok?\nEquipe CS Advocacia ⚖️');
   });
   it('3. consulta marcada às 10h para as 14h: a confirmação é a única e sai', async () => {
     const { db, ler } = criarDb({ casos: { 'c-conf': conversa(iso('14:00')) } });
@@ -196,7 +206,8 @@ describe('rotina de confirmação 40 min (cenários P0-1)', () => {
     const { db, ler } = criarDb({ casos: { 'c-conf': c } });
     expect(await enviarConfirmacoesConsulta(db, SP('13:45'))).toMatchObject({ enviados: 0, avisos: 1 });
     expect(mocks.enviar).not.toHaveBeenCalled();
-    expect(ler().avisosEquipe?.[0]?.textoPronto).toBe(mensagemConfirmacaoConsulta(iso('14:30'), SP('13:45')));
+    expect(ler().avisosEquipe?.[0]?.textoPronto).toBe(textoConfirmacao40(iso('14:30'), SP('13:45')).texto);
+    expect(ler().avisosEquipe?.[0]?.textoPronto).toContain('às 14h30. ✅');
   });
   it('6b. modo Desligada, Anne pausada no escritório ou automação desligada: nada sai sozinho', async () => {
     const desligada = criarDb({ casos: { 'c-conf': conversa(iso('14:30'), { modoIA: 'Desligada' }) } });
@@ -224,7 +235,7 @@ describe('rotina de confirmação 40 min (cenários P0-1)', () => {
     alterar('c-conf', c => ({ ...c, consultaAgendada: iso('16:00'), agenteAna: { ...c.agenteAna, reservaCalendar: { id: 'evt-2', inicio: iso('16:00'), fim: iso('16:30') } } }));
     await enviarConfirmacoesConsulta(db, SP('15:15'));
     expect(mocks.enviar).toHaveBeenCalledTimes(2);
-    expect(mocks.enviar.mock.calls[1]?.[0].texto).toContain('hoje às 16h, ok?!');
+    expect(mocks.enviar.mock.calls[1]?.[0].texto).toContain('Agendada para hoje, quarta-feira, 25/11/2026, às 16h. ✅');
   });
   it('10. consulta cancelada: nada', async () => {
     const { db } = criarDb({ casos: { 'c-conf': conversa(undefined) } });

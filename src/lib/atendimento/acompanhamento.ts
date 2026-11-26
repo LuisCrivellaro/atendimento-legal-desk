@@ -1,4 +1,5 @@
 import type { Conversa } from '../mock-data';
+import { rascunhoComunicacaoEvento } from './biblioteca/selecao';
 
 /**
  * Concierge de acompanhamento (P0-4), regras puras.
@@ -89,24 +90,13 @@ export function chaveEvento(e: Pick<EventoOficial, 'codigoProcesso' | 'tipo' | '
 }
 
 /**
- * Rascunho a partir dos MODELOS OFICIAIS do escritório (/audiencia e /pericia), só com dados do registro.
- * Campo ausente sai do texto (linha ou trecho), nunca é inventado. Vai para a revisora antes de qualquer envio.
+ * Rascunho para a revisora a partir da BIBLIOTECA OFICIAL (11.1 comunicação de audiência, 12.1 perícia agendada),
+ * só com dados do registro. Desde 26/11/2026 o texto oficial nunca é cortado: campo sem dado fica visível entre
+ * colchetes para a revisão completar ("corrigir"), e a entrega é bloqueada enquanto houver campo pendente.
+ * `_modelos` (mensagens prontas antigas) não é mais usado; o parâmetro fica por compatibilidade.
  */
-export function rascunhoAvisoEvento(e: EventoOficial, nome: string, modelos: { audiencia: string; pericia: string }) {
-  const primeiro = nome.trim().split(/\s+/)[0] ?? '';
-  const valores: Record<string, string | undefined> = {
-    nome: primeiro ? primeiro.charAt(0).toLocaleUpperCase('pt-BR') + primeiro.slice(1).toLocaleLowerCase('pt-BR') : undefined,
-    data: e.data, horario: e.hora, modalidade: e.modalidade, endereco: e.local, processo: e.numero, vara: e.vara, tipo_audiencia: undefined,
-  };
-  let t = e.tipo === 'audiencia' ? modelos.audiencia : modelos.pericia;
-  // Trechos em linha do modelo de audiência que dependem de um campo.
-  if (!valores['modalidade']) t = t.replace(' {modalidade},', '');
-  if (!valores['horario']) t = t.replace(' às {horario}', '');
-  if (!valores['tipo_audiencia']) t = t.replace(' – {tipo_audiencia}', '');
-  if (!valores['data']) t = t.replace(', no dia {data}', '').replace(' no dia {data}', '');
-  if (!valores['nome']) t = t.replace(/,? ?\{nome\}/g, '');
-  // Bloco "📍 Local da audiência:\n{endereco}" some inteiro sem endereço.
-  if (!valores['endereco']) t = t.replace(/\n*📍 Local da audiência:\n\{endereco\}/, '');
-  t = t.replace(/\{([a-z_]+)\}/g, (all, k: string) => valores[k] ?? all);
-  return t.split('\n').filter(l => !/\{[a-z_]+\}/.test(l)).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+export function rascunhoAvisoEvento(e: EventoOficial, nome: string, _modelos?: { audiencia: string; pericia: string }) {
+  const primeiro = nome.replace(/^\s*(?:RT|AC)\s*-\s*[^-]*-\s*/i, '').trim().split(/\s+/)[0] ?? '';
+  const n = /^[\p{L}'-]{2,40}$/u.test(primeiro) ? primeiro.charAt(0).toLocaleUpperCase('pt-BR') + primeiro.slice(1).toLocaleLowerCase('pt-BR') : undefined;
+  return rascunhoComunicacaoEvento({ tipo: e.tipo, data: e.data, hora: e.hora, modalidade: e.modalidade, numero: e.numero, vara: e.vara, local: e.local }, n).texto;
 }

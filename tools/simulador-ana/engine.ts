@@ -9,7 +9,7 @@ import type { Conversa } from '@/lib/mock-data';
 import { newMessage, chosenSlot, formatarHorarioCliente } from '@/lib/atendimento';
 import { pedidoInformacoesConsultaAna, aceiteConsultaAna } from '@/lib/atendimento/ana-rules';
 import { escolherReservaAna, idReservaCalendar, intervaloLivre, type ReservaCalendar } from '@/lib/atendimento/calendar-booking';
-import { saudacaoClienteNovo, pediuNomeInicialAna, nomePrimeiroContatoAna, nomeParaHorarioPendenteAna, aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, PEDIDO_NOME_AGENDA_ANA, type AnaResult } from '@/lib/atendimento/ana-rules';
+import { saudacaoClienteNovo, saudacaoInicialAna, pediuNomeInicialAna,nomePrimeiroContatoAna, nomeParaHorarioPendenteAna, aplicarRegrasAna, expedienteAna, mensagemSemResposta, aceitarRespostaAna, respostaAgendaTeste, priorizarAgendamentoAna, PEDIDO_NOME_AGENDA_ANA, type AnaResult } from '@/lib/atendimento/ana-rules';
 import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from '@/lib/atendimento/ana-contexto';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from '@/lib/atendimento/ana-retomada';
 import { classificarAgenda, etiquetaConversa, identificarTipoCliente, classificarEntrada, telefoneAgenda, type TipoCliente } from '@/lib/atendimento/intake-rules';
@@ -20,6 +20,8 @@ import { solicitarEmailPendente } from '@/lib/atendimento/email-rules';
 import { confirmacao40Respondivel, decidirConfirmacao40, registrarRespostaConfirmacao40, respostaConfirmacao40, textoAvisoConfirmacao } from '@/lib/atendimento/confirmacao-consulta';
 import { registrarAviso } from '@/lib/atendimento/avisos-equipe';
 import { classificarMensagemComercial, contextoFiltroComercial, registrarFiltroComercial } from '@/lib/atendimento/filtro-comercial';
+import { renderizarOficial } from '@/lib/atendimento/biblioteca/renderizar';
+import { marcaModelo, pedidoRedeSocial, politicaConsultaDia, saudacaoPrimeiroAtendimento, textoAgendamentoConfirmado } from '@/lib/atendimento/biblioteca/selecao';
 import { emColeta, perguntaAvaliacaoDocumento, respostaDocumentoColeta } from '@/lib/atendimento/coleta';
 import { hora as horaConsulta } from '@/lib/atendimento/ana-scheduling';
 import { iniciarConsultaProcesso, respostaDuranteEspera, apenasInsistencia, deveConsultarProcesso, mensagemNaoCliente, interpretarRespostaRevisora, aplicarDecisao, pendencias, respostaAutorizada, CONFIG_CONSULTA_PADRAO, TEXTOS_CONSULTA, type ConfigConsultaProcesso, type PedidoProcesso, type PortasConsulta, type EntradaRedacao } from '@/lib/atendimento/consulta-processo';
@@ -204,10 +206,11 @@ export class SimuladorAna {
   /** Mesma decisão da rotina do servidor (confirmacao-consulta.server.ts), com o canal do simulador. */
   rotinaConfirmacao40(agora = new Date()) {
     const c = this.conv;
-    const decisao = decidirConfirmacao40({ consultaAgendada: c.consultaAgendada, reservaInicio: c.agenteAna?.reservaCalendar?.inicio, confirmacao40: c.agenteAna?.confirmacao40, humano: c.agenteAna?.humano, pausa: c.agenteAna?.pausa, modo: c.modoIA ?? this.modoIA, anaPausadaGlobal: false, automacaoLigada: true, contatoLiberado: true }, agora);
+    // Mesma decisão e mesma biblioteca oficial (02/08.2) e política anti-redundância da rotina do servidor.
+    const decisao = decidirConfirmacao40({ consultaAgendada: c.consultaAgendada, reservaInicio: c.agenteAna?.reservaCalendar?.inicio, confirmacao40: c.agenteAna?.confirmacao40, humano: c.agenteAna?.humano, pausa: c.agenteAna?.pausa, modo: c.modoIA ?? this.modoIA, anaPausadaGlobal: false, automacaoLigada: true, contatoLiberado: true, ...(c.consultaAgendada ? { politica: politicaConsultaDia(c, c.consultaAgendada, 'confirmacao', agora) } : {}) }, agora);
     if (decisao.tipo === 'enviar') {
       const idExterno = `conf40-${++this.seq}`;
-      this.atualizar(x => ({ ...x, agenteAna: { ...x.agenteAna, confirmacao40: { inicio: decisao.inicio, reservadoEm: agora.toISOString(), enviadoEm: agora.toISOString(), idExterno } }, mensagens: [...x.mensagens, newMessage(decisao.texto, { autor: 'Ana · assistente virtual', canal: 'telegram', idExterno, status: 'enviada' })], timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de 40 minutos enviada pela Anne' }] }));
+      this.atualizar(x => ({ ...x, agenteAna: { ...x.agenteAna, confirmacao40: { inicio: decisao.inicio, reservadoEm: agora.toISOString(), enviadoEm: agora.toISOString(), idExterno, texto: decisao.texto, ...(decisao.modelo ? { modelo: decisao.modelo } : {}) } }, mensagens: [...x.mensagens, newMessage(decisao.texto, { autor: 'Ana · assistente virtual', canal: 'telegram', idExterno, status: 'enviada', ...(decisao.modelo ? { modeloOficial: decisao.modelo } : {}) })], timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de 40 minutos enviada pela Anne' }] }));
     } else if (decisao.tipo === 'aviso') {
       this.atualizar(x => registrarAviso({ ...x, agenteAna: { ...x.agenteAna, confirmacao40: { inicio: decisao.inicio, avisadoEm: agora.toISOString() } } }, { id: `confirmacao40:${decisao.inicio}`, tipo: 'confirmacao40', prioridade: true, criadoEm: agora.toISOString(), texto: textoAvisoConfirmacao(decisao.motivo, decisao.inicio) }));
     }
@@ -255,6 +258,16 @@ export class SimuladorAna {
       log(`Filtro comercial: ${filtro.resultado} · ${filtro.pontos} pontos`);
       return;
     }
+    // Pedido do Instagram/LinkedIn (modelos oficiais 10.1/10.2), igual à produção: link oficial, sem modelo.
+    const social = mode === 'Automática' ? pedidoRedeSocial(m.texto) : undefined;
+    const oficialSocial = social ? renderizarOficial(social, {}) : undefined;
+    if (oficialSocial?.ok) {
+      this.atualizar(cur => ({ ...cur, mensagens: [...cur.mensagens, newMessage(oficialSocial.texto, { autor: 'Ana · assistente virtual', canal, idExterno: `sim-${++this.seq}`, respostaAnaDe: messageId, status: 'enviada', modeloOficial: { id: oficialSocial.id, versao: oficialSocial.versao } })] }));
+      turno.enviada = oficialSocial.texto;
+      log(`Mensagem oficial ${oficialSocial.id}`);
+      return;
+    }
+    let modeloUsado: { id: string; versao: number } | undefined;
     try {
       const memoria=contextoPersistente(c,canal);const history=memoria.historico;const cobranca=cobraRetorno(m.texto);const identidade=nomeConhecido(c,canal);const introducao=apresentacaoNome(m.texto);
       const identificacao=identificarPorTelefone(telefone,this.projuris.pessoas);
@@ -419,7 +432,10 @@ export class SimuladorAna {
               }
               const reserva = current.consultaAgendada && current.agenteAna?.reservaCalendar ? await this.remarcar(id, current.agenteAna.reservaCalendar, escolhido, true, new Date(), cliente) : await this.reservar(id, escolhido, new Date(), cliente);
               log(current.consultaAgendada ? 'Agenda: REMARCADA (novo criado antes de excluir o antigo).' : 'Agenda: consulta RESERVADA com Meet (link simulado).');
-              r.mensagem = mensagemConfirmacaoAna(reserva.inicio, reserva.meetUrl, nome);
+              // Modelo oficial 08.1 quando compatível; senão a confirmação aprovada anterior (com o link do Meet).
+              const agendado = textoAgendamentoConfirmado(reserva, nome, new Date());
+              modeloUsado = marcaModelo(agendado);
+              r.mensagem = agendado.texto;
               r.proximo_passo = 'Consulta reservada automaticamente no Google Calendar.';
               this.atualizar(x => ({ ...x, consultaAgendada: reserva.inicio, horariosOfertados: [], agenteAna: { ...x.agenteAna, operacaoConsulta: undefined, reservaCalendar: reserva, alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, horariosTeste: [], horarioPendente: undefined, horarioPendenteDesde: undefined, consultaTeste: undefined, resultado: r, proximoPasso: r.proximo_passo } }));
             } catch (error) {
@@ -433,12 +449,14 @@ export class SimuladorAna {
           r.mensagem = 'Não posso reservar esse horário agora. Peça novos horários disponíveis para continuar.';
           r.proximo_passo = 'Consultar novos horários disponíveis.';
         }
+        // Primeiro atendimento de lead que já disse o nome, com os dois horários amanhã: modelo oficial 07.1 (igual à produção).
+        if (primeiroContato && saudacaoInicialAna(r.mensagem)) { const inicial = saudacaoPrimeiroAtendimento(r.mensagem, { nome: introducao || raw.dados_coletados.nome, horarios: agenda?.slots ?? horarios }); if (inicial.id !== 'anterior') { r.mensagem = inicial.texto; modeloUsado = marcaModelo(inicial); } }
         if(!saudou)r.mensagem = limitarNomeAna(r.mensagem, nome, c.mensagens.filter(x => x.canal === canal && x.de === 'escritorio').slice(-2).map(x => x.texto));
         const novosOferecidos = !escolhido && !cancelar && !perguntar && !semConsulta && agendaReal && !agenda?.selected ? (horarioPendente ? [horarioPendente] : agenda?.slots ?? []) : [];
         if(retomada&&!r.urgente)r.mensagem=mensagemRetornoAna(m.texto,r.mensagem);
         r.mensagem=semReintroducao(r.mensagem,atendimentoIniciado(c,canal,messageId)||!!identidade);
         turno.enviada = r.mensagem;
-        this.atualizar(cur => ({ ...cur, iaRetida: undefined, agenteAna: { ...cur.agenteAna, apresentado: true, ...(gerenciar && decisaoCancel === 'pedir' && cur.agenteAna?.reservaCalendar?.id === c.agenteAna?.reservaCalendar?.id && cur.agenteAna?.reservaCalendar ? { confirmacaoCancelamento: { eventoId: cur.agenteAna.reservaCalendar.id, inicio: cur.agenteAna.reservaCalendar.inicio, contato: telefone, expira: new Date(Date.now() + 30 * 60000).toISOString() } } : {}), ...(novosOferecidos.length ? { horariosApresentados: [...new Set([...(cur.agenteAna?.horariosApresentados ?? []), ...historicoHorarios, ...novosOferecidos])], listasHorarios: (cur.agenteAna?.listasHorarios ?? 0) + 1, pedidosOutrasOpcoes: pedidosOutras } : {}) }, mensagens: [...cur.mensagens, newMessage(r.mensagem, { autor: 'Ana · assistente virtual', canal, idExterno: `sim-${this.seq}`, respostaAnaDe: messageId, status: 'enviada' })] }));
+        this.atualizar(cur => ({ ...cur, iaRetida: undefined, agenteAna: { ...cur.agenteAna, apresentado: true, ...(gerenciar && decisaoCancel === 'pedir' && cur.agenteAna?.reservaCalendar?.id === c.agenteAna?.reservaCalendar?.id && cur.agenteAna?.reservaCalendar ? { confirmacaoCancelamento: { eventoId: cur.agenteAna.reservaCalendar.id, inicio: cur.agenteAna.reservaCalendar.inicio, contato: telefone, expira: new Date(Date.now() + 30 * 60000).toISOString() } } : {}), ...(novosOferecidos.length ? { horariosApresentados: [...new Set([...(cur.agenteAna?.horariosApresentados ?? []), ...historicoHorarios, ...novosOferecidos])], listasHorarios: (cur.agenteAna?.listasHorarios ?? 0) + 1, pedidosOutrasOpcoes: pedidosOutras } : {}) }, mensagens: [...cur.mensagens, newMessage(r.mensagem, { autor: 'Ana · assistente virtual', canal, idExterno: `sim-${this.seq}`, respostaAnaDe: messageId, status: 'enviada', ...(modeloUsado ? { modeloOficial: modeloUsado } : {}) })] }));
       } else if (r.acao === 'rascunho') {
         turno.retida = r.mensagem;
       } else {

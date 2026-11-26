@@ -77,7 +77,17 @@ describe('reagendamento sem modelo', () => {
     expect(e2.acoes[0]).toMatchObject({ tipo: 'executar', para: livres[1], de: { eventoId: 'ev1' } });
     const ok = passoReagendamento(e2.estado, { tipo: 'execucao', ok: true, recibo: { id: 'ev2', inicio: livres[1]!, meetUrl: 'https://meet.google.com/abc-defg-hij' } });
     expect(ok.estado.etapa).toBe('concluido');
-    expect(ok.acoes[0]).toMatchObject({ tipo: 'concluir', texto: expect.stringMatching(/remarcada para .*15h[\s\S]*meet\.google\.com/) });
+    // Com link do Meet a entregar, vale a confirmação aprovada anterior (o modelo 08.1 não leva o link).
+    expect(ok.acoes[0]).toMatchObject({ tipo: 'concluir', texto: expect.stringMatching(/📅 Data: 01\/12\/2026\n🕒 Horário: 15h\n🔗 Link: https:\/\/meet\.google\.com\/abc-defg-hij/) });
+    // De manhã e sem link a entregar: modelo oficial 08.1, exatamente como recebido.
+    const manha = passoReagendamento(e2.estado, { tipo: 'execucao', ok: true, recibo: { id: 'ev2', inicio: livres[1]! }, agora: new Date('2026-11-26T11:00:00Z') });
+    expect(manha.acoes[0]).toMatchObject({ tipo: 'concluir', texto: 'Bom dia! 😊\n📍 Confirmado!\n📆 Sua consulta está agendada para terça-feira, 01/12/2026, às 15h. ✅\nCaso haja alguma alteração, pedimos a gentileza de avisar com 1 hora de antecedência. 🙏🏻\nEquipe CS Advocacia ⚖️' });
+  });
+  it('dois horários livres hoje: modelo oficial 06 com as duas opções de hoje', () => {
+    const inicio = iniciarReagendamento({ inicio: '2026-11-26T20:00:00.000Z', eventoId: 'ev1', nome: 'Maria' });
+    const r = passoReagendamento(inicio.estado, { tipo: 'agenda', livres: ['2026-11-26T17:00:00.000Z', '2026-11-26T18:30:00.000Z', '2026-11-27T12:00:00.000Z'], agora: new Date('2026-11-26T11:00:00Z') });
+    expect(r.estado.opcoes).toEqual(['2026-11-26T17:00:00.000Z', '2026-11-26T18:30:00.000Z']);
+    expect(r.acoes[0]).toMatchObject({ tipo: 'enviar', texto: 'Oi, Maria! Tudo bem? 😊\nFique tranquila, sabemos que imprevistos acontecem.\nEstou passando para reagendarmos sua consulta e garantir que você receba a orientação necessária sobre o seu caso com calma e atenção.\nHoje temos disponibilidade às 14h ou às 15h30.\nQual desses horários fica melhor para você?' });
   });
   it('recibo divergente nunca vira sucesso', () => {
     const e1 = passoReagendamento(aguardandoEscolha(), { tipo: 'mensagem', texto: '1', agora: AGORA });

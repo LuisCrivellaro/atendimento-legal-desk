@@ -1,5 +1,6 @@
 import type { Conversa, DocItem } from '@/lib/mock-data';
 import { etiquetaConversa } from './intake-rules';
+import { renderizarOficial, type BibliotecaSalva } from './biblioteca/renderizar';
 
 /** Documentos base pedidos ao cliente logo após o "Trato feito". */
 export const DOCUMENTOS_BASE = ['RG ou CNH', 'CPF', 'Comprovante de endereço', 'E-mail'] as const;
@@ -13,11 +14,20 @@ export function pastaCliente(c: Pick<Conversa, 'nome' | 'atendimento' | 'etiquet
   return `${categoria}/${c.nome} – ${c.atendimento}`;
 }
 
-export function mensagemTratoFeito(nome: string) {
-  const limpo = nome.replace(/^\s*(RT|AC)\s*-\s*[^-]*-\s*/i, '').trim();
-  const p = limpo.split(/\s+/)[0] || '';
-  const n = p ? p.charAt(0).toLocaleUpperCase('pt-BR') + p.slice(1).toLocaleLowerCase('pt-BR') : '';
-  return `Oi${n ? `, ${n}` : ''}! Tudo bem? 😊\n\nPara elaborarmos o seu contrato e darmos andamento ao seu caso, preciso que você nos encaminhe, por gentileza:\n\n📍 Documento pessoal com foto, podendo ser RG ou CNH\n📍 CPF, caso não conste no documento enviado\n📍 Comprovante de residência atualizado\n\nNa sequência, enviaremos a lista de documentos necessários e já iniciaremos o processo 😊\n\nFicamos no aguardo 🩵\n\nEquipe CS Advocacia\ncarolinasantos.com.br`;
+/**
+ * Mensagem do "Trato feito": modelo oficial 05 da biblioteca, só com o nome do cadastro. Sem nome verificado nada
+ * é gerado (a equipe completa o cadastro antes): o texto oficial nunca sai sem o campo preenchido.
+ */
+export function tratoFeitoOficial(nome: string | undefined, biblioteca?: BibliotecaSalva) {
+  const p = (nome ?? '').replace(/^\s*(RT|AC)\s*-\s*[^-]*-\s*/i, '').trim().split(/\s+/)[0] || '';
+  const n = /^[\p{L}'-]{2,40}$/u.test(p) ? p.charAt(0).toLocaleUpperCase('pt-BR') + p.slice(1).toLocaleLowerCase('pt-BR') : undefined;
+  return renderizarOficial('T05', { '[nome]': n }, { biblioteca });
+}
+
+export function mensagemTratoFeito(nome: string | undefined, biblioteca?: BibliotecaSalva) {
+  const r = tratoFeitoOficial(nome, biblioteca);
+  if (!r.ok) throw new Error(r.motivo === 'variavel_ausente' ? 'Nome do cliente não está no cadastro: complete o nome antes do Trato feito (mensagem oficial 05).' : 'Mensagem oficial 05 indisponível; nada foi enviado.');
+  return r.texto;
 }
 
 /** Inclui os documentos base no checklist sem duplicar nem desmarcar itens já recebidos. */

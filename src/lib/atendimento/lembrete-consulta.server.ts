@@ -3,7 +3,9 @@ import type { Database } from '@/integrations/supabase/types';
 import type { Conversa } from '../mock-data';
 import type { OfficeState } from '../office';
 import { defaultAutomations, newMessage } from '../atendimento';
-import { consultaDeHoje, mensagemLembreteAna } from './lembrete-consulta';
+import { consultaDeHoje } from './lembrete-consulta';
+import { lerBiblioteca } from './biblioteca/renderizar';
+import { politicaConsultaDia, textoLembreteDoDia } from './biblioteca/selecao';
 import { atualizarConversa } from './ana.server';
 import { hora } from './ana-scheduling';
 import { registrarAviso } from './avisos-equipe';
@@ -39,9 +41,18 @@ export async function enviarLembretesConsulta(db: SupabaseClient<Database>, agor
     const state = estados.get(row.owner_id);
     const ctxSecretaria = secretariaLigada(state) ? contextoRotina({ state, agenteAtivo: cfg.data.agente_ativo === true, canalAtivo: cfg.data.canal_ativo === 'ultramsg', contato, modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA }) : undefined;
     if (!ctxSecretaria && (c.agenteAna?.humano || c.agenteAna?.pausa)) continue;
-    const telefone = c.agenteAna?.telefone;
     if (!contato) continue;
-    const texto = mensagemLembreteAna(c.agenteAna?.dados?.nome || '', reserva.inicio);
+    // Biblioteca oficial: modelo 01, só com nome do cadastro, de manhã ("Bom dia") e sem lembrete/confirmação redundante.
+    const politica = politicaConsultaDia(c, reserva.inicio, 'lembrete', agora);
+    if (!politica.permitido) continue;
+    const oficial = textoLembreteDoDia(c, reserva.inicio, agora, lerBiblioteca((state as { bibliotecaMensagens?: unknown } | undefined)?.bibliotecaMensagens));
+    if (!oficial.ok) {
+      const motivo = oficial.detalhe ?? (oficial.faltando?.length ? `faltam ${oficial.faltando.join(', ')}` : `modelo ${oficial.id} ${oficial.motivo}`);
+      await atualizarConversa(db, row.id, x => registrarAviso(x, { id: `lembrete-consulta:${reserva.inicio}`, tipo: 'confirmacao40', criadoEm: agora.toISOString(), texto: `Lembrete do dia (consulta às ${hora(reserva.inicio)}) não enviado: ${motivo}. Nenhum texto foi improvisado.`.slice(0, 300) }));
+      continue;
+    }
+    const texto = oficial.texto;
+    const modelo = { id: oficial.id, versao: oficial.versao };
     const automacaoId = `lembrete_consulta:${reserva.inicio}`;
     if (ctxSecretaria) {
       // Híbrido envia; Humano, Bloqueado, pausa ou equipe escrevendo agora viram aviso com texto pronto (uma vez por consulta).
@@ -66,12 +77,12 @@ export async function enviarLembretesConsulta(db: SupabaseClient<Database>, agor
     try {
       const sent = await enviarMensagemSistema({ supabase: db, conversaId: row.id, texto, motivo: 'lembrete', contatoEsperado: contato, ...(ctxSecretaria ? { automacaoId } : {}) });
       if (sent.simulado) throw new Error('Canal desligado.');
-      const fimDoDia = new Date(Date.parse(reserva.inicio) + 12 * 3600000).toISOString();
+      // O modelo oficial 01 não pede SIM/NÃO: nenhum consentimento de cancelamento é gravado; um "não" do cliente
+      // segue o fluxo de cancelamento com pergunta e confirmação explícitas.
       await atualizarConversa(db, row.id, x => {
         const enviada: Conversa = {
           ...x,
-          agenteAna: { ...x.agenteAna, ...(x.agenteAna?.reservaCalendar?.id === reserva.id && telefone ? { confirmacaoCancelamento: { eventoId: reserva.id, inicio: reserva.inicio, contato: telefone, expira: fimDoDia } } : {}) },
-          mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada', ...(ctxSecretaria ? { automacaoKey: automacaoId } : {}) })],
+          mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada', modeloOficial: modelo, ...(ctxSecretaria ? { automacaoKey: automacaoId } : {}) })],
           timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Lembrete do dia da consulta enviado pela Ana' }],
         };
         // Com a secretaria ligada, o SIM/NÃO fica associado a esta automação até o início da consulta.

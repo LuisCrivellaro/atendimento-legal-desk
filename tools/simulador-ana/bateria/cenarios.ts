@@ -271,7 +271,8 @@ export const CENARIOS: Cenario[] = [
     esperado: 'O servidor envia o texto oficial; a resposta negativa vira pergunta explícita (remarcar ou cancelar), sem cancelamento.', permitidas: ['perguntar se quer remarcar ou cancelar'], proibidas: ['cancelar a consulta', 'dizer que cancelou'],
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: [...SEM_PROJURIS, 'agenda.cancelar'] }, comportamento: 'Texto oficial da confirmação; resposta "não" nunca cancela e pergunta com data e hora.',
     verificacoes: [
-      v('conf40-texto', 'Texto oficial exato da confirmação de 40 min', 'regra', true, e => anaDe(e)[0] === 'Olá\nBoa tarde ! 😊\n📍Passando para confirmar o seu atendimento hoje às 14h30, ok?!\nEquipe CS Advocacia ⚖️\nLawyers' ? true : `"${(anaDe(e)[0] ?? '').slice(0, 80)}"`),
+      // Biblioteca oficial (26/11/2026): à tarde vale o modelo 08.2, exatamente como recebido.
+      v('conf40-texto', 'Texto oficial exato da confirmação de 40 min (modelo 08.2)', 'regra', true, e => anaDe(e)[0] === 'Olá! 👋🏻\nTudo bem? 😊\n📍 Estamos passando para confirmar a sua consulta.\n📆 Agendada para hoje, quarta-feira, 25/11/2026, às 14h30. ✅\nCaso haja alguma alteração, pedimos a gentileza de avisar com antecedência. 🙏🏻\nEquipe CS Advocacia\ncarolinasantos.com.br' ? true : `"${(anaDe(e)[0] ?? '').slice(0, 80)}"`),
       v('conf40-nao-cancela', 'Resposta negativa não cancela', 'regra', true, e => e.ferramentas.includes('agenda.cancelar') ? 'Cancelou a partir da resposta à confirmação.' : true),
       v('conf40-pergunta', 'Pergunta explícita com data e hora', 'regra', true, e => /Deseja remarcar ou cancelar/.test(anaDe(e)[1] ?? '') ? true : `"${(anaDe(e)[1] ?? '').slice(0, 80)}"`),
     ],
@@ -380,6 +381,24 @@ export const CENARIOS: Cenario[] = [
     verificacoes: [
       v('so-pedido-real', 'Só o pedido real recebe resposta e chama o modelo', 'regra', true, e => e.intencoes.length === 1 && anaDe(e).length >= 1 ? true : `Respostas: ${anaDe(e).length} · modelo: ${e.intencoes.length}`),
     ],
+  },
+  // Biblioteca oficial de mensagens (26/11/2026): texto fixo, sem modelo, só com dados verificados.
+  ...([
+    ['D51a', 'Pedido do Instagram recebe o link oficial (10.1)', 'Qual o Instagram da doutora?', 'https://www.instagram.com/carolinasantoslawyer'],
+    ['D51b', 'Pedido do LinkedIn recebe o link oficial (10.2)', 'me passa o linkedin dela', 'https://www.linkedin.com/in/carolina-santos-654918254/'],
+  ] as const).map(([id, titulo, texto, link]): Cenario => ({
+    id, bloco: 'D', titulo, conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
+    passos: [{ cliente: texto, intencao: 'duvida_geral' }],
+    esperado: 'Só o link oficial, exatamente como na biblioteca, sem chamar o modelo', permitidas: ['enviar o link oficial'], proibidas: ['reescrever', 'acrescentar saudação', 'chamar o modelo'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Enviar o modelo oficial sem alteração.',
+    verificacoes: [anaIgual([link]), v('sem-modelo', 'Modelo não chamado', 'regra', true, e => e.intencoes.length === 0 ? true : `Modelo chamado: ${e.intencoes.join(', ')}`)],
+  })),
+  {
+    id: 'D51c', bloco: 'D', titulo: 'Confirmação da manhã usa o modelo oficial 02 ("Bom dia")', conversas: { A: { telefone: T.desconhecido, nome: 'Bruna Fictícia Lima', perfil: 'novo', consultaMarcada: '2026-11-25T11:00:00-03:00' } }, projuris: 'Não usado', relogio: '2026-11-25T10:15:00-03:00',
+    passos: [{ sistema: 'confirmacao40' }],
+    esperado: 'Modelo 02 exatamente como recebido, com o horário real da consulta', permitidas: ['enviar a confirmação oficial'], proibidas: ['reescrever', 'trocar "Bom dia"'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Confirmação oficial do dia.',
+    verificacoes: [anaIgual(['Olá! Bom dia 😊\nPassando para confirmar o seu atendimento hoje às 11h ✅, ok?\nEquipe CS Advocacia ⚖️'])],
   },
   // ---------- E. Falhas técnicas ----------
   {

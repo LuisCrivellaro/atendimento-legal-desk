@@ -9,6 +9,7 @@ import {
   rascunhoAvisoEvento, respostaEncerramento, tipoEventoProcessual, type EventoOficial,
 } from '@/lib/atendimento/acompanhamento';
 import { eventoAtual, criarAvisosEventos } from '@/lib/atendimento/acompanhamento.server';
+import { variaveisPendentes } from '@/lib/atendimento/biblioteca/renderizar';
 import { pendencias, mensagemRevisora, type PedidoProcesso } from '@/lib/atendimento/consulta-processo';
 import { processarAna } from '@/lib/atendimento/ana.server';
 
@@ -65,17 +66,18 @@ describe('aviso de audiência e perícia', () => {
     expect(chaveEvento(evento({ data: '10/12/2026', hora: '14h30' }))).toBe(chaveEvento(evento({ data: '10/12/2026', hora: '14h30', descricao: 'outro texto' })));
     expect(chaveEvento(evento({ data: '11/12/2026', hora: '14h30' }))).not.toBe(chaveEvento(evento({ data: '10/12/2026', hora: '14h30' })));
   });
-  it('rascunho usa o modelo oficial e tira o que falta, sem inventar', () => {
+  it('rascunho usa a biblioteca oficial (11.1/12.1) sem cortar o texto: campo sem dado fica pendente para a revisão', () => {
     const t = rascunhoAvisoEvento(evento({ data: '10/12/2026', hora: '14h30', numero: '0000000-00.2026.5.02.0000', vara: '1ª Vara' }), 'MARIA souza', modelos);
     expect(t).toContain('Oi, Maria! 😊');
-    expect(t).toContain('no dia 10/12/2026 às 14h30.');
+    expect(t).toContain('📆 Data: 10/12/2026\n⏰ Horário: 14h30');
     expect(t).toContain('📌 Processo: 0000000-00.2026.5.02.0000');
+    expect(t).toContain('📌 Vara: 1ª Vara');
     expect(t).not.toMatch(/\{[a-z_]+\}/);
-    expect(t).not.toContain('Local da audiência');
+    // Nada é inventado nem removido: o que falta aparece entre colchetes e bloqueia a entrega até ser preenchido.
+    expect(variaveisPendentes(t)).toEqual(['[presencial/online]', '[tipo de audiência]', '[Endereço ou link]']);
     const pericia = rascunhoAvisoEvento(evento({ tipo: 'pericia', data: '05/01/2027' }), 'João', modelos);
     expect(pericia).toContain('📆 Data: 05/01/2027');
-    expect(pericia).not.toContain('Horário:');
-    expect(pericia).not.toContain('Endereço:');
+    expect(variaveisPendentes(pericia)).toEqual(['[horário]', '[endereço completo]']);
   });
   it('só evento atual: data futura do registro, ou andamento recente sem data', () => {
     const agora = new Date('2026-11-25T12:00:00Z');
@@ -173,7 +175,7 @@ describe('aviso de audiência na sincronização (servidor)', () => {
     expect(await criarAvisosEventos(db, 'owner-1', 77, movs, new Date('2026-11-25T12:00:00Z'))).toEqual({ criados: 1 });
     const pedido = saved.agenteAna?.pedidosProcesso?.[0];
     expect(pedido).toMatchObject({ status: 'pendente', evento: { tipo: 'audiencia' } });
-    expect(pedido?.textoProposto).toContain('no dia 10/12/2026 às 14h30.');
+    expect(pedido?.textoProposto).toContain('📆 Data: 10/12/2026\n⏰ Horário: 14h30');
     expect(mocks.revisora).toHaveBeenCalledOnce();
     expect(await criarAvisosEventos(db, 'owner-1', 77, movs, new Date('2026-11-25T12:30:00Z'))).toEqual({ criados: 0 });
   });

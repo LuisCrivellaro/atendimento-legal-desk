@@ -1,11 +1,14 @@
 import type { Conversa } from '../mock-data';
 import { dataAgenda, hora } from './ana-scheduling';
 import { registrarAviso } from './avisos-equipe';
+import { textoConfirmacaoDoDia } from './biblioteca/selecao';
+import type { BibliotecaSalva } from './biblioteca/renderizar';
 
 /**
- * Confirmação da consulta 40 minutos antes (texto oficial da Dra. Carolina, 25/11/2026).
- * Única parte variável além da hora: a saudação pelo horário do envio em São Paulo (decisão D1).
- * Mantém o espaço antes do "!" ("Bom dia ! 😊"). Editar aqui muda o envio automático e a mensagem pronta /confirmar.
+ * Confirmação da consulta 40 minutos antes. Desde 26/11/2026 o envio automático usa a BIBLIOTECA OFICIAL
+ * (modelo 02 de manhã, 08.2 a partir do meio-dia; ver biblioteca/selecao.ts). Este texto (aprovado em 25/11/2026,
+ * saudação pelo horário do envio) continua na mensagem pronta /confirmar e como versão aprovada de reserva.
+ * Mantém o espaço antes do "!" ("Bom dia ! 😊").
  */
 export const MODELO_CONFIRMACAO_CONSULTA = 'Olá\n{saudacao} ! 😊\n📍Passando para confirmar o seu atendimento hoje às {horadaconsulta}, ok?!\nEquipe CS Advocacia ⚖️\nLawyers';
 
@@ -63,6 +66,18 @@ export interface Confirmacao40 {
   falhouEm?: string | undefined;
   respondidoEm?: string | undefined;
   resposta?: 'sim' | 'nao' | undefined;
+  /** Texto exato enviado (modelo oficial preenchido): usado para reconhecer a resposta sem recibo do canal. */
+  texto?: string | undefined;
+  /** Modelo da biblioteca usado no envio. */
+  modelo?: { id: string; versao: number } | undefined;
+}
+
+/** Texto automático da confirmação de hoje: biblioteca oficial (02/08.2) ou, se nenhum servir, a versão aprovada anterior. */
+export function textoConfirmacao40(inicio: string, agora = new Date(), biblioteca?: BibliotecaSalva) {
+  const oficial = textoConfirmacaoDoDia(inicio, agora, biblioteca);
+  return oficial && oficial.id !== 'anterior'
+    ? { texto: oficial.texto, modelo: { id: oficial.id, versao: oficial.versao ?? 1 } }
+    : { texto: mensagemConfirmacaoConsulta(inicio, agora), modelo: undefined };
 }
 
 /** Confirmação enviada para a consulta atual e ainda sem resposta do cliente. */
@@ -79,7 +94,7 @@ export function confirmacao40Respondivel(c: Pick<Conversa, 'agenteAna' | 'consul
   if (!c40 || !confirmacao40Ativa(c40, c.consultaAgendada, agora)) return false;
   const ultima = [...c.mensagens].reverse().find(m => m.de === 'escritorio' && (!m.canal || m.canal === canal));
   if (!ultima) return false;
-  return c40.idExterno ? ultima.idExterno === c40.idExterno : ultima.texto === mensagemConfirmacaoConsulta(c40.inicio, new Date(c40.enviadoEm ?? ''));
+  return c40.idExterno ? ultima.idExterno === c40.idExterno : ultima.texto === (c40.texto ?? mensagemConfirmacaoConsulta(c40.inicio, new Date(c40.enviadoEm ?? '')));
 }
 
 /** Grava a resposta uma única vez; "não" vira aviso prioritário para a equipe (consulta iminente). Nada é cancelado aqui. */
@@ -128,7 +143,7 @@ export type MotivoAvisoConfirmacao = 'perdida' | 'controle_humano' | 'sem_vincul
 
 export type DecisaoConfirmacao =
   | { tipo: 'ignorar'; motivo: string }
-  | { tipo: 'enviar'; inicio: string; texto: string }
+  | { tipo: 'enviar'; inicio: string; texto: string; modelo?: { id: string; versao: number } | undefined }
   | { tipo: 'aviso'; inicio: string; motivo: MotivoAvisoConfirmacao; texto: string };
 
 export interface EntradaConfirmacao {
@@ -143,6 +158,10 @@ export interface EntradaConfirmacao {
   automacaoLigada: boolean;
   /** Contato liberado e vinculado à conversa no canal UltraMsg. */
   contatoLiberado: boolean;
+  /** Política anti-redundância (biblioteca/selecao.ts `politicaConsultaDia`): lembrete recente, presença já confirmada... */
+  politica?: { permitido: true } | { permitido: false; motivo: string } | undefined;
+  /** Versões aprovadas da biblioteca oficial salvas na área de trabalho. */
+  biblioteca?: BibliotecaSalva | undefined;
 }
 
 /** Decide o que a rotina faz com uma consulta, sem efeitos. A rotina do servidor só executa a decisão. */
@@ -154,12 +173,14 @@ export function decidirConfirmacao40(e: EntradaConfirmacao, agora = new Date()):
   const fase = faseConfirmacao(inicio, agora);
   if (fase === 'cedo') return { tipo: 'ignorar', motivo: 'fora da janela' };
   if (fase === 'passada') return { tipo: 'ignorar', motivo: 'consulta já começou' };
-  const texto = mensagemConfirmacaoConsulta(inicio, agora);
+  // Confirmação redundante (presença já confirmada, lembrete recente, equipe já confirmou): não sai nem gera aviso.
+  if (e.politica && !e.politica.permitido) return { tipo: 'ignorar', motivo: e.politica.motivo };
+  const { texto, modelo } = textoConfirmacao40(inicio, agora, e.biblioteca);
   if (e.reservaInicio !== inicio) return { tipo: 'aviso', inicio, motivo: 'sem_recibo', texto };
   if (!e.contatoLiberado) return { tipo: 'aviso', inicio, motivo: 'sem_vinculo', texto };
   if (fase === 'perdida') return { tipo: 'aviso', inicio, motivo: 'perdida', texto };
   if (e.humano || e.pausa || e.anaPausadaGlobal || e.modo === 'Desligada') return { tipo: 'aviso', inicio, motivo: 'controle_humano', texto };
-  return { tipo: 'enviar', inicio, texto };
+  return { tipo: 'enviar', inicio, texto, ...(modelo ? { modelo } : {}) };
 }
 
 /** Texto do aviso para a equipe (Atendimento e Assessor). */

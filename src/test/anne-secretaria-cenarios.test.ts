@@ -265,7 +265,8 @@ describe('cenários da secretaria digital (dados fictícios, canal em memória)'
     const id3 = receber(db, cliente('b3', 'sim', '2026-11-26T16:22:00.000Z'));
     await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id3);
     expect(db.remarcacoes).toEqual(['ev1->2026-12-01T18:00:00.000Z']);
-    expect(db.enviados.at(-1)?.texto).toMatch(/Pronto! Sua consulta foi remarcada para terça-feira, 01\/12, às 15h\.[\s\S]*meet\.google\.com/);
+    // Confirmação com o link real do Meet: versão aprovada anterior (o modelo 08.1 não leva link).
+    expect(db.enviados.at(-1)?.texto).toMatch(/📅 Data: 01\/12\/2026\n🕒 Horário: 15h\n🔗 Link: https:\/\/meet\.google\.com\/abc-defg-hij/);
     const c = db.get();
     expect(c.consultaAgendada).toBe('2026-12-01T18:00:00.000Z');
     expect(c.agenteAna?.reservaCalendar?.id).toBe('ev2');

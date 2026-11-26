@@ -22,6 +22,8 @@ export interface Mensagem {
   envioAnexo?: { reservadoEm?: string | undefined; enviadoEm?: string | undefined; falhouEm?: string | undefined } | undefined;
   /** Texto da equipe enviado pelo servidor: reservado com o id gerado no navegador antes de chamar o canal (nova tentativa nunca duplica). */
   envio?: { estado: 'enviando' | 'falhou'; reservadoEm: string; falhouEm?: string | undefined; erro?: string | undefined; ambiguo?: boolean | undefined } | undefined;
+  /** Modelo da biblioteca oficial usado nesta mensagem (histórico de utilização). */
+  modeloOficial?: { id: string; versao: number } | undefined;
   /** Filtro comercial (antes de qualquer resposta da Anne): comunicação comercial ignorada ou dúvida enviada à equipe. */
   filtroComercial?: { resultado: 'comercial' | 'duvida'; motivos: string[]; em: string } | undefined;
   /** Id da mensagem no WhatsApp, lido do eco (message_create): liga os recibos de entrega e leitura à mensagem. */

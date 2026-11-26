@@ -33,6 +33,8 @@ import { encaminharInjecao, encerrarAutomacaoRespondida, reterRespostaNaoVerific
 import { dadosNaoVerificados, fontesDaConversa, possivelInjecao } from './secretaria/seguranca';
 import { memoriaEstruturada, REGRAS_MEMORIA } from './secretaria/memoria';
 import { classificarMensagemComercial, contextoFiltroComercial, registrarFiltroComercial } from './filtro-comercial';
+import { lerBiblioteca, renderizarOficial } from './biblioteca/renderizar';
+import { marcaModelo, pedidoRedeSocial, periodoForaExpediente, saudacaoPrimeiroAtendimento, textoAgendamentoConfirmado, textoForaDoHorario } from './biblioteca/selecao';
 type Db=SupabaseClient<Database>;
 
 async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
@@ -137,6 +139,24 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     await db.rpc('registrar_audit_log',{p_ator:'Anne',p_perfil:'sistema',p_acao:'secretariaInjecao',p_resumo:'Mensagem com instruções para a IA passada à equipe sem resposta automática',p_status:'bloqueado'});
     return;
   }
+  // Biblioteca oficial: textos determinísticos, enviados pela camada central (sem modelo, sem reescrita).
+  const biblioteca=lerBiblioteca((state as {bibliotecaMensagens?:unknown}).bibliotecaMensagens);
+  const responderOficial=async(sel:{texto:string;modelo:{id:string;versao:number}},extra:(x:Conversa)=>Conversa=x=>x)=>{
+    efeitosIniciados=true;
+    await marcarEfeito();
+    const {enviarMensagemSistema}=await import('./envio.functions');
+    const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:sel.texto,motivo:'ana',contatoEsperado:remetente.data?.contato_externo??'',mensagemOrigem:messageId,controleHumanoEm:c.agenteAna?.controleHumanoEm});
+    if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');
+    await atualizarConversa(db,id,x=>extra({...x,agenteAna:{...x.agenteAna,envioAna:undefined},mensagens:[...x.mensagens.map(y=>y.id===messageId&&y.iaExecucao?{...y,iaExecucao:{...y.iaExecucao,estado:'concluida' as const}}:y),newMessage(sel.texto,{autor:'Ana · assistente virtual',canal,idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada',modeloOficial:sel.modelo})]}));
+    await db.rpc('registrar_audit_log',{p_ator:'Anne',p_perfil:'sistema',p_acao:'mensagemOficial',p_resumo:`Modelo ${sel.modelo.id} v${sel.modelo.versao}`,p_status:'sucesso'});
+  };
+  // Pedido do Instagram/LinkedIn da doutora (modelos 10.1/10.2): link oficial, sem chamar o modelo.
+  const social=mode==='Automática'&&canal==='ultramsg'?pedidoRedeSocial(m.texto):undefined;
+  if(social){
+    const oficial=renderizarOficial(social,{},{biblioteca});
+    if(oficial.ok){await responderOficial({texto:oficial.texto,modelo:{id:oficial.id,versao:oficial.versao}});return;}
+  }
+  let modeloUsado:{id:string;versao:number}|undefined;
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
     const memoria=contextoPersistente(c,canal);
@@ -149,6 +169,14 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const reconhecimento=await reconhecerRelacionamentoAna(db,row.data.owner_id,c,telefone,canal);
     const localIdentidade=reconhecimento.rel.situacao==='ativo'&&reconhecimento.identidade.tipo==='unico'?reconhecimento.identidade:reconhecimento.identidade.tipo==='duplicado'?reconhecimento.identidade:undefined;
     const rel=reconhecimento.rel;
+    // Cliente ativo fora do expediente (modelo 03), só com a automação "Resposta fora do horário" ligada:
+    // uma vez por período fora do expediente; nesse período a equipe responde (sem resposta gerada pelo modelo).
+    if(mode==='Automática'&&canal==='ultramsg'&&state.automations?.foraHorario===true&&rel.situacao==='ativo'&&periodoForaExpediente()){
+      const fora=textoForaDoHorario(c.agenteAna?.foraHorarioAvisado,new Date(),biblioteca);
+      if(fora&&fora.id!=='anterior')await responderOficial({texto:fora.texto,modelo:{id:fora.id,versao:fora.versao??1}},x=>({...x,agenteAna:{...x.agenteAna,foraHorarioAvisado:fora.periodo}}));
+      else await atualizarConversa(db,id,x=>({...x,mensagens:x.mensagens.map(y=>y.id===messageId&&y.iaExecucao?{...y,iaExecucao:{...y.iaExecucao,estado:'concluida' as const}}:y)}));
+      return;
+    }
     // Pergunta de encerramento (S3): "sim" explícito pede horários de retorno (sexta, cliente da casa).
     const enc=encerramentoRespondivel(c,canal)?respostaEncerramento(m.texto):undefined;
     const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c)||enc==='sim';
@@ -366,7 +394,10 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
               await assumirAlteracao(db,id,messageId,current.agenteAna.reservaCalendar.id,'remarcar');
             }
             const reserva=current.consultaAgendada&&current.agenteAna?.reservaCalendar?await remarcarAgenda(db,row.data.owner_id,id,current.agenteAna.reservaCalendar,escolhido,true,new Date(),cliente):await reservarAgenda(db,row.data.owner_id,id,escolhido,new Date(),cliente);
-            r.mensagem=mensagemConfirmacaoAna(reserva.inicio,reserva.meetUrl,nome).replace(/(Horário: [^\n]+)/,c.funilInternacional?'$1 (horário de Brasília)':'$1')+(c.funilInternacional?`\n\n${REGRAS_REAGENDAMENTO}`:'');
+            // Modelo oficial 08.1 quando compatível (manhã, sem link do Meet a entregar); senão a confirmação aprovada anterior.
+            const agendado=textoAgendamentoConfirmado(reserva,nome,new Date(),{funilInternacional:!!c.funilInternacional,biblioteca});
+            modeloUsado=marcaModelo(agendado);
+            r.mensagem=agendado.texto.replace(/(Horário: [^\n]+)/,c.funilInternacional?'$1 (horário de Brasília)':'$1')+(c.funilInternacional?`\n\n${REGRAS_REAGENDAMENTO}`:'');
             r.proximo_passo='Consulta reservada automaticamente na agenda do ProJuris.';
             // Mesmo se chegar nova mensagem, preservar o recibo da operação já concluída.
             await atualizarConversa(db,id,x=>({...x,consultaAgendada:reserva.inicio,horariosOfertados:[],agenteAna:{...x.agenteAna,operacaoConsulta:undefined,reservaCalendar:reserva,alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horariosTeste:[],horarioPendente:undefined,horarioPendenteDesde:undefined,consultaTeste:undefined,resultado:r,proximoPasso:r.proximo_passo},timeline:x.agenteAna?.reservaCalendar?.id===reserva.id?x.timeline:[...x.timeline,{data:new Date().toISOString(),evento:`Consulta confirmada na agenda do ProJuris · ${formatarHorarioCliente(reserva.inicio)}`}]}));
@@ -404,6 +435,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       }
       // Claim persistente antes do envio impede replay em falha de rede; nunca reenvia automaticamente.
       const {enviarMensagemSistema}=await import('./envio.functions');
+      // Primeiro atendimento de lead que já disse o nome, com os dois horários amanhã: modelo oficial 07.1.
+      if(saudou&&primeiroContato){const inicial=saudacaoPrimeiroAtendimento(r.mensagem,{nome:introducao||raw.dados_coletados.nome,horarios:agenda?.slots??horarios,biblioteca});if(inicial.id!=='anterior'){r.mensagem=inicial.texto;modeloUsado=marcaModelo(inicial);}}
       if(!saudou)r.mensagem=limitarNomeAna(r.mensagem,nome,c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').slice(-2).map(x=>x.texto));
       const novosOferecidos=cancelar?novasLembrete:!escolhido&&!cancelar&&!perguntar&&!semConsulta&&agendaReal&&!agenda?.selected?(horarioPendente?[horarioPendente]:agenda?.slots??[]):[];
       if(retomada&&!r.urgente)r.mensagem=mensagemRetornoAna(m.texto,r.mensagem);
@@ -420,7 +453,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       efeitosIniciados=true;
       const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,mensagemOrigem:messageId,controleHumanoEm:c.agenteAna?.controleHumanoEm,permitirEncaminhamento:r.encaminhar_humano,...(novosOferecidos.length&&!horarioPendente?{horarios:novosOferecidos}:{})});
       if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');
-      await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true,...(gerenciar&&decisaoCancel==='pedir'&&current.agenteAna?.reservaCalendar?.id===c.agenteAna?.reservaCalendar?.id&&current.agenteAna?.reservaCalendar?{confirmacaoCancelamento:{eventoId:current.agenteAna.reservaCalendar.id,inicio:current.agenteAna.reservaCalendar.inicio,contato:telefone,expira:new Date(Date.now()+30*60000).toISOString()}}:{}),...(novosOferecidos.length?{horariosApresentados:[...new Set([...(current.agenteAna?.horariosApresentados??[]),...historicoHorarios,...novosOferecidos])],listasHorarios:(current.agenteAna?.listasHorarios??0)+1,pedidosOutrasOpcoes:pedidosOutras}:{})},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal,idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada'})]}));
+      await atualizarConversa(db,id,current=>({...current,iaRetida:undefined,agenteAna:{...current.agenteAna,apresentado:true,...(gerenciar&&decisaoCancel==='pedir'&&current.agenteAna?.reservaCalendar?.id===c.agenteAna?.reservaCalendar?.id&&current.agenteAna?.reservaCalendar?{confirmacaoCancelamento:{eventoId:current.agenteAna.reservaCalendar.id,inicio:current.agenteAna.reservaCalendar.inicio,contato:telefone,expira:new Date(Date.now()+30*60000).toISOString()}}:{}),...(novosOferecidos.length?{horariosApresentados:[...new Set([...(current.agenteAna?.horariosApresentados??[]),...historicoHorarios,...novosOferecidos])],listasHorarios:(current.agenteAna?.listasHorarios??0)+1,pedidosOutrasOpcoes:pedidosOutras}:{})},mensagens:[...current.mensagens,newMessage(r.mensagem,{autor:'Ana · assistente virtual',canal,idExterno:sent.idExterno,respostaAnaDe:messageId,status:'enviada',...(modeloUsado?{modeloOficial:modeloUsado}:{})})]}));
     }
     await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,envioAna:undefined},mensagens:x.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:'concluida' as const}}:m)}));
     const audit=await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'agenteAna',p_resumo:`${mode} · ${r.acao} · ${r.intencao}${r.urgente?' · urgente':''}`,p_status:'sucesso'});

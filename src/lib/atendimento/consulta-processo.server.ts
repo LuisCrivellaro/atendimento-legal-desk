@@ -8,6 +8,7 @@ import { enviarTextoRevisora } from './canais/ultramsg';
 import { pedidoHumano } from './ana-scheduling';
 import { criarConsultasProjuris } from '../projuris/consultas.server';
 import { redigirNoticiaProcesso } from './processo-redacao.server';
+import { variaveisPendentes } from './biblioteca/renderizar';
 import { aplicarDecisao, deveConsultarProcesso, pedidoNoticiaProcesso, iniciarConsultaProcesso, interpretarRespostaRevisora, mensagemNaoCliente, pendencias, proximoCodigo, respostaAutorizada, respostaDuranteEspera, TEXTOS_CONSULTA, type ComandoRevisora, type PedidoProcesso } from './consulta-processo';
 
 type Db = SupabaseClient<Database>;
@@ -28,6 +29,7 @@ async function destino(db: Db, id: string, telefone?: string) {
 export async function enviarAvisoProcesso(db: Db, id: string, texto: string, contato: string) {
   const cfg = await db.from('atendimento_canal_config').select('canal_ativo').eq('id', true).maybeSingle();
   if (cfg.error || cfg.data?.canal_ativo !== 'ultramsg' || !contato) throw new Error('Canal ou destino alterado; envio bloqueado.');
+  if (variaveisPendentes(texto).length) throw new Error('Mensagem oficial com campo sem dado; envio bloqueado.');
   const sent = await enviarMensagemSistema({ supabase: db, conversaId: id, texto, contatoEsperado: contato, motivo: 'consulta_processo' });
   if (sent.simulado) throw new Error('Canal desligado; nada enviado.');
   await atualizarConversa(db, id, c => ({ ...c, agenteAna: { ...c.agenteAna, apresentado: true }, mensagens: [...c.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada' })] }));
@@ -124,6 +126,9 @@ export async function decidirPedidoProcesso(db: Db, id: string, comando: Comando
   if (row.error || !p || p.conversaId !== id || hashEsperado && p.hash !== hashEsperado) throw new Error('Pedido alterado; atualize a revisão.');
   const contato = comando.acao === 'recusar' ? '' : await destino(db, id, p.contato.telefone);
   const d = await aplicarDecisao(p, comando, por, canal, new Date());
+  // Mensagem oficial (biblioteca) com campo sem dado nunca sai: o pedido continua pendente para a revisora corrigir.
+  const pendentes = d.enviarCliente ? variaveisPendentes(d.enviarCliente) : [];
+  if (pendentes.length) throw new Error(`A mensagem oficial ainda tem campos sem dado verificado (${pendentes.join(', ')}). Use "corrigir" com o texto completo; nada foi enviado.`);
   let claimed = false;
   await atualizarConversa(db, id, c => {
     claimed = false;

@@ -1,6 +1,7 @@
 import { formatarHorarioCliente } from '../../atendimento';
 import { escolherHorarioAna, opcaoHorarioAna, pedidoHorarioEspecifico, pedidoHumano } from '../ana-scheduling';
 import { textoTemplate, type ChaveTemplate } from './templates';
+import { textoAgendamentoConfirmado, textoReagendamentoHoje } from '../biblioteca/selecao';
 
 /**
  * Reagendamento como automação de várias etapas, sem modelo:
@@ -26,14 +27,16 @@ export interface EstadoReagendamento {
   /** Respostas não reconhecidas seguidas. */
   naoReconhecidas: number;
   reciboNovo?: { id: string; inicio: string } | undefined;
+  /** [nome] do cadastro, para os modelos oficiais (06). */
+  nome?: string | undefined;
 }
 
 export type EventoReagendamento =
-  | { tipo: 'agenda'; livres: string[] }
+  | { tipo: 'agenda'; livres: string[]; agora?: Date | undefined }
   | { tipo: 'agenda_falhou' }
   | { tipo: 'mensagem'; texto: string; agora: Date }
   | { tipo: 'disponibilidade'; horario: string; livre: boolean }
-  | { tipo: 'execucao'; ok: true; recibo: { id: string; inicio: string; meetUrl?: string | undefined } }
+  | { tipo: 'execucao'; ok: true; recibo: { id: string; inicio: string; meetUrl?: string | undefined }; agora?: Date | undefined }
   | { tipo: 'execucao'; ok: false; indisponivel: boolean };
 
 export type AcaoReagendamento =
@@ -62,9 +65,9 @@ export function listaOpcoes(opcoes: string[]) {
   return opcoes.map((o, i) => `${i + 1}. ${opcaoHorarioAna(o)}`).join('\n');
 }
 
-export function iniciarReagendamento(consulta: { inicio: string; eventoId: string }): { estado: EstadoReagendamento; acoes: AcaoReagendamento[] } {
+export function iniciarReagendamento(consulta: { inicio: string; eventoId: string; nome?: string | undefined }): { estado: EstadoReagendamento; acoes: AcaoReagendamento[] } {
   return {
-    estado: { etapa: 'consultar_agenda', consultaAtual: consulta.inicio, eventoId: consulta.eventoId, opcoes: [], consultasAgenda: 0, naoReconhecidas: 0 },
+    estado: { etapa: 'consultar_agenda', consultaAtual: consulta.inicio, eventoId: consulta.eventoId, opcoes: [], consultasAgenda: 0, naoReconhecidas: 0, ...(consulta.nome ? { nome: consulta.nome } : {}) },
     acoes: [{ tipo: 'consultar_agenda', evitar: [consulta.inicio] }],
   };
 }
@@ -85,7 +88,11 @@ export function passoReagendamento(estado: EstadoReagendamento, evento: EventoRe
   if (evento.tipo === 'agenda' || evento.tipo === 'agenda_falhou') {
     if (estado.etapa !== 'consultar_agenda') return nada;
     if (evento.tipo === 'agenda_falhou') return encaminhar(estado, 'agenda oficial indisponível', 'reagendamento_falha', overrides);
-    const opcoes = [...new Set(evento.livres)].filter(s => Date.parse(s) !== Date.parse(estado.consultaAtual)).sort((a, b) => Date.parse(a) - Date.parse(b)).slice(0, MAX_OPCOES);
+    const livres = [...new Set(evento.livres)].filter(s => Date.parse(s) !== Date.parse(estado.consultaAtual)).sort((a, b) => Date.parse(a) - Date.parse(b));
+    // Modelo oficial 06 quando há dois horários livres hoje (o texto diz "Hoje"); senão as opções verificadas.
+    const oficial = textoReagendamentoHoje(estado.nome, livres, evento.agora ?? new Date());
+    if (oficial) return { estado: { ...estado, etapa: 'aguardando_escolha', opcoes: oficial.opcoes, consultasAgenda: estado.consultasAgenda + 1, naoReconhecidas: 0 }, acoes: [{ tipo: 'enviar', texto: oficial.texto }] };
+    const opcoes = livres.slice(0, MAX_OPCOES);
     if (!opcoes.length) return encaminhar({ ...estado, consultasAgenda: estado.consultasAgenda + 1 }, 'sem horários livres verificados', 'reagendamento_sem_opcoes', overrides);
     const t = texto('reagendamento_opcoes', { consulta, opcoes: listaOpcoes(opcoes) }, overrides);
     if (!t) return encaminhar(estado, 'modelo de mensagem incompleto');
@@ -109,9 +116,9 @@ export function passoReagendamento(estado: EstadoReagendamento, evento: EventoRe
     if (evento.ok) {
       // Sucesso só com recibo coerente: mesmo horário escolhido e id do evento devolvido pela agenda.
       if (!evento.recibo.id || Date.parse(evento.recibo.inicio) !== Date.parse(estado.escolhido)) return encaminhar(estado, 'recibo da agenda divergente do horário escolhido', 'reagendamento_falha', overrides);
-      const t = texto('reagendamento_sucesso', { novo: formatarHorarioCliente(evento.recibo.inicio).toLowerCase() }, overrides);
-      const link = evento.recibo.meetUrl && /^https:\/\/meet\.google\.com\/[a-z0-9-]+$/i.test(evento.recibo.meetUrl) ? `\n🔗 Link: ${evento.recibo.meetUrl}` : '';
-      return { estado: { ...estado, etapa: 'concluido', reciboNovo: { id: evento.recibo.id, inicio: evento.recibo.inicio } }, acoes: [{ tipo: 'concluir', texto: `${t ?? ''}${link}`.trim(), recibo: evento.recibo }] };
+      // Confirmação oficial: 08.1 quando compatível (manhã, sem link a entregar); senão a confirmação aprovada com o link real.
+      const confirmado = textoAgendamentoConfirmado(evento.recibo, estado.nome, evento.agora ?? new Date());
+      return { estado: { ...estado, etapa: 'concluido', reciboNovo: { id: evento.recibo.id, inicio: evento.recibo.inicio } }, acoes: [{ tipo: 'concluir', texto: confirmado.texto, recibo: evento.recibo }] };
     }
     if (evento.indisponivel && estado.consultasAgenda < MAX_CONSULTAS_AGENDA) {
       const aviso = texto('reagendamento_indisponivel', {}, overrides);

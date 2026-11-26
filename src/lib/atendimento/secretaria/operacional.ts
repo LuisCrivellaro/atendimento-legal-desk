@@ -15,6 +15,7 @@ import { aplicarModo, modoEfetivo } from './modos';
 import { equipeEscreveuDepois, origemMensagem, ultimaIntervencaoHumana, ultimaMensagemEscritorio } from './origem';
 import { iniciarReagendamento, passoReagendamento, type AcaoReagendamento, type EstadoReagendamento, type EventoReagendamento } from './reagendamento';
 import { pedidoForaDoEscopo, possivelInjecao } from './seguranca';
+import { nomeVerificado } from '../biblioteca/selecao';
 import { textoTemplate } from './templates';
 
 /**
@@ -271,7 +272,7 @@ async function conduzirReagendamento(x: Execucao, a: AutomacaoAtiva, evento: Eve
       if (ac.tipo === 'enviar') textos.push(ac.texto);
       else if (ac.tipo === 'consultar_agenda') {
         const opcoes = await agenda.opcoes(ac.evitar).catch(() => null);
-        proximo = opcoes === null ? { tipo: 'agenda_falhou' } : { tipo: 'agenda', livres: opcoes };
+        proximo = opcoes === null ? { tipo: 'agenda_falhou' } : { tipo: 'agenda', livres: opcoes, agora: x.agora };
       } else if (ac.tipo === 'consultar_horario') {
         const livre = await agenda.horarioLivre(ac.horario).catch(() => null);
         if (livre === null) { final = { estado: 'encaminhada', motivo: 'agenda indisponível' }; avisoEquipe = 'Agenda indisponível ao conferir o horário pedido no reagendamento.'; }
@@ -289,7 +290,7 @@ async function conduzirReagendamento(x: Execucao, a: AutomacaoAtiva, evento: Eve
         try {
           if (!atual || atual.id !== ac.de.eventoId) throw Object.assign(new Error('Recibo da consulta atual mudou.'), { indisponivel: false });
           recibo = await agenda.remarcar(atual, ac.para);
-          proximo = { tipo: 'execucao', ok: true, recibo: { id: recibo.id, inicio: recibo.inicio, ...(recibo.meetUrl ? { meetUrl: recibo.meetUrl } : {}) } };
+          proximo = { tipo: 'execucao', ok: true, recibo: { id: recibo.id, inicio: recibo.inicio, ...(recibo.meetUrl ? { meetUrl: recibo.meetUrl } : {}) }, agora: x.agora };
         } catch (error) {
           // Só "horário acabou de ficar ocupado" (conflito na reserva) reoferece; qualquer outra falha vai para a equipe.
           const indisponivel = /acabou de ficar ocupado/i.test((error as Error)?.message ?? '') && (error as { indisponivel?: boolean }).indisponivel !== false;
@@ -428,7 +429,7 @@ export async function iniciarReagendamentoDelegado(p: PortasOperacionais, ctx: C
   const origem: Mensagem = { id: `equipe:${agora.toISOString()}`, de: 'escritorio', texto: '', hora: '' };
   const d = decidirAcao({ funcionalidade: 'reagendamento', config: ctx.config, ativa: ctx.ativa, modo, ambiente: ctx.ambiente, contatoLiberado: !!ctx.contato, origem: 'equipe', agora, pendenciaOperacional: pendenciaOperacional(c, agora), dadosVerificados: true });
   if (d.resultado !== 'executar') return { ok: false, motivo: d.texto };
-  const inicio = iniciarReagendamento({ inicio: reserva.inicio, eventoId: reserva.id });
+  const inicio = iniciarReagendamento({ inicio: reserva.inicio, eventoId: reserva.id, nome: nomeVerificado(c) });
   const automacao = novaAutomacao({ id: `reagendamento:${reserva.id}:${agora.getTime()}`, tipo: 'reagendamento', expiraEm: new Date(Math.min(Date.parse(reserva.inicio), agora.getTime() + 48 * 3600000)).toISOString(), referencia: { inicio: reserva.inicio, eventoId: reserva.id }, iniciadaPor: 'equipe', etapa: inicio.estado }, agora);
   const salvo = await p.atualizar(conversaId, x => comSecretaria(x, s => ({ ...s, automacoes: registrarAutomacao(s.automacoes, automacao), acoes: registrarAcao(s.acoes, acao('reagendamento', 'executada', 'permitido', agora, automacao.id, `Delegado por ${quem.slice(0, 60)}.`)) })));
   const x: Execucao = { p, ctx, conversaId, mensagem: origem, controle: salvo.agenteAna?.controleHumanoEm, desde: agora.toISOString(), agora, enviou: { valor: false } };
@@ -441,7 +442,7 @@ export async function iniciarReagendamentoDelegado(p: PortasOperacionais, ctx: C
     await p.atualizar(conversaId, y => registrarDecisao(comSecretaria(y, s => ({ ...s, automacoes: transicionarAutomacao(s.automacoes, automacao.id, 'encaminhada', opcoes === null ? 'agenda indisponível' : 'sem horários livres verificados', agora) })), { resultado: 'encaminhar', funcionalidade: 'reagendamento', camada: 'operacional', motivo, texto: MOTIVOS[motivo], avisarEquipe: false, prioridade: false }, agora, automacao.id));
     return { ok: false, motivo: opcoes === null ? 'Agenda oficial indisponível; nenhuma opção foi enviada ao cliente.' : 'Nenhum horário livre verificado; nada foi enviado ao cliente.' };
   }
-  const r = await conduzirReagendamento(x, automacao, { tipo: 'agenda', livres: opcoes });
+  const r = await conduzirReagendamento(x, automacao, { tipo: 'agenda', livres: opcoes, agora });
   return { ok: !!r.enviada, motivo: r.motivo };
 }
 

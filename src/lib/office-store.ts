@@ -9,13 +9,14 @@ export async function saveOffice(owner: string, state: OfficeState) {
   const salvo=row.data?.dados as unknown as OfficeState|undefined;
   const pause=salvo?.anaPausa;
   // A entrada do WhatsApp é salva só pelo servidor (Canal e Agente); a tela nunca a sobrescreve.
-  const {entradaWhatsApp:_ignorada,secretaria:_servidor,...estado}=state as OfficeState&{secretaria?:unknown};
-  // Configuração da secretaria digital (flag e permissões da Anne) é gravada só pelo servidor (sênior/admin).
+  const {entradaWhatsApp:_ignorada,secretaria:_servidor,bibliotecaMensagens:_biblioteca,...estado}=state as OfficeState&{secretaria?:unknown;bibliotecaMensagens?:unknown};
+  // Configuração da secretaria digital e biblioteca oficial de mensagens são gravadas só pelo servidor (sênior/admin).
   const secretaria=(row.data?.dados as Record<string,Json>|null)?.['secretaria'];
+  const biblioteca=(row.data?.dados as Record<string,Json>|null)?.['bibliotecaMensagens'];
   const codigos=(row.data?.dados as Record<string,Json>|null)?.['codigosProcessoReservados'];
   const migracao=(row.data?.dados as Record<string,Json>|null)?.['migracaoAgenda'];
   const agenda=(row.data?.dados as Record<string,Json>|null)?.['agendaWhatsApp'];
-  const next={...estado,...(secretaria?{secretaria}:{}),...(agenda?{agendaWhatsApp:agenda}:{}),...(pause?.ativa?{anaPausa:pause}:{}),...(salvo?.entradaWhatsApp?{entradaWhatsApp:salvo.entradaWhatsApp}:{}),...(codigos?{codigosProcessoReservados:codigos}:{}),...(migracao?{migracaoAgenda:migracao}:{})};
+  const next={...estado,...(secretaria?{secretaria}:{}),...(biblioteca?{bibliotecaMensagens:biblioteca}:{}),...(agenda?{agendaWhatsApp:agenda}:{}),...(pause?.ativa?{anaPausa:pause}:{}),...(salvo?.entradaWhatsApp?{entradaWhatsApp:salvo.entradaWhatsApp}:{}),...(codigos?{codigosProcessoReservados:codigos}:{}),...(migracao?{migracaoAgenda:migracao}:{})};
   const r=row.data?await supabase.from('office_workspace').update({dados:next as unknown as Json,updated_at:new Date().toISOString()}).eq('owner_id',owner).eq('updated_at',row.data.updated_at).select('owner_id'):await supabase.from('office_workspace').insert({owner_id:owner,dados:next as unknown as Json}).select('owner_id');
   if(r.error)throw r.error;
   if(r.data?.length)return;

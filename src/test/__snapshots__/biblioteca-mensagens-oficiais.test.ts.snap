@@ -1,0 +1,206 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`fidelidade textual: só as variáveis mudam > T01 — snapshot do texto preenchido 1`] = `
+"Oi, Maria! Bom dia 😊
+Passando para lembrar que:
+📆 Sua consulta está confirmada para hoje, às 14h30. ✅
+Caso precise fazer alguma alteração, pedimos a gentileza de nos avisar com pelo menos 1 hora de antecedência.
+Estamos te aguardando!
+Equipe CS Advocacia
+carolinasantos.com.br"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T02 — snapshot do texto preenchido 1`] = `
+"Olá! Bom dia 😊
+Passando para confirmar o seu atendimento hoje às 14h30 ✅, ok?
+Equipe CS Advocacia ⚖️"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T03 — snapshot do texto preenchido 1`] = `
+"Agradecemos seu contato! 😊
+Deixe sua mensagem que, assim que possível, entraremos em contato.
+Atenciosamente,
+Equipe CS Advocacia ⚖️😊"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T04 — snapshot do texto preenchido 1`] = `
+"Oi, Maria! 😊
+Estamos passando para te lembrar da sua audiência, que será realizada PRESENCIALMENTE, no dia 27/11/2026, às 14h30 — audiência de instrução.
+📌 Processo: 1000000-00.2026.5.02.0001
+📌 Vara: 1ª Vara do Trabalho de São Paulo
+📍 Local da audiência:
+Av. Exemplo, 100, São Paulo/SP
+📌 Solicitamos que você compareça ao local com uma hora de antecedência, portando um documento oficial com foto.
+📌 Caso possua testemunha, pedimos que a informe sobre a data, horário e local da audiência, para que ela também possa se organizar com antecedência. Por gentileza, nos envie um print do aviso encaminhado à testemunha.
+Qualquer dúvida, estou à disposição! 🩵
+Equipe CS Lawyers ⚖️"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T05 — snapshot do texto preenchido 1`] = `
+"Oi, Maria! Tudo bem? 😊
+Para elaborarmos o seu contrato e darmos andamento ao seu caso, preciso que você nos encaminhe, por gentileza:
+📍 Documento pessoal com foto, podendo ser RG ou CNH
+📍 CPF, caso não conste no documento enviado
+📍 Comprovante de residência atualizado
+Na sequência, enviaremos a lista de documentos necessários e já iniciaremos o processo. 😊
+Ficamos no aguardo. 🩵
+Equipe CS Advocacia
+carolinasantos.com.br"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T06 — snapshot do texto preenchido 1`] = `
+"Oi, Maria! Tudo bem? 😊
+Fique tranquila, sabemos que imprevistos acontecem.
+Estou passando para reagendarmos sua consulta e garantir que você receba a orientação necessária sobre o seu caso com calma e atenção.
+Hoje temos disponibilidade às 9h ou às 15h.
+Qual desses horários fica melhor para você?"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T07.1 — snapshot do texto preenchido 1`] = `
+"Olá, Maria!
+Seja bem-vindo(a)! 😊
+Vou te ajudar!
+Nossa primeira consulta é on-line e gratuita.
+Temos horários amanhã, sexta-feira, às 9h ou às 15h.
+O que fica melhor para você?"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T07.2 — snapshot do texto preenchido 1`] = `
+"Olá, Maria!
+Seja bem-vindo(a)! 😊
+Vou te ajudar!
+Nossa primeira consulta tem o valor de R$ 500,00, abaixo do valor previsto na Tabela da OAB, na qual você receberá todas as instruções necessárias para o seu caso e possíveis soluções para o seu problema, com a expertise de mais de 18 anos de experiência nacional e internacional na área de família.
+Você recebe ainda o valor de volta caso haja a contratação dos serviços necessários, ficando a consulta gratuita. ✅
+📆 Temos horários disponíveis na sexta-feira às 9h ou 15h.
+O que fica melhor para você?"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T07.3 — snapshot do texto preenchido 1`] = `
+"Olá, Maria!
+Seja bem-vindo(a)! 😊
+Vou te ajudar!
+Nossa primeira consulta tem o valor de R$ 500,00, abaixo do valor previsto na Tabela da OAB, na qual você receberá todas as instruções necessárias para o seu caso e possíveis soluções para o seu problema, com a expertise de mais de 20 anos de experiência nacional e internacional na área de família.
+Você recebe ainda o valor de volta caso haja a contratação dos serviços necessários, ficando a consulta gratuita. ✅
+📆 Temos horários disponíveis na sexta-feira às 9h ou 15h.
+O que fica melhor para você?"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T08.1 — snapshot do texto preenchido 1`] = `
+"Bom dia! 😊
+📍 Confirmado!
+📆 Sua consulta está agendada para sexta-feira, 27/11/2026, às 14h30. ✅
+Caso haja alguma alteração, pedimos a gentileza de avisar com 1 hora de antecedência. 🙏🏻
+Equipe CS Advocacia ⚖️"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T08.2 — snapshot do texto preenchido 1`] = `
+"Olá! 👋🏻
+Tudo bem? 😊
+📍 Estamos passando para confirmar a sua consulta.
+📆 Agendada para hoje, sexta-feira, 27/11/2026, às 14h30. ✅
+Caso haja alguma alteração, pedimos a gentileza de avisar com antecedência. 🙏🏻
+Equipe CS Advocacia
+carolinasantos.com.br"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T09 — snapshot do texto preenchido 1`] = `
+"⚖️ Nosso escritório CS Lawyers, carolinasantos.com.br, tem o maior prazer em atendê-lo. Vamos lá!
+📄 CHECKLIST — Documentos e Informações Importantes
+Para dar andamento corretamente na sua causa trabalhista, pedimos que nos envie os documentos e informações abaixo. Caso tenha dúvidas, estamos à disposição!
+✅ Documentos pessoais e de trabalho
+Por gentileza, envie cópias digitalizadas ou fotos legíveis dos seguintes documentos, se possível:
+
+* Documento de identidade (RG ou CNH);
+* Comprovante de residência atualizado;
+* CTPS (Carteira de Trabalho — todas as páginas que envolvam o contrato e anotações relevantes);
+* Contrato de trabalho (se houver);
+* Recibos ou holerites do período trabalhado;
+* Extrato da conta vinculada ao FGTS (Caixa Econômica Federal);
+* Termo de Rescisão do Contrato de Trabalho — TRCT (caso tenha recebido).
+
+📝 Informações importantes sobre a relação de trabalho
+Responda, por favor, com base na sua experiência no trabalho:
+
+* Um breve histórico da sua relação de trabalho (data de entrada, saída, motivo da saída etc.);
+* Como era a jornada de trabalho combinada e como era executada na prática?
+* Qual era sua atividade contratada e o que você realmente fazia no dia a dia?
+* Em algum momento você sentiu que sofreu tratamento inadequado, como:
+   * Forma de tratamento agressiva;
+   * Autoritarismo ou deboche;
+   * Desprezo ou preconceito;
+   * Situações de assédio moral (caso sim, descreva brevemente como foi).
+* Você tem filhos menores? Quantos? Qual a idade de cada um?
+* Recebia vale-transporte e/ou vale-alimentação? Se sim, informe os valores recebidos.
+
+📬 Importante: Você pode enviar os documentos e respostas por aqui mesmo, via WhatsApp.
+Agradecemos pela confiança! 🤝⚖️
+Estamos aqui para garantir seus direitos.
+Equipe CS Lawyers"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T10.1 — snapshot do texto preenchido 1`] = `"https://www.instagram.com/carolinasantoslawyer"`;
+
+exports[`fidelidade textual: só as variáveis mudam > T10.2 — snapshot do texto preenchido 1`] = `"https://www.linkedin.com/in/carolina-santos-654918254/"`;
+
+exports[`fidelidade textual: só as variáveis mudam > T11.1 — snapshot do texto preenchido 1`] = `
+"Oi, Maria! 😊
+Estamos entrando em contato para informar sobre a sua audiência.
+📆 Data: 27/11/2026
+⏰ Horário: 14h30
+📌 Modalidade: presencial
+📋 Tipo: instrução
+📌 Processo: 1000000-00.2026.5.02.0001
+📌 Vara: 1ª Vara do Trabalho de São Paulo
+📍 Local / link da audiência:
+Av. Exemplo, 100, São Paulo/SP
+Pedimos que se organize para comparecer com antecedência e esteja com seus documentos pessoais em mãos.
+Qualquer dúvida, estamos à disposição!
+Equipe CS Lawyers ⚖️"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T11.2 — snapshot do texto preenchido 1`] = `
+"Oi, Maria! Tudo bem? 😊
+Passando para confirmar que sua audiência está agendada:
+📆 Data: 27/11/2026
+⏰ Horário: 14h30
+📋 Tipo: instrução
+📌 Modalidade: presencial
+📍 Local: Rua Fictícia, 200, São Paulo/SP
+📌 Processo: 1000000-00.2026.5.02.0001
+Pedimos que compareça com 1 hora de antecedência e leve um documento oficial com foto.
+Por gentileza, confirme o recebimento desta mensagem.
+Equipe CS Lawyers ⚖️"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T12.1 — snapshot do texto preenchido 1`] = `
+"📍 Atenção: Perícia Agendada pelo Tribunal!
+⚠️ Sua perícia foi marcada para:
+📆 Data: 27/11/2026
+⏰ Horário: 14h30
+📍 Endereço: Rua Fictícia, 200, São Paulo/SP
+‼️⏰ Lembramos que você deve estar presente no local com 15 minutos de antecedência do horário agendado.
+Obrigada! 😊
+Equipe CS Advocacia
+carolinasantos.com.br"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T12.2 — snapshot do texto preenchido 1`] = `
+"📍 Lembrete importante!
+⚠️ Sua perícia de perícia médica será amanhã, 27/11/2026, às 14h30.
+📍 Endereço: Rua Fictícia, 200, São Paulo/SP. ✅
+‼️⏰ Lembramos que você deve estar presente no local com 15 minutos de antecedência do horário agendado.
+Obrigada! 😊
+Equipe CS Advocacia
+carolinasantos.com.br"
+`;
+
+exports[`fidelidade textual: só as variáveis mudam > T12.3 — snapshot do texto preenchido 1`] = `
+"Oi, Maria! Tudo bem? 😊
+Passando para confirmar os dados da sua perícia:
+📆 Data: 27/11/2026
+⏰ Horário: 14h30
+📍 Local: Rua Fictícia, 200, São Paulo/SP
+Pedimos que chegue com 15 minutos de antecedência, portando documento oficial com foto.
+Por gentileza, confirme o recebimento desta mensagem.
+Equipe CS Advocacia ⚖️"
+`;

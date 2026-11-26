@@ -8,6 +8,8 @@ import { hora } from './ana-scheduling';
 import { registrarAviso } from './avisos-equipe';
 import { consultaNoDia, decidirConfirmacao40, faseConfirmacao, textoAvisoConfirmacao, type MotivoAvisoConfirmacao } from './confirmacao-consulta';
 import { secretariaLigada } from './secretaria/secretaria.server';
+import { lerBiblioteca } from './biblioteca/renderizar';
+import { politicaConsultaDia } from './biblioteca/selecao';
 import { concluirEnvioRotina, contextoRotina, decidirConfirmacaoSecretaria, motorPermiteRotina, reservarEnvioRotina } from './secretaria/rotinas';
 
 type Db = SupabaseClient<Database>;
@@ -68,6 +70,9 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
       anaPausadaGlobal: !!state?.anaPausa?.ativa,
       automacaoLigada: (state?.automations?.lembreteConsulta ?? defaultAutomations.lembreteConsulta) !== false,
       contatoLiberado: !!contato,
+      // Biblioteca oficial (02/08.2) e política que impede confirmação redundante (lembrete recente, presença já confirmada).
+      biblioteca: lerBiblioteca((state as { bibliotecaMensagens?: unknown } | undefined)?.bibliotecaMensagens),
+      ...(c.consultaAgendada ? { politica: politicaConsultaDia(c, c.consultaAgendada, 'confirmacao', agora) } : {}),
     };
     // Secretaria digital ligada: o motor decide pelo modo (Híbrido envia; Humano/Bloqueado avisam a equipe).
     const ctxSecretaria = secretariaLigada(state) ? contextoRotina({ state, agenteAtivo: cfg.data.agente_ativo === true, canalAtivo: cfg.data.canal_ativo === 'ultramsg', contato, modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA }) : undefined;
@@ -78,6 +83,7 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
       continue;
     }
     const { inicio, texto } = decisao;
+    const modelo = decisao.modelo;
     const automacaoId = `confirmacao_consulta:${inicio}`;
     let reservado = false;
     let eventoId = '';
@@ -98,8 +104,8 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
       await atualizarConversa(db, row.id, x => {
         const enviada: Conversa = {
           ...x,
-          agenteAna: { ...x.agenteAna, confirmacao40: { ...(x.agenteAna?.confirmacao40 ?? { inicio }), inicio, enviadoEm: agora.toISOString(), idExterno: sent.idExterno } },
-          mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada', ...(ctxSecretaria ? { automacaoKey: automacaoId } : {}) })],
+          agenteAna: { ...x.agenteAna, confirmacao40: { ...(x.agenteAna?.confirmacao40 ?? { inicio }), inicio, enviadoEm: agora.toISOString(), idExterno: sent.idExterno, texto, ...(modelo ? { modelo } : {}) } },
+          mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada', ...(ctxSecretaria ? { automacaoKey: automacaoId } : {}), ...(modelo ? { modeloOficial: modelo } : {}) })],
           timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de 40 minutos enviada pela Anne' }],
         };
         // Com a secretaria ligada, a resposta do cliente fica associada a esta automação (até 1 h depois do início).
