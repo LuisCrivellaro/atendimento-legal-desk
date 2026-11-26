@@ -27,9 +27,12 @@ function lerJson(texto: string): unknown {
   return JSON.parse(limpo.slice(ini, fim + 1));
 }
 
+/** Modelo da Ana quando ANA_MODELO não está definido. */
+export const MODELO_PADRAO_ANA = 'claude-haiku-5-5';
+
 export function claudeComoSample(cfg: ConfigClaude): SampleFn {
   const f = cfg.fetch ?? fetch;
-  const modelo = cfg.modelo || 'claude-haiku-5-5';
+  const modelo = cfg.modelo || MODELO_PADRAO_ANA;
 
   async function chamar(corpo: Record<string, unknown>, signal?: AbortSignal): Promise<{ content: Bloco[]; stop_reason: string }> {
     let res: Response;

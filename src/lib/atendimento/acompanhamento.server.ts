@@ -13,6 +13,7 @@ import { secretariaLigada } from './secretaria/secretaria.server';
 import { PERGUNTA_ENCERRAMENTO, chaveEvento, dataHoraDoEvento, deveEnviarEncerramento, eventoPodeAvisar, rascunhoAvisoEvento, tipoEventoProcessual, type EventoOficial } from './acompanhamento';
 import { hashTexto, mensagemRevisora, proximoCodigo, type PedidoProcesso } from './consulta-processo';
 import type { AndamentoPJ } from '../projuris/processos';
+import { cancelamentoDoMovimento, registrarEventoCancelado, registrarEventoRascunho, tipoDaPericia } from './eventos-processuais';
 
 type Db = SupabaseClient<Database>;
 
@@ -94,13 +95,19 @@ export async function criarAvisosEventos(db: Db, owner: string, codigoProcesso: 
   const bruto = processosDaBase(base).find(p => p['codigoProcesso'] === codigoProcesso);
   const proc = bruto ? processoDe(bruto) : undefined;
   if (!proc) return { criados: 0 };
+  // Cancelamento/retirada de pauta recente: não vira rascunho de evento novo; invalida os eventos futuros do tipo.
+  const cancelamentos = [...new Set(movimentos.flatMap(m => {
+    const texto = `${m.tipo ?? ''} ${m.descricao}`;
+    const tipo = tipoEventoProcessual(texto);
+    return tipo && cancelamentoDoMovimento(texto) && eventoAtual({}, m.data, agora) ? [tipo] : [];
+  }))];
   const candidatos = movimentos.flatMap(m => {
     const tipo = tipoEventoProcessual(`${m.tipo ?? ''} ${m.descricao}`);
-    if (!tipo) return [];
+    if (!tipo || cancelamentoDoMovimento(`${m.tipo ?? ''} ${m.descricao}`)) return [];
     const e: EventoOficial = { codigoProcesso, ...(proc.numero ? { numero: proc.numero } : {}), ...(proc.vara ? { vara: proc.vara } : {}), tipo, descricao: m.descricao, ...dataHoraDoEvento(m.descricao), privado: m.privado, segredoJustica: proc.segredoJustica };
     return eventoPodeAvisar(e) && eventoAtual(e, m.data, agora) ? [{ e, m }] : [];
   });
-  if (!candidatos.length) return { criados: 0 };
+  if (!candidatos.length && !cancelamentos.length) return { criados: 0 };
   const pessoas = new Set(proc.envolvidos.filter(x => x.cliente).map(x => x.codigoPessoa));
   const casos = await db.from('casos').select('id,dados').eq('owner_id', owner).eq('dados->agenteAna->vinculoProjuris->>status', 'confirmado');
   if (casos.error) throw new Error('Conversas indisponíveis.');
@@ -115,6 +122,7 @@ export async function criarAvisosEventos(db: Db, owner: string, codigoProcesso: 
     const c = caso.dados as unknown as Conversa;
     const vinculo = c.agenteAna?.vinculoProjuris;
     if (!vinculo || vinculo.status !== 'confirmado' || !pessoas.has(vinculo.codigoPessoa)) continue;
+    for (const tipo of cancelamentos) await atualizarConversa(db, caso.id, x => registrarEventoCancelado(x, tipo, codigoProcesso, agora));
     for (const { e, m } of candidatos) {
       const chave = chaveEvento(e);
       if (c.agenteAna?.avisosEventos?.includes(chave)) continue;
@@ -131,7 +139,9 @@ export async function criarAvisosEventos(db: Db, owner: string, codigoProcesso: 
         criado = false;
         if (x.agenteAna?.avisosEventos?.includes(chave)) return x;
         criado = true;
-        return { ...x, agenteAna: { ...x.agenteAna, avisosEventos: [...(x.agenteAna?.avisosEventos ?? []), chave], pedidosProcesso: [...(x.agenteAna?.pedidosProcesso ?? []), pedido] }, timeline: [...x.timeline, { data: agora.toISOString(), evento: `Aviso de ${e.tipo === 'audiencia' ? 'audiência' : 'perícia'} aguardando revisão (pedido ${codigo})` }] };
+        const tipoPericia = e.tipo === 'pericia' ? tipoDaPericia(e.descricao) : undefined;
+        const comEvento = registrarEventoRascunho(x, { chave, tipo: e.tipo, codigoProcesso, ...(e.data ? { data: e.data } : {}), ...(e.hora ? { hora: e.hora } : {}), ...(tipoPericia ? { tipoPericia } : {}), pedido: codigo }, agora);
+        return { ...comEvento, agenteAna: { ...comEvento.agenteAna, avisosEventos: [...(x.agenteAna?.avisosEventos ?? []), chave], pedidosProcesso: [...(x.agenteAna?.pedidosProcesso ?? []), pedido] }, timeline: [...x.timeline, { data: agora.toISOString(), evento: `Aviso de ${e.tipo === 'audiencia' ? 'audiência' : 'perícia'} aguardando revisão (pedido ${codigo})` }] };
       });
       if (!criado) continue;
       criados++;

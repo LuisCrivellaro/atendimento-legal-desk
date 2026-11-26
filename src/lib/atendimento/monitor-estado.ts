@@ -52,6 +52,8 @@ export const ROTULOS_ETAPA: Record<string, string> = {
   confirmacoes: 'Confirmação de presença',
   lembretes: 'Lembrete das 08h',
   'registro-consultas': 'Registro de consultas realizadas/faltas',
+  'eventos-processuais': 'Audiências e perícias comunicadas (T04, T11.2, T12.2, T12.3)',
+  'andamentos-projuris': 'Andamentos do ProJuris (sincronização automática por prioridade)',
   'pendencias-processo': 'Notícias processuais pendentes',
   'recuperar-ana': 'Recuperação de respostas da Anne',
   coleta: 'Contrato e documentos pendentes',

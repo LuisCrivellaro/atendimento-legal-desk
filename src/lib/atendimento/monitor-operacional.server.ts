@@ -179,6 +179,8 @@ async function executarCiclo(db: Db, request: Request, agora: Date, opcoes: { re
     { nome: 'confirmacoes', executar: async () => (await import('./confirmacao-consulta.server')).enviarConfirmacoesConsulta(db, agora) },
     { nome: 'lembretes', quando: () => (h >= 8 && h < 12 ? undefined : 'lembrete do dia só entre 8h e 12h ("Bom dia")'), executar: async () => (await import('./lembrete-consulta.server')).enviarLembretesConsulta(db, agora) },
     { nome: 'registro-consultas', executar: () => avisarRegistrosPendentes(db, agora) },
+    { nome: 'eventos-processuais', executar: async () => (await import('./eventos-processuais.server')).enviarLembretesEventos(db, agora) },
+    { nome: 'andamentos-projuris', quando: () => aCada(30)('andamentos-projuris'), limiteMs: 25000, executar: async () => (await import('./eventos-processuais.server')).sincronizarAndamentosPrioritarios(db, agora) },
     { nome: 'pendencias-processo', quando: () => (whatsapp === 'ativo' ? undefined : 'WhatsApp desligado'), executar: async () => (await import('./consulta-processo.server')).executarPendenciasProcesso(db) as unknown as Promise<Record<string, unknown>> },
     { nome: 'recuperar-ana', executar: async () => (await import('./ana-recovery.server')).recuperarAna(db, request) },
     { nome: 'coleta', quando: (_a, _b) => aCada(30)('coleta'), executar: async () => (await import('./coleta.server')).enviarLembretesColeta(db) as unknown as Promise<Record<string, unknown>> },

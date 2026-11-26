@@ -51,7 +51,7 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
   const gravar = () => void executar('Salvar secretaria digital', async () => {
     if (c.testeAutomacoes.ativo && (c.testeAutomacoes.numero ?? '').length < 10) throw new Error('Informe o número autorizado (com DDD) para ligar o modo de teste.');
     const aprovacoesTexto = Object.fromEntries(Object.entries(c.aprovacoesTexto).flatMap(([k, v]) => (v ? [[k, { texto: v.texto }]] : [])));
-    const r = await salvar({ data: { aprovacoesTexto, ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, confirmacaoAntecedenciaMin: c.confirmacaoAntecedenciaMin, testeAutomacoes: c.testeAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
+    const r = await salvar({ data: { aprovacoesTexto, eventos: { ...c.eventos, antecedenciaAudiencia: c.eventos.antecedenciaAudiencia?.trim() || null }, ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, confirmacaoAntecedenciaMin: c.confirmacaoAntecedenciaMin, testeAutomacoes: c.testeAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
     await qc.invalidateQueries({ queryKey: ['secretaria-config'] });
     return r;
   });
@@ -129,6 +129,28 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
           <span className="block text-xs text-muted-foreground">Ligado, lembretes, confirmações e reagendamentos automáticos só vão para este número; os demais clientes ficam sem automação (com aviso no monitor).</span>
         </div>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="space-y-1">
+          <span className="block text-xs font-medium text-muted-foreground">Lembrete de audiência presencial (T04)</span>
+          <Select value={String(c.eventos.diasLembreteAudiencia)} disabled={!editar} onValueChange={v => mudar(x => ({ ...x, eventos: { ...x.eventos, diasLembreteAudiencia: Number(v) } }))}>
+            <SelectTrigger className="h-9 text-xs" aria-label="Antecedência do lembrete de audiência"><SelectValue /></SelectTrigger>
+            <SelectContent>{[1, 2, 3, 5, 7].map(d => <SelectItem key={d} value={String(d)}>{d === 1 ? 'Véspera (1 dia antes)' : `${d} dias antes`}</SelectItem>)}</SelectContent>
+          </Select>
+        </label>
+        <label className="space-y-1">
+          <span className="block text-xs font-medium text-muted-foreground">Pedir confirmação de recebimento (T11.2/T12.3)</span>
+          <Select value={c.eventos.diasConfirmacaoEvento === null ? 'nao' : String(c.eventos.diasConfirmacaoEvento)} disabled={!editar} onValueChange={v => mudar(x => ({ ...x, eventos: { ...x.eventos, diasConfirmacaoEvento: v === 'nao' ? null : Number(v) } }))}>
+            <SelectTrigger className="h-9 text-xs" aria-label="Confirmação de recebimento de audiência/perícia"><SelectValue /></SelectTrigger>
+            <SelectContent>{[['nao', 'Não pedir'], ['2', '2 dias antes'], ['3', '3 dias antes'], ['7', '7 dias antes']].map(([v, r]) => <SelectItem key={v} value={v!}>{r}</SelectItem>)}</SelectContent>
+          </Select>
+        </label>
+        <label className="space-y-1">
+          <span className="block text-xs font-medium text-muted-foreground">Antecedência para o T11.2 ([antecedência])</span>
+          <Input value={c.eventos.antecedenciaAudiencia ?? ''} maxLength={60} placeholder="ex.: uma hora de antecedência" disabled={!editar} onChange={e => mudar(x => ({ ...x, eventos: { ...x.eventos, antecedenciaAudiencia: e.target.value.trim() ? e.target.value : null } }))} />
+        </label>
+      </div>
+      <p className="text-xs text-muted-foreground">T04, T11.2, T12.2 e T12.3 só saem sozinhos depois que a Dra. ativar o modelo na biblioteca oficial; até lá, a equipe recebe o texto pronto. O T12.2 sai na véspera da perícia em dia útil (se a véspera não for dia útil, vira pendência antecipada).</p>
 
       <div>
         <p className="mb-1 text-xs font-medium text-muted-foreground">Textos fora da biblioteca oficial: só saem sozinhos com o texto exato aprovado pela Dra.</p>

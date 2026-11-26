@@ -122,8 +122,15 @@ export async function fluxoProcessoReal(db: Db, e: { conversa: Conversa; owner: 
 /** Decisão por CAS antes do envio: concorrência/replay nunca envia duas vezes. Falha deixa revisão humana explícita. */
 export async function decidirPedidoProcesso(db: Db, id: string, comando: Comando, por: string, canal: 'manager' | 'revisora', hashEsperado?: string) {
   const row = await db.from('casos').select('dados').eq('id', id).single();
-  const p = (row.data?.dados as unknown as Conversa | undefined)?.agenteAna?.pedidosProcesso?.find(p => p.codigo === comando.codigo);
+  const conversaAtual = row.data?.dados as unknown as Conversa | undefined;
+  const p = conversaAtual?.agenteAna?.pedidosProcesso?.find(p => p.codigo === comando.codigo);
   if (row.error || !p || p.conversaId !== id || hashEsperado && p.hash !== hashEsperado) throw new Error('Pedido alterado; atualize a revisão.');
+  // Audiência/perícia redesignada ou cancelada no ProJuris depois do rascunho: aprovação antiga nunca vale.
+  if (p.evento && comando.acao !== 'recusar' && conversaAtual) {
+    const { eventoDoPedidoValido } = await import('./eventos-processuais');
+    const v = eventoDoPedidoValido(conversaAtual, p.evento.chave);
+    if (!v.ok) throw new Error(`${v.motivo} Nada foi enviado.`);
+  }
   const contato = comando.acao === 'recusar' ? '' : await destino(db, id, p.contato.telefone);
   const d = await aplicarDecisao(p, comando, por, canal, new Date());
   // Mensagem oficial (biblioteca) com campo sem dado nunca sai: o pedido continua pendente para a revisora corrigir.
@@ -142,6 +149,12 @@ export async function decidirPedidoProcesso(db: Db, id: string, comando: Comando
   if (d.enviarCliente) {
     try { await enviarAvisoProcesso(db, id, d.enviarCliente, contato); }
     catch { await atualizarConversa(db, id, c => ({ ...c, agenteAna: { ...c.agenteAna, humano: true, erro: 'Envio aprovado não confirmado; conferir WhatsApp antes de reenviar.' } })); throw new Error('Decisão salva, mas envio não confirmado. Confira WhatsApp antes de repetir.'); }
+    // Comunicação de audiência/perícia entregue com recibo: o evento passa a "comunicado" com os campos aprovados.
+    if (p.evento) {
+      const { registrarEventoComunicado } = await import('./eventos-processuais');
+      const texto = d.enviarCliente;
+      await atualizarConversa(db, id, c => registrarEventoComunicado(c, p.evento!.chave, texto)).catch(() => undefined);
+    }
     // Notícia pedida pelo cliente, aprovada e entregue: uma única pergunta de encerramento (S3). Falha não desfaz a entrega.
     try { const { enviarEncerramentoProcesso } = await import('./acompanhamento.server'); await enviarEncerramentoProcesso(db, id, contato, p, comando.acao); }
     catch { await auditarProcesso(db, 'encerramento_processo_nao_confirmado'); }

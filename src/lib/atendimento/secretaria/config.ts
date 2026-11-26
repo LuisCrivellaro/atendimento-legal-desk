@@ -6,6 +6,7 @@
  * Desligada por padrão: com `ativa: false` todo o atendimento segue exatamente o fluxo anterior.
  */
 import { CHAVES_TEMPLATE } from './templates';
+import { CONFIG_EVENTOS_PADRAO, type ConfigEventos } from '../eventos-processuais';
 
 /** Funcionalidades controladas pela matriz de permissões. */
 export type Funcionalidade =
@@ -91,6 +92,8 @@ export type ChaveTextoAprovado = (typeof CHAVES_TEXTO_APROVADO)[number];
 export interface AprovacaoTexto { texto: string; por?: string | undefined; em?: string | undefined }
 
 export interface ConfigSecretaria {
+  /** Audiências e perícias comunicadas: antecedências decididas pela equipe (T04, T11.2/T12.3). */
+  eventos: ConfigEventos;
   /** Aprovação, pelo texto exato, dos textos automáticos fora da biblioteca oficial. */
   aprovacoesTexto: Partial<Record<ChaveTextoAprovado, AprovacaoTexto>>;
   /**
@@ -117,6 +120,7 @@ export interface ConfigSecretaria {
 export const ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN = 120;
 
 export const CONFIG_SECRETARIA_PADRAO: ConfigSecretaria = {
+  eventos: CONFIG_EVENTOS_PADRAO,
   aprovacoesTexto: {},
   ativa: true,
   confirmacaoAntecedenciaMin: ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN,
@@ -168,7 +172,14 @@ export function lerConfigSecretaria(salvo: unknown): ConfigSecretaria {
     if (!v || typeof v !== 'object' || typeof v['texto'] !== 'string' || !v['texto'].trim() || v['texto'].length > 2000) return [];
     return [[k, { texto: v['texto'], ...(typeof v['por'] === 'string' ? { por: v['por'].slice(0, 80) } : {}), ...(typeof v['em'] === 'string' ? { em: v['em'] } : {}) }]];
   })) as ConfigSecretaria['aprovacoesTexto'];
+  const ev = (s['eventos'] && typeof s['eventos'] === 'object' ? s['eventos'] : {}) as Record<string, unknown>;
+  const eventos: ConfigEventos = {
+    diasLembreteAudiencia: inteiro(ev['diasLembreteAudiencia'], 1, 7, CONFIG_EVENTOS_PADRAO.diasLembreteAudiencia),
+    diasConfirmacaoEvento: ev['diasConfirmacaoEvento'] === null || ev['diasConfirmacaoEvento'] === undefined ? null : inteiro(ev['diasConfirmacaoEvento'], 1, 15, 2),
+    antecedenciaAudiencia: typeof ev['antecedenciaAudiencia'] === 'string' && ev['antecedenciaAudiencia'].trim() ? ev['antecedenciaAudiencia'].trim().slice(0, 60) : null,
+  };
   return {
+    eventos,
     aprovacoesTexto,
     ativa: s['ativa'] !== false,
     confirmacaoAntecedenciaMin: inteiro(s['confirmacaoAntecedenciaMin'], 30, 24 * 60, ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN),

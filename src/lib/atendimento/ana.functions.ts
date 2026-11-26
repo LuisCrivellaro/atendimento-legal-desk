@@ -4,7 +4,8 @@ import { anaSchema } from './ana-rules';
 
 /** Invocado somente no servidor após autenticação do webhook e validação do contato. */
 export async function gerarRespostaAna(request:Request, contexto:unknown, instrucoes:string):Promise<AnaResult> {
-  const key = process.env['ANTHROPIC_API_KEY'];
+  // Espaço ou quebra de linha colados junto com a chave não podem derrubar a Anne.
+  const key = process.env['ANTHROPIC_API_KEY']?.trim();
   if (!key) throw new Error('Claude não configurado. Confira ANTHROPIC_API_KEY.');
   const [{claudeComoSample},{default:identidade}] = await Promise.all([import('@/lib/ana-claude/claude.server'),import('./ana-prompt.txt?raw')]);
   const sample = claudeComoSample({apiKey:key, orcamento:await orcamentoIA(), ...(process.env['ANA_MODELO'] ? {modelo:process.env['ANA_MODELO']} : {})});

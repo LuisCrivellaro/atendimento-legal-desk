@@ -50,6 +50,8 @@ export interface AnaState {
   operacaoConsulta?: {mensagemId:string;eventoId:string;tipo:'cancelar'|'remarcar';desde:string} | undefined;
   /** Situação registrada da consulta (presença confirmada, realizada, ausência, cancelada); ver situacao-consulta.ts. */
   situacaoConsulta?: import('./situacao-consulta').RegistroSituacao | undefined;
+  /** Audiências e perícias do cliente (rascunho → comunicado → lembretes), ver eventos-processuais.ts. */
+  eventosProcessuais?: import('./eventos-processuais').EventoProcessual[] | undefined;
   /** Checklist trabalhista oficial (T09): autorização da equipe (que confirma o caso trabalhista), reserva e recibo. */
   checklistTrabalhista?: { reservadoEm?: string | undefined; enviadoEm?: string | undefined; idExterno?: string | undefined; autorizadoPor: string; itens?: string[] | undefined; falhouEm?: string | undefined } | undefined;
   /** Compromisso concluído/inexistente no ProJuris antes do horário: automações suspensas até a equipe conferir. */

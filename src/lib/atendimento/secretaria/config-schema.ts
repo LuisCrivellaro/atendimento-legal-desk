@@ -20,6 +20,7 @@ export const esquemaConfigSecretaria = z.object({
   confirmacaoAntecedenciaMin: z.number().int().min(30).max(1440).optional(),
   testeAutomacoes: z.object({ ativo: z.boolean(), numero: z.string().max(20).nullable() }).optional(),
   /** Aprovação dos textos que não são da biblioteca oficial (lembretes de coleta): vale para o texto exato aprovado. */
+  eventos: z.object({ diasLembreteAudiencia: z.number().int().min(1).max(7), diasConfirmacaoEvento: z.number().int().min(1).max(15).nullable(), antecedenciaAudiencia: z.string().max(60).nullable() }).optional(),
   aprovacoesTexto: z.partialRecord(z.enum(CHAVES_TEXTO_APROVADO), z.object({ texto: z.string().min(1).max(2000) })).optional(),
 });
 
