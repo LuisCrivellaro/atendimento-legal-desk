@@ -85,7 +85,7 @@ describe('resposta do cliente à confirmação de 40 min (servidor primeiro)', (
     const c = ler();
     expect(c.agenteAna?.confirmacao40).toMatchObject({ resposta: 'sim' });
     expect(c.agenteAna?.confirmacao40?.respondidoEm).toBeTruthy();
-    expect(c.timeline.some(t => t.evento === 'Presença confirmada pelo cliente na confirmação de 40 minutos')).toBe(true);
+    expect(c.timeline.some(t => t.evento === 'Presença confirmada pelo cliente na confirmação de presença')).toBe(true);
     expect(c.consultaAgendada).toBe(inicio);
     expect(mocks.cancelar).not.toHaveBeenCalled();
   });

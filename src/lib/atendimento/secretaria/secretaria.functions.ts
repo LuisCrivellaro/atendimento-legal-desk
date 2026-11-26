@@ -95,6 +95,70 @@ export const delegarReagendamentoAnne = createServerFn({ method: 'POST' })
     return { ok: true as const, motivo: r.motivo };
   });
 
+/**
+ * Registro da equipe: consulta realizada ou cliente faltou (nunca presumido pelo horário). A falta inicia o
+ * reagendamento automático (modelo oficial 06 quando há dois horários hoje), se permitido e fora de Humano/Bloqueado.
+ */
+export const registrarSituacaoConsultaAnne = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ conversaId: z.string().uuid(), estado: z.enum(['realizada', 'ausente']) }))
+  .handler(async ({ data, context }) => {
+    const row = await context.supabase.from('casos').select('owner_id').eq('id', data.conversaId).single();
+    if (row.error || row.data.owner_id !== context.userId) throw new Error('Conversa indisponível para esta conta.');
+    const autor = await nomeDoUsuario(context.supabase, context.userId);
+    const { registrarSituacao } = await import('../situacao-consulta');
+    const { atualizarConversa } = await import('../ana.server');
+    let erro: string | undefined;
+    await atualizarConversa(context.supabase, data.conversaId, c => {
+      const r = registrarSituacao(c, data.estado, autor);
+      erro = r.ok ? undefined : r.erro;
+      return r.ok ? r.conversa : c;
+    });
+    if (erro) throw new Error(erro === 'ainda_nao_comecou' ? 'A consulta ainda não começou.' : erro === 'ja_registrada' ? 'Esta consulta já foi registrada.' : 'Não há consulta marcada nesta conversa.');
+    await auditar(context.supabase, autor, 'situacaoConsulta', `Consulta registrada como ${data.estado}`);
+    if (data.estado !== 'ausente') return { ok: true as const, reagendamento: undefined };
+    const { contextoSecretaria, portasSupabase } = await import('./secretaria.server');
+    const { iniciarReagendamentoAutomatico } = await import('./operacional');
+    const ctx = await contextoSecretaria(context.supabase, data.conversaId);
+    const r = await iniciarReagendamentoAutomatico(portasSupabase(context.supabase, ctx.ownerId, data.conversaId), ctx, data.conversaId, 'ausencia', autor);
+    return { ok: true as const, reagendamento: r };
+  });
+
+/** Estado do monitor operacional e mensagens programadas desta conta (próximas 36 h). */
+export const lerMonitorOperacionalAnne = createServerFn({ method: 'GET' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { ID_MONITOR } = await import('../monitor-estado');
+    const [monitor, ws, casos] = await Promise.all([
+      supabaseAdmin.from('ana_monitoramento').select('estado,verificado_em').eq('id', ID_MONITOR).maybeSingle(),
+      context.supabase.from('office_workspace').select('dados').eq('owner_id', context.userId).maybeSingle(),
+      context.supabase.from('casos').select('id,nome,dados').eq('owner_id', context.userId),
+    ]);
+    const { programadasDaConta } = await import('../monitor-programadas');
+    const config = lerConfigSecretaria((ws.data?.dados as { secretaria?: unknown } | null)?.secretaria);
+    const lista = ((casos.data ?? []) as unknown as { id: string; nome: string; dados: Conversa }[]);
+    const gestor = await ehGestor(context.supabase, context.userId);
+    const estado = (monitor.data?.estado ?? null) as unknown as import('../monitor-estado').EstadoMonitor | null;
+    return {
+      estado: estado ? { ...estado, pendenciasAgenda: gestor ? estado.pendenciasAgenda : estado.pendenciasAgenda.map(p => ({ ...p, titulo: '' })) } : null,
+      ...programadasDaConta(lista, config, new Date()),
+      testeAutomacoes: config.testeAutomacoes,
+      antecedenciaMin: config.confirmacaoAntecedenciaMin,
+    };
+  });
+
+/** Leitura leve para o alerta de rotina parada no Atendimento (só horário da última execução e se houve falha). */
+export const lerSaudeMonitorAnne = createServerFn({ method: 'GET' })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { ID_MONITOR } = await import('../monitor-estado');
+    const r = await supabaseAdmin.from('ana_monitoramento').select('estado').eq('id', ID_MONITOR).maybeSingle();
+    const e = r.data?.estado as { ultimaExecucao?: string; ok?: boolean } | null | undefined;
+    return { ultimaExecucao: e?.ultimaExecucao ?? null, ok: e?.ok ?? null };
+  });
+
 async function ehGestor(supabase: Db, userId: string) {
   const [senior, admin] = await Promise.all([
     supabase.rpc('has_role', { _user_id: userId, _role: 'advogada_senior' }),

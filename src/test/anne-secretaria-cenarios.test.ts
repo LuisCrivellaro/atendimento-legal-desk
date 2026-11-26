@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Conversa, Mensagem } from '@/lib/mock-data';
 import { lerConfigSecretaria } from '@/lib/atendimento/secretaria/config';
 import { aplicarModo } from '@/lib/atendimento/secretaria/modos';
-import { conferirReservaEnvio, decisaoRotina, iniciarReagendamentoDelegado, registrarAutomacaoEnviada, revalidarEnvioAutomacao, tratarMensagemOperacional, type ContextoOperacional, type PortasAgendaOperacional, type PortasOperacionais } from '@/lib/atendimento/secretaria/operacional';
+import { registrarSituacao, situacaoConsulta } from '@/lib/atendimento/situacao-consulta';
+import { conferirReservaEnvio, decisaoRotina, iniciarReagendamentoAutomatico, iniciarReagendamentoDelegado, registrarAutomacaoEnviada, revalidarEnvioAutomacao, tratarMensagemOperacional, type ContextoOperacional, type PortasAgendaOperacional, type PortasOperacionais } from '@/lib/atendimento/secretaria/operacional';
 import { mensagemConfirmacaoConsulta } from '@/lib/atendimento/confirmacao-consulta';
 import { podeExecutarAna } from '@/lib/atendimento/ana-execution';
 import type { ReservaCalendar } from '@/lib/atendimento/calendar-booking';
@@ -120,16 +121,93 @@ describe('cenários da secretaria digital (dados fictícios, canal em memória)'
     expect(podeExecutarAna(c.mensagens.find(m => m.id === id)!)).toBe(false);
   });
 
-  it('cliente não poderá comparecer: nada é cancelado, equipe avisada com prioridade', async () => {
+  it('cliente não poderá comparecer (Híbrido): nada é cancelado e a Anne já oferece horários reais pela lista aprovada', async () => {
     const db = fake(conversaComConfirmacao());
     const id = receber(db, cliente('a1', 'não vou conseguir, posso remarcar?'));
-    await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id);
+    const r = await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id);
+    expect(r).toMatchObject({ tratada: true, enviada: true });
     const c = db.get();
-    expect(db.enviados[0]?.texto).toMatch(/nada foi cancelado/i);
+    expect(db.enviados).toHaveLength(1);
+    expect(db.enviados[0]?.texto).toMatch(/^Tenho estes horários livres na agenda:\n1\. Terça-feira, 01\/12, às 9h\n2\. Terça-feira, 01\/12, às 15h/);
+    expect(db.remarcacoes).toHaveLength(0);
     expect(c.consultaAgendada).toBe(INICIO);
     expect(c.agenteAna?.reservaCalendar?.id).toBe('ev1');
-    expect(c.avisosEquipe?.some(a => a.prioridade && /Nada foi cancelado/.test(a.texto))).toBe(true);
-    expect(c.agenteAna?.secretaria?.automacoes?.[0]?.estado).toBe('encaminhada');
+    expect(c.agenteAna?.confirmacao40).toMatchObject({ resposta: 'nao' });
+    const autos = c.agenteAna?.secretaria?.automacoes ?? [];
+    expect(autos.find(a => a.tipo === 'confirmacao_consulta')?.estado).toBe('concluida');
+    expect(autos.find(a => a.tipo === 'reagendamento')?.estado).toBe('aguardando_resposta');
+    // Aviso "não vai conseguir" fica no histórico, resolvido pela Anne (a equipe só é chamada se algo travar).
+    expect(c.avisosEquipe?.find(a => a.id === `confirmacao40-resposta:${INICIO}`)?.resolvidoPor).toMatch(/Anne/);
+    expect(c.agenteAna?.humano).toBe(true);
+
+    // Escolha clara: remarca com recibo (reserva o novo antes de concluir o antigo) e confirma com o texto oficial.
+    const id2 = receber(db, cliente('a2', '2', '2026-11-26T16:16:00.000Z'));
+    await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id2);
+    expect(db.remarcacoes).toEqual(['ev1->2026-12-01T18:00:00.000Z']);
+    expect(db.get().consultaAgendada).toBe('2026-12-01T18:00:00.000Z');
+    expect(db.enviados.at(-1)?.texto).toMatch(/🔗 Link: https:\/\/meet\.google\.com\/abc-defg-hij/);
+  });
+
+  it('cliente não poderá comparecer com agenda fora do ar: nada inventado, aviso prioritário continua aberto', async () => {
+    const db = fake(conversaComConfirmacao(), { agenda: { opcoes: async () => null } });
+    const id = receber(db, cliente('a1', 'não vou conseguir'));
+    const r = await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id);
+    expect(r.enviada).toBe(false);
+    expect(db.enviados).toHaveLength(0);
+    const c = db.get();
+    expect(c.consultaAgendada).toBe(INICIO);
+    expect(c.avisosEquipe?.some(a => a.prioridade && !a.resolvidoEm && /Nada foi cancelado/.test(a.texto))).toBe(true);
+    expect(c.avisosEquipe?.some(a => /agenda oficial indisponível/.test(a.texto))).toBe(true);
+  });
+
+  it('cliente faltou (registro da equipe): Anne oferece pelo modelo oficial 06 dois horários reais de hoje e remarca com recibo', async () => {
+    const base = conversaComConfirmacao();
+    const dez = '2026-11-26T13:00:00.000Z'; // consulta às 10h, já passou (agora 13h14)
+    const inicial = { ...base, consultaAgendada: dez, agenteAna: { ...base.agenteAna, reservaCalendar: { id: 'ev1', inicio: dez, fim: '2026-11-26T13:30:00.000Z' }, confirmacao40: undefined, secretaria: { automacoes: [] } } };
+    const registrada = registrarSituacao(inicial, 'ausente', 'Dra. Carolina', new Date(AGORA));
+    expect(registrada.ok).toBe(true);
+    if (!registrada.ok) return;
+    const hoje = ['2026-11-26T18:00:00.000Z', '2026-11-26T19:30:00.000Z', '2026-11-27T12:00:00.000Z'];
+    const db = fake(registrada.conversa, { agenda: { opcoes: async () => hoje } });
+    const r = await iniciarReagendamentoAutomatico(db.portas, ctx(), 'c-teste', 'ausencia', 'Dra. Carolina');
+    expect(r.ok).toBe(true);
+    expect(db.enviados).toHaveLength(1);
+    expect(db.enviados[0]?.texto).toBe('Oi, Cliente! Tudo bem? 😊\nFique tranquila, sabemos que imprevistos acontecem.\nEstou passando para reagendarmos sua consulta e garantir que você receba a orientação necessária sobre o seu caso com calma e atenção.\nHoje temos disponibilidade às 15h ou às 16h30.\nQual desses horários fica melhor para você?');
+    expect(situacaoConsulta(db.get()).estado).toBe('ausente');
+    const id = receber(db, cliente('f1', 'às 16h30', '2026-11-26T16:20:00.000Z'));
+    await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id);
+    expect(db.remarcacoes).toEqual(['ev1->2026-11-26T19:30:00.000Z']);
+    expect(db.get().consultaAgendada).toBe('2026-11-26T19:30:00.000Z');
+    // A nova consulta volta a "agendada" (a falta fica no histórico da consulta anterior).
+    expect(situacaoConsulta(db.get()).estado).toBe('agendada');
+  });
+
+  it('cliente faltou sem dois horários livres hoje: nada é improvisado, equipe avisada da necessidade de variante oficial', async () => {
+    const base = conversaComConfirmacao();
+    const dez = '2026-11-26T13:00:00.000Z';
+    const inicial = { ...base, consultaAgendada: dez, agenteAna: { ...base.agenteAna, reservaCalendar: { id: 'ev1', inicio: dez, fim: '2026-11-26T13:30:00.000Z' }, confirmacao40: undefined, secretaria: { automacoes: [] } } };
+    const db = fake(inicial);
+    const r = await iniciarReagendamentoAutomatico(db.portas, ctx(), 'c-teste', 'ausencia', 'Dra.');
+    expect(r.ok).toBe(false);
+    expect(db.enviados).toHaveLength(0);
+    expect(db.get().avisosEquipe?.some(a => /modelo oficial 06/.test(a.texto))).toBe(true);
+  });
+
+  it('modo Humano: nenhum reagendamento automático, nem por falta registrada', async () => {
+    const base = conversaComConfirmacao();
+    const db = fake(aplicarModo(base, 'humano', { tipo: 'equipe' }, new Date('2026-11-26T16:00:00Z')));
+    const r = await iniciarReagendamentoAutomatico(db.portas, ctx(), 'c-teste', 'ausencia', 'Dra.');
+    expect(r.ok).toBe(false);
+    expect(db.enviados).toHaveLength(0);
+  });
+
+  it('modo de teste: reagendamento automático não fala com contato fora do número autorizado', async () => {
+    const db = fake(conversaComConfirmacao());
+    const id = receber(db, cliente('a1', 'não vou conseguir'));
+    const teste = lerConfigSecretaria({ ativa: true, testeAutomacoes: { ativo: true, numero: '5511988887777' } });
+    await tratarMensagemOperacional(db.portas, ctx({ config: teste }), 'c-teste', id);
+    expect(db.enviados).toHaveLength(0);
+    expect(db.get().consultaAgendada).toBe(INICIO);
   });
 
   it('intervenção humana durante a resposta da Anne: o envio é cancelado na conferência final', async () => {
@@ -255,16 +333,15 @@ describe('cenários da secretaria digital (dados fictícios, canal em memória)'
     // Cliente pede um horário fora das opções que não está livre.
     const id1 = receber(db, cliente('b1', 'pode ser dia 02/12 às 10h?', '2026-11-26T16:20:00.000Z'));
     await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id1);
-    expect(db.enviados.at(-1)?.texto).toMatch(/^Esse horário não está disponível\.[\s\S]*opções livres/);
+    expect(db.enviados.at(-1)?.texto).toMatch(/^Esse horário não está disponível\.\n\nTenho estes horários livres na agenda:\n1\. /);
 
-    // Escolhe uma opção verificada e confirma.
+    // Escolhe uma opção verificada: remarca na hora (a reserva revalida a disponibilidade sob bloqueio).
     const id2 = receber(db, cliente('b2', '2', '2026-11-26T16:21:00.000Z'));
     await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id2);
-    expect(db.enviados.at(-1)?.texto).toMatch(/Posso remarcar a sua consulta para terça-feira, 01\/12, às 15h/);
-    expect(db.remarcacoes).toHaveLength(0);
-    const id3 = receber(db, cliente('b3', 'sim', '2026-11-26T16:22:00.000Z'));
-    await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id3);
     expect(db.remarcacoes).toEqual(['ev1->2026-12-01T18:00:00.000Z']);
+    // Mensagem repetida (webhook duplicado) não remarca de novo.
+    await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', id2);
+    expect(db.remarcacoes).toHaveLength(1);
     // Confirmação com o link real do Meet: versão aprovada anterior (o modelo 08.1 não leva link).
     expect(db.enviados.at(-1)?.texto).toMatch(/📅 Data: 01\/12\/2026\n🕒 Horário: 15h\n🔗 Link: https:\/\/meet\.google\.com\/abc-defg-hij/);
     const c = db.get();
@@ -282,9 +359,8 @@ describe('cenários da secretaria digital (dados fictícios, canal em memória)'
     const db = fake(inicial, { agenda: { remarcar: async () => { throw new Error('Consulta original indisponível para remarcação.'); } } });
     await iniciarReagendamentoDelegado(db.portas, ctx(), 'c-teste', 'Dra.');
     await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', receber(db, cliente('b1', '1', '2026-11-26T16:20:00.000Z')));
-    await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', receber(db, cliente('b2', 'confirmo', '2026-11-26T16:21:00.000Z')));
     const c = db.get();
-    expect(db.enviados.at(-1)?.texto).toMatch(/não considere a mudança confirmada/);
+    expect(db.enviados.at(-1)?.texto).toMatch(/não considere o horário confirmado por esta mensagem/);
     expect(c.consultaAgendada).toBe('2026-11-30T13:00:00.000Z');
     expect(c.agenteAna?.operacaoConsulta).toBeUndefined();
     expect(c.avisosEquipe?.some(a => a.prioridade)).toBe(true);

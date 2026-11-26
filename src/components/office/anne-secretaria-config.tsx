@@ -5,9 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { FUNCIONALIDADES, limitarNivel, type ConfigSecretaria, type Funcionalidade, type NivelPermissao } from '@/lib/atendimento/secretaria/config';
-import { CHAVES_TEMPLATE, DESCRICAO_TEMPLATE, TEMPLATES_PADRAO, camposTemplate } from '@/lib/atendimento/secretaria/templates';
+import { CHAVES_TEMPLATE } from '@/lib/atendimento/secretaria/templates';
 import { lerConfigSecretariaAnne, salvarConfigSecretariaAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
 import { executar } from '@/lib/executar';
 
@@ -16,6 +15,7 @@ const NIVEIS: { valor: NivelPermissao; rotulo: string }[] = [
   { valor: 'aprovacao', rotulo: 'Com aprovação' },
   { valor: 'desligado', rotulo: 'Desligado' },
 ];
+const ANTECEDENCIAS = [30, 45, 60, 90, 120, 180, 240];
 const RETORNO = [{ valor: 'nunca', rotulo: 'Nunca (só a equipe devolve)' }, { valor: '12', rotulo: '12 h sem mensagem da equipe' }, { valor: '24', rotulo: '24 h sem mensagem da equipe' }, { valor: '48', rotulo: '48 h sem mensagem da equipe' }];
 
 /**
@@ -35,7 +35,8 @@ export function AnneSecretariaConfig() {
   const editar = data.podeEditar;
   const mudar = (fn: (x: ConfigSecretaria) => ConfigSecretaria) => setC(x => (x ? fn(x) : x));
   const gravar = () => void executar('Salvar secretaria digital', async () => {
-    const r = await salvar({ data: { ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
+    if (c.testeAutomacoes.ativo && (c.testeAutomacoes.numero ?? '').length < 10) throw new Error('Informe o número autorizado (com DDD) para ligar o modo de teste.');
+    const r = await salvar({ data: { ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, confirmacaoAntecedenciaMin: c.confirmacaoAntecedenciaMin, testeAutomacoes: c.testeAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
     await qc.invalidateQueries({ queryKey: ['secretaria-config'] });
     return r;
   });
@@ -95,18 +96,24 @@ export function AnneSecretariaConfig() {
         </label>
       </div>
 
-      <details>
-        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Modelos de mensagem</summary>
-        <div className="space-y-2 pt-2">
-          {CHAVES_TEMPLATE.map(k => (
-            <label key={k} className="block space-y-1">
-              <span className="block text-xs">{DESCRICAO_TEMPLATE[k]}{camposTemplate(k).length ? ` · campos: ${camposTemplate(k).map(x => `{${x}}`).join(', ')}` : ''}</span>
-              <Textarea rows={2} className="text-xs" placeholder={TEMPLATES_PADRAO[k]} value={c.templates[k] ?? ''} disabled={!editar} onChange={e => mudar(x => ({ ...x, templates: { ...x.templates, [k]: e.target.value } }))} />
-            </label>
-          ))}
-          <p className="text-xs text-muted-foreground">Vazio usa o texto padrão. Texto com campo diferente dos listados é ignorado.</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="space-y-1">
+          <span className="block text-xs font-medium text-muted-foreground">Confirmação de presença (antecedência)</span>
+          <Select value={String(c.confirmacaoAntecedenciaMin)} disabled={!editar} onValueChange={v => mudar(x => ({ ...x, confirmacaoAntecedenciaMin: Number(v) }))}>
+            <SelectTrigger className="h-9 text-xs" aria-label="Antecedência da confirmação de presença"><SelectValue /></SelectTrigger>
+            <SelectContent>{[...new Set([...ANTECEDENCIAS, c.confirmacaoAntecedenciaMin])].sort((a, b) => a - b).map(a => <SelectItem key={a} value={String(a)}>{a >= 60 ? `${a / 60} h antes` : `${a} min antes`}</SelectItem>)}</SelectContent>
+          </Select>
+          <span className="block text-xs text-muted-foreground">Não sai se o cliente já confirmou ou se a equipe já falou da consulta hoje. O lembrete das 08h continua.</span>
+        </label>
+        <div className="space-y-1">
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-xs font-medium text-muted-foreground">Modo de teste das automações</span>
+            <Switch checked={c.testeAutomacoes.ativo} disabled={!editar} onCheckedChange={v => mudar(x => ({ ...x, testeAutomacoes: { ...x.testeAutomacoes, ativo: v } }))} aria-label="Modo de teste das automações" />
+          </label>
+          <Input inputMode="tel" placeholder="Número autorizado com DDD (ex.: 5511999999999)" value={c.testeAutomacoes.numero ?? ''} disabled={!editar} onChange={e => mudar(x => ({ ...x, testeAutomacoes: { ...x.testeAutomacoes, numero: e.target.value.replace(/\D/g, '').slice(0, 15) || null } }))} aria-label="Número autorizado para teste" />
+          <span className="block text-xs text-muted-foreground">Ligado, lembretes, confirmações e reagendamentos automáticos só vão para este número; os demais clientes ficam sem automação (com aviso no monitor).</span>
         </div>
-      </details>
+      </div>
 
       {editar && <Button size="sm" onClick={gravar}>Salvar secretaria digital</Button>}
       {c.atualizadoEm && <p className="text-xs text-muted-foreground">Última alteração por {c.atualizadoPor ?? 'equipe'}.</p>}

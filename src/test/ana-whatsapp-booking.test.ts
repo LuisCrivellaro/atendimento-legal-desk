@@ -102,7 +102,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='escolhaSemNome'){expect(saved.agenteAna?.horarioPendente).toBe(inicio);expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='falhaReserva'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBeUndefined();expect(saved.agenteAna?.erro).toBeTruthy();expect(saved.mensagens.at(-1)?.texto).not.toMatch(/consulta est[aá] confirmada/i);}
       expect(saved.agenteAna).toMatchObject({ humano: cenario==='humano'||cenario==='falhaReserva' });
-      expect(mocks.enviar).toHaveBeenCalledOnce();
+      expect(mocks.enviar, cenario).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
       expect(saved.mensagens.at(-1)?.canal).toBe(canal);
     } finally {

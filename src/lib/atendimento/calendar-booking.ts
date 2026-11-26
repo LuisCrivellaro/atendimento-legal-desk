@@ -9,7 +9,7 @@ export function escolherReservaAna(input: { texto: string; horarios: string[]; r
   return slot && horarioPermitido(slot, input.tipoCliente ?? 'novo') && Date.parse(slot) > (input.now ?? new Date()).getTime() ? slot : undefined;
 }
 
-export interface ReservaCalendar { id: string; inicio: string; fim: string; url?: string; meetUrl?:string; /** Reservada só no Google (ProJuris fora); lançar no ProJuris quando voltar. */ pendenteProjuris?: { titulo: string; descricao: string; codigoExterno: string }; }
+export interface ReservaCalendar { id: string; inicio: string; fim: string; url?: string; meetUrl?:string; /** Compromisso criado pela equipe direto no ProJuris e vinculado pelo monitor (código oficial + horário conferidos). */ origem?: 'projuris_sincronizado'; /** Reservada só no Google (ProJuris fora); lançar no ProJuris quando voltar. */ pendenteProjuris?: { titulo: string; descricao: string; codigoExterno: string }; }
 
 export function linkMeet(event:{hangoutLink?:string;conferenceData?:{entryPoints?:{entryPointType?:string;uri?:string}[]}}) {
  const url=event.hangoutLink??event.conferenceData?.entryPoints?.find(e=>e.entryPointType==='video')?.uri;

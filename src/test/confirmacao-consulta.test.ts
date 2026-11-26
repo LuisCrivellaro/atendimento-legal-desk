@@ -102,15 +102,22 @@ describe('texto oficial da confirmação de 40 min (D1)', () => {
     expect(fillCalendarReply(MODELO_CONFIRMACAO_CONSULTA, { reserva }, SP('13:45'))).toBe(mensagemConfirmacaoConsulta(iso('14:30'), SP('13:45')));
     expect(fillCalendarReply(MODELO_CONFIRMACAO_CONSULTA, {}, SP('13:45'))).toContain('{horadaconsulta}');
   });
-  it('janela: 40 ≤ minutos < 50; nunca com menos de 40', () => {
-    expect(faseConfirmacao(iso('14:30'), SP('13:40'))).toBe('cedo');
+  it('janela padrão: até 2 h antes e mais de 30 min; nunca com 30 min ou menos', () => {
+    expect(faseConfirmacao(iso('14:30'), SP('12:29'))).toBe('cedo');
+    expect(faseConfirmacao(iso('14:30'), SP('12:30'))).toBe('janela');
     expect(faseConfirmacao(iso('14:30'), SP('13:45'))).toBe('janela');
-    expect(faseConfirmacao(iso('14:30'), SP('13:50'))).toBe('janela');
-    expect(faseConfirmacao(iso('14:30'), SP('13:51'))).toBe('perdida');
+    expect(faseConfirmacao(iso('14:30'), SP('13:59'))).toBe('janela');
+    expect(faseConfirmacao(iso('14:30'), SP('14:00'))).toBe('perdida');
     expect(faseConfirmacao(iso('14:30'), SP('14:30'))).toBe('passada');
   });
-  it('automação exibida como confirmação 40 min antes, sem lembrete de 1 h', () => {
-    expect(programmed(conversa(iso('14:30')), defaultAutomations).find(j => j.key === 'consulta')).toMatchObject({ title: 'Confirmação 40 min antes da consulta', when: iso('13:50') });
+  it('antecedência configurável (1 h e 40 min)', () => {
+    expect(faseConfirmacao(iso('14:30'), SP('13:20'), 60)).toBe('cedo');
+    expect(faseConfirmacao(iso('14:30'), SP('13:30'), 60)).toBe('janela');
+    expect(faseConfirmacao(iso('14:30'), SP('13:45'), 40)).toBe('cedo');
+    expect(faseConfirmacao(iso('14:30'), SP('13:50'), 40)).toBe('janela');
+  });
+  it('automação exibida como confirmação de presença 2 h antes', () => {
+    expect(programmed(conversa(iso('14:30')), defaultAutomations).find(j => j.key === 'consulta')).toMatchObject({ title: 'Confirmação de presença (padrão 2 h antes)', when: iso('12:30') });
   });
 });
 
@@ -141,9 +148,9 @@ describe('respostas à confirmação', () => {
 });
 
 describe('rotina de confirmação 40 min (cenários P0-1)', () => {
-  it('1. consulta às 14h30: 13h40 não envia; 13h45 envia o texto exato; 13h50 não repete', async () => {
+  it('1. consulta às 14h30: 12h25 não envia; 13h45 envia o texto exato; 13h50 não repete', async () => {
     const { db, ler } = criarDb({ casos: { 'c-conf': conversa(iso('14:30')) } });
-    expect(await enviarConfirmacoesConsulta(db, SP('13:40'))).toMatchObject({ enviados: 0 });
+    expect(await enviarConfirmacoesConsulta(db, SP('12:25'))).toMatchObject({ enviados: 0 });
     expect(mocks.enviar).not.toHaveBeenCalled();
     expect(await enviarConfirmacoesConsulta(db, SP('13:45'))).toMatchObject({ enviados: 1 });
     expect(mocks.enviar).toHaveBeenCalledOnce();
@@ -153,7 +160,7 @@ describe('rotina de confirmação 40 min (cenários P0-1)', () => {
     expect(mocks.enviar).toHaveBeenCalledOnce();
     const c = ler();
     expect(c.mensagens.at(-1)).toMatchObject({ autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: 'wamid-1', status: 'enviada', modeloOficial: { id: 'T08.2', versao: 1 } });
-    expect(c.timeline.at(-1)?.evento).toBe('Confirmação de 40 minutos enviada pela Anne');
+    expect(c.timeline.at(-1)?.evento).toBe('Confirmação de presença enviada pela Anne');
     expect(c.agenteAna?.confirmacao40).toMatchObject({ inicio: iso('14:30'), enviadoEm: SP('13:45').toISOString(), idExterno: 'wamid-1', modelo: { id: 'T08.2' } });
     expect(c.agenteAna?.envioAna?.texto).toContain('📍 Estamos passando para confirmar a sua consulta.');
   });
@@ -184,26 +191,26 @@ describe('rotina de confirmação 40 min (cenários P0-1)', () => {
     expect(await enviarConfirmacoesConsulta(db, SP('13:15'))).toMatchObject({ enviados: 1 });
     expect(ler().agenteAna?.lembreteConsulta).toBeUndefined();
   });
-  it('4. ciclo às 13h55 (35 min) sem envio anterior: não envia, gera aviso e auditoria', async () => {
+  it('4. ciclo às 14h05 (25 min) sem envio anterior: não envia, gera aviso e auditoria', async () => {
     const { db, ler, audit } = criarDb({ casos: { 'c-conf': conversa(iso('14:30')) } });
-    expect(await enviarConfirmacoesConsulta(db, SP('13:55'))).toMatchObject({ enviados: 0, avisos: 1 });
+    expect(await enviarConfirmacoesConsulta(db, SP('14:05'))).toMatchObject({ enviados: 0, avisos: 1 });
     expect(mocks.enviar).not.toHaveBeenCalled();
-    expect(ler().avisosEquipe?.[0]).toMatchObject({ tipo: 'confirmacao40', prioridade: true, texto: 'Confirmação de 40 min não enviada (consulta às 14h30): confirmar por telefone.' });
+    expect(ler().avisosEquipe?.[0]).toMatchObject({ tipo: 'confirmacao40', prioridade: true, texto: 'Confirmação de presença não enviada (consulta às 14h30): confirmar por telefone.' });
     expect(audit.some(a => a['p_acao'] === 'confirmacaoConsulta' && a['p_status'] === 'erro')).toBe(true);
-    expect(await enviarConfirmacoesConsulta(db, SP('14:00'))).toMatchObject({ avisos: 0 });
+    expect(await enviarConfirmacoesConsulta(db, SP('14:10'))).toMatchObject({ avisos: 0 });
     expect(ler().avisosEquipe).toHaveLength(1);
     const a = buildAssessor([{ id: 'c-conf', nome: 'Maria', mine: true, pipeline: 0, prazos: [], avisosEquipe: ler().avisosEquipe ?? [] }], '2026-11-25');
-    expect(a.tasks.some(t => t.urgent && t.label.includes('Confirmação de 40 min não enviada'))).toBe(true);
+    expect(a.tasks.some(t => t.urgent && t.label.includes('Confirmação de presença não enviada'))).toBe(true);
   });
   it('5. três ciclos dentro da janela: uma só mensagem', async () => {
     const { db } = criarDb({ casos: { 'c-conf': conversa(iso('14:30')) } });
     for (const h of ['13:41', '13:45', '13:49']) await enviarConfirmacoesConsulta(db, SP(h));
     expect(mocks.enviar).toHaveBeenCalledOnce();
   });
-  it('6. conversa com controle humano: não envia e gera aviso com texto pronto', async () => {
+  it('6. secretaria desligada e conversa com controle humano: não envia e gera aviso com texto pronto', async () => {
     const c = conversa(iso('14:30'));
     c.agenteAna = { ...c.agenteAna, humano: true };
-    const { db, ler } = criarDb({ casos: { 'c-conf': c } });
+    const { db, ler } = criarDb({ casos: { 'c-conf': c }, workspace: { ...defaultState, secretaria: { ativa: false } } as OfficeState });
     expect(await enviarConfirmacoesConsulta(db, SP('13:45'))).toMatchObject({ enviados: 0, avisos: 1 });
     expect(mocks.enviar).not.toHaveBeenCalled();
     expect(ler().avisosEquipe?.[0]?.textoPronto).toBe(textoConfirmacao40(iso('14:30'), SP('13:45')).texto);

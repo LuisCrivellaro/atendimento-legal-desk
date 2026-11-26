@@ -6,6 +6,8 @@ import { defaultAutomations, newMessage } from '../atendimento';
 import { consultaDeHoje } from './lembrete-consulta';
 import { lerBiblioteca } from './biblioteca/renderizar';
 import { politicaConsultaDia, textoLembreteDoDia } from './biblioteca/selecao';
+import { bloqueadoPorTeste, lerConfigSecretaria } from './secretaria/config';
+import { situacaoConsulta } from './situacao-consulta';
 import { atualizarConversa } from './ana.server';
 import { hora } from './ana-scheduling';
 import { registrarAviso } from './avisos-equipe';
@@ -31,17 +33,23 @@ export async function enviarLembretesConsulta(db: SupabaseClient<Database>, agor
   const donos = [...new Set(rows.data.map(r => r.owner_id))];
   const ws = await db.from('office_workspace').select('owner_id,dados').in('owner_id', donos);
   const estados = new Map<string, OfficeState>(ws.error ? [] : (ws.data ?? []).map(w => [w.owner_id, w.dados as unknown as OfficeState]));
-  let enviados = 0, falhas = 0;
+  let enviados = 0, falhas = 0, bloqueados = 0;
   for (const row of rows.data) {
     const c = row.dados as unknown as Conversa;
     const reserva = c.agenteAna?.reservaCalendar;
     if (!reserva || reserva.inicio !== c.consultaAgendada || !consultaDeHoje(c.consultaAgendada, agora)) continue;
     if (c.agenteAna?.lembreteConsulta?.inicio === reserva.inicio) continue;
+    // O monitor roda a cada 5 min (8h–12h): consulta que já começou ou começa em menos de 30 min não recebe lembrete
+    // (ex.: rotina parada e retomada tarde) — nunca "sua consulta está confirmada para hoje" depois do horário.
+    if (Date.parse(reserva.inicio) - agora.getTime() < 30 * 60000) continue;
     const contato = porConversa.get(row.id);
     const state = estados.get(row.owner_id);
     const ctxSecretaria = secretariaLigada(state) ? contextoRotina({ state, agenteAtivo: cfg.data.agente_ativo === true, canalAtivo: cfg.data.canal_ativo === 'ultramsg', contato, modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA }) : undefined;
     if (!ctxSecretaria && (c.agenteAna?.humano || c.agenteAna?.pausa)) continue;
     if (!contato) continue;
+    // Modo de teste controlado: só o número autorizado recebe. Consulta já cancelada/realizada nunca recebe lembrete.
+    if (bloqueadoPorTeste(lerConfigSecretaria((state as { secretaria?: unknown } | undefined)?.secretaria), contato)) { bloqueados++; continue; }
+    if (['cancelada', 'realizada', 'ausente'].includes(situacaoConsulta(c).estado)) continue;
     // Biblioteca oficial: modelo 01, só com nome do cadastro, de manhã ("Bom dia") e sem lembrete/confirmação redundante.
     const politica = politicaConsultaDia(c, reserva.inicio, 'lembrete', agora);
     if (!politica.permitido) continue;
@@ -95,5 +103,5 @@ export async function enviarLembretesConsulta(db: SupabaseClient<Database>, agor
       await db.rpc('registrar_audit_log', { p_ator: 'Ana', p_perfil: 'sistema', p_acao: 'lembreteConsulta', p_resumo: 'Lembrete do dia não confirmado; equipe deve conferir', p_status: 'erro', p_erro: 'Envio do lembrete não confirmado.' });
     }
   }
-  return { enviados, falhas };
+  return { enviados, falhas, ...(bloqueados ? { bloqueados, motivo: 'modo de teste' } : {}) };
 }

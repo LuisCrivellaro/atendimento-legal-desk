@@ -29,7 +29,7 @@ import { reconhecerRelacionamentoAna } from './ana-relacionamento.server';
 import { configDoEstado, contextoSecretaria, portasSupabase, secretariaLigada } from './secretaria/secretaria.server';
 import { aplicarModo, modoEfetivo, retornoAutomaticoDevido } from './secretaria/modos';
 import { ultimaIntervencaoHumana } from './secretaria/origem';
-import { encaminharInjecao, encerrarAutomacaoRespondida, reterRespostaNaoVerificada, tratarMensagemOperacional } from './secretaria/operacional';
+import { encaminharInjecao, encerrarAutomacaoRespondida, iniciarReagendamentoAutomatico, registrarNaoComparecimento, reterRespostaNaoVerificada, tratarMensagemOperacional } from './secretaria/operacional';
 import { dadosNaoVerificados, fontesDaConversa, possivelInjecao } from './secretaria/seguranca';
 import { memoriaEstruturada, REGRAS_MEMORIA } from './secretaria/memoria';
 import { classificarMensagemComercial, contextoFiltroComercial, registrarFiltroComercial } from './filtro-comercial';
@@ -85,11 +85,11 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       await atualizarConversa(db,id,x=>retornoAutomaticoDevido(x,configDoEstado(state),modoPadrao,ultimaIntervencaoHumana(x))?aplicarModo(x,'automatico',{tipo:'sistema',autor:'regra'},new Date(),'regra configurada de volta ao Automático'):x);
       return processarAna(db,id,messageId,request);
     }
-    if(modoEfetivo(c,modoPadrao).modo!=='automatico'){
-      const ctx=await contextoSecretaria(db,id,canal);
-      await tratarMensagemOperacional(portasSupabase(db,row.data.owner_id,id),ctx,id,messageId);
-      return;
-    }
+    // Fora do Automático a camada operacional decide sozinha; no Automático só trata a resposta a um reagendamento
+    // em andamento (o restante segue a Anne conversacional abaixo).
+    const ctx=await contextoSecretaria(db,id,canal);
+    const operacional=await tratarMensagemOperacional(portasSupabase(db,row.data.owner_id,id),ctx,id,messageId);
+    if(operacional.tratada||modoEfetivo(c,modoPadrao).modo!=='automatico')return;
   }
   if(!m||!podeExecutarAna(m)||c.agenteAna?.humano||c.agenteAna?.pausa||state.anaPausa?.ativa)return;
   let claimed=false;
@@ -155,6 +155,23 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   if(social){
     const oficial=renderizarOficial(social,{},{biblioteca});
     if(oficial.ok){await responderOficial({texto:oficial.texto,modelo:{id:oficial.id,versao:oficial.versao}});return;}
+  }
+  // "Não vou conseguir" à confirmação ou ao lembrete (modo Automático): registra e a Anne já oferece horários reais
+  // (reagendamento automático com o modelo oficial 06 ou a lista aprovada), sem chamar o modelo. Sem permissão,
+  // consulta sem recibo ou agenda indisponível, segue o fluxo anterior (pergunta remarcar/cancelar).
+  if(secretaria&&mode==='Automática'&&!pedidoHumano(m.texto)){
+    const nao40=confirmacao40Respondivel(c,canal)&&respostaConfirmacao40(m.texto)==='nao';
+    const naoLembrete=!nao40&&lembreteAtivo(c.agenteAna?.lembreteConsulta,c.consultaAgendada)&&respostaLembreteAna(m.texto)==='nao';
+    if(nao40||naoLembrete){
+      await atualizarConversa(db,id,x=>registrarNaoComparecimento(x,nao40?'confirmacao_consulta':'lembrete_consulta'));
+      const ctxReag=await contextoSecretaria(db,id,canal);
+      const reag=await iniciarReagendamentoAutomatico(portasSupabase(db,row.data.owner_id,id),ctxReag,id,'cliente','cliente',{mensagemOrigem:m,controle:c.agenteAna?.controleHumanoEm});
+      if(reag.ok){
+        efeitosIniciados=true;
+        await atualizarConversa(db,id,x=>({...x,mensagens:x.mensagens.map(y=>y.id===messageId&&y.iaExecucao?{...y,iaExecucao:{...y.iaExecucao,estado:'concluida' as const}}:y)}));
+        return;
+      }
+    }
   }
   let modeloUsado:{id:string;versao:number}|undefined;
     const {gerarRespostaAna}=await import('./ana.functions');
@@ -443,7 +460,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       r.mensagem=semReintroducao(r.mensagem,atendimentoIniciado(c,canal,messageId)||!!identidade);
       // Secretaria ligada: horário, data, valor, processo ou CPF fora das fontes desta conversa retém a resposta.
       if(secretaria){
-        const faltando=dadosNaoVerificados(r.mensagem,fontesDaConversa(current,{horarios:[...novosOferecidos,...(escolhido?[escolhido]:[]),...(horarioPendente?[horarioPendente]:[]),...historicoHorarios],textos:['30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30',REGRAS_REAGENDAMENTO]}));
+        const faltando=dadosNaoVerificados(r.mensagem,fontesDaConversa(current,{horarios:[...novosOferecidos,...(escolhido?[escolhido]:[]),...(horarioPendente?[horarioPendente]:[]),...historicoHorarios],textos:['30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30',REGRAS_REAGENDAMENTO,'Alguém responsável te responde no próximo dia útil, a partir das 8h.']}));
         if(faltando.length){
           await atualizarConversa(db,id,x=>reterRespostaNaoVerificada(x,r.mensagem,faltando,messageId));
           await db.rpc('registrar_audit_log',{p_ator:'Anne',p_perfil:'sistema',p_acao:'secretariaFatos',p_resumo:`Resposta retida: dado sem fonte verificada (${faltando.length})`,p_status:'bloqueado'});

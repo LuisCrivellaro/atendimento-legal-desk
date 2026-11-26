@@ -1,4 +1,4 @@
-import { FUNCIONALIDADES, nivelPermissao, type Camada, type ConfigSecretaria, type Funcionalidade, type JanelaAutomacoes } from './config';
+import { bloqueadoPorTeste, FUNCIONALIDADES, nivelPermissao, type Camada, type ConfigSecretaria, type Funcionalidade, type JanelaAutomacoes } from './config';
 import type { ModoAnne } from './modos';
 import type { OrigemMensagem } from './origem';
 
@@ -40,6 +40,7 @@ export type CodigoMotivo =
   | 'nao_necessaria'
   | 'vencida'
   | 'falha_integracao'
+  | 'modo_teste'
   | 'modo_alterado';
 
 /** Textos para a equipe (Atendimento, histórico e auditoria). Nunca incluem texto do cliente. */
@@ -73,6 +74,7 @@ export const MOTIVOS: Record<CodigoMotivo, string> = {
   nao_necessaria: 'Mensagem programada não é mais necessária.',
   vencida: 'Mensagem programada vencida.',
   falha_integracao: 'Falha na integração: nada foi confirmado ao cliente; equipe avisada.',
+  modo_teste: 'Modo de teste das automações: só o número autorizado recebe mensagens automáticas.',
   modo_alterado: 'Modo da conversa alterado.',
 };
 
@@ -91,6 +93,8 @@ export interface EntradaMotor {
   ambiente: AmbienteMotor;
   /** Contato liberado e vinculado a esta conversa no canal ativo. */
   contatoLiberado: boolean;
+  /** Número do contato (só para o modo de teste das automações). */
+  contato?: string | undefined;
   /** Origem da mensagem que disparou a ação (respostas) ou 'sistema' para rotinas. */
   origem: OrigemMensagem;
   agora: Date;
@@ -198,6 +202,8 @@ export function decidirAcao(e: EntradaMotor): DecisaoMotor {
   if (nivel === 'desligado') return decisao(e, 'bloquear', 'permissao_desligada');
 
   if (!e.contatoLiberado) return decisao(e, 'bloquear', 'contato_nao_liberado', avisoOperacional);
+  // Modo de teste controlado: automação operacional só para o número autorizado (o restante não sai, sem aviso).
+  if (operacional && bloqueadoPorTeste(e.config, e.contato)) return decisao(e, 'bloquear', 'modo_teste');
   if (e.injecao) return decisao(e, 'encaminhar', 'possivel_injecao', { avisarEquipe: true });
   if (e.foraDoEscopo) return decisao(e, 'encaminhar', 'fora_do_escopo', { avisarEquipe: true });
   if (e.limiteRespostas) return decisao(e, 'bloquear', 'limite_respostas', { avisarEquipe: true });

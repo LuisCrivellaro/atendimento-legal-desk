@@ -33,7 +33,7 @@ export const FUNCIONALIDADES: Record<Funcionalidade, { titulo: string; descricao
   resposta_conversacional: { titulo: 'Atendimento conversacional', descricao: 'Atendimento inicial, qualificação, dúvidas autorizadas e coleta de dados (só no modo Automático).', camada: 'conversacional', maximo: 'automatico' },
   resposta_automacao: { titulo: 'Responder dentro de uma automação', descricao: 'Respostas curtas do cliente a uma automação ativa (ex.: "ok" na confirmação).', camada: 'operacional', maximo: 'automatico' },
   sugestao_interna: { titulo: 'Sugestões internas', descricao: 'Textos sugeridos para a equipe revisar; nunca saem sozinhos.', camada: 'interna', maximo: 'automatico' },
-  confirmacao_consulta: { titulo: 'Confirmação 40 min antes', descricao: 'Texto oficial da confirmação da consulta do dia.', camada: 'operacional', maximo: 'automatico' },
+  confirmacao_consulta: { titulo: 'Confirmação de presença', descricao: 'Texto oficial da confirmação da consulta do dia (padrão 2 h antes).', camada: 'operacional', maximo: 'automatico' },
   lembrete_consulta: { titulo: 'Lembrete das 08:00', descricao: 'Lembrete do dia da consulta com SIM/NÃO.', camada: 'operacional', maximo: 'automatico' },
   reagendamento: { titulo: 'Reagendamento', descricao: 'Oferece horários verificados, confirma a escolha e só comunica sucesso com o recibo da agenda.', camada: 'operacional', maximo: 'automatico' },
   cancelamento: { titulo: 'Cancelamento autorizado', descricao: 'Cancela só com pedido explícito, confirmação posterior e recibo.', camada: 'operacional', maximo: 'automatico' },
@@ -72,9 +72,22 @@ export interface JanelaAutomacoes {
   diasUteis: boolean;
 }
 
+/** Modo de teste das automações: só o número autorizado recebe mensagens automáticas operacionais. */
+export interface TesteAutomacoes {
+  ativo: boolean;
+  /** Número de WhatsApp autorizado pela Dra. (só dígitos, com DDI). */
+  numero: string | null;
+}
+
 export interface ConfigSecretaria {
-  /** Feature flag da secretaria digital. Padrão: desligada. */
+  /**
+   * Camadas independentes (automações operacionais continuam com a equipe na conversa). Ligada por padrão desde
+   * 26/11/2026 (pedido da Dra.); desliga só com `false` explícito ou com a chave mestra do servidor.
+   */
   ativa: boolean;
+  /** Antecedência da confirmação de presença, em minutos (padrão 2 h). */
+  confirmacaoAntecedenciaMin: number;
+  testeAutomacoes: TesteAutomacoes;
   permissoes: MatrizPermissoes;
   /** Minutos depois de uma mensagem da equipe em que automações não urgentes ficam adiadas. */
   janelaPrioridadeHumanaMin: number;
@@ -88,8 +101,12 @@ export interface ConfigSecretaria {
   atualizadoPor?: string | undefined;
 }
 
+export const ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN = 120;
+
 export const CONFIG_SECRETARIA_PADRAO: ConfigSecretaria = {
-  ativa: false,
+  ativa: true,
+  confirmacaoAntecedenciaMin: ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN,
+  testeAutomacoes: { ativo: false, numero: null },
   permissoes: PERMISSOES_PADRAO,
   janelaPrioridadeHumanaMin: 30,
   retornoAutomaticoHoras: null,
@@ -129,8 +146,13 @@ export function lerConfigSecretaria(salvo: unknown): ConfigSecretaria {
   const retorno = s['retornoAutomaticoHoras'];
   const t = (s['templates'] && typeof s['templates'] === 'object' ? s['templates'] : {}) as Record<string, unknown>;
   const templates = Object.fromEntries(Object.entries(t).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && typeof v === 'string' && v.trim().length > 0 && v.length <= 1000)) as Record<string, string>;
+  const teste = (s['testeAutomacoes'] && typeof s['testeAutomacoes'] === 'object' ? s['testeAutomacoes'] : {}) as Record<string, unknown>;
+  const numeroTeste = typeof teste['numero'] === 'string' ? teste['numero'].replace(/\D/g, '') : '';
   return {
-    ativa: s['ativa'] === true,
+    ativa: s['ativa'] !== false,
+    confirmacaoAntecedenciaMin: inteiro(s['confirmacaoAntecedenciaMin'], 30, 24 * 60, ANTECEDENCIA_CONFIRMACAO_PADRAO_MIN),
+    // Sem número válido o modo de teste não liga (nunca vira "ninguém recebe nada" por engano silencioso).
+    testeAutomacoes: { ativo: teste['ativo'] === true && numeroTeste.length >= 10 && numeroTeste.length <= 15, numero: numeroTeste.length >= 10 && numeroTeste.length <= 15 ? numeroTeste : null },
     permissoes,
     janelaPrioridadeHumanaMin: inteiro(s['janelaPrioridadeHumanaMin'], 0, 24 * 60, CONFIG_SECRETARIA_PADRAO.janelaPrioridadeHumanaMin),
     retornoAutomaticoHoras: retorno === null || retorno === undefined ? null : inteiro(retorno, 1, 24 * 30, 24),
@@ -147,6 +169,15 @@ export function lerConfigSecretaria(salvo: unknown): ConfigSecretaria {
  */
 export function secretariaAtiva(config: ConfigSecretaria, chaveMestra?: string | undefined) {
   return config.ativa && chaveMestra !== '1' && chaveMestra !== 'true';
+}
+
+/** Modo de teste: o contato da conversa não é o número autorizado → automação operacional não sai. */
+export function bloqueadoPorTeste(config: ConfigSecretaria, contato: string | undefined) {
+  if (!config.testeAutomacoes.ativo || !config.testeAutomacoes.numero) return false;
+  const c = (contato ?? '').replace(/\D/g, '');
+  const n = config.testeAutomacoes.numero;
+  // Compara pelos últimos 10 dígitos (DDD + número), aceitando contato com ou sem DDI/nono dígito no início.
+  return !c || c.slice(-10) !== n.slice(-10);
 }
 
 export function nivelPermissao(config: ConfigSecretaria, f: Funcionalidade): NivelPermissao {

@@ -68,7 +68,9 @@ export async function ocupadosAgenda(db: Db, owner: string, now = new Date(), di
 /** O compromisso pertence a este atendimento: origem Manager ADV e horários idênticos aos do recibo salvo na conversa. */
 function compromissoDoAtendimento(dto: Record<string, unknown>, reserva: ReservaCalendar): boolean {
   const externo = typeof dto['codigoExterno'] === 'string' ? dto['codigoExterno'] : '';
-  if (!externo.startsWith(PREFIXO_EXTERNO_MANAGER)) return false;
+  // Compromisso marcado pela equipe no ProJuris e vinculado pelo monitor: vale pelo código oficial (já conferido no
+  // recibo) e pelos horários idênticos; criado pelo Manager ADV: exige ainda o prefixo do codigoExterno.
+  if (!externo.startsWith(PREFIXO_EXTERNO_MANAGER) && reserva.origem !== 'projuris_sincronizado') return false;
   const ev = eventoDeDto(dto);
   return !!ev && ev['dataHoraInicio'] === Date.parse(reserva.inicio) && ev['dataHoraFim'] === Date.parse(reserva.fim);
 }

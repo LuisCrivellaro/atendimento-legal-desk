@@ -1,5 +1,5 @@
 import { useServerFn } from '@tanstack/react-start';
-import { Ban, Bot, CalendarClock, History, Pause, Play, UserRound, Users, X } from 'lucide-react';
+import { Ban, Bot, CalendarCheck, CalendarClock, CalendarX, History, Pause, Play, UserRound, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { AIMode } from '@/lib/atendimento';
@@ -9,8 +9,11 @@ import { automacoesAtivas, ROTULOS_ESTADO, ROTULOS_TIPO } from '@/lib/atendiment
 import { MOTIVOS } from '@/lib/atendimento/secretaria/motor';
 import { MODOS, modoEfetivo, ROTULOS_MODO, type ModoAnne } from '@/lib/atendimento/secretaria/modos';
 import { origemMensagem, ROTULOS_ORIGEM } from '@/lib/atendimento/secretaria/origem';
-import { controlarAutomacaoAnne, definirModoAnne, delegarReagendamentoAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
+import { controlarAutomacaoAnne, definirModoAnne, delegarReagendamentoAnne, registrarSituacaoConsultaAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
+import { situacaoConsulta, type SituacaoConsulta } from '@/lib/atendimento/situacao-consulta';
 import { executar } from '@/lib/executar';
+
+const ROTULO_SITUACAO: Record<SituacaoConsulta, string> = { sem_consulta: 'sem consulta', agendada: 'agendada', confirmada: 'presença confirmada', realizada: 'realizada', ausente: 'cliente faltou', cancelada: 'cancelada' };
 
 /**
  * Interface da secretaria digital no Atendimento (só aparece com a flag ligada):
@@ -57,6 +60,7 @@ export function AnneModoSelector({ c, modoPadrao, disabled, onAlterado }: { c: C
 export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { c: Conversa; modoPadrao: AIMode; disabled?: boolean; onAlterado: () => void }) {
   const controlar = useServerFn(controlarAutomacaoAnne);
   const delegar = useServerFn(delegarReagendamentoAnne);
+  const registrarSit = useServerFn(registrarSituacaoConsultaAnne);
   const agora = new Date();
   const s = c.agenteAna?.secretaria;
   const ativas = automacoesAtivas(s?.automacoes, agora);
@@ -64,18 +68,36 @@ export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { 
   const modo = modoEfetivo(c, modoPadrao).modo;
   const reserva = c.agenteAna?.reservaCalendar;
   const podeDelegar = modo === 'hibrido' && !!reserva && reserva.inicio === c.consultaAgendada && Date.parse(reserva.inicio) > agora.getTime() && !ativas.length;
-  if (!ativas.length && !acoes.length && !podeDelegar) return null;
+  const situacao = situacaoConsulta(c);
+  const podeRegistrar = (situacao.estado === 'agendada' || situacao.estado === 'confirmada') && !!situacao.inicio && Date.parse(situacao.inicio) <= agora.getTime();
+  const mostraSituacao = situacao.estado !== 'sem_consulta' && (!!c.consultaAgendada || situacao.estado !== 'cancelada');
+  if (!ativas.length && !acoes.length && !podeDelegar && !mostraSituacao) return null;
   const acao = (automacaoId: string, controle: 'pausar' | 'retomar' | 'cancelar', rotulo: string) =>
     void executar(rotulo, () => controlar({ data: { conversaId: c.id, automacaoId, controle } }), onAlterado);
+  const registrar = (estado: 'realizada' | 'ausente') => {
+    if (estado === 'ausente' && !window.confirm('Registrar que o cliente faltou? A Anne vai oferecer novos horários pelo texto oficial quando o modo permitir.')) return;
+    void executar(estado === 'realizada' ? 'Registrar consulta realizada' : 'Registrar ausência', () => registrarSit({ data: { conversaId: c.id, estado } }), onAlterado);
+  };
   return (
     <details className="shrink-0 border-b bg-card px-3 py-1.5 text-[13px]">
       <summary className="flex cursor-pointer list-none items-center gap-2 py-0.5 text-xs text-muted-foreground">
         <Bot className="size-3.5" />
         <span className="font-medium text-foreground">Anne</span>
         <span>· {ativas.length ? `${ativas.length} automaç${ativas.length === 1 ? 'ão ativa' : 'ões ativas'}` : 'sem automação ativa'}</span>
+        {mostraSituacao && <span className={podeRegistrar ? 'font-medium text-foreground' : ''}>· consulta {ROTULO_SITUACAO[situacao.estado]}{podeRegistrar ? ' (registrar)' : ''}</span>}
         {acoes[0] && <span className="truncate">· última decisão: {acoes[0].texto}</span>}
       </summary>
       <div className="space-y-2 pb-1.5 pt-1">
+        {mostraSituacao && (
+          <div className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5">
+            <CalendarCheck className="size-3.5 shrink-0 text-muted-foreground" />
+            <p className="min-w-0 flex-1 break-words">Consulta {situacao.inicio ? `de ${dataHoraCurta(situacao.inicio)} ` : ''}· <span className="font-medium">{ROTULO_SITUACAO[situacao.estado]}</span></p>
+            {podeRegistrar && <>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} title="Registra que a consulta aconteceu; lembretes e confirmações desta consulta param." onClick={() => registrar('realizada')}><CalendarCheck className="size-3.5" />Realizada</Button>
+              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={disabled} title="Registra a ausência e inicia o reagendamento com horários reais da agenda (Automático/Híbrido)." onClick={() => registrar('ausente')}><CalendarX className="size-3.5" />Cliente faltou</Button>
+            </>}
+          </div>
+        )}
         {ativas.map(a => (
           <div key={a.id} className="flex flex-wrap items-center gap-2 rounded-md border px-2 py-1.5">
             <CalendarClock className="size-3.5 shrink-0 text-muted-foreground" />

@@ -266,7 +266,9 @@ export const CENARIOS: Cenario[] = [
     verificacoes: [anaNaoDiz(/Como podemos te ajudar\?$/, 'Não pergunta como pode ajudar quando o pedido já veio', 'prompt')],
   },
   {
-    id: 'D40a', bloco: 'D', titulo: 'Confirmação de 40 min: "não vou conseguir" nunca cancela', conversas: { A: { telefone: T.desconhecido, nome: 'Bruna Fictícia Lima', perfil: 'novo', consultaMarcada: '2026-11-25T14:30:00-03:00' } }, projuris: 'Não usado', relogio: '2026-11-25T13:45:00-03:00',
+    // Simulador sem agenda real: cobre o caminho de reserva (secretaria desligada ou agenda indisponível). Com agenda,
+    // a produção já oferece horários reais (reagendamento automático, testado em src/test/anne-secretaria-cenarios.test.ts).
+    id: 'D40a', bloco: 'D', titulo: 'Confirmação de presença: "não vou conseguir" nunca cancela (sem agenda: pergunta)', conversas: { A: { telefone: T.desconhecido, nome: 'Bruna Fictícia Lima', perfil: 'novo', consultaMarcada: '2026-11-25T14:30:00-03:00' } }, projuris: 'Não usado', relogio: '2026-11-25T13:45:00-03:00',
     passos: [{ sistema: 'confirmacao40' }, { avancarMin: 2, cliente: 'não vou conseguir', intencao: 'duvida_geral' }],
     esperado: 'O servidor envia o texto oficial; a resposta negativa vira pergunta explícita (remarcar ou cancelar), sem cancelamento.', permitidas: ['perguntar se quer remarcar ou cancelar'], proibidas: ['cancelar a consulta', 'dizer que cancelou'],
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: [...SEM_PROJURIS, 'agenda.cancelar'] }, comportamento: 'Texto oficial da confirmação; resposta "não" nunca cancela e pergunta com data e hora.',
@@ -278,7 +280,7 @@ export const CENARIOS: Cenario[] = [
     ],
   },
   {
-    id: 'D40b', bloco: 'D', titulo: 'Confirmação de 40 min: "ok" registra presença', conversas: { A: { telefone: T.desconhecido, nome: 'Bruna Fictícia Lima', perfil: 'novo', consultaMarcada: '2026-11-25T14:30:00-03:00' } }, projuris: 'Não usado', relogio: '2026-11-25T13:45:00-03:00',
+    id: 'D40b', bloco: 'D', titulo: 'Confirmação de presença: "ok" registra presença', conversas: { A: { telefone: T.desconhecido, nome: 'Bruna Fictícia Lima', perfil: 'novo', consultaMarcada: '2026-11-25T14:30:00-03:00' } }, projuris: 'Não usado', relogio: '2026-11-25T13:45:00-03:00',
     passos: [{ sistema: 'confirmacao40' }, { avancarMin: 1, cliente: 'ok', intencao: 'duvida_geral' }],
     esperado: 'Presença confirmada com o texto fixo do servidor.', permitidas: ['confirmar presença'], proibidas: ['repetir a confirmação', 'oferecer horários'],
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: [...SEM_PROJURIS, 'agenda.cancelar', 'agenda.reservar'] }, comportamento: '"ok" à confirmação de 40 min recebe "Presença confirmada! Sua consulta continua hoje, às 14h30."',

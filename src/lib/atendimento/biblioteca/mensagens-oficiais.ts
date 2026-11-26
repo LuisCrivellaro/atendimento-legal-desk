@@ -75,7 +75,7 @@ export const TEMPLATES_OFICIAIS: Record<IdTemplate, TemplateOficial> = {
     texto: 'Olá! Bom dia 😊\nPassando para confirmar o seu atendimento hoje às [horário] ✅, ok?\nEquipe CS Advocacia ⚖️',
     gatilho: 'Consulta agendada para hoje, aguardando confirmação de presença do cliente.',
     condicoes: ['manha', 'consulta_hoje'], fontes: { '[horário]': HORARIO },
-    ativacao: 'ativo', aprovacao: 'nenhuma', integracao: 'Confirmação 40 min antes, quando enviada de manhã (confirmacao-consulta.ts).',
+    ativacao: 'ativo', aprovacao: 'nenhuma', integracao: 'Confirmação de presença (padrão 2 h antes, configurável), quando enviada de manhã (confirmacao-consulta.ts).',
   },
   T03: {
     id: 'T03', titulo: 'Clientes ativos fora do horário comercial', versao: 1,
@@ -139,7 +139,7 @@ export const TEMPLATES_OFICIAIS: Record<IdTemplate, TemplateOficial> = {
     texto: 'Olá! 👋🏻\nTudo bem? 😊\n📍 Estamos passando para confirmar a sua consulta.\n📆 Agendada para hoje, [dia da semana], [data], às [horário]. ✅\nCaso haja alguma alteração, pedimos a gentileza de avisar com antecedência. 🙏🏻\nEquipe CS Advocacia\ncarolinasantos.com.br',
     gatilho: 'Consulta agendada para o dia atual, conforme a política de confirmação configurada.',
     condicoes: ['consulta_hoje'], fontes: { '[dia da semana]': 'calculado da data da reserva', '[data]': HORARIO, '[horário]': HORARIO },
-    ativacao: 'ativo', aprovacao: 'nenhuma', integracao: 'Confirmação 40 min antes, quando enviada a partir do meio-dia (confirmacao-consulta.ts).',
+    ativacao: 'ativo', aprovacao: 'nenhuma', integracao: 'Confirmação de presença (padrão 2 h antes, configurável), quando enviada a partir do meio-dia (confirmacao-consulta.ts).',
   },
   T09: {
     id: 'T09', titulo: 'Checklist de documentos para reclamação trabalhista', versao: 1,

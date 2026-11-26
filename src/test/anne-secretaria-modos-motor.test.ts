@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Conversa } from '@/lib/mock-data';
-import { CONFIG_SECRETARIA_PADRAO, lerConfigSecretaria, nivelPermissao, secretariaAtiva } from '@/lib/atendimento/secretaria/config';
+import { bloqueadoPorTeste, CONFIG_SECRETARIA_PADRAO, lerConfigSecretaria, nivelPermissao, secretariaAtiva } from '@/lib/atendimento/secretaria/config';
 import { esquemaConfigSecretaria } from '@/lib/atendimento/secretaria/config-schema';
 import { aoIntervirEquipe, aplicarModo, derivarModoLegado, modoEfetivo, retornoAutomaticoDevido } from '@/lib/atendimento/secretaria/modos';
 import { decidirAcao, dentroDaJanela, proximaJanela, type EntradaMotor } from '@/lib/atendimento/secretaria/motor';
@@ -21,11 +21,36 @@ function entrada(extra: Partial<EntradaMotor> = {}): EntradaMotor {
 }
 
 describe('configuração da secretaria (feature flag)', () => {
-  it('vem desligada por padrão e só liga com true explícito', () => {
-    expect(CONFIG_SECRETARIA_PADRAO.ativa).toBe(false);
-    expect(lerConfigSecretaria(undefined).ativa).toBe(false);
-    expect(lerConfigSecretaria({ ativa: 'true' }).ativa).toBe(false);
-    expect(lerConfigSecretaria({ ativa: true }).ativa).toBe(true);
+  it('vem ligada por padrão (camadas independentes) e só desliga com false explícito', () => {
+    expect(CONFIG_SECRETARIA_PADRAO.ativa).toBe(true);
+    expect(lerConfigSecretaria(undefined).ativa).toBe(true);
+    expect(lerConfigSecretaria({}).ativa).toBe(true);
+    expect(lerConfigSecretaria({ ativa: 'false' }).ativa).toBe(true);
+    expect(lerConfigSecretaria({ ativa: false }).ativa).toBe(false);
+  });
+  it('confirmação de presença: padrão 2 h, configurável entre 30 min e 24 h', () => {
+    expect(lerConfigSecretaria(undefined).confirmacaoAntecedenciaMin).toBe(120);
+    expect(lerConfigSecretaria({ confirmacaoAntecedenciaMin: 60 }).confirmacaoAntecedenciaMin).toBe(60);
+    expect(lerConfigSecretaria({ confirmacaoAntecedenciaMin: 5 }).confirmacaoAntecedenciaMin).toBe(30);
+    expect(lerConfigSecretaria({ confirmacaoAntecedenciaMin: 99999 }).confirmacaoAntecedenciaMin).toBe(1440);
+  });
+  it('modo de teste só liga com número válido e bloqueia qualquer outro contato', () => {
+    expect(lerConfigSecretaria({ testeAutomacoes: { ativo: true, numero: '123' } }).testeAutomacoes).toEqual({ ativo: false, numero: null });
+    const teste = lerConfigSecretaria({ testeAutomacoes: { ativo: true, numero: '+55 (11) 98888-7777' } });
+    expect(teste.testeAutomacoes).toEqual({ ativo: true, numero: '5511988887777' });
+    expect(bloqueadoPorTeste(teste, '5511988887777')).toBe(false);
+    expect(bloqueadoPorTeste(teste, '11988887777@c.us')).toBe(false);
+    expect(bloqueadoPorTeste(teste, '5511999990000')).toBe(true);
+    expect(bloqueadoPorTeste(teste, undefined)).toBe(true);
+    expect(bloqueadoPorTeste(lerConfigSecretaria(undefined), '5511999990000')).toBe(false);
+    const d = decidirAcao(entrada({ config: { ...ativa, testeAutomacoes: teste.testeAutomacoes }, contato: '5511999990000' }));
+    expect(d.resultado).toBe('bloquear');
+    expect(d.motivo).toBe('modo_teste');
+    expect(decidirAcao(entrada({ config: { ...ativa, testeAutomacoes: teste.testeAutomacoes }, contato: '5511988887777' })).motivo).not.toBe('modo_teste');
+  });
+  it('salvar com os campos novos passa no esquema (confirmação e modo de teste)', () => {
+    expect(esquemaConfigSecretaria.safeParse({ ...CONFIG_SECRETARIA_PADRAO, confirmacaoAntecedenciaMin: 120, testeAutomacoes: { ativo: true, numero: '5511988887777' } }).success).toBe(true);
+    expect(esquemaConfigSecretaria.safeParse({ ...CONFIG_SECRETARIA_PADRAO, confirmacaoAntecedenciaMin: 10 }).success).toBe(false);
   });
   it('chave mestra do servidor desliga mesmo com a flag ligada', () => {
     expect(secretariaAtiva(ativa, undefined)).toBe(true);

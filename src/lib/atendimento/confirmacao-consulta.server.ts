@@ -9,6 +9,8 @@ import { registrarAviso } from './avisos-equipe';
 import { consultaNoDia, decidirConfirmacao40, faseConfirmacao, textoAvisoConfirmacao, type MotivoAvisoConfirmacao } from './confirmacao-consulta';
 import { secretariaLigada } from './secretaria/secretaria.server';
 import { lerBiblioteca } from './biblioteca/renderizar';
+import { bloqueadoPorTeste, lerConfigSecretaria } from './secretaria/config';
+import { situacaoConsulta } from './situacao-consulta';
 import { politicaConsultaDia } from './biblioteca/selecao';
 import { concluirEnvioRotina, contextoRotina, decidirConfirmacaoSecretaria, motorPermiteRotina, reservarEnvioRotina } from './secretaria/rotinas';
 
@@ -21,13 +23,14 @@ export const ORCAMENTO_CICLO_MS = 40000;
 const idAviso = (inicio: string) => `confirmacao40:${inicio}`;
 
 /**
- * Envia a confirmação 40 minutos antes das consultas de hoje com recibo verificado, uma única vez por horário.
+ * Envia a confirmação de presença (padrão 2 h antes, configurável) das consultas de hoje com recibo verificado, uma única vez por horário.
  * Mesmas regras de destino do lembrete das 08:00 (canal UltraMsg ativo, contato liberado e vinculado, restrições de produção).
  * Janela perdida, controle humano, conversa sem vínculo ou sem recibo: nada é enviado; a equipe recebe um aviso.
  */
 export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), relogio: () => number = () => Date.now()) {
   const comeco = relogio();
-  const resultado = { enviados: 0, avisos: 0, falhas: 0, adiados: 0 };
+  const resultado = { enviados: 0, avisos: 0, falhas: 0, adiados: 0, motivos: {} as Record<string, number> };
+  const contar = (motivo: string) => { resultado.motivos[motivo] = (resultado.motivos[motivo] ?? 0) + 1; };
   const cfg = await db.from('atendimento_canal_config').select('canal_ativo,agente_ativo').eq('id', true).single();
   if (cfg.error) throw new Error('Configuração indisponível.');
   if (cfg.data.canal_ativo !== 'ultramsg' || !cfg.data.agente_ativo) return { ...resultado, motivo: 'canal ou Anne desligados' };
@@ -36,7 +39,8 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
   const lista = await db.from('casos').select('id,consulta:dados->>consultaAgendada').not('dados->>consultaAgendada', 'is', null);
   if (lista.error) throw new Error('Consultas indisponíveis.');
   const proximas = ((lista.data ?? []) as unknown as { id: string; consulta: string | null }[])
-    .filter(r => !!r.consulta && consultaNoDia(r.consulta, agora) && ['janela', 'perdida'].includes(faseConfirmacao(r.consulta, agora)))
+    // Consultas de hoje ainda não começadas; a antecedência de cada escritório é conferida na decisão por conversa.
+    .filter(r => !!r.consulta && consultaNoDia(r.consulta, agora) && faseConfirmacao(r.consulta, agora, 24 * 60) !== 'passada')
     .sort((a, b) => Date.parse(a.consulta ?? '') - Date.parse(b.consulta ?? ''));
   if (!proximas.length) return resultado;
   const ids = proximas.map(r => r.id);
@@ -60,7 +64,12 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
     const c = row.dados as unknown as Conversa;
     const state = estados.get(row.owner_id);
     const contato = porConversa.get(row.id);
+    const configSec = lerConfigSecretaria((state as { secretaria?: unknown } | undefined)?.secretaria);
+    // Modo de teste controlado: só o número autorizado recebe; os demais nem geram aviso.
+    if (bloqueadoPorTeste(configSec, contato)) { contar('modo de teste'); continue; }
     const entrada = {
+      antecedenciaMin: configSec.confirmacaoAntecedenciaMin,
+      situacao: situacaoConsulta(c).estado,
       consultaAgendada: c.consultaAgendada,
       reservaInicio: c.agenteAna?.reservaCalendar?.inicio,
       confirmacao40: c.agenteAna?.confirmacao40,
@@ -77,8 +86,9 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
     // Secretaria digital ligada: o motor decide pelo modo (Híbrido envia; Humano/Bloqueado avisam a equipe).
     const ctxSecretaria = secretariaLigada(state) ? contextoRotina({ state, agenteAtivo: cfg.data.agente_ativo === true, canalAtivo: cfg.data.canal_ativo === 'ultramsg', contato, modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA }) : undefined;
     const decisao = ctxSecretaria ? decidirConfirmacaoSecretaria(c, entrada, ctxSecretaria, agora) : decidirConfirmacao40(entrada, agora);
-    if (decisao.tipo === 'ignorar') continue;
+    if (decisao.tipo === 'ignorar') { contar(decisao.motivo); continue; }
     if (decisao.tipo === 'aviso') {
+      contar(decisao.motivo);
       if (await avisarEquipe(db, row.id, decisao.inicio, decisao.motivo, decisao.texto, agora)) resultado.avisos++;
       continue;
     }
@@ -106,7 +116,7 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
           ...x,
           agenteAna: { ...x.agenteAna, confirmacao40: { ...(x.agenteAna?.confirmacao40 ?? { inicio }), inicio, enviadoEm: agora.toISOString(), idExterno: sent.idExterno, texto, ...(modelo ? { modelo } : {}) } },
           mensagens: [...x.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'ultramsg', idExterno: sent.idExterno, status: 'enviada', ...(ctxSecretaria ? { automacaoKey: automacaoId } : {}), ...(modelo ? { modeloOficial: modelo } : {}) })],
-          timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de 40 minutos enviada pela Anne' }],
+          timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de presença enviada pela Anne' }],
         };
         // Com a secretaria ligada, a resposta do cliente fica associada a esta automação (até 1 h depois do início).
         return ctxSecretaria ? concluirEnvioRotina(enviada, { tipo: 'confirmacao_consulta', id: automacaoId, referencia: { inicio, eventoId }, expiraEm: new Date(Date.parse(inicio) + 3600000).toISOString(), idExterno: sent.idExterno, texto }, agora) : enviada;
@@ -115,12 +125,12 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
     } catch (error) {
       // A reserva continua gravada: nunca reenviar automaticamente depois de falha ambígua.
       resultado.falhas++;
-      console.error('Confirmação de 40 min não enviada', error);
+      console.error('Confirmação de presença não enviada', error);
       await atualizarConversa(db, row.id, x => registrarAviso(
         { ...x, agenteAna: { ...x.agenteAna, confirmacao40: { ...(x.agenteAna?.confirmacao40 ?? { inicio }), inicio, falhouEm: agora.toISOString() } } },
-        { id: idAviso(inicio), tipo: 'confirmacao40', prioridade: true, criadoEm: agora.toISOString(), texto: `Confirmação de 40 min (consulta às ${hora(inicio)}) não confirmada pelo WhatsApp: conferir a conversa e confirmar por telefone. Não reenviar sem conferir.` },
+        { id: idAviso(inicio), tipo: 'confirmacao40', prioridade: true, criadoEm: agora.toISOString(), texto: `Confirmação de presença (consulta às ${hora(inicio)}) não confirmada pelo WhatsApp: conferir a conversa e confirmar por telefone. Não reenviar sem conferir.` },
       )).catch(() => undefined);
-      await db.rpc('registrar_audit_log', { p_ator: 'Ana', p_perfil: 'sistema', p_acao: 'confirmacaoConsulta', p_resumo: 'Confirmação de 40 min não confirmada; equipe deve conferir', p_status: 'erro', p_erro: 'Envio da confirmação não confirmado.' });
+      await db.rpc('registrar_audit_log', { p_ator: 'Ana', p_perfil: 'sistema', p_acao: 'confirmacaoConsulta', p_resumo: 'Confirmação de presença não confirmada; equipe deve conferir', p_status: 'erro', p_erro: 'Envio da confirmação não confirmado.' });
     }
   }
   return resultado;

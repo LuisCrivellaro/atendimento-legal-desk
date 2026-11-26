@@ -8,6 +8,8 @@ export interface CompromissoPJ {
   fimMs: number;
   concluido: boolean;
   codigoExterno?: string | undefined;
+  /** Descrição do compromisso (campo `descricaoTarefa`, o mesmo usado na criação), quando vier na consulta. */
+  descricao?: string | undefined;
 }
 
 /** Verdadeiro quando os intervalos [aIni,aFim) e [bIni,bFim) se cruzam. */
@@ -36,6 +38,7 @@ export function compromissoDe(item: unknown): CompromissoPJ | undefined {
     fimMs: fimMs ?? inicioMs,
     concluido: o['flagCompromissoConcluido'] === true || o['flagSituacaoConcluida'] === true,
     codigoExterno: typeof o['codigoExterno'] === 'string' && o['codigoExterno'] ? o['codigoExterno'] : undefined,
+    ...(typeof o['descricaoTarefa'] === 'string' && o['descricaoTarefa'] ? { descricao: o['descricaoTarefa'] } : {}),
   };
 }
 

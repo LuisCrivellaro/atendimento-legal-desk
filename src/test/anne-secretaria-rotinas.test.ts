@@ -15,6 +15,8 @@ const SP = (hhmm: string, dia = '2026-11-25') => new Date(`${dia}T${hhmm}:00-03:
 const iso = (hhmm: string, dia = '2026-11-25') => SP(hhmm, dia).toISOString();
 const base = conversas[0] as Conversa;
 const LIGADA: OfficeState = { ...defaultState, secretaria: { ativa: true } } as OfficeState;
+/** Secretaria desligada explicitamente (desde 26/11/2026 ela vem ligada por padrão). */
+const DESLIGADA: OfficeState = { ...defaultState, secretaria: { ativa: false } } as OfficeState;
 
 function conversa(inicio: string, extra: Partial<Conversa> = {}, agente: Partial<NonNullable<Conversa['agenteAna']>> = {}): Conversa {
   return { ...base, id: 'c-conf', modoIA: 'Automática', consultaAgendada: inicio, mensagens: [], timeline: [], agenteAna: { reservaCalendar: { id: 'evt-1', inicio, fim: new Date(Date.parse(inicio) + 1800000).toISOString() }, dados: { nome: 'Maria Teste', cpf: '', assunto: '', email: '' }, telefone: '5511900000001', ...agente }, ...extra };
@@ -60,11 +62,74 @@ beforeEach(() => { mocks.enviar.mockReset(); mocks.enviar.mockResolvedValue({ ok
 
 describe('confirmação de 40 min com a secretaria digital', () => {
   it('flag desligada: equipe no controle continua só gerando aviso (comportamento anterior)', async () => {
-    const { db, ler } = criarDb({ 'c-conf': conversa(iso('14:30'), {}, { humano: true }) }, defaultState);
+    const { db, ler } = criarDb({ 'c-conf': conversa(iso('14:30'), {}, { humano: true }) }, DESLIGADA);
     const r = await enviarConfirmacoesConsulta(db, SP('13:45'));
     expect(r).toMatchObject({ enviados: 0, avisos: 1 });
     expect(mocks.enviar).not.toHaveBeenCalled();
     expect(ler().agenteAna?.secretaria).toBeUndefined();
+  });
+
+  it('sem configuração gravada a secretaria vem ligada: Anne conversacional assumida pela equipe não para a confirmação', async () => {
+    const { db, ler } = criarDb({ 'c-conf': conversa(iso('14:30'), {}, { humano: true }) }, defaultState);
+    const r = await enviarConfirmacoesConsulta(db, SP('12:30'));
+    expect(r.enviados).toBe(1);
+    expect(ler().agenteAna?.humano).toBe(true);
+  });
+
+  it('padrão de 2 h: sai no primeiro ciclo com até 2 h de antecedência, nunca antes e nunca duas vezes', async () => {
+    const { db } = criarDb({ 'c-conf': conversa(iso('14:30')) }, LIGADA);
+    expect((await enviarConfirmacoesConsulta(db, SP('12:20'))).enviados).toBe(0);
+    expect((await enviarConfirmacoesConsulta(db, SP('12:30'))).enviados).toBe(1);
+    expect((await enviarConfirmacoesConsulta(db, SP('12:35'))).enviados).toBe(0);
+    expect(mocks.enviar).toHaveBeenCalledOnce();
+  });
+
+  it('antecedência configurada (1 h) é respeitada', async () => {
+    const UMA_HORA = { ...defaultState, secretaria: { ativa: true, confirmacaoAntecedenciaMin: 60 } } as OfficeState;
+    const { db } = criarDb({ 'c-conf': conversa(iso('14:30')) }, UMA_HORA);
+    expect((await enviarConfirmacoesConsulta(db, SP('12:30'))).enviados).toBe(0);
+    expect((await enviarConfirmacoesConsulta(db, SP('13:30'))).enviados).toBe(1);
+  });
+
+  it('presença já confirmada pelo lembrete das 08h: não pede de novo', async () => {
+    const { db } = criarDb({ 'c-conf': conversa(iso('14:30'), {}, { lembreteConsulta: { inicio: iso('14:30'), enviadoEm: iso('08:00'), confirmadoEm: iso('08:10') } }) }, LIGADA);
+    expect((await enviarConfirmacoesConsulta(db, SP('12:30'))).enviados).toBe(0);
+    expect(mocks.enviar).not.toHaveBeenCalled();
+  });
+
+  it('consulta registrada como realizada, ausência ou cancelada: nada sai', async () => {
+    for (const estado of ['realizada', 'ausente', 'cancelada'] as const) {
+      mocks.enviar.mockClear();
+      const { db } = criarDb({ 'c-conf': conversa(iso('14:30'), {}, { situacaoConsulta: { inicio: iso('14:30'), estado, em: iso('09:00'), por: 'Equipe' } }) }, LIGADA);
+      expect((await enviarConfirmacoesConsulta(db, SP('12:30'))).enviados).toBe(0);
+      expect((await enviarLembretesConsulta(db, SP('08:00'))).enviados).toBe(0);
+      expect(mocks.enviar).not.toHaveBeenCalled();
+    }
+  });
+
+  it('modo de teste: cliente fora do número autorizado não recebe nada (nem aviso falso de envio)', async () => {
+    const TESTE = { ...defaultState, secretaria: { ativa: true, testeAutomacoes: { ativo: true, numero: '5511988887777' } } } as OfficeState;
+    const { db, ler } = criarDb({ 'c-conf': conversa(iso('14:30')) }, TESTE);
+    expect((await enviarConfirmacoesConsulta(db, SP('12:30'))).enviados).toBe(0);
+    const lembrete = await enviarLembretesConsulta(db, SP('08:00'));
+    expect(lembrete).toMatchObject({ enviados: 0, bloqueados: 1, motivo: 'modo de teste' });
+    expect(mocks.enviar).not.toHaveBeenCalled();
+    expect(ler().mensagens).toHaveLength(0);
+  });
+
+  it('falha do UltraMsg: nada é marcado como enviado e a equipe recebe aviso', async () => {
+    mocks.enviar.mockRejectedValueOnce(new Error('UltraMsg indisponível'));
+    const { db, ler } = criarDb({ 'c-conf': conversa(iso('14:30')) }, LIGADA);
+    const r = await enviarConfirmacoesConsulta(db, SP('12:30'));
+    expect(r.enviados).toBe(0);
+    const c = ler();
+    expect(c.mensagens).toHaveLength(0);
+    expect(c.agenteAna?.confirmacao40?.enviadoEm).toBeUndefined();
+    expect((c.avisosEquipe ?? []).length).toBeGreaterThan(0);
+    // Ciclo seguinte não reenvia sozinho (envio ambíguo nunca é repetido).
+    mocks.enviar.mockClear();
+    await enviarConfirmacoesConsulta(db, SP('12:35'));
+    expect(mocks.enviar).not.toHaveBeenCalled();
   });
 
   it('flag ligada e modo Híbrido: a confirmação sai com reserva da automação e fica aguardando a resposta', async () => {
@@ -108,7 +173,7 @@ describe('confirmação de 40 min com a secretaria digital', () => {
 
 describe('lembrete das 08:00 com a secretaria digital', () => {
   it('flag desligada: equipe no controle pula em silêncio (comportamento anterior)', async () => {
-    const { db, ler } = criarDb({ 'c-conf': conversa(iso('14:30'), {}, { humano: true }) }, defaultState);
+    const { db, ler } = criarDb({ 'c-conf': conversa(iso('14:30'), {}, { humano: true }) }, DESLIGADA);
     expect((await enviarLembretesConsulta(db, SP('08:00'))).enviados).toBe(0);
     expect(ler().avisosEquipe ?? []).toHaveLength(0);
   });

@@ -69,12 +69,12 @@ describe('reagendamento sem modelo', () => {
     expect(passo.acoes[0]).toMatchObject({ tipo: 'enviar', texto: expect.stringContaining('1. Terça-feira, 01/12, às 9h') });
     return passo.estado;
   }
-  it('escolha → confirmação explícita → executa → sucesso só com recibo', () => {
-    const e1 = passoReagendamento(aguardandoEscolha(), { tipo: 'mensagem', texto: '2', agora: AGORA });
-    expect(e1.estado).toMatchObject({ etapa: 'aguardando_confirmacao', escolhido: livres[1] });
-    expect(e1.acoes[0]).toMatchObject({ tipo: 'enviar', texto: expect.stringMatching(/Posso remarcar.*15h/) });
-    const e2 = passoReagendamento(e1.estado, { tipo: 'mensagem', texto: 'Sim, pode', agora: AGORA });
-    expect(e2.acoes[0]).toMatchObject({ tipo: 'executar', para: livres[1], de: { eventoId: 'ev1' } });
+  it('escolha clara de uma opção oferecida → remarca (revalidando na agenda) → sucesso só com recibo', () => {
+    const e2 = passoReagendamento(aguardandoEscolha(), { tipo: 'mensagem', texto: '2', agora: AGORA });
+    expect(e2.estado).toMatchObject({ etapa: 'executando', escolhido: livres[1] });
+    expect(e2.acoes).toEqual([{ tipo: 'executar', para: livres[1], de: { eventoId: 'ev1', inicio: consulta.inicio } }]);
+    // Evento repetido (webhook duplicado) durante a execução não gera segunda remarcação.
+    expect(passoReagendamento(e2.estado, { tipo: 'mensagem', texto: '2', agora: AGORA }).acoes).toEqual([]);
     const ok = passoReagendamento(e2.estado, { tipo: 'execucao', ok: true, recibo: { id: 'ev2', inicio: livres[1]!, meetUrl: 'https://meet.google.com/abc-defg-hij' } });
     expect(ok.estado.etapa).toBe('concluido');
     // Com link do Meet a entregar, vale a confirmação aprovada anterior (o modelo 08.1 não leva o link).
@@ -90,10 +90,25 @@ describe('reagendamento sem modelo', () => {
     expect(r.acoes[0]).toMatchObject({ tipo: 'enviar', texto: 'Oi, Maria! Tudo bem? 😊\nFique tranquila, sabemos que imprevistos acontecem.\nEstou passando para reagendarmos sua consulta e garantir que você receba a orientação necessária sobre o seu caso com calma e atenção.\nHoje temos disponibilidade às 14h ou às 15h30.\nQual desses horários fica melhor para você?' });
   });
   it('recibo divergente nunca vira sucesso', () => {
-    const e1 = passoReagendamento(aguardandoEscolha(), { tipo: 'mensagem', texto: '1', agora: AGORA });
-    const e2 = passoReagendamento(e1.estado, { tipo: 'mensagem', texto: 'sim', agora: AGORA });
+    const e2 = passoReagendamento(aguardandoEscolha(), { tipo: 'mensagem', texto: '1', agora: AGORA });
     const r = passoReagendamento(e2.estado, { tipo: 'execucao', ok: true, recibo: { id: 'ev9', inicio: livres[2]! } });
-    expect(r.acoes[0]).toMatchObject({ tipo: 'encaminhar', texto: expect.stringMatching(/não considere a mudança confirmada/) });
+    expect(r.acoes[0]).toMatchObject({ tipo: 'encaminhar', texto: expect.stringMatching(/não considere o horário confirmado/) });
+  });
+  it('horário fora da lista que está livre: pede o aceite com a frase aprovada antes de remarcar', () => {
+    const consultaHorario = passoReagendamento(aguardandoEscolha(), { tipo: 'mensagem', texto: 'pode ser dia 03/12 às 10h?', agora: AGORA });
+    const livre = passoReagendamento(consultaHorario.estado, { tipo: 'disponibilidade', horario: '2026-12-03T13:00:00.000Z', livre: true });
+    expect(livre.acoes[0]).toMatchObject({ tipo: 'enviar', texto: expect.stringMatching(/está livre\. Posso marcar para você\?$/) });
+    expect(passoReagendamento(livre.estado, { tipo: 'mensagem', texto: 'sim', agora: AGORA }).acoes[0]).toMatchObject({ tipo: 'executar', para: '2026-12-03T13:00:00.000Z' });
+  });
+  it('cliente desiste e mantém o horário: nada muda na agenda', () => {
+    const r = passoReagendamento(aguardandoEscolha(), { tipo: 'mensagem', texto: 'vou manter o horário', agora: AGORA });
+    expect(r.acoes[0]).toMatchObject({ tipo: 'concluir', mantida: true });
+    expect(r.acoes.some(a => a.tipo === 'executar')).toBe(false);
+  });
+  it('contato proativo (falta registrada) sem dois horários hoje: nenhum texto improvisado, equipe avisada', () => {
+    const inicio = iniciarReagendamento({ ...consulta, origem: 'ausencia', nome: 'Maria' });
+    const r = passoReagendamento(inicio.estado, { tipo: 'agenda', livres, agora: AGORA });
+    expect(r.acoes).toEqual([{ tipo: 'encaminhar', motivo: expect.stringMatching(/modelo oficial 06/) }]);
   });
   it('horário pedido indisponível: avisa e oferece novas opções verificadas', () => {
     const consultaHorario = passoReagendamento(aguardandoEscolha(), { tipo: 'mensagem', texto: 'pode ser dia 03/12 às 10h?', agora: AGORA });
@@ -116,9 +131,11 @@ describe('reagendamento sem modelo', () => {
     expect(passoReagendamento(e, { tipo: 'agenda', livres }).acoes).toEqual([]);
   });
   it('sem horários livres ou agenda fora: equipe, sem inventar horário', () => {
-    const inicio = iniciarReagendamento(consulta);
-    expect(passoReagendamento(inicio.estado, { tipo: 'agenda', livres: [] }).acoes[0]).toMatchObject({ tipo: 'encaminhar', texto: expect.stringMatching(/Não encontrei horários livres/) });
-    expect(passoReagendamento(inicio.estado, { tipo: 'agenda_falhou' }).acoes[0]).toMatchObject({ tipo: 'encaminhar' });
+    const inicio = iniciarReagendamento({ ...consulta, origem: 'cliente' });
+    expect(passoReagendamento(inicio.estado, { tipo: 'agenda', livres: [] }).acoes[0]).toMatchObject({ tipo: 'encaminhar', texto: expect.stringMatching(/^Não encontrei novas opções livres/) });
+    expect(passoReagendamento(inicio.estado, { tipo: 'agenda_falhou' }).acoes).toEqual([{ tipo: 'encaminhar', motivo: 'agenda oficial indisponível' }]);
+    // Contato proativo sem horário: só a equipe é avisada.
+    expect(passoReagendamento(iniciarReagendamento({ ...consulta, origem: 'ausencia' }).estado, { tipo: 'agenda', livres: [] }).acoes[0]).not.toHaveProperty('texto');
   });
 });
 

@@ -48,6 +48,8 @@ export interface AnaState {
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;
   autorizacaoRemarcacao?: {eventoId:string;inicio:string;contato:string;expira:string} | undefined;
   operacaoConsulta?: {mensagemId:string;eventoId:string;tipo:'cancelar'|'remarcar';desde:string} | undefined;
+  /** Situação registrada da consulta (presença confirmada, realizada, ausência, cancelada); ver situacao-consulta.ts. */
+  situacaoConsulta?: import('./situacao-consulta').RegistroSituacao | undefined;
   /** Período fora do expediente em que o cliente ativo já recebeu a mensagem oficial 03 (uma vez por período). */
   foraHorarioAvisado?: string | undefined;
   /** Secretaria digital (modos, automações com ciclo de vida, histórico de decisões); só usada com a flag ligada. */

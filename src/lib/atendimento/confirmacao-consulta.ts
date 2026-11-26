@@ -5,15 +5,19 @@ import { textoConfirmacaoDoDia } from './biblioteca/selecao';
 import type { BibliotecaSalva } from './biblioteca/renderizar';
 
 /**
- * Confirmação da consulta 40 minutos antes. Desde 26/11/2026 o envio automático usa a BIBLIOTECA OFICIAL
+ * Confirmação de presença antes da consulta (padrão 2 h, ver JANELA_CONFIRMACAO). Desde 26/11/2026 o envio automático usa a BIBLIOTECA OFICIAL
  * (modelo 02 de manhã, 08.2 a partir do meio-dia; ver biblioteca/selecao.ts). Este texto (aprovado em 25/11/2026,
  * saudação pelo horário do envio) continua na mensagem pronta /confirmar e como versão aprovada de reserva.
  * Mantém o espaço antes do "!" ("Bom dia ! 😊").
  */
 export const MODELO_CONFIRMACAO_CONSULTA = 'Olá\n{saudacao} ! 😊\n📍Passando para confirmar o seu atendimento hoje às {horadaconsulta}, ok?!\nEquipe CS Advocacia ⚖️\nLawyers';
 
-/** Janela de envio: primeiro ciclo com 40 ≤ minutos restantes < 50. Nunca com menos de 40 minutos. */
-export const JANELA_CONFIRMACAO = { minimo: 40, maximo: 50 } as const;
+/**
+ * Confirmação de presença: primeiro ciclo do monitor (a cada 5 min) em que faltam no máximo `antecedenciaMin`
+ * (padrão 2 h, configurável pela equipe) e mais de 30 minutos. Nunca com 30 minutos ou menos (vira aviso).
+ * O nome "confirmacao40" ficou nos campos por compatibilidade com conversas já gravadas.
+ */
+export const JANELA_CONFIRMACAO = { minimo: 30, maximo: 120 } as const;
 
 /** Até quanto tempo depois do início uma resposta curta ainda vale como resposta à confirmação. */
 const RESPOSTA_VALIDA_APOS_INICIO_MS = 60 * 60000;
@@ -41,12 +45,12 @@ export function preencherConfirmacao(texto: string, inicio: string, agora = new 
 
 export type FaseConfirmacao = 'cedo' | 'janela' | 'perdida' | 'passada';
 
-/** Em que ponto do dia a consulta está em relação à janela de 40–50 minutos. */
-export function faseConfirmacao(inicio: string, agora = new Date()): FaseConfirmacao {
+/** Em que ponto a consulta está em relação à janela de confirmação (padrão: até 2 h antes, mais de 30 min). */
+export function faseConfirmacao(inicio: string, agora = new Date(), antecedenciaMin: number = JANELA_CONFIRMACAO.maximo): FaseConfirmacao {
   const minutos = (Date.parse(inicio) - agora.getTime()) / 60000;
   if (!Number.isFinite(minutos) || minutos <= 0) return 'passada';
-  if (minutos >= JANELA_CONFIRMACAO.maximo) return 'cedo';
-  if (minutos >= JANELA_CONFIRMACAO.minimo) return 'janela';
+  if (minutos > Math.max(antecedenciaMin, JANELA_CONFIRMACAO.minimo + 5)) return 'cedo';
+  if (minutos > JANELA_CONFIRMACAO.minimo) return 'janela';
   return 'perdida';
 }
 
@@ -105,12 +109,12 @@ export function registrarRespostaConfirmacao40(x: Conversa, resposta: 'sim' | 'n
   const marcado: Conversa = {
     ...x,
     agenteAna: { ...x.agenteAna, confirmacao40: { ...c40, respondidoEm: stamp, resposta } },
-    timeline: [...x.timeline, { data: stamp, evento: resposta === 'sim' ? 'Presença confirmada pelo cliente na confirmação de 40 minutos' : 'Cliente respondeu à confirmação de 40 minutos que não vai conseguir, vai atrasar ou quer remarcar; nada foi cancelado' }],
+    timeline: [...x.timeline, { data: stamp, evento: resposta === 'sim' ? 'Presença confirmada pelo cliente na confirmação de presença' : 'Cliente respondeu à confirmação de presença que não vai conseguir, vai atrasar ou quer remarcar; nada foi cancelado' }],
   };
   if (resposta === 'sim') return marcado;
   return registrarAviso(marcado, {
     id: `confirmacao40-resposta:${c40.inicio}`, tipo: 'confirmacao40', prioridade: true, criadoEm: stamp,
-    texto: `Consulta de hoje às ${hora(c40.inicio)} é iminente e o cliente respondeu que não vai conseguir, vai atrasar ou quer remarcar. Nada foi cancelado; acompanhar com prioridade.`,
+    texto: `Consulta de hoje às ${hora(c40.inicio)} se aproxima e o cliente respondeu que não vai conseguir, vai atrasar ou quer remarcar. Nada foi cancelado; acompanhar com prioridade.`,
   }, false);
 }
 
@@ -162,6 +166,10 @@ export interface EntradaConfirmacao {
   politica?: { permitido: true } | { permitido: false; motivo: string } | undefined;
   /** Versões aprovadas da biblioteca oficial salvas na área de trabalho. */
   biblioteca?: BibliotecaSalva | undefined;
+  /** Antecedência configurada pela equipe (minutos; padrão 120). */
+  antecedenciaMin?: number | undefined;
+  /** Situação registrada da consulta: realizada, ausente ou cancelada nunca recebem confirmação. */
+  situacao?: string | undefined;
 }
 
 /** Decide o que a rotina faz com uma consulta, sem efeitos. A rotina do servidor só executa a decisão. */
@@ -170,7 +178,8 @@ export function decidirConfirmacao40(e: EntradaConfirmacao, agora = new Date()):
   if (!inicio || !consultaNoDia(inicio, agora)) return { tipo: 'ignorar', motivo: 'sem consulta hoje' };
   if (!e.automacaoLigada) return { tipo: 'ignorar', motivo: 'automação desligada' };
   if (e.confirmacao40?.inicio === inicio && (e.confirmacao40.reservadoEm || e.confirmacao40.avisadoEm)) return { tipo: 'ignorar', motivo: 'já tratada para este horário' };
-  const fase = faseConfirmacao(inicio, agora);
+  if (e.situacao === 'realizada' || e.situacao === 'ausente' || e.situacao === 'cancelada') return { tipo: 'ignorar', motivo: `consulta ${e.situacao}` };
+  const fase = faseConfirmacao(inicio, agora, e.antecedenciaMin);
   if (fase === 'cedo') return { tipo: 'ignorar', motivo: 'fora da janela' };
   if (fase === 'passada') return { tipo: 'ignorar', motivo: 'consulta já começou' };
   // Confirmação redundante (presença já confirmada, lembrete recente, equipe já confirmou): não sai nem gera aviso.
@@ -187,8 +196,8 @@ export function decidirConfirmacao40(e: EntradaConfirmacao, agora = new Date()):
 export function textoAvisoConfirmacao(motivo: MotivoAvisoConfirmacao, inicio: string) {
   const h = hora(inicio);
   switch (motivo) {
-    case 'perdida': return `Confirmação de 40 min não enviada (consulta às ${h}): confirmar por telefone.`;
-    case 'controle_humano': return `Confirmação de 40 min da consulta das ${h} não foi enviada porque a conversa está com a equipe ou a Anne está pausada. Texto pronto para enviar com um clique.`;
+    case 'perdida': return `Confirmação de presença não enviada (consulta às ${h}): confirmar por telefone.`;
+    case 'controle_humano': return `Confirmação de presença da consulta das ${h} não foi enviada (modo da conversa, pausa ou permissão). Texto pronto para enviar com um clique.`;
     case 'sem_vinculo': return `Consulta de hoje às ${h} sem contato de WhatsApp liberado e vinculado: confirmação não enviada; confirmar por telefone.`;
     case 'sem_recibo': return `Consulta de hoje às ${h} sem recibo verificado da reserva: confirmação não enviada; conferir a agenda e confirmar por telefone.`;
   }

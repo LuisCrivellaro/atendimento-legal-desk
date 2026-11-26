@@ -49,7 +49,7 @@ export function nomeVerificado(c: Pick<Conversa, 'nome' | 'agenteAna' | 'nomePer
 
 export interface Selecionado { id: IdTemplate | 'anterior'; versao?: number | undefined; texto: string }
 
-/** Confirmação do atendimento de hoje (40 min antes): 02 de manhã ("Bom dia"), 08.2 a partir do meio-dia. */
+/** Confirmação de presença do atendimento de hoje (padrão 2 h antes): 02 de manhã ("Bom dia"), 08.2 a partir do meio-dia. */
 export function textoConfirmacaoDoDia(inicio: string, agora = new Date(), biblioteca?: BibliotecaSalva): Selecionado | undefined {
   if (!mesmoDia(inicio, agora)) return undefined;
   if (manha(agora)) {
@@ -170,8 +170,10 @@ export function rascunhoComunicacaoEvento(e: EventoParaComunicar, nome: string |
 export function politicaConsultaDia(c: Pick<Conversa, 'agenteAna' | 'mensagens'>, inicio: string, tipo: 'lembrete' | 'confirmacao', agora = new Date()): { permitido: true } | { permitido: false; motivo: string } {
   const a = c.agenteAna;
   const h = horarioOficial(inicio);
-  const equipeAvisou = (desdeMs: number) => c.mensagens.some((m: Mensagem) => origemMensagem(m) === 'equipe' && Date.parse(m.dataHora ?? '') >= desdeMs && mesmoDia(m.dataHora ?? agora, agora)
-    && /lembr|confirm|consulta|atendimento/i.test(m.texto) && m.texto.includes(h));
+  // Comunicação equivalente recente: mensagem da equipe sobre a consulta ou confirmação de agendamento/remarcação
+  // (da equipe ou da Anne) com o horário da consulta.
+  const equipeAvisou = (desdeMs: number) => c.mensagens.some((m: Mensagem) => m.de === 'escritorio' && Date.parse(m.dataHora ?? '') >= desdeMs && mesmoDia(m.dataHora ?? agora, agora) && m.texto.includes(h)
+    && ((origemMensagem(m) === 'equipe' && /lembr|confirm|consulta|atendimento/i.test(m.texto)) || /\bagendad|\bremarcad/i.test(m.texto)));
   if (tipo === 'lembrete') {
     if (a?.lembreteConsulta?.inicio === inicio) return { permitido: false, motivo: 'lembrete já enviado para esta consulta' };
     if (a?.confirmacao40?.inicio === inicio && (a.confirmacao40.enviadoEm || a.confirmacao40.reservadoEm)) return { permitido: false, motivo: 'confirmação já enviada para esta consulta' };
@@ -181,6 +183,7 @@ export function politicaConsultaDia(c: Pick<Conversa, 'agenteAna' | 'mensagens'>
   if (a?.confirmacao40?.inicio === inicio && (a.confirmacao40.enviadoEm || a.confirmacao40.reservadoEm)) return { permitido: false, motivo: 'confirmação já enviada para esta consulta' };
   const l = a?.lembreteConsulta;
   if (l?.inicio === inicio && l.confirmadoEm) return { permitido: false, motivo: 'cliente já confirmou presença pelo lembrete' };
+  if (a?.situacaoConsulta?.inicio === inicio && a.situacaoConsulta.estado === 'confirmada') return { permitido: false, motivo: 'presença já confirmada' };
   if (l?.inicio === inicio && agora.getTime() - Date.parse(l.enviadoEm) < 90 * 60000) return { permitido: false, motivo: 'lembrete do dia enviado há menos de 90 minutos' };
   if (equipeAvisou(agora.getTime() - 3 * 3600000)) return { permitido: false, motivo: 'a equipe já confirmou com o cliente' };
   return { permitido: true };

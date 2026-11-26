@@ -16,7 +16,9 @@ export const esquemaConfigSecretaria = z.object({
   janelaPrioridadeHumanaMin: z.number().int().min(0).max(1440),
   retornoAutomaticoHoras: z.number().int().min(1).max(720).nullable(),
   janelaAutomacoes: z.object({ inicio: HHMM, fim: HHMM, diasUteis: z.boolean() }),
-  templates: z.partialRecord(z.enum(CHAVES_TEMPLATE as [string, ...string[]]), z.string().max(1000)),
+  templates: z.partialRecord(z.enum(CHAVES_TEMPLATE as [string, ...string[]]), z.string().max(1000)).optional(),
+  confirmacaoAntecedenciaMin: z.number().int().min(30).max(1440).optional(),
+  testeAutomacoes: z.object({ ativo: z.boolean(), numero: z.string().max(20).nullable() }).optional(),
 });
 
 export type EntradaConfigSecretaria = z.infer<typeof esquemaConfigSecretaria>;

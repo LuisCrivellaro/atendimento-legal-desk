@@ -134,6 +134,24 @@ export async function obterCompromisso(
   return eventoDeDto(raw) ? (raw as Record<string, unknown>) : undefined;
 }
 
+/**
+ * Situação de um compromisso distinguindo ausência de falha (o `obterCompromisso` acima não distingue):
+ * só 'concluido' ou 'ausente' autorizam tratar a consulta como cancelada; 'erro' nunca muda nada.
+ */
+export async function situacaoCompromisso(
+  codigo: number,
+  cliente: ClienteAgenda = projuris,
+): Promise<'ativo' | 'concluido' | 'ausente' | 'erro'> {
+  try {
+    const raw = await cliente.chamar('tarefa.compromissoObter', { parametros: { codigo } });
+    const ev = eventoDeDto(raw);
+    if (!ev) return 'ausente';
+    return ev['concluido'] === true ? 'concluido' : 'ativo';
+  } catch (e) {
+    return e instanceof ErroProjuris && e.status === 404 ? 'ausente' : 'erro';
+  }
+}
+
 export type ResultadoAlteracao =
   | { ok: true }
   | { ok: false; motivo: 'conflito' | 'ausente' | 'ocupado' | 'inconclusivo'; detalhe?: string };

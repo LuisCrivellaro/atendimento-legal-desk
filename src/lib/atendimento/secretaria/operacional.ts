@@ -225,16 +225,40 @@ async function enviarComRevalidacao(x: Execucao, automacao: AutomacaoAtiva, text
 
 function entradaMotor(x: Execucao, c: Conversa, funcionalidade: Funcionalidade, modo: ReturnType<typeof modoEfetivo>['modo'], extra: Partial<Parameters<typeof decidirAcao>[0]> = {}) {
   return {
-    funcionalidade, config: x.ctx.config, ativa: x.ctx.ativa, modo, ambiente: x.ctx.ambiente, contatoLiberado: !!x.ctx.contato, origem: origemMensagem(x.mensagem),
+    funcionalidade, config: x.ctx.config, ativa: x.ctx.ativa, modo, ambiente: x.ctx.ambiente, contatoLiberado: !!x.ctx.contato, contato: x.ctx.contato, origem: origemMensagem(x.mensagem),
     agora: x.agora, injecao: possivelInjecao(x.mensagem.texto), foraDoEscopo: pedidoForaDoEscopo(x.mensagem.texto), limiteRespostas: excessoRespostasAna(c, x.agora.getTime()),
     pendenciaOperacional: pendenciaOperacional(c, x.agora), ...extra,
   } satisfies Parameters<typeof decidirAcao>[0];
 }
 
+/**
+ * "Não vou conseguir" à confirmação ou ao lembrete: registra a resposta (aviso prioritário, nada cancelado) e encerra
+ * a automação respondida. Usado no Híbrido (executor) e no Automático (processarAna) antes do reagendamento.
+ */
+export function registrarNaoComparecimento<T extends Conversa>(c: T, tipo: 'confirmacao_consulta' | 'lembrete_consulta', agora = new Date()): T {
+  const inicio = c.consultaAgendada;
+  const alvo = automacoesAtivas(c.agenteAna?.secretaria?.automacoes, agora).find(a => a.tipo === tipo && a.referencia.inicio === inicio);
+  const fake: AutomacaoAtiva = alvo ?? novaAutomacao({ id: `${tipo}:${inicio}`, tipo, expiraEm: agora.toISOString(), referencia: { inicio }, iniciadaPor: 'rotina' }, agora);
+  const comEfeito = efeitoRespostaConsulta(c, fake, false, agora) as T;
+  if (!alvo) return comEfeito;
+  return comSecretaria(comEfeito, s => ({ ...s, automacoes: transicionarAutomacao(s.automacoes, alvo.id, 'concluida', 'cliente avisou que não poderá comparecer: reagendamento iniciado', agora, { resultado: 'reagendamento' }) })) as T;
+}
+
 async function responderConsulta(x: Execucao, a: AutomacaoAtiva, resposta: RespostaAutomacao): Promise<ResultadoOperacional> {
   const confirmou = resposta.tipo === 'confirmar';
   const inicio = a.referencia.inicio ?? '';
-  const t = textoTemplate(confirmou ? 'presenca_confirmada' : 'nao_pode_comparecer', { hora: inicio ? hora(inicio) : undefined }, x.ctx.config.templates);
+  if (!confirmou) {
+    // Não poderá comparecer: registra (nada é cancelado) e a Anne já oferece novos horários reais (reagendamento automático).
+    await x.p.atualizar(x.conversaId, c => {
+      const alvo = (c.agenteAna?.secretaria?.automacoes ?? []).find(z => z.id === a.id);
+      return alvo && alvo.estado === 'aguardando_resposta' ? registrarNaoComparecimento(c, a.tipo as 'confirmacao_consulta' | 'lembrete_consulta', x.agora) : c;
+    });
+    const r = await iniciarReagendamentoAutomatico(x.p, x.ctx, x.conversaId, 'cliente', 'cliente', { mensagemOrigem: x.mensagem, controle: x.controle });
+    if (r.ok) x.enviou.valor = true;
+    return { tratada: true, motivo: r.ok ? 'cliente não poderá comparecer: novos horários oferecidos' : `cliente não poderá comparecer; reagendamento não iniciado (${r.motivo}); equipe avisada`, enviada: r.ok };
+  }
+  // Frase já aprovada no fluxo da Anne ("Presença confirmada! Sua consulta continua hoje, às …"), sem edição.
+  const t = textoTemplate('presenca_confirmada', { hora: inicio ? hora(inicio) : undefined });
   if (!t.ok) return { tratada: true, motivo: 'modelo incompleto' };
   const r = await enviarComRevalidacao(x, a, t.texto, ['aguardando_resposta'], c => efeitoRespostaConsulta(c, a, confirmou, x.agora));
   if (!r.ok) {
@@ -265,7 +289,7 @@ async function conduzirReagendamento(x: Execucao, a: AutomacaoAtiva, evento: Eve
   let proximo: EventoReagendamento | undefined = evento;
   let avisoEquipe: string | undefined;
   for (let i = 0; proximo && i < 6; i++) {
-    const passo: { estado: EstadoReagendamento; acoes: AcaoReagendamento[] } = passoReagendamento(estado, proximo, x.ctx.config.templates);
+    const passo: { estado: EstadoReagendamento; acoes: AcaoReagendamento[] } = passoReagendamento(estado, proximo);
     estado = passo.estado;
     proximo = undefined;
     for (const ac of passo.acoes) {
@@ -345,8 +369,13 @@ export async function tratarMensagemOperacional(p: PortasOperacionais, ctx: Cont
   const m = c?.mensagens.find(x => x.id === mensagemId);
   if (!c || !m || m.de !== 'cliente') return { tratada: false, motivo: 'mensagem indisponível' };
   const calc = modoEfetivo(c, ctx.modoPadrao);
-  if (calc.modo === 'automatico') return { tratada: false, motivo: 'modo Automático: fluxo conversacional existente' };
-  if (m.tipo === 'audio') return { tratada: true, motivo: 'áudio fica com a equipe' };
+  if (m.tipo === 'audio') return calc.modo === 'automatico' ? { tratada: false, motivo: 'áudio: fluxo existente' } : { tratada: true, motivo: 'áudio fica com a equipe' };
+  if (calc.modo === 'automatico') {
+    // No Automático a conversa é da Anne conversacional; só a resposta a um reagendamento em andamento fica aqui.
+    const ultima = ultimaMensagemEscritorio(c, ctx.canal ?? 'ultramsg');
+    const assoc = associarResposta({ automacoes: c.agenteAna?.secretaria?.automacoes, mensagem: { texto: m.texto, arquivo: m.arquivo }, ultimaDoEscritorio: ultima ? { idExterno: ultima.idExterno, texto: ultima.texto } : undefined, agora });
+    if (assoc.tipo !== 'automacao' || assoc.automacao.tipo !== 'reagendamento') return { tratada: false, motivo: 'modo Automático: fluxo conversacional existente' };
+  }
 
   // Claim: webhook repetido, recuperação ou concorrência nunca processam a mesma mensagem duas vezes.
   let claimed = false;
@@ -384,7 +413,7 @@ export async function tratarMensagemOperacional(p: PortasOperacionais, ctx: Cont
 async function tratarReivindicada(x: Execucao, c: Conversa): Promise<ResultadoOperacional> {
   const modo = modoEfetivo(c, x.ctx.modoPadrao).modo;
   // Humano: só a equipe envia (sugestões internas são pedidas pela equipe). Bloqueado: nenhuma atuação.
-  if (modo !== 'hibrido') return { tratada: true, motivo: modo === 'humano' ? MOTIVOS.modo_humano : MOTIVOS.modo_bloqueado };
+  if (modo === 'humano' || modo === 'bloqueado') return { tratada: true, motivo: modo === 'humano' ? MOTIVOS.modo_humano : MOTIVOS.modo_bloqueado };
   const ultima = ultimaMensagemEscritorio(c, x.ctx.canal ?? 'ultramsg');
   const assoc = associarResposta({ automacoes: c.agenteAna?.secretaria?.automacoes, mensagem: { texto: x.mensagem.texto, arquivo: x.mensagem.arquivo, temRecibo: !!x.mensagem.path && x.mensagem.salvoStart === true }, ultimaDoEscritorio: ultima ? { idExterno: ultima.idExterno, texto: ultima.texto } : undefined, agora: x.agora });
   if (assoc.tipo === 'nenhuma') return { tratada: true, motivo: `Modo Híbrido: ${assoc.motivo}; a equipe conduz.` };
@@ -413,37 +442,50 @@ async function tratarReivindicada(x: Execucao, c: Conversa): Promise<ResultadoOp
 }
 
 /**
- * A equipe delega à Anne o reagendamento da consulta (modo Híbrido). Só com consulta com recibo, permissão
- * automática, sem outra automação aguardando e sem pendência de agenda. Envia as opções verificadas.
+ * Reagendamento automático (Automático ou Híbrido; nunca Humano/Bloqueado): cliente avisou que não poderá comparecer,
+ * a equipe registrou a falta ou delegou. Só com consulta com recibo (futura, ou já passada quando é falta registrada),
+ * permissão automática, sem outro reagendamento em andamento e sem pendência de agenda. Consulta horários reais,
+ * envia o modelo oficial 06 (dois horários hoje) ou a lista aprovada (resposta ao cliente) e aguarda a escolha.
  */
-export async function iniciarReagendamentoDelegado(p: PortasOperacionais, ctx: ContextoOperacional, conversaId: string, quem: string): Promise<{ ok: boolean; motivo: string }> {
+export async function iniciarReagendamentoAutomatico(p: PortasOperacionais, ctx: ContextoOperacional, conversaId: string, origemPedido: 'cliente' | 'ausencia' | 'equipe', quem: string, opcoes: { mensagemOrigem?: Mensagem; controle?: string | undefined } = {}): Promise<{ ok: boolean; motivo: string }> {
   const agora = p.agora();
   if (!ctx.ativa) return { ok: false, motivo: MOTIVOS.recurso_desligado };
   const c = await p.ler(conversaId);
   if (!c) return { ok: false, motivo: 'Conversa indisponível.' };
   const modo = modoEfetivo(c, ctx.modoPadrao).modo;
-  if (modo !== 'hibrido') return { ok: false, motivo: 'A delegação de reagendamento vale só no modo Híbrido.' };
+  if (modo === 'humano' || modo === 'bloqueado') return { ok: false, motivo: modo === 'humano' ? MOTIVOS.modo_humano : MOTIVOS.modo_bloqueado };
   const reserva = c.agenteAna?.reservaCalendar;
-  if (!reserva || reserva.inicio !== c.consultaAgendada || Date.parse(reserva.inicio) <= agora.getTime()) return { ok: false, motivo: MOTIVOS.dados_nao_verificados };
-  if (automacoesAguardandoResposta(c.agenteAna?.secretaria?.automacoes, agora).length || automacoesAtivas(c.agenteAna?.secretaria?.automacoes, agora).some(a => a.tipo === 'reagendamento')) return { ok: false, motivo: MOTIVOS.ambiguidade };
-  const origem: Mensagem = { id: `equipe:${agora.toISOString()}`, de: 'escritorio', texto: '', hora: '' };
-  const d = decidirAcao({ funcionalidade: 'reagendamento', config: ctx.config, ativa: ctx.ativa, modo, ambiente: ctx.ambiente, contatoLiberado: !!ctx.contato, origem: 'equipe', agora, pendenciaOperacional: pendenciaOperacional(c, agora), dadosVerificados: true });
-  if (d.resultado !== 'executar') return { ok: false, motivo: d.texto };
-  const inicio = iniciarReagendamento({ inicio: reserva.inicio, eventoId: reserva.id, nome: nomeVerificado(c) });
-  const automacao = novaAutomacao({ id: `reagendamento:${reserva.id}:${agora.getTime()}`, tipo: 'reagendamento', expiraEm: new Date(Math.min(Date.parse(reserva.inicio), agora.getTime() + 48 * 3600000)).toISOString(), referencia: { inicio: reserva.inicio, eventoId: reserva.id }, iniciadaPor: 'equipe', etapa: inicio.estado }, agora);
-  const salvo = await p.atualizar(conversaId, x => comSecretaria(x, s => ({ ...s, automacoes: registrarAutomacao(s.automacoes, automacao), acoes: registrarAcao(s.acoes, acao('reagendamento', 'executada', 'permitido', agora, automacao.id, `Delegado por ${quem.slice(0, 60)}.`)) })));
-  const x: Execucao = { p, ctx, conversaId, mensagem: origem, controle: salvo.agenteAna?.controleHumanoEm, desde: agora.toISOString(), agora, enviou: { valor: false } };
+  if (!reserva || reserva.inicio !== c.consultaAgendada || (origemPedido !== 'ausencia' && Date.parse(reserva.inicio) <= agora.getTime())) return { ok: false, motivo: MOTIVOS.dados_nao_verificados };
+  if (automacoesAtivas(c.agenteAna?.secretaria?.automacoes, agora).some(a => a.tipo === 'reagendamento') || automacoesAguardandoResposta(c.agenteAna?.secretaria?.automacoes, agora).some(a => a.tipo !== 'confirmacao_consulta' && a.tipo !== 'lembrete_consulta')) return { ok: false, motivo: MOTIVOS.ambiguidade };
+  const origemMsg: Mensagem = opcoes.mensagemOrigem ?? { id: `equipe:${agora.toISOString()}`, de: 'escritorio', texto: '', hora: '' };
+  // Pedido explícito (resposta do cliente, falta registrada ou delegação da equipe): sem espera de prioridade humana.
+  const d = decidirAcao({ funcionalidade: 'reagendamento', config: ctx.config, ativa: ctx.ativa, modo, ambiente: ctx.ambiente, contatoLiberado: !!ctx.contato, contato: ctx.contato, origem: origemPedido === 'cliente' ? 'cliente' : 'equipe', agora, pendenciaOperacional: pendenciaOperacional(c, agora), dadosVerificados: true });
+  if (d.resultado !== 'executar') {
+    await p.atualizar(conversaId, y => registrarDecisao(y, { ...d, avisarEquipe: true }, agora, `reagendamento:${reserva.id}`, origemPedido === 'cliente' ? 'Cliente avisou que não poderá comparecer.' : origemPedido === 'ausencia' ? 'Falta registrada pela equipe.' : undefined));
+    return { ok: false, motivo: d.texto };
+  }
+  const inicio = iniciarReagendamento({ inicio: reserva.inicio, eventoId: reserva.id, nome: nomeVerificado(c), origem: origemPedido });
+  const validade = origemPedido === 'ausencia' ? agora.getTime() + 48 * 3600000 : Math.min(Math.max(Date.parse(reserva.inicio), agora.getTime() + 2 * 3600000), agora.getTime() + 48 * 3600000);
+  const automacao = novaAutomacao({ id: `reagendamento:${reserva.id}:${agora.getTime()}`, tipo: 'reagendamento', expiraEm: new Date(validade).toISOString(), referencia: { inicio: reserva.inicio, eventoId: reserva.id }, iniciadaPor: origemPedido === 'cliente' ? 'rotina' : 'equipe', etapa: inicio.estado }, agora);
+  const detalhe = origemPedido === 'cliente' ? 'Cliente avisou que não poderá comparecer.' : origemPedido === 'ausencia' ? `Falta registrada por ${quem.slice(0, 60)}.` : `Delegado por ${quem.slice(0, 60)}.`;
+  const salvo = await p.atualizar(conversaId, x => comSecretaria(x, s => ({ ...s, automacoes: registrarAutomacao(s.automacoes, automacao), acoes: registrarAcao(s.acoes, acao('reagendamento', 'executada', 'permitido', agora, automacao.id, detalhe)) })));
+  const x: Execucao = { p, ctx, conversaId, mensagem: origemMsg, controle: opcoes.controle ?? salvo.agenteAna?.controleHumanoEm, desde: agora.toISOString(), agora, enviou: { valor: false } };
   const primeiro = inicio.acoes[0];
   if (!primeiro || primeiro.tipo !== 'consultar_agenda' || !p.agenda) return { ok: false, motivo: MOTIVOS.dados_nao_verificados };
-  const opcoes = await p.agenda.opcoes(primeiro.evitar).catch(() => null);
-  // Sem opções verificadas antes de qualquer mensagem: o cliente não pediu nada, então só a equipe é avisada.
-  if (!opcoes?.length) {
-    const motivo: CodigoMotivo = opcoes === null ? 'falha_integracao' : 'dados_nao_verificados';
-    await p.atualizar(conversaId, y => registrarDecisao(comSecretaria(y, s => ({ ...s, automacoes: transicionarAutomacao(s.automacoes, automacao.id, 'encaminhada', opcoes === null ? 'agenda indisponível' : 'sem horários livres verificados', agora) })), { resultado: 'encaminhar', funcionalidade: 'reagendamento', camada: 'operacional', motivo, texto: MOTIVOS[motivo], avisarEquipe: false, prioridade: false }, agora, automacao.id));
-    return { ok: false, motivo: opcoes === null ? 'Agenda oficial indisponível; nenhuma opção foi enviada ao cliente.' : 'Nenhum horário livre verificado; nada foi enviado ao cliente.' };
+  const livres = await p.agenda.opcoes(primeiro.evitar).catch(() => null);
+  const r = await conduzirReagendamento(x, automacao, livres === null ? { tipo: 'agenda_falhou' } : { tipo: 'agenda', livres, agora });
+  // Opções enviadas: o aviso "cliente não vai conseguir" deixa de pedir ação da equipe (fica no histórico como resolvido).
+  // Sem envio, o aviso prioritário continua aberto, junto com o motivo do bloqueio.
+  if (r.enviada) {
+    const ids = [`confirmacao40-resposta:${reserva.inicio}`, `lembrete-resposta:${reserva.inicio}`];
+    await p.atualizar(conversaId, y => ({ ...y, avisosEquipe: (y.avisosEquipe ?? []).map(av => ids.includes(av.id) && !av.resolvidoEm ? { ...av, resolvidoEm: agora.toISOString(), resolvidoPor: 'Anne · novos horários oferecidos' } : av) }));
   }
-  const r = await conduzirReagendamento(x, automacao, { tipo: 'agenda', livres: opcoes, agora });
   return { ok: !!r.enviada, motivo: r.motivo };
+}
+
+/** A equipe delega à Anne o reagendamento (botão "Anne remarca a consulta"). */
+export async function iniciarReagendamentoDelegado(p: PortasOperacionais, ctx: ContextoOperacional, conversaId: string, quem: string): Promise<{ ok: boolean; motivo: string }> {
+  return iniciarReagendamentoAutomatico(p, ctx, conversaId, 'equipe', quem);
 }
 
 /**
@@ -479,7 +521,7 @@ export function registrarAutomacaoEnviada(c: Conversa, dados: { tipo: TipoAutoma
 /** Decisão do motor para uma rotina do servidor a partir do JSON da conversa (sem efeitos). */
 export function decisaoRotina(c: Conversa, ctx: ContextoOperacional, funcionalidade: Funcionalidade, opcoes: { agora: Date; urgente?: boolean; dadosVerificados?: boolean; jaExecutada?: boolean; respeitaHorario?: boolean }): DecisaoMotor {
   return decidirAcao({
-    funcionalidade, config: ctx.config, ativa: ctx.ativa, modo: modoEfetivo(c, ctx.modoPadrao).modo, ambiente: ctx.ambiente, contatoLiberado: !!ctx.contato, origem: 'sistema', agora: opcoes.agora,
+    funcionalidade, config: ctx.config, ativa: ctx.ativa, modo: modoEfetivo(c, ctx.modoPadrao).modo, ambiente: ctx.ambiente, contatoLiberado: !!ctx.contato, contato: ctx.contato, origem: 'sistema', agora: opcoes.agora,
     ultimaIntervencaoHumana: ultimaIntervencaoHumana(c), urgente: opcoes.urgente, jaExecutada: opcoes.jaExecutada, pendenciaOperacional: pendenciaOperacional(c, opcoes.agora),
     dadosVerificados: opcoes.dadosVerificados, respeitaHorario: opcoes.respeitaHorario,
   });
