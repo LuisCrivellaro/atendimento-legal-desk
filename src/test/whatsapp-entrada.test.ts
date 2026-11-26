@@ -122,7 +122,49 @@ describe('webhook do WhatsApp do escritório', () => {
     mocks.conversa = { mensagens: [{ de: 'escritorio', texto: 'Qual é seu nome completo?', dataHora: new Date().toISOString() }], timeline: [], agenteAna: {} };
     const r = await enviar({ event_type: 'message_create', data: { id: 'eu2', from: '5511900000000@c.us', to: '5511999600306@c.us', fromMe: true, body: 'Qual é seu nome completo?' } });
     expect(await r.json()).toMatchObject({ sistema: true });
+    // Só guarda o id do WhatsApp (para os recibos); não pausa, não duplica e não aciona a Ana.
+    expect(mocks.conversa.agenteAna).not.toMatchObject({ humano: true });
+    expect(mocks.conversa.mensagens).toHaveLength(1);
+    expect(mocks.conversa.mensagens[0]).toMatchObject({ idWhatsApp: 'eu2' });
+    expect(mocks.ana).not.toHaveBeenCalled();
+  });
+
+  it('recibos de entrega e leitura avançam o status da mensagem do escritório, nunca para trás', async () => {
+    preparar();
+    mocks.contatos = [{ id: 'c', conversa_id: 'caso', contato_externo: '5511999600306', status: 'liberado' }];
+    mocks.conversa = { mensagens: [{ id: 'x', de: 'escritorio', texto: 'Bom dia', dataHora: new Date().toISOString(), status: 'enviada', canal: 'ultramsg', idWhatsApp: 'wa1' }], timeline: [], agenteAna: {} };
+    const ack = (v: unknown) => enviar({ event_type: 'message_ack', data: { id: 'wa1', from: '5511900000000@c.us', to: '5511999600306@c.us', fromMe: true, ack: v } });
+    expect(await (await ack('device')).json()).toMatchObject({ recibo: 'entregue' });
+    expect(mocks.conversa.mensagens[0]).toMatchObject({ status: 'entregue' });
+    expect(await (await ack('read')).json()).toMatchObject({ recibo: 'lida' });
+    mocks.save.mockClear();
+    expect(await (await ack('device')).json()).toMatchObject({ ignorado: true });
+    expect(mocks.conversa.mensagens[0]).toMatchObject({ status: 'lida' });
     expect(mocks.save).not.toHaveBeenCalled();
+    // "server" não muda nada e nem consulta o banco; valores desconhecidos são ignorados.
+    expect(await (await ack('server')).json()).toMatchObject({ ignorado: true });
+    expect(await (await ack('qualquer')).json()).toMatchObject({ ignorado: true });
+    expect(mocks.ana).not.toHaveBeenCalled();
+  });
+
+  it('recibo de mensagem desconhecida ou contato não liberado não grava nada', async () => {
+    preparar();
+    mocks.contatos = [{ id: 'c', conversa_id: 'caso', contato_externo: '5511999600306', status: 'liberado' }];
+    mocks.conversa = { mensagens: [{ id: 'x', de: 'escritorio', texto: 'Bom dia', status: 'simulada', idWhatsApp: 'wa2' }], timeline: [], agenteAna: {} };
+    await enviar({ event_type: 'message_ack', data: { id: 'wa2', from: '5511900000000@c.us', to: '5511999600306@c.us', fromMe: true, ack: 'read' } });
+    await enviar({ event_type: 'message_ack', data: { id: 'nenhum', from: '5511900000000@c.us', to: '5511999600306@c.us', fromMe: true, ack: 'read' } });
+    mocks.contatos = [{ id: 'c', conversa_id: 'caso', contato_externo: '5511999600306', status: 'bloqueado' }];
+    await enviar({ event_type: 'message_ack', data: { id: 'wa2', from: '5511900000000@c.us', to: '5511999600306@c.us', fromMe: true, ack: 'read' } });
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(mocks.conversa.mensagens[0]).toMatchObject({ status: 'simulada' });
+  });
+
+  it('mensagem repetida pelo provedor não duplica', async () => {
+    preparar();
+    mocks.dona.mockResolvedValue({ ownerId: 'dona' });
+    mocks.contatos = [{ id: 'c', conversa_id: 'caso', contato_externo: '5511942074361', status: 'liberado' }];
+    for (const id of ['s1', 's2', 's1', 's3', 's2']) await enviar({ event_type: 'message_received', data: { id, from: '5511942074361@c.us', body: `mensagem ${id}` } });
+    expect(mocks.conversa.mensagens.map(m => m['id'])).toEqual(['ultramsg:5511942074361:s1', 'ultramsg:5511942074361:s2', 'ultramsg:5511942074361:s3']);
   });
 
   it('mensagem do escritório para número fora do Manager é ignorada sem registro', async () => {

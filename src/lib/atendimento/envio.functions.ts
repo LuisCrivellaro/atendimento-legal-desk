@@ -473,7 +473,7 @@ export const registrarWebhookUltramsg = createServerFn({ method: 'POST' })
     const base = urlPublicaApp(process.env['PUBLIC_APP_URL']);
     const r = await fetch(`https://api.ultramsg.com/${encodeURIComponent(inst)}/instance/settings`, {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ token, webhook_url: urlWebhookWhatsApp(base, secret), webhook_message_received: 'true', webhook_message_create: 'true', webhook_message_ack: 'false', webhook_message_download_media: 'true' }).toString(),
+      body: new URLSearchParams({ token, webhook_url: urlWebhookWhatsApp(base, secret), webhook_message_received: 'true', webhook_message_create: 'true', webhook_message_ack: 'true', webhook_message_download_media: 'true' }).toString(),
       signal: AbortSignal.timeout(15000),
     });
     if (!r.ok) {

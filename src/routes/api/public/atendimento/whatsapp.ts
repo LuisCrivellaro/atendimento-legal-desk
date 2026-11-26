@@ -12,6 +12,7 @@ import { iniciarAtendimentoAutomatico } from '@/lib/atendimento/initial-attendan
 import { decidirEntradaWhatsApp, destinoIgnoradoWhatsApp, mensagemDoSistema } from '@/lib/atendimento/entrada-whatsapp';
 import type { Conversa } from '@/lib/mock-data';
 import { numeroWhatsAppAtendido } from '@/lib/atendimento/production-channel';
+import { aplicarAck, statusDoAck, vincularEco, type StatusRecibo } from '@/lib/atendimento/recibos-whatsapp';
 
 function seguroIgual(a: string, b: string) {
   const ba = Buffer.from(a), bb = Buffer.from(b);
@@ -85,8 +86,12 @@ async function registrarRespostaManual(admin: Admin, contato: { conversa_id: str
   const sistema = (c: Conversa) => (data.type ?? 'chat') === 'chat' && mensagemDoSistema(texto, c);
   let conversa = await ler();
   if (!conversa || conversa.mensagens.some(m => m.id === msgId)) return Response.json({ ok: true, ignorado: true });
-  if (sistema(conversa)) return Response.json({ ok: true, sistema: true });
   const { atualizarConversa } = await import('@/lib/atendimento/ana.server');
+  if (sistema(conversa)) {
+    // Eco de envio do sistema (equipe pelo Manager ou Anne): guarda o id do WhatsApp para os recibos de entrega/leitura.
+    if (vincularEco(conversa, texto, data.id)) await atualizarConversa(admin, conversaId, c => vincularEco(c, texto, data.id) ?? c).catch(() => undefined);
+    return Response.json({ ok: true, sistema: true });
+  }
   const agora = new Date(timestampWhatsApp(data.timestamp));
   const aviso = 'Equipe respondeu pelo celular do escritório; Ana pausada nesta conversa. Use "Retomar Ana" para devolver.';
   await atualizarConversa(admin, conversaId, c => c.mensagens.some(m => m.id === msgId) ? c : {
@@ -97,6 +102,40 @@ async function registrarRespostaManual(admin: Admin, contato: { conversa_id: str
   });
   await auditar('respostaManualWhatsApp', 'Resposta pelo celular do escritório; Ana pausada na conversa', 'sucesso');
   return Response.json({ ok: true, pausada: true });
+}
+
+/** Recibo de entrega/leitura de mensagem do escritório: uma leitura e, só se o status avançar, uma gravação. */
+async function registrarRecibo(admin: Admin, lidos: { ok: true; c: { conversa_id: string | null; status: string } | undefined } | { ok: false }, idWhatsApp: string, status: StatusRecibo) {
+  if (!lidos.ok || !lidos.c || lidos.c.status !== 'liberado' || !lidos.c.conversa_id) return Response.json({ ok: true, ignorado: true });
+  const conversaId = lidos.c.conversa_id;
+  const row = await admin.from('casos').select('dados').eq('id', conversaId).maybeSingle();
+  const c = row.data?.dados as unknown as Conversa | undefined;
+  if (!c || !aplicarAck(c, idWhatsApp, status)) return Response.json({ ok: true, ignorado: true });
+  const { atualizarConversa } = await import('@/lib/atendimento/ana.server');
+  await atualizarConversa(admin, conversaId, x => aplicarAck(x, idWhatsApp, status) ?? x);
+  return Response.json({ ok: true, recibo: status });
+}
+
+const AUDIO = ['audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/amr', 'audio/webm', 'audio/wav', 'audio/x-wav'];
+/**
+ * Áudio recebido: só guarda o original no armazenamento privado do caso para a equipe ouvir no Atendimento.
+ * Não entra em Documentos, no Drive nem na Anne (áudio continua sem resposta automática).
+ */
+async function guardarAudio(admin: any, url: string, caso: { id: string; owner_id: string }) {
+  try {
+    if (!/^https:\/\//.test(url)) return undefined;
+    const r = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (!r.ok || !r.body) return undefined;
+    const mime = ((r.headers.get('content-type') ?? '').split(';')[0] ?? '').trim().toLowerCase();
+    if (!AUDIO.includes(mime)) return undefined;
+    const reader = r.body.getReader(); const partes: Uint8Array[] = []; let total = 0;
+    for (;;) { const { done, value } = await reader.read(); if (done) break; total += value.length; if (total > LIMITE) { await reader.cancel(); return undefined; } partes.push(value); }
+    const bytes = new Uint8Array(total); let o = 0; for (const p of partes) { bytes.set(p, o); o += p.length; }
+    const ext = mime.split('/')[1]?.replace('x-', '').replace('mpeg', 'mp3') ?? 'ogg';
+    const path = `${caso.owner_id}/${caso.id}/${crypto.randomUUID()}/audio_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${ext}`;
+    const up = await admin.storage.from('case-documents').upload(path, bytes, { upsert: false, contentType: mime });
+    return up.error ? undefined : path;
+  } catch { return undefined; }
 }
 
 export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
@@ -115,16 +154,35 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
         if (destinoIgnoradoWhatsApp(data.from) || (data.to && destinoIgnoradoWhatsApp(data.to))) return Response.json({ ok: true, ignorado: true });
         // Mensagem criada no próprio número do escritório (celular ou envio do sistema): só serve para pausar a Ana.
         const manual = event_type === 'message_create' && data.fromMe === true;
-        if (!manual && (event_type !== 'message_received' || data.fromMe)) return Response.json({ ok: true, ignorado: true });
+        // Recibo de entrega/leitura: só "entregue" e "lida" mudam algo (a mensagem já nasce "enviada").
+        const ack = event_type === 'message_ack';
+        const statusAck = ack ? statusDoAck((data as { ack?: unknown }).ack) : undefined;
+        if (ack && (!statusAck || statusAck === 'enviada')) return Response.json({ ok: true, ignorado: true });
+        if (!manual && !ack && (event_type !== 'message_received' || data.fromMe)) return Response.json({ ok: true, ignorado: true });
 
+        const t0 = Date.now();
         const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
         const auditar = (acao: string, resumo: string, status: string) =>
           supabaseAdmin.rpc('registrar_audit_log', { p_ator: 'canal', p_perfil: 'whatsapp', p_acao: acao, p_resumo: resumo, p_status: status });
 
-        const config = await supabaseAdmin.from('atendimento_canal_config').select('canal_ativo').eq('id', true).maybeSingle();
-        if (config.data?.canal_ativo !== 'ultramsg') { await auditar('mensagemRecebida', 'WhatsApp desligado · mensagem ignorada', 'bloqueado'); return Response.json({ ok: true, ignorado: true }); }
+        const numero = numeroWhatsApp(manual || ack ? data.to ?? '' : data.from);
+        const lerContatos = async () => {
+          const lista = await supabaseAdmin.from('atendimento_contatos_teste').select('id,conversa_id,contato_externo,status').eq('canal', 'ultramsg');
+          if (lista.error) throw new Error('Não foi possível verificar os contatos e bloqueios.');
+          return (lista.data ?? []).find(c => chaveTelefone(c.contato_externo) === chaveTelefone(numero));
+        };
+        // Leituras independentes em paralelo (antes: uma depois da outra, antes de gravar a mensagem). Só leituras:
+        // nada é gravado se o canal estiver desligado ou o número não for atendido.
+        // `.then` dispara a consulta agora (o construtor do Supabase só executa quando alguém a aguarda).
+        const pConfig = supabaseAdmin.from('atendimento_canal_config').select('canal_ativo').eq('id', true).maybeSingle().then(r => r);
+        const pDona: Promise<{ ownerId?: string; motivo?: string }> = import('@/lib/atendimento/entrada-whatsapp.server')
+          .then(m => m.donaEntradaWhatsApp(supabaseAdmin)).then(d => d ?? {}, () => ({}));
+        const pContatos = lerContatos().then(c => ({ ok: true as const, c }), () => ({ ok: false as const }));
 
-        const numero = numeroWhatsApp(manual ? data.to ?? '' : data.from);
+        const config = await pConfig;
+        if (config.data?.canal_ativo !== 'ultramsg') { if (!ack) await auditar('mensagemRecebida', 'WhatsApp desligado · mensagem ignorada', 'bloqueado'); return Response.json({ ok: true, ignorado: true }); }
+        if (ack && statusAck) return registrarRecibo(supabaseAdmin, await pContatos, data.id, statusAck);
+
         const { respostaAutorizada } = await import('@/lib/atendimento/consulta-processo');
         if (respostaAutorizada({ canal: 'whatsapp', contato: numero }, process.env['REVISORA_WHATSAPP'])) {
           // Ecos de envio à revisora nunca pausam uma conversa; comandos nunca passam à Ana.
@@ -139,23 +197,19 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           }
         }
         // Checagem única de produção: entrada aberta atende qualquer número; fechada ou indisponível, só a lista.
-        const { donaEntradaWhatsApp, abrirConversaWhatsApp } = await import('@/lib/atendimento/entrada-whatsapp.server');
-        let dona: { ownerId?: string; motivo?: string } = {};
-        try { dona = (await donaEntradaWhatsApp(supabaseAdmin)) ?? {}; } catch { /* falha ao ler a configuração: entrada fechada, só a lista vale */ }
+        const { abrirConversaWhatsApp } = await import('@/lib/atendimento/entrada-whatsapp.server');
+        // Falha ao ler a configuração: entrada fechada, só a lista vale (pDona nunca rejeita).
+        const dona = await pDona;
         if (!numeroWhatsAppAtendido(numero, !!dona.ownerId)) {
           await auditar('mensagemRecebida', 'Número fora da lista autorizada; nenhuma mensagem processada', 'bloqueado');
           return Response.json({ ok: true, ignorado: true });
         }
-        const lerContatos = async () => {
-          const lista = await supabaseAdmin.from('atendimento_contatos_teste').select('id,conversa_id,contato_externo,status').eq('canal', 'ultramsg');
-          if (lista.error) throw new Error('Não foi possível verificar os contatos e bloqueios.');
-          return (lista.data ?? []).find(c => chaveTelefone(c.contato_externo) === chaveTelefone(numero));
-        };
-        let contato: Awaited<ReturnType<typeof lerContatos>>;
-        try { contato = await lerContatos(); } catch {
+        const lidos = await pContatos;
+        if (!lidos.ok) {
           await auditar('mensagemRecebida', 'Contatos indisponíveis; entrada interrompida sem liberar números', 'erro');
           return Response.json({ error: 'Contatos indisponíveis' }, { status: 503 });
         }
+        let contato = lidos.c;
         if (manual) return registrarRespostaManual(supabaseAdmin, contato, data, auditar);
 
         // Celular próprio do escritório: com a entrada aberta, quem escrever ganha conversa; bloqueados nunca.
@@ -218,6 +272,14 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           return Response.json({ error: 'Falha ao registrar' }, { status: 500 });
         }
         if(!inserida)return Response.json({ok:true,repetido:true});
+        // Log estruturado (sem texto nem telefone): a partir daqui a mensagem já está no banco e chega à tela pelo tempo real.
+        const tGravada = Date.now();
+        console.log(JSON.stringify({ evento: 'webhook_whatsapp', fase: 'gravada', tipo, ms: tGravada - t0 }));
+        if (tipo === 'audio' && data.media) {
+          const path = await guardarAudio(supabaseAdmin, data.media, caso.data as { id: string; owner_id: string });
+          if (path) nova.path = path;
+          await auditar('anexoRecebido', path ? 'Áudio WhatsApp guardado para a equipe ouvir' : 'Áudio WhatsApp não pôde ser baixado', path ? 'sucesso' : 'erro');
+        }
         if ((tipo === 'imagem' || tipo === 'arquivo') && data.media) {
           const salvo = await guardarMidia(supabaseAdmin, data.media, data.filename, tipo, caso.data as { id: string; owner_id: string; dados: unknown });
           if (salvo) { nova.arquivo = salvo.nome; nova.path = salvo.path; nova.salvoStart = true; nova.tipo = salvo.imagem ? 'imagem' : 'documento'; nova.driveUrl = salvo.driveUrl; }
@@ -244,6 +306,7 @@ export const Route = createFileRoute('/api/public/atendimento/whatsapp')({
           }
         }
         await processarAna(supabaseAdmin, caso.data.id, nova.id, request);
+        console.log(JSON.stringify({ evento: 'webhook_whatsapp', fase: 'concluida', tipo, gravacaoMs: tGravada - t0, posGravacaoMs: Date.now() - tGravada }));
         return Response.json({ ok: true });
       },
     },

@@ -54,11 +54,18 @@ function baixar(url: string, nome: string) { const a = document.createElement('a
 
 function Audio({ m }: { m: Mensagem }) {
   const dur = /(\d{1,2}:\d{2})/.exec(m.arquivo ?? '')?.[1] ?? '';
-  // Ondas fixas por mensagem, só ilustrativas: o arquivo de áudio não está disponível para tocar aqui.
+  // Original guardado no caso (webhook): carrega só ao tocar, para conversas longas não baixarem todos os áudios.
+  const [url, setUrl] = useState<string>();
+  const [estado, setEstado] = useState<'parado' | 'carregando' | 'erro'>('parado');
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  if (url) return <audio controls autoPlay src={url} className="h-10 w-64 max-w-full" aria-label={`Mensagem de voz${dur ? ` de ${dur}` : ''}`} />;
+  const tocar = () => { if (!m.path || estado === 'carregando') return; setEstado('carregando'); readFile(m.path).then(b => setUrl(URL.createObjectURL(b))).catch(() => setEstado('erro')); };
+  // Ondas fixas por mensagem, só ilustrativas.
   const seed = [...m.id].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) >>> 0, 5);
   const barras = Array.from({ length: 28 }, (_, i) => 4 + ((seed >> (i % 24)) + i * 7) % 14);
-  return <div className="flex min-w-56 items-center gap-2.5 py-0.5" aria-label={`Mensagem de voz${dur ? ` de ${dur}` : ''}`} title="Mensagem de voz recebida">
-    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--zap-meta)]/15 text-[var(--zap-meta)]"><Play className="size-4 translate-x-px fill-current" /></span>
+  const titulo = !m.path ? 'Mensagem de voz recebida (áudio não guardado; ouça no celular do escritório)' : estado === 'erro' ? 'Não foi possível abrir o áudio' : estado === 'carregando' ? 'Carregando áudio…' : 'Ouvir mensagem de voz';
+  return <div className="flex min-w-56 items-center gap-2.5 py-0.5" aria-label={`Mensagem de voz${dur ? ` de ${dur}` : ''}`} title={titulo}>
+    <button type="button" disabled={!m.path || estado === 'carregando'} onClick={tocar} aria-label={titulo} className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--zap-meta)]/15 text-[var(--zap-meta)] enabled:hover:bg-[var(--zap-meta)]/25 disabled:opacity-60"><Play className="size-4 translate-x-px fill-current" /></button>
     <span className="flex h-6 flex-1 items-center gap-[2px]" aria-hidden="true">{barras.map((h, i) => <span key={i} className="w-[3px] rounded-full bg-[var(--zap-meta)]/55" style={{ height: h }} />)}</span>
     <span className="flex shrink-0 items-center gap-1 text-2xs text-[var(--zap-meta)]">{dur}</span>
   </div>;
