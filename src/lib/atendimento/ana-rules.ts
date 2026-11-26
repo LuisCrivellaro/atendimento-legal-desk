@@ -48,6 +48,8 @@ export interface AnaState {
   alteracaoConsulta?: import('./appointment-management').AlteracaoConsulta | undefined;
   autorizacaoRemarcacao?: {eventoId:string;inicio:string;contato:string;expira:string} | undefined;
   operacaoConsulta?: {mensagemId:string;eventoId:string;tipo:'cancelar'|'remarcar';desde:string} | undefined;
+  /** Secretaria digital (modos, automações com ciclo de vida, histórico de decisões); só usada com a flag ligada. */
+  secretaria?: import('./secretaria/estado').EstadoSecretaria | undefined;
 }
 export function horariosTesteAna(now = new Date(), tipo: TipoCliente = 'novo') {
  return gerarHorarios([], now, tipo, 3);
