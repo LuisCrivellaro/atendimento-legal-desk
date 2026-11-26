@@ -49,7 +49,7 @@ export const MOTIVOS: Record<CodigoMotivo, string> = {
   recurso_desligado: 'Secretaria digital desligada: vale o fluxo anterior.',
   origem_propria: 'Mensagem da própria Anne ou de uma automação: nunca respondida (proteção contra loop).',
   duplicada: 'Ação já executada ou reservada (sem repetição).',
-  pausa_global: 'Anne pausada para todo o escritório.',
+  pausa_global: 'IA da Anne pausada (o provedor recusou a chave): só as respostas escritas pelo modelo aguardam.',
   agente_desligado: 'Agente desligado na configuração do canal.',
   canal_inativo: 'Canal do WhatsApp não está ativo.',
   modo_bloqueado: 'Conversa no modo Bloqueado.',
@@ -81,7 +81,8 @@ export const MOTIVOS: Record<CodigoMotivo, string> = {
 export interface AmbienteMotor {
   agenteAtivo: boolean;
   canalAtivo: boolean;
-  pausaGlobal: boolean;
+  /** Pausa da IA do escritório (chave do provedor recusada): impede só a resposta conversacional (modelo). */
+  iaPausada: boolean;
 }
 
 export interface EntradaMotor {
@@ -189,7 +190,8 @@ export function decidirAcao(e: EntradaMotor): DecisaoMotor {
     return decisao(e, 'executar', 'permitido');
   }
 
-  if (e.ambiente.pausaGlobal) return decisao(e, 'bloquear', 'pausa_global', avisoOperacional);
+  // Automações operacionais não usam o modelo: seguem com a IA pausada.
+  if (e.ambiente.iaPausada && f === 'resposta_conversacional') return decisao(e, 'bloquear', 'pausa_global');
   if (!e.ambiente.agenteAtivo) return decisao(e, 'bloquear', 'agente_desligado', avisoOperacional);
   if (!e.ambiente.canalAtivo) return decisao(e, 'bloquear', 'canal_inativo', avisoOperacional);
 

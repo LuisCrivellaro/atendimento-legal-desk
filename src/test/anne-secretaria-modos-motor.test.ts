@@ -17,7 +17,7 @@ function conversa(extra: Partial<Conversa> = {}): Conversa {
 const ativa = lerConfigSecretaria({ ativa: true });
 
 function entrada(extra: Partial<EntradaMotor> = {}): EntradaMotor {
-  return { funcionalidade: 'confirmacao_consulta', config: ativa, ativa: true, modo: 'hibrido', ambiente: { agenteAtivo: true, canalAtivo: true, pausaGlobal: false }, contatoLiberado: true, origem: 'sistema', agora: AGORA, ...extra };
+  return { funcionalidade: 'confirmacao_consulta', config: ativa, ativa: true, modo: 'hibrido', ambiente: { agenteAtivo: true, canalAtivo: true, iaPausada: false }, contatoLiberado: true, origem: 'sistema', agora: AGORA, ...extra };
 }
 
 describe('configuração da secretaria (feature flag)', () => {
@@ -188,9 +188,14 @@ describe('motor determinístico de decisões', () => {
     expect(r({ automacao: { valida: true, candidatas: 1, ultimaDoEscritorio: false } })).toMatchObject({ resultado: 'encaminhar', motivo: 'humano_respondeu_depois' });
     expect(r({ jaExecutada: true }).motivo).toBe('duplicada');
   });
-  it('pausa global, agente ou canal desligados e contato não liberado bloqueiam antes de tudo', () => {
-    expect(decidirAcao(entrada({ ambiente: { agenteAtivo: true, canalAtivo: true, pausaGlobal: true } })).motivo).toBe('pausa_global');
-    expect(decidirAcao(entrada({ ambiente: { agenteAtivo: false, canalAtivo: true, pausaGlobal: false } })).motivo).toBe('agente_desligado');
+  it('IA pausada (chave recusada) só bloqueia a resposta conversacional; automações operacionais seguem', () => {
+    const pausada = { agenteAtivo: true, canalAtivo: true, iaPausada: true };
+    expect(decidirAcao(entrada({ ambiente: pausada }))).toMatchObject({ resultado: decidirAcao(entrada()).resultado, motivo: decidirAcao(entrada()).motivo });
+    expect(decidirAcao(entrada({ ambiente: pausada })).resultado).toBe('executar');
+    expect(decidirAcao(entrada({ funcionalidade: 'resposta_conversacional', modo: 'automatico', origem: 'cliente', ambiente: pausada }))).toMatchObject({ resultado: 'bloquear', motivo: 'pausa_global', avisarEquipe: false });
+  });
+  it('agente ou canal desligados e contato não liberado bloqueiam antes de tudo', () => {
+    expect(decidirAcao(entrada({ ambiente: { agenteAtivo: false, canalAtivo: true, iaPausada: false } })).motivo).toBe('agente_desligado');
     expect(decidirAcao(entrada({ contatoLiberado: false })).motivo).toBe('contato_nao_liberado');
   });
   it('janela de horário das automações não urgentes', () => {

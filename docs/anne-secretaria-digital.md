@@ -77,7 +77,8 @@ Ordem das regras (a primeira que impede vence; a ordem é testada):
 2. resposta a mensagem que não é do cliente → `ignorar` (nunca responde às próprias automações nem à equipe);
 3. ação já executada ou reservada → `ignorar`;
 4. sugestão interna: só Bloqueado ou a administração impedem;
-5. pausa global, agente desligado, canal inativo → `bloquear` (operacional avisa a equipe);
+5. IA pausada (chave do Claude recusada) → `bloquear` só a resposta conversacional (automações seguem); agente
+   desligado, canal inativo → `bloquear` (operacional avisa a equipe);
 6. modo: Bloqueado bloqueia tudo; conversa livre só no Automático; Humano bloqueia automações (aviso com texto pronto);
 7. matriz de permissões: `desligado` bloqueia;
 8. contato não liberado/vinculado → `bloquear`;
@@ -128,7 +129,7 @@ programadas = desligado.
 - Cada envio da camada operacional e das rotinas grava uma **reserva** (`agenteAna.secretaria.envio` + `envioAna` para o
   eco) com a revisão `controleHumanoEm`. A camada de envio confere a reserva imediatamente antes do UltraMsg
   (`conferirReservaEnvio`): reserva desta automação e deste texto, recente (2 min), equipe não escreveu nem mudou o modo,
-  nenhuma mensagem nova chegou, modo ainda permite, sem pausa global e com o agente ligado.
+  nenhuma mensagem nova chegou, modo ainda permite e com o agente ligado (a pausa da IA não barra automações).
 - Idempotência: claim por mensagem (`iaExecucao`), ids determinísticos de automação e aviso, CAS em todas as escritas,
   efeito de domínio aplicado uma única vez mesmo quando o CAS repete. Envio sem recibo nunca é repetido (estado
   `incerta`/`falhou` + aviso "não reenviar sem conferir").

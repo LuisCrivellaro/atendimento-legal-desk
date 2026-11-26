@@ -15,14 +15,14 @@ import { lerBiblioteca } from '../biblioteca/renderizar';
 
 export function contextoRotina(dados: { state: unknown; agenteAtivo: boolean; canalAtivo: boolean; contato: string | undefined; modoPadrao: AIMode; config?: ConfigSecretaria }): ContextoOperacional {
   const state = dados.state as { secretaria?: unknown; anaPausa?: { ativa?: boolean }; bibliotecaMensagens?: unknown } | undefined;
-  const ambiente: AmbienteMotor = { agenteAtivo: dados.agenteAtivo, canalAtivo: dados.canalAtivo, pausaGlobal: !!state?.anaPausa?.ativa };
+  const ambiente: AmbienteMotor = { agenteAtivo: dados.agenteAtivo, canalAtivo: dados.canalAtivo, iaPausada: !!state?.anaPausa?.ativa };
   return { config: dados.config ?? lerConfigSecretaria(state?.secretaria), ativa: true, ambiente, contato: dados.contato, modoPadrao: dados.modoPadrao, canal: 'ultramsg', biblioteca: lerBiblioteca(state?.bibliotecaMensagens) };
 }
 
 /** Confirmação de 40 min decidida pelo motor. Mantém o formato de decisão da rotina existente. */
 export function decidirConfirmacaoSecretaria(c: Conversa, entrada: EntradaConfirmacao, ctx: ContextoOperacional, agora = new Date()): DecisaoConfirmacao {
   // As regras de janela, recibo e vínculo seguem iguais; modo e pausas passam a ser do motor.
-  const base = decidirConfirmacao40({ ...entrada, humano: false, pausa: false, modo: 'Automática', anaPausadaGlobal: false }, agora);
+  const base = decidirConfirmacao40({ ...entrada, humano: false, pausa: false, modo: 'Automática' }, agora);
   if (base.tipo !== 'enviar') return base;
   const d = decisaoRotina(c, ctx, 'confirmacao_consulta', { agora, urgente: true, dadosVerificados: true });
   if (d.resultado === 'executar') return base;

@@ -216,11 +216,14 @@ describe('rotina de confirmação 40 min (cenários P0-1)', () => {
     expect(ler().avisosEquipe?.[0]?.textoPronto).toBe(textoConfirmacao40(iso('14:30'), SP('13:45')).texto);
     expect(ler().avisosEquipe?.[0]?.textoPronto).toContain('às 14h30. ✅');
   });
-  it('6b. modo Desligada, Anne pausada no escritório ou automação desligada: nada sai sozinho', async () => {
+  it('6a. IA da Anne pausada (chave do Claude recusada): a confirmação oficial sai mesmo assim', async () => {
+    const pausada = criarDb({ casos: { 'c-conf': conversa(iso('14:30')) }, workspace: { ...defaultState, anaPausa: { ativa: true, motivo: 'teste', desde: SP('13:00').toISOString() } } });
+    expect(await enviarConfirmacoesConsulta(pausada.db, SP('13:45'))).toMatchObject({ enviados: 1, avisos: 0 });
+    expect(mocks.enviar).toHaveBeenCalledOnce();
+  });
+  it('6b. modo Desligada ou automação desligada: nada sai sozinho', async () => {
     const desligada = criarDb({ casos: { 'c-conf': conversa(iso('14:30'), { modoIA: 'Desligada' }) } });
     expect(await enviarConfirmacoesConsulta(desligada.db, SP('13:45'))).toMatchObject({ enviados: 0, avisos: 1 });
-    const pausada = criarDb({ casos: { 'c-conf': conversa(iso('14:30')) }, workspace: { ...defaultState, anaPausa: { ativa: true, motivo: 'teste' } } });
-    expect(await enviarConfirmacoesConsulta(pausada.db, SP('13:45'))).toMatchObject({ enviados: 0, avisos: 1 });
     const semAutomacao = criarDb({ casos: { 'c-conf': conversa(iso('14:30')) }, workspace: { ...defaultState, automations: { ...defaultAutomations, lembreteConsulta: false } } });
     expect(await enviarConfirmacoesConsulta(semAutomacao.db, SP('13:45'))).toMatchObject({ enviados: 0, avisos: 0 });
     expect(mocks.enviar).not.toHaveBeenCalled();
@@ -265,6 +268,6 @@ describe('rotina de confirmação 40 min (cenários P0-1)', () => {
     expect(await enviarConfirmacoesConsulta(db, SP('13:45'))).toMatchObject({ enviados: 0, motivo: 'canal ou Anne desligados' });
   });
   it('decisão pura: consulta de outro dia é ignorada', () => {
-    expect(decidirConfirmacao40({ consultaAgendada: iso('14:30', '2026-11-26'), reservaInicio: iso('14:30', '2026-11-26'), modo: 'Automática', anaPausadaGlobal: false, automacaoLigada: true, contatoLiberado: true }, SP('13:45')).tipo).toBe('ignorar');
+    expect(decidirConfirmacao40({ consultaAgendada: iso('14:30', '2026-11-26'), reservaInicio: iso('14:30', '2026-11-26'), modo: 'Automática', automacaoLigada: true, contatoLiberado: true }, SP('13:45')).tipo).toBe('ignorar');
   });
 });

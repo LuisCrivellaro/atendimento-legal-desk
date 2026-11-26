@@ -175,6 +175,8 @@ async function executarCiclo(db: Db, request: Request, agora: Date, opcoes: { re
   let pendenciasAgenda: EstadoMonitor['pendenciasAgenda'] = anterior?.pendenciasAgenda ?? [];
   let projuris: EstadoMonitor['integracoes']['projuris'] = 'nao_verificado';
   const etapas: Etapa[] = opcoes.etapas ?? [
+    // Primeiro: com a IA pausada, testa a chave e retoma; as mensagens da pausa voltam à fila antes de 'recuperar-ana'.
+    { nome: 'pausa-ia', executar: async () => (await import('./pausa-ia.server')).verificarPausaIA(db, agora) },
     { nome: 'agenda-projuris', executar: async () => { const r = await sincronizarConsultasProjuris(db, agora, opcoes.portasAgenda); projuris = r.ok ? 'ok' : 'falha'; if (!r.ok) throw new Error(r.erro); pendenciasAgenda = r.pendencias; return { vinculadas: r.vinculadas, atualizadas: r.atualizadas, suspensas: r.suspensas, retomadas: r.retomadas, pendencias: r.pendencias.length }; }, limiteMs: 25000 },
     { nome: 'confirmacoes', executar: async () => (await import('./confirmacao-consulta.server')).enviarConfirmacoesConsulta(db, agora) },
     { nome: 'lembretes', quando: () => (h >= 8 && h < 12 ? undefined : 'lembrete do dia só entre 8h e 12h ("Bom dia")'), executar: async () => (await import('./lembrete-consulta.server')).enviarLembretesConsulta(db, agora) },

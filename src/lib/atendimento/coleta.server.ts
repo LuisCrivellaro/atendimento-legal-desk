@@ -96,7 +96,7 @@ export async function enviarLembretesColeta(db: Db, agora = new Date(), relogio:
           motivoBloqueio = dec.texto;
         }
       } else if (!motivoBloqueio) {
-        motivoBloqueio = c.agenteAna?.humano ? 'conversa com a equipe' : c.agenteAna?.pausa || state?.anaPausa?.ativa ? 'Anne pausada' : modo === 'Sugerir' ? 'modo Sugerir' : '';
+        motivoBloqueio = c.agenteAna?.humano ? 'conversa com a equipe' : c.agenteAna?.pausa ? 'Anne pausada' : modo === 'Sugerir' ? 'modo Sugerir' : '';
       }
       if (motivoBloqueio) {
         await atualizarConversa(db, row.id, x => registrarAviso(x, { id: idLembrete(x, d), tipo: 'coleta', criadoEm: agora.toISOString(), texto: `${d.tipo === 'contrato' ? 'Lembrete do contrato' : 'Lembrete de documentos faltantes'} vencido e não enviado (${motivoBloqueio}). Texto pronto para revisar e enviar.`.slice(0, 300), textoPronto: texto }));

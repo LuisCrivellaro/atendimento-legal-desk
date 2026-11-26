@@ -39,7 +39,7 @@ export async function contextoSecretaria(db: Db, conversaId: string, canal = 'ul
   return {
     ownerId, state, config, ativa, canal,
     biblioteca: lerBiblioteca((state as { bibliotecaMensagens?: unknown } | undefined)?.bibliotecaMensagens),
-    ambiente: { agenteAtivo: cfg.data?.agente_ativo === true, canalAtivo: cfg.data?.canal_ativo === canal, pausaGlobal: !!state?.anaPausa?.ativa },
+    ambiente: { agenteAtivo: cfg.data?.agente_ativo === true, canalAtivo: cfg.data?.canal_ativo === canal, iaPausada: !!state?.anaPausa?.ativa },
     contato: contato.data?.contato_externo ?? undefined,
     modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA,
   };

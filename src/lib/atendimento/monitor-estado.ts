@@ -48,6 +48,7 @@ export interface EstadoMonitor {
 }
 
 export const ROTULOS_ETAPA: Record<string, string> = {
+  'pausa-ia': 'IA da Anne (teste da chave do Claude durante a pausa)',
   'agenda-projuris': 'Agenda do ProJuris (consultas marcadas, alteradas e canceladas)',
   confirmacoes: 'Confirmação de presença',
   lembretes: 'Lembrete das 08h',

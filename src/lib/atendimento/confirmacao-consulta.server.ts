@@ -78,7 +78,6 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
       humano: c.agenteAna?.humano,
       pausa: c.agenteAna?.pausa,
       modo: c.modoIA ?? state?.automations?.modoIA ?? defaultAutomations.modoIA,
-      anaPausadaGlobal: !!state?.anaPausa?.ativa,
       automacaoLigada: (state?.automations?.lembreteConsulta ?? defaultAutomations.lembreteConsulta) !== false,
       contatoLiberado: !!contato,
       // Biblioteca oficial (02/08.2) e política que impede confirmação redundante (lembrete recente, presença já confirmada).

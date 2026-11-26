@@ -9,7 +9,8 @@ export async function saveOffice(owner: string, state: OfficeState) {
   const salvo=row.data?.dados as unknown as OfficeState|undefined;
   const pause=salvo?.anaPausa;
   // A entrada do WhatsApp é salva só pelo servidor (Canal e Agente); a tela nunca a sobrescreve.
-  const {entradaWhatsApp:_ignorada,secretaria:_servidor,bibliotecaMensagens:_biblioteca,...estado}=state as OfficeState&{secretaria?:unknown;bibliotecaMensagens?:unknown};
+  // A pausa da IA também: a tela aberta desde antes da retomada nunca a religa nem a desliga.
+  const {entradaWhatsApp:_ignorada,secretaria:_servidor,bibliotecaMensagens:_biblioteca,anaPausa:_pausa,...estado}=state as OfficeState&{secretaria?:unknown;bibliotecaMensagens?:unknown};
   // Configuração da secretaria digital e biblioteca oficial de mensagens são gravadas só pelo servidor (sênior/admin).
   const secretaria=(row.data?.dados as Record<string,Json>|null)?.['secretaria'];
   const biblioteca=(row.data?.dados as Record<string,Json>|null)?.['bibliotecaMensagens'];

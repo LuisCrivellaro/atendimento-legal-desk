@@ -167,8 +167,9 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
       const owner=await supabase.from('casos').select('owner_id').eq('id',entrada.conversaId).single();
       if(owner.error)throw new Error('Conversa indisponível.');
       const ws=await supabase.from('office_workspace').select('dados').eq('owner_id',owner.data.owner_id).maybeSingle();
-      const state=ws.data?.dados as {anaPausa?:{ativa?:boolean};automations?:{modoIA?:string}}|undefined;
-      if(ws.error||state?.anaPausa?.ativa||!config.agente_ativo)throw Object.assign(new Error('Ana pausada; envio interrompido.'),{code:'ana_envio_bloqueado'});
+      const state=ws.data?.dados as {automations?:{modoIA?:string}}|undefined;
+      // A pausa da IA (chave recusada) não barra aqui: textos oficiais e respostas já geradas não dependem do modelo.
+      if(ws.error||!config.agente_ativo)throw Object.assign(new Error('Ana desligada; envio interrompido.'),{code:'ana_envio_bloqueado'});
       let autorizada=false;
       await atualizarConversa(supabase,entrada.conversaId,c=>{
         autorizada=false;
@@ -185,13 +186,13 @@ async function enviarComRegras(supabase: Db, ator: Ator, entrada: EnvioBase) {
     }
     if(entrada.automacaoId){
       // Secretaria digital: conferência final imediatamente antes do canal (reserva vigente, equipe não escreveu,
-      // modo ainda permite, pausa global e agente). Qualquer dúvida: nada sai.
+      // modo ainda permite e agente ligado). Qualquer dúvida: nada sai. A pausa da IA não barra automações (sem modelo).
       const owner=await supabase.from('casos').select('owner_id,dados').eq('id',entrada.conversaId).single();
       if(owner.error)throw new Error('Conversa indisponível.');
       const ws=await supabase.from('office_workspace').select('dados').eq('owner_id',owner.data.owner_id).maybeSingle();
-      const state=ws.data?.dados as {anaPausa?:{ativa?:boolean};automations?:{modoIA?:AIMode}}|undefined;
+      const state=ws.data?.dados as {automations?:{modoIA?:AIMode}}|undefined;
       const { conferirReservaEnvio } = await import('./secretaria/operacional');
-      const conferencia=ws.error||state?.anaPausa?.ativa||!config.agente_ativo?{ok:false as const,motivo:'pausa_global' as const}:conferirReservaEnvio(owner.data.dados as unknown as Conversa,{automacaoId:entrada.automacaoId,texto:entrada.texto},state?.automations?.modoIA??defaultAutomations.modoIA);
+      const conferencia=ws.error||!config.agente_ativo?{ok:false as const,motivo:'agente_desligado' as const}:conferirReservaEnvio(owner.data.dados as unknown as Conversa,{automacaoId:entrada.automacaoId,texto:entrada.texto},state?.automations?.modoIA??defaultAutomations.modoIA);
       if(!conferencia.ok){
         await auditar(supabase, ator, entrada.acao, 'Automação barrada na conferência final', 'bloqueado', conferencia.motivo);
         throw Object.assign(new Error('Automação barrada na conferência final; nada foi enviado.'),{code:'ana_envio_bloqueado'});

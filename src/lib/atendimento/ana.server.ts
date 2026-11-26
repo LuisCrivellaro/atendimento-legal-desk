@@ -22,6 +22,7 @@ import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, pedidoHorarioEspecifi
 import { apenasInsistencia, TEXTOS_CONSULTA } from './consulta-processo';
 import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } from './ana-retomada';
 import { podeExecutarAna } from './ana-execution';
+import { estacionarMensagem, falhaPausaIA, iaPausada, motivoPausaIA, resultadoSemModelo } from './pausa-ia';
 import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from './ana-contexto';
 import { permiteAgendaRelacionamento, protegerRelacionamentoAna } from './ana-relacionamento';
 import { reconhecerRelacionamentoAna } from './ana-relacionamento.server';
@@ -92,7 +93,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const operacional=await tratarMensagemOperacional(portasSupabase(db,row.data.owner_id,id),ctx,id,messageId);
     if(operacional.tratada||modoEfetivo(c,modoPadrao).modo!=='automatico')return;
   }
-  if(!m||!podeExecutarAna(m)||c.agenteAna?.humano||c.agenteAna?.pausa||state.anaPausa?.ativa)return;
+  // A pausa da IA (chave recusada) não para o que vem antes do modelo: ela é conferida logo antes da geração.
+  if(!m||!podeExecutarAna(m)||c.agenteAna?.humano||c.agenteAna?.pausa)return;
   let claimed=false;
   await atualizarConversa(db,id,current=>{
     claimed=false;
@@ -205,7 +207,13 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const clienteLocal=reconhecimento.nome?{nome:reconhecimento.nome,telefone,email}:undefined;
     const identidade=nomeConhecido(c,canal,clienteLocal?.nome??'');
     const introducao=apresentacaoNome(m.texto);
-    const gerada=cobranca?resultadoRetorno(c,canal):await gerarRespostaAna(request,{relacionamento:rel,continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:!rel.consultaInicial?{tipo:"acompanhamento",reserva_confirmada:c.consultaAgendada??null}:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:permiteAgenda?c.agenteAna?.horariosTeste??[]:[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos,...(secretaria?{memoria_estruturada:memoriaEstruturada(c,{checklist:lista.data}).resumo,regras_memoria:REGRAS_MEMORIA}:{})},state.training.instrucoes);
+    // IA pausada (chave ou conta recusada pelo provedor): segue só o que tem texto final fixo — "sim/ok" à confirmação
+    // de presença ou ao lembrete e a cobrança de retorno. O resto fica estacionado e volta para a fila quando a chave
+    // for aceita de novo (monitor de 5 min ou botão no Atendimento).
+    const pausada=iaPausada(state);
+    const presencaFixa=pausada&&mode==='Automática'&&!!c.consultaAgendada&&!pedidoHumano(m.texto)&&(confirmacao40Respondivel(c,canal)?respostaConfirmacao40(m.texto)==='sim':lembreteAtivo(c.agenteAna?.lembreteConsulta,c.consultaAgendada)&&respostaLembreteAna(m.texto)==='sim');
+    if(pausada&&!cobranca&&!presencaFixa){await atualizarConversa(db,id,x=>estacionarMensagem(x,messageId));return;}
+    const gerada=cobranca?resultadoRetorno(c,canal):presencaFixa?resultadoSemModelo(c.agenteAna?.dados):await gerarRespostaAna(request,{relacionamento:rel,continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:!rel.consultaInicial?{tipo:"acompanhamento",reserva_confirmada:c.consultaAgendada??null}:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:permiteAgenda?c.agenteAna?.horariosTeste??[]:[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos,...(secretaria?{memoria_estruturada:memoriaEstruturada(c,{checklist:lista.data}).resumo,regras_memoria:REGRAS_MEMORIA}:{})},state.training.instrucoes);
     const respostaAnterior=c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'';
     const aceiteCaptacao=rel.consultaInicial&&aceiteConsultaAna(m.texto,respostaAnterior);
     const raw=rel.consultaInicial?priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada,respostaAnterior):{...gerada};
@@ -362,7 +370,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       const [fresh,cfg,contact,freshWorkspace]=await Promise.all([db.from('casos').select('dados').eq('id',id).single(),db.from('atendimento_canal_config').select('canal_ativo,agente_ativo,modo_teste').eq('id',true).single(),db.from('atendimento_contatos_teste').select('contato_externo,status').eq('conversa_id',id).eq('canal',canal).eq('status','liberado').maybeSingle(),db.from('office_workspace').select('dados').eq('owner_id',row.data.owner_id).maybeSingle()]);
       const current=fresh.data?.dados as unknown as Conversa|undefined;
       const currentState=(freshWorkspace.data?.dados as unknown as OfficeState)??defaultState;
-      if(fresh.error||cfg.error||contact.error||freshWorkspace.error||!contact.data||!current||cfg.data?.canal_ativo!==canal||!cfg.data.agente_ativo||(current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||currentState.anaPausa?.ativa||current.agenteAna?.humano&&!r.encaminhar_humano||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
+      if(fresh.error||cfg.error||contact.error||freshWorkspace.error||!contact.data||!current||cfg.data?.canal_ativo!==canal||!cfg.data.agente_ativo||(current.modoIA??currentState.automations?.modoIA??defaultAutomations.modoIA)!=='Automática'||current.mensagens.at(-1)?.id!==messageId||current.agenteAna?.pausa||current.agenteAna?.humano&&!r.encaminhar_humano||current.mensagens.some(x=>x.respostaAnaDe===messageId))return;
       if(!messageId.startsWith(`${canal}:${contact.data.contato_externo}:`))return;
       let novasLembrete:string[]=[];
       if(cancelar){
@@ -497,21 +505,27 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(e.message&&!e.responseBody&&!/\[\d{3}\]/.test(e.message))safe=`${safe} Motivo: ${e.message}`;
     try {const body=JSON.parse(e.responseBody??'{}');safe=body.message??body.error?.message??safe;}catch {/* Não exibir corpo bruto. */}
     safe=safe.slice(0,400);
-    const pause=e.code==='chave_invalida'||e.statusCode===402||e.statusCode===403||e.statusCode===404||e.statusCode===401;
-    // Libera a operação de agenda travada pela falha; sem isso a conversa ficaria impedida de cancelar/remarcar para sempre.
-    await atualizarConversa(db,id,current=>({...current,mensagens:current.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:efeitosIniciados?'incerta' as const:'concluida' as const}}:m),agenteAna:{...current.agenteAna,humano:true,pausa:pause||current.agenteAna?.pausa===true,erro:safe,operacaoConsulta:undefined,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
+    const pause=falhaPausaIA(e);
+    if(pause&&!efeitosIniciados){
+      // Chave/conta recusada antes de qualquer envio: a conversa não passa para a equipe; a mensagem espera a retomada.
+      await atualizarConversa(db,id,current=>({...estacionarMensagem(current,messageId),agenteAna:{...current.agenteAna,operacaoConsulta:undefined}}));
+    }else{
+      // Libera a operação de agenda travada pela falha; sem isso a conversa ficaria impedida de cancelar/remarcar para sempre.
+      await atualizarConversa(db,id,current=>({...current,mensagens:current.mensagens.map(m=>m.id===messageId&&m.iaExecucao?{...m,iaExecucao:{...m.iaExecucao,estado:efeitosIniciados?'incerta' as const:'concluida' as const}}:m),agenteAna:{...current.agenteAna,humano:true,pausa:pause||current.agenteAna?.pausa===true,erro:safe,operacaoConsulta:undefined,proximoPasso:'Equipe: conferir falha da Ana antes de retomar.'}}));
+    }
     if(pause) {
-      // Pausa durável para todos os atendimentos do proprietário. Sem probes/retries.
+      // Pausa da IA para o escritório: só as respostas escritas pelo modelo esperam; o monitor testa a chave e retoma.
       for(let attempt=0;attempt<5;attempt++){
       const latest=await db.from('office_workspace').select('dados,updated_at').eq('owner_id',row.data.owner_id).maybeSingle();
       if(latest.error)throw new Error('Não foi possível salvar a pausa da IA.');
-      const next={...((latest.data?.dados as unknown as OfficeState)??defaultState),anaPausa:{ativa:true,motivo:safe}};
+      const salvo=(latest.data?.dados as unknown as OfficeState)??defaultState;
+      const next={...salvo,anaPausa:{ativa:true,motivo:motivoPausaIA(e),desde:salvo.anaPausa?.ativa&&salvo.anaPausa.desde?salvo.anaPausa.desde:new Date().toISOString()}};
       const save=latest.data?await db.from('office_workspace').update({dados:next as unknown as Json,updated_at:new Date().toISOString()}).eq('owner_id',row.data.owner_id).eq('updated_at',latest.data.updated_at).select('owner_id'):await db.from('office_workspace').insert({owner_id:row.data.owner_id,dados:next as unknown as Json}).select('owner_id');
       if(save.error)throw new Error('Não foi possível salvar a pausa da IA.');
       if(save.data?.length)break;
       if(attempt===4)throw new Error('Não foi possível salvar a pausa da IA.');
       }
     }
-    await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'agenteAna',p_resumo:'Resposta interrompida · atendimento humano',p_status:'erro',p_erro:safe});
+    await db.rpc('registrar_audit_log',{p_ator:'Ana',p_perfil:'sistema',p_acao:'agenteAna',p_resumo:pause&&!efeitosIniciados?'IA da Anne pausada: provedor recusou o acesso · mensagem aguarda a retomada':'Resposta interrompida · atendimento humano',p_status:'erro',p_erro:safe});
   }
 }

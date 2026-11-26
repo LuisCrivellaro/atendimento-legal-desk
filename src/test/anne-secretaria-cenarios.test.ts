@@ -87,7 +87,7 @@ function fake(inicial: Conversa, o: Opcoes = {}): Fake {
   return db;
 }
 
-const ctx = (extra: Partial<ContextoOperacional> = {}): ContextoOperacional => ({ config: lerConfigSecretaria({ ativa: true }), ativa: true, ambiente: { agenteAtivo: true, canalAtivo: true, pausaGlobal: false }, contato: CONTATO, modoPadrao: 'Sugerir', ...extra });
+const ctx = (extra: Partial<ContextoOperacional> = {}): ContextoOperacional => ({ config: lerConfigSecretaria({ ativa: true }), ativa: true, ambiente: { agenteAtivo: true, canalAtivo: true, iaPausada: false }, contato: CONTATO, modoPadrao: 'Sugerir', ...extra });
 
 function receber(db: Fake, msg: Mensagem) {
   db.set(c => ({ ...c, mensagens: [...c.mensagens, msg] }));

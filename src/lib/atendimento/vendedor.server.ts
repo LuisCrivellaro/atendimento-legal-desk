@@ -34,7 +34,8 @@ export async function enviarFollowupsVendedor(db: Db, agora = new Date(), limite
     const c = row.dados as unknown as Conversa;
     const state = ligados.get(row.owner_id);
     const contato = porConversa.get(row.id);
-    if (!contato || state?.anaPausa?.ativa) continue;
+    // Texto fixo com horários reais: a pausa da IA (chave recusada) não impede.
+    if (!contato) continue;
     const decisao = decidirFollowupVendedor({ ligado: true, conversa: c, modo: c.modoIA ?? state?.automations?.modoIA ?? defaultAutomations.modoIA }, agora);
     if (!decisao) continue;
     const busy = await ocupadosAgenda(db, row.owner_id, agora, horizonteAgendaAna());

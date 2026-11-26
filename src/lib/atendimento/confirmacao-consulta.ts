@@ -158,7 +158,6 @@ export interface EntradaConfirmacao {
   pausa?: boolean | undefined;
   /** Modo efetivo da conversa (conversa > automações do dono > padrão). */
   modo: 'Desligada' | 'Sugerir' | 'Automática';
-  anaPausadaGlobal: boolean;
   automacaoLigada: boolean;
   /** Contato liberado e vinculado à conversa no canal UltraMsg. */
   contatoLiberado: boolean;
@@ -188,7 +187,8 @@ export function decidirConfirmacao40(e: EntradaConfirmacao, agora = new Date()):
   if (e.reservaInicio !== inicio) return { tipo: 'aviso', inicio, motivo: 'sem_recibo', texto };
   if (!e.contatoLiberado) return { tipo: 'aviso', inicio, motivo: 'sem_vinculo', texto };
   if (fase === 'perdida') return { tipo: 'aviso', inicio, motivo: 'perdida', texto };
-  if (e.humano || e.pausa || e.anaPausadaGlobal || e.modo === 'Desligada') return { tipo: 'aviso', inicio, motivo: 'controle_humano', texto };
+  // A pausa da IA (chave recusada) não impede: o texto é oficial e não passa pelo modelo.
+  if (e.humano || e.pausa || e.modo === 'Desligada') return { tipo: 'aviso', inicio, motivo: 'controle_humano', texto };
   return { tipo: 'enviar', inicio, texto, ...(modelo ? { modelo } : {}) };
 }
 

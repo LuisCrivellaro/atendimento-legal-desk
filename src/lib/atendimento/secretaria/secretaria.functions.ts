@@ -148,15 +148,47 @@ export const lerMonitorOperacionalAnne = createServerFn({ method: 'GET' })
     };
   });
 
-/** Leitura leve para o alerta de rotina parada no Atendimento (só horário da última execução e se houve falha). */
+/**
+ * Leitura leve para os alertas do Atendimento: rotina parada (horário da última execução) e pausa da IA (início e
+ * motivo curto, sem dado de cliente). `podeRetomar` só para sênior/admin.
+ */
 export const lerSaudeMonitorAnne = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
     const { ID_MONITOR } = await import('../monitor-estado');
-    const r = await supabaseAdmin.from('ana_monitoramento').select('estado').eq('id', ID_MONITOR).maybeSingle();
+    const { pausasIA } = await import('../pausa-ia.server');
+    const [r, pausas] = await Promise.all([
+      supabaseAdmin.from('ana_monitoramento').select('estado').eq('id', ID_MONITOR).maybeSingle(),
+      pausasIA(supabaseAdmin).catch(() => []),
+    ]);
     const e = r.data?.estado as { ultimaExecucao?: string; ok?: boolean } | null | undefined;
-    return { ultimaExecucao: e?.ultimaExecucao ?? null, ok: e?.ok ?? null };
+    const primeira = pausas.map(p => p.pausa).sort((a, b) => String(a.desde ?? '').localeCompare(String(b.desde ?? '')))[0];
+    return {
+      ultimaExecucao: e?.ultimaExecucao ?? null, ok: e?.ok ?? null,
+      pausaIA: primeira ? { desde: primeira.desde ?? null, motivo: String(primeira.motivo ?? '').slice(0, 160) } : null,
+      podeRetomar: !!primeira && (await ehGestor(context.supabase, context.userId)),
+    };
+  });
+
+/**
+ * Sênior/admin: testa a chave do Claude e, se aceita, desliga a pausa da IA e devolve à fila as mensagens recebidas
+ * durante ela. Chave ainda recusada: nada muda (retomar não faria a Anne responder).
+ */
+export const retomarIAAnne = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (!(await ehGestor(context.supabase, context.userId))) throw new Error('Seu perfil não permite retomar a IA da Anne.');
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+    const { pausasIA, retomarIA, testarChaveClaude } = await import('../pausa-ia.server');
+    const pausas = await pausasIA(supabaseAdmin);
+    if (!pausas.length) return { ok: true as const, reenfileiradas: 0 };
+    const teste = await testarChaveClaude();
+    if (!teste.ok) return { ok: false as const, motivo: teste.motivo };
+    const autor = await nomeDoUsuario(context.supabase, context.userId);
+    let reenfileiradas = 0;
+    for (const p of pausas) reenfileiradas += (await retomarIA(supabaseAdmin, p.ownerId, { nome: autor, sistema: false })).reenfileiradas;
+    return { ok: true as const, reenfileiradas };
   });
 
 async function ehGestor(supabase: Db, userId: string) {

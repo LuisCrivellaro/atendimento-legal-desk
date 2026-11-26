@@ -1,4 +1,5 @@
 import type { Conversa } from '../mock-data';
+import type { AnaResult } from './ana-rules';
 
 /**
  * Pausa da IA da Anne (`OfficeState.anaPausa`). O servidor liga sozinho quando o provedor do modelo recusa a chave ou
@@ -61,6 +62,18 @@ export function mensagemParaRetomar(c: Conversa, pausa: Pick<PausaIA, 'desde'> |
   const desde = Date.parse(pausa?.desde ?? '');
   const inicio = Number.isFinite(desde) ? desde - MARGEM_INICIO_MS : agora - JANELA_SEM_INICIO_MS;
   return quando >= inicio ? m.id : undefined;
+}
+
+/**
+ * Resultado neutro no lugar do modelo, usado com a IA pausada só quando o servidor substitui o texto por um fixo
+ * (presença confirmada). Nunca chega ao cliente como está.
+ */
+export function resultadoSemModelo(dados: Partial<AnaResult['dados_coletados']> | undefined): AnaResult {
+  return {
+    acao: 'enviar', mensagem: '', motivo_aprovacao: '', intencao: 'duvida_geral', urgente: false, encaminhar_humano: false,
+    dados_coletados: { nome: dados?.nome ?? '', cpf: dados?.cpf ?? '', assunto: dados?.assunto ?? '', email: dados?.email ?? '' },
+    proximo_passo: '',
+  };
 }
 
 /** Devolve a mensagem à fila: a recuperação do monitor a processa no mesmo ciclo. */

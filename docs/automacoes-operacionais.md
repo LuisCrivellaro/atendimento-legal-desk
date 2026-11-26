@@ -11,7 +11,8 @@ A Anne tem duas camadas independentes:
 | Automático | Anne responde | ligada |
 | Híbrido (equipe assumiu / Anne conversacional desligada) | equipe | ligada (só as automações autorizadas) |
 | Humano | equipe | só avisos e textos prontos para a equipe |
-| Bloqueado (ou conversa "Desligada", ou pausa) | nada | nada |
+| Bloqueado (ou conversa "Desligada", ou pausa da conversa) | nada | nada |
+| IA pausada no escritório (chave do Claude recusada; ver 1.1) | espera a retomada | ligada |
 
 A secretaria digital vem **ligada por padrão** desde 26/11/2026. Desligar: Automações → Secretaria digital → interruptor
 (volta ao comportamento anterior) ou, no servidor, `ANNE_SECRETARIA_DESLIGADA=1`. Cada automação pode ser desligada
@@ -32,6 +33,25 @@ Painel (Atendimento → engrenagem → **Automações do atendimento**):
 Sem execução há mais de 15 minutos, aparece um alerta vermelho no topo da lista do Atendimento
 ("Automações da Anne paradas…"). Nada é enviado enquanto a rotina estiver parada. A auditoria (`audit_log`)
 registra só as transições (etapa que passou a falhar e que voltou).
+
+### 1.1 Pausa da IA (chave do Claude recusada)
+
+Quando o Claude recusa a chave ou a conta (401/402/403/404), o servidor liga sozinho a pausa da IA do escritório
+(`office_workspace.dados.anaPausa`, com `motivo` curto e `desde`). Regras (`pausa-ia.ts`, `pausa-ia.server.ts`):
+
+- **Só as respostas escritas pelo modelo esperam.** Confirmação de presença, lembrete, cobrança de documentos,
+  reagendamento, follow-up comercial, textos oficiais, "ok" à confirmação (texto fixo) e envios da equipe continuam.
+- A mensagem do cliente que precisava do modelo fica **estacionada** (`iaExecucao.estado = 'aguardando'` sem
+  `retryEm`) e a conversa **não** passa para a equipe por causa da chave. A equipe pode responder antes; se responder,
+  a Anne não fala por cima.
+- A etapa **`pausa-ia`** do monitor (primeira do ciclo) não faz nada sem pausa. Com pausa, testa a chave com uma
+  chamada de 1 token, sem dado de cliente. Se o Claude aceitar, desliga a pausa (CAS), devolve à fila a última
+  mensagem de cada cliente recebida durante a pausa (até 24 h; sem equipe no controle; pausa antiga sem `desde`:
+  últimas 6 h) e audita (`pausaIA`). A etapa `recuperar-ana` responde essas mensagens no mesmo ciclo (2 por ciclo).
+  Chave ainda recusada: a etapa aparece com falha no painel, com o motivo.
+- No Atendimento, um aviso amarelo no topo da lista mostra a pausa, o motivo e o que continua. Sênior/admin têm o
+  botão **Testar a chave e retomar** (`retomarIAAnne`): ele testa antes e não retoma com a chave ainda recusada.
+- A tela nunca grava nem apaga a pausa (`saveOffice` ignora `anaPausa` do navegador).
 
 ## 2. Consultas marcadas direto no ProJuris
 

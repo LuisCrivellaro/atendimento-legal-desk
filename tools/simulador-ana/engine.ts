@@ -207,7 +207,7 @@ export class SimuladorAna {
   rotinaConfirmacao40(agora = new Date()) {
     const c = this.conv;
     // Mesma decisão e mesma biblioteca oficial (02/08.2) e política anti-redundância da rotina do servidor.
-    const decisao = decidirConfirmacao40({ consultaAgendada: c.consultaAgendada, reservaInicio: c.agenteAna?.reservaCalendar?.inicio, confirmacao40: c.agenteAna?.confirmacao40, humano: c.agenteAna?.humano, pausa: c.agenteAna?.pausa, modo: c.modoIA ?? this.modoIA, anaPausadaGlobal: false, automacaoLigada: true, contatoLiberado: true, ...(c.consultaAgendada ? { politica: politicaConsultaDia(c, c.consultaAgendada, 'confirmacao', agora) } : {}) }, agora);
+    const decisao = decidirConfirmacao40({ consultaAgendada: c.consultaAgendada, reservaInicio: c.agenteAna?.reservaCalendar?.inicio, confirmacao40: c.agenteAna?.confirmacao40, humano: c.agenteAna?.humano, pausa: c.agenteAna?.pausa, modo: c.modoIA ?? this.modoIA, automacaoLigada: true, contatoLiberado: true, ...(c.consultaAgendada ? { politica: politicaConsultaDia(c, c.consultaAgendada, 'confirmacao', agora) } : {}) }, agora);
     if (decisao.tipo === 'enviar') {
       const idExterno = `conf40-${++this.seq}`;
       this.atualizar(x => ({ ...x, agenteAna: { ...x.agenteAna, confirmacao40: { inicio: decisao.inicio, reservadoEm: agora.toISOString(), enviadoEm: agora.toISOString(), idExterno, texto: decisao.texto, ...(decisao.modelo ? { modelo: decisao.modelo } : {}) } }, mensagens: [...x.mensagens, newMessage(decisao.texto, { autor: 'Ana · assistente virtual', canal: 'telegram', idExterno, status: 'enviada', ...(decisao.modelo ? { modeloOficial: decisao.modelo } : {}) })], timeline: [...x.timeline, { data: agora.toISOString(), evento: 'Confirmação de presença enviada pela Anne' }] }));
