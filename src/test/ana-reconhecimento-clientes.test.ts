@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { relacionamentoAna, permiteAgendaRelacionamento, protegerRelacionamentoAna } from '@/lib/atendimento/ana-relacionamento';
 import { conversas, type Conversa, type Mensagem } from '@/lib/mock-data';
 import type { AnaResult } from '@/lib/atendimento/ana-rules';
+import { ACOMPANHAMENTO_ANA, SAUDACAO_CONTATO_ANA, perguntaTriagemAna } from '@/lib/atendimento/ana-demanda';
 
 const telefone = '5511990000001';
 const identidade = { tipo: 'unico' as const, pessoa: { codigo: 101, nome: 'Cliente Teste' } };
@@ -39,7 +40,8 @@ describe('dez cenários master de reconhecimento', () => {
   });
   it('6 informação nova segue contexto em vez de comercial', () => {
     const rel = relacionamentoAna(conversa(), telefone, 'ultramsg', identidade, 1);
-    expect(protegerRelacionamentoAna(comercial, rel, mensagem('texto', 'Aconteceu outra coisa'), 'Automática', false).intencao).toBe('duvida_geral');
+    const r = protegerRelacionamentoAna(comercial, rel, mensagem('texto', 'Aconteceu outra coisa'), 'Automática', false);
+    expect(r.intencao).toBe('duvida_geral'); expect(r.mensagem).toBe(ACOMPANHAMENTO_ANA); expect(perguntaTriagemAna(r.mensagem)).toBe(false);
   });
   it('7 dois processos não selecionam caso por conta própria', () => {
     const rel = relacionamentoAna(conversa(), telefone, 'ultramsg', identidade, 2);
@@ -51,9 +53,10 @@ describe('dez cenários master de reconhecimento', () => {
     expect(rel.consultaInicial).toBe(true); expect(permiteAgendaRelacionamento(rel, 'oi', c)).toBe(true);
     expect(protegerRelacionamentoAna(comercial, rel, mensagem('texto', 'oi'), 'Automática', true)).toBe(comercial);
   });
-  it('9 cadastro anterior sem ativo pede contexto antes da captação', () => {
+  it('9 cadastro anterior sem ativo não inicia captação nem pergunta sobre o vínculo (classificação interna)', () => {
     const c = conversa(); const rel = relacionamentoAna(c, telefone, 'ultramsg', identidade, 0);
     expect(rel.situacao).toBe('cadastro_anterior'); expect(rel.consultaInicial).toBe(false); expect(permiteAgendaRelacionamento(rel, 'nova demanda', c)).toBe(false);
+    expect(protegerRelacionamentoAna(comercial, rel, mensagem('texto', 'Olá'), 'Automática', false).mensagem).toBe(SAUDACAO_CONTATO_ANA);
   });
   it('10 identificação duvidosa nunca autoriza agenda ou identidade', () => {
     const c = conversa(); const rel = relacionamentoAna(c, telefone, 'ultramsg', { tipo: 'duplicado', codigos: [101, 102] }, 1);

@@ -5,6 +5,7 @@ import { gerarHorarios } from './schedule-rules';
 import type { TipoCliente } from './intake-rules';
 import { validarTextoEnvio } from './canal-envio';
 import { bloqueiaAgenda, pedidoHumano, escolherHorarioAna, listaHorariosAna, pedidoOutrasOpcoesAna, hora, dataAgenda } from './ana-scheduling';
+import { semPerguntaTriagemAna } from './ana-demanda';
 
 export const anaSchema = z.object({
   acao: z.enum(['enviar', 'rascunho', 'nenhuma']), mensagem: z.string(), motivo_aprovacao: z.string(),
@@ -234,7 +235,8 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
   const testAgenda=options.teste&&r.intencao==='agendamento'&&!prohibited&&!humano&&!bloqueiaAgenda(texto,r.intencao);
   const dadosAgenda = testAgenda && (options.tipoCliente === undefined || !options.nome?.trim()&&!/quais\s+hor[aá]rios|hor[aá]rios\s+(?:livres|dispon[ií]veis)/i.test(texto) || !options.telefone);
   if(testAgenda&&!dadosAgenda){const ag=respostaAgendaTeste(texto,options.horarios??[],options.now,options.agendaReal,options.tipoCliente,/🗓️ (?:Horários livres|Consulta online|Outras opções)/.test(options.ultimaResposta??''));result={...result,acao:'enviar',mensagem:ag.mensagem,encaminhar_humano:false,motivo_aprovacao:'',proximo_passo:options.agendaReal?(ag.selected?'Equipe: confirmar reserva do horário escolhido no Google Calendar.':'Horários livres reais oferecidos pelo Google Calendar.'):'Agenda fictícia de teste; nenhuma reserva real.'};}
-  if(dadosAgenda)result={...result,acao:'enviar',mensagem:options.tipoCliente===undefined?'É seu primeiro contato ou você já é cliente do escritório?':!options.nome?.trim()?'Qual é seu nome completo?':'Não consegui identificar o contato da conversa para o agendamento. Deixei a situação registrada para a equipe verificar.',encaminhar_humano:!!options.tipoCliente&&!!options.nome?.trim()&&!options.telefone,motivo_aprovacao:'',proximo_passo:'Coletar carteira, nome e telefone do canal antes de oferecer ou reservar horários.'};
+  // Carteira (cliente novo ou cadastrado) é classificação interna: sem ela, a equipe confere; nunca se pergunta ao cliente.
+  if(dadosAgenda)result={...result,acao:'enviar',mensagem:options.tipoCliente===undefined?'Vou confirmar com a equipe a agenda certa para o seu atendimento. Alguém responsável te responde por aqui.':!options.nome?.trim()?'Qual é seu nome completo?':'Não consegui identificar o contato da conversa para o agendamento. Deixei a situação registrada para a equipe verificar.',encaminhar_humano:options.tipoCliente===undefined||!!options.nome?.trim()&&!options.telefone,motivo_aprovacao:'',proximo_passo:options.tipoCliente===undefined?'Equipe: confirmar a carteira (cliente novo ou cadastrado) antes de oferecer horários; nada foi perguntado ao cliente.':'Coletar carteira, nome e telefone do canal antes de oferecer ou reservar horários.'};
   if(/cpf/i.test(result.mensagem)&&/\?/.test(result.mensagem)){result.mensagem='Para o agendamento não precisamos de CPF. Qual é seu nome completo?';}
   const sensitive = !prohibited&&!humano&&r.intencao!=='reclamacao'&&(['processo'].includes(r.intencao)||r.intencao==='agendamento'&&!testAgenda||/documentos? (?:faltantes|pendentes)/i.test(result.mensagem));
   if (sensitive || validarTextoEnvio(result.mensagem) && result.mensagem.trim()) result = {...result, acao:'rascunho',motivo_aprovacao:r.motivo_aprovacao || 'Revisão da equipe obrigatória; agenda real indisponível.'};
@@ -256,6 +258,8 @@ export function aplicarRegrasAna(r:AnaResult, mode:AIMode, texto:string, proibid
     // A Anne nunca menciona o 190 espontaneamente, mesmo fora de violência doméstica.
     result.mensagem=result.mensagem.replace(/[^.\n]*\b190\b[^.\n]*\.?/g,'').replace(/\n{3,}/g,'\n\n').trim();
   }
+  // Classificação do atendimento é interna: nenhuma variação de "atendimento em andamento ou nova demanda?" sai.
+  if(mode!=='Desligada'&&result.mensagem.trim())result.mensagem=semPerguntaTriagemAna(result.mensagem);
   if(mode!=='Desligada'&&result.mensagem.trim()){const limpa=limparForaEscopoAna(result.mensagem);result.mensagem=limpa||'Entendi. Vamos verificar os horários disponíveis para você conversar com a Dra. Carolina.';}
   if(!result.mensagem.trim())result.acao='nenhuma';
   // Nunca exibir CPF completo, inclusive um CPF recém-coletado.

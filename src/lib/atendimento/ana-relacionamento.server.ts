@@ -6,6 +6,7 @@ import { identificarNaBase } from '../projuris/base';
 import { identificarClienteProjuris } from '../projuris/indice.server';
 import { criarConsultasProjuris } from '../projuris/consultas.server';
 import { relacionamentoAna } from './ana-relacionamento';
+import { origemMensagem } from './secretaria/origem';
 
 export async function reconhecerRelacionamentoAna(db: SupabaseClient<Database>, owner: string, c: Conversa, telefone: string, canal: string) {
   const { base } = await lerBase(db, owner).catch(() => ({ base: undefined }));
@@ -21,7 +22,8 @@ export async function reconhecerRelacionamentoAna(db: SupabaseClient<Database>, 
     // Absence in the filtered replica is NOT proof of a new lead. Fail closed for acquisition.
     // Exceção da Dra. Carolina (20/11/2026): contato novo, sem histórico da equipe e ausente da base local,
     // recebe a saudação gratuita com horários mesmo se a consulta completa ao ProJuris falhar.
-    const semHistorico = !c.mensagens.some(m => m.de === 'escritorio' && !/^(?:Ana|Anne)\b/.test(m.autor ?? '')) && !c.consultaAgendada && !c.contrato;
+    // Equipe = pessoa do escritório (origem gravada pelo servidor); a Anne e as automações não contam.
+    const semHistorico = !c.mensagens.some(m => origemMensagem(m) === 'equipe') && !c.consultaAgendada && !c.contrato;
     const rel = relacionamentoAna(c, telefone, canal, local.tipo === 'unico' || local.tipo === 'nao_encontrado' && semHistorico ? local : undefined);
     return { identidade: local, rel, nome: '' };
   }

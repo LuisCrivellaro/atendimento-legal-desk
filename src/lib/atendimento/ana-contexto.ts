@@ -1,5 +1,6 @@
 import type { Conversa, Mensagem } from '../mock-data';
 import type { AnaResult } from './ana-rules';
+import { origemMensagem } from './secretaria/origem';
 
 export interface TarefaRetorno {
   id: string; conversaId: string; responsavelId: string; assunto: string;
@@ -36,7 +37,8 @@ export function atendimentoIniciado(c: Conversa, canal: string, messageId: strin
 }
 export function contextoPersistente(c: Conversa, canal: string) {
   return {
-    historico: historicoContato(c, canal).map(m => ({ id: m.id, data_hora: m.dataHora ?? null, de: m.de, texto: m.apagadaParaTodos ? '[Mensagem apagada]' : m.texto, arquivo: m.apagadaParaTodos ? '' : m.arquivo ?? '', autor: m.autor ?? '' })),
+    // `origem` separa cliente, equipe (pessoa do escritório), anne (resposta da Anne) e automacao (rotinas).
+    historico: historicoContato(c, canal).map(m => ({ id: m.id, data_hora: m.dataHora ?? null, de: m.de, origem: origemMensagem(m), texto: m.apagadaParaTodos ? '[Mensagem apagada]' : m.texto, arquivo: m.apagadaParaTodos ? '' : m.arquivo ?? '', autor: m.autor ?? '' })),
     continuidade: {
       nome_conhecido: nomeConhecido(c, canal), proximo_passo: c.agenteAna?.proximoPasso ?? '',
       assunto: c.agenteAna?.dados?.assunto ?? '', tarefas_retorno: c.tarefasRetorno ?? [],

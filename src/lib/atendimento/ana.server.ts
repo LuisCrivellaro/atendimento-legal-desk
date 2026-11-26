@@ -24,7 +24,8 @@ import { retornoIdentificadoAna, pedidoAgendaRetornoAna, mensagemRetornoAna } fr
 import { podeExecutarAna } from './ana-execution';
 import { estacionarMensagem, falhaPausaIA, iaPausada, motivoPausaIA, resultadoSemModelo } from './pausa-ia';
 import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from './ana-contexto';
-import { permiteAgendaRelacionamento, protegerRelacionamentoAna } from './ana-relacionamento';
+import { aceiteConviteAtendimentoAna, permiteAgendaRelacionamento, protegerRelacionamentoAna } from './ana-relacionamento';
+import { saudacaoRepetidaAna } from './ana-demanda';
 import { reconhecerRelacionamentoAna } from './ana-relacionamento.server';
 // Secretaria digital: só age com a flag da área de trabalho ligada (padrão desligado = fluxo idêntico ao anterior).
 import { configDoEstado, contextoSecretaria, portasSupabase, secretariaLigada } from './secretaria/secretaria.server';
@@ -128,6 +129,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   }
   // "ok" em resposta à confirmação de 40 min registra presença; fora disso, continua sem resposta.
   if(mensagemSemResposta(m.texto,!!m.arquivo)&&!(confirmacao40Respondivel(c,canal)&&respostaConfirmacao40(m.texto)))return;
+  // Duas saudações seguidas na mesma sessão: o escritório já respondeu à primeira; uma resposta só, sem modelo.
+  if(saudacaoRepetidaAna(c,messageId,canal)){await atualizarConversa(db,id,x=>({...x,mensagens:x.mensagens.map(y=>y.id===messageId&&y.iaExecucao?{...y,iaExecucao:{...y.iaExecucao,estado:'concluida' as const}}:y)}));return;}
   // Filtro comercial (sem modelo): propaganda, curso, assinatura, prospecção ou robô de outra empresa não recebe
   // resposta nem inicia atendimento; fica no histórico marcada. Na dúvida, a equipe confere em silêncio.
   const filtro=classificarMensagemComercial(m.texto,contextoFiltroComercial(c,messageId));
@@ -199,11 +202,15 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     }
     // Pergunta de encerramento (S3): "sim" explícito pede horários de retorno (sexta, cliente da casa).
     const enc=encerramentoRespondivel(c,canal)?respostaEncerramento(m.texto):undefined;
-    const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c)||enc==='sim';
+    // "Sim" ao convite de atendimento feito a cliente da casa com nova demanda: horários de cadastrado, como o S3.
+    const conviteAceito=!rel.consultaInicial&&aceiteConviteAtendimentoAna(m.texto,c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'');
+    const retornoSim=enc==='sim'||conviteAceito;
+    const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c)||retornoSim;
     // Vínculo ativo vem do cadastro (base local sincronizada), nunca do histórico da conversa.
     const classificacao=classificarAgenda({persistida:c.tipoClienteAgenda,local:localIdentidade,autodeclaracao:identificarTipoCliente(m.texto),contexto:c.agenteAna?.tipoCliente,padraoLead:c.etapa==='inicial'});
     // Funil internacional pago: os horários ofertados após o PIX valem como cliente novo (seg–qui).
-    const tipoCliente=enc==='sim'?'cadastrado' as const:c.funilInternacional?.etapa==='pago'?'novo' as const:rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificacao.tipo;
+    // Lead confirmado pelo reconhecimento (ProJuris ou nova demanda) é cliente novo: a carteira nunca é perguntada.
+    const tipoCliente=retornoSim?'cadastrado' as const:c.funilInternacional?.etapa==='pago'?'novo' as const:rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificacao.tipo??(rel.consultaInicial?'novo' as const:undefined);
     const clienteLocal=reconhecimento.nome?{nome:reconhecimento.nome,telefone,email}:undefined;
     const identidade=nomeConhecido(c,canal,clienteLocal?.nome??'');
     const introducao=apresentacaoNome(m.texto);
@@ -213,7 +220,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const pausada=iaPausada(state);
     const presencaFixa=pausada&&mode==='Automática'&&!!c.consultaAgendada&&!pedidoHumano(m.texto)&&(confirmacao40Respondivel(c,canal)?respostaConfirmacao40(m.texto)==='sim':lembreteAtivo(c.agenteAna?.lembreteConsulta,c.consultaAgendada)&&respostaLembreteAna(m.texto)==='sim');
     if(pausada&&!cobranca&&!presencaFixa){await atualizarConversa(db,id,x=>estacionarMensagem(x,messageId));return;}
-    const gerada=cobranca?resultadoRetorno(c,canal):presencaFixa?resultadoSemModelo(c.agenteAna?.dados):await gerarRespostaAna(request,{relacionamento:rel,continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:!rel.consultaInicial?{tipo:"acompanhamento",reserva_confirmada:c.consultaAgendada??null}:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:permiteAgenda?c.agenteAna?.horariosTeste??[]:[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos,...(secretaria?{memoria_estruturada:memoriaEstruturada(c,{checklist:lista.data}).resumo,regras_memoria:REGRAS_MEMORIA}:{})},state.training.instrucoes);
+    const gerada=cobranca?resultadoRetorno(c,canal):presencaFixa?resultadoSemModelo(c.agenteAna?.dados):await gerarRespostaAna(request,{relacionamento:rel,continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'em conferência pela equipe; não perguntar ao cliente',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:!rel.consultaInicial?{tipo:"acompanhamento",reserva_confirmada:c.consultaAgendada??null}:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:permiteAgenda?c.agenteAna?.horariosTeste??[]:[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos,...(secretaria?{memoria_estruturada:memoriaEstruturada(c,{checklist:lista.data}).resumo,regras_memoria:REGRAS_MEMORIA}:{})},state.training.instrucoes);
     const respostaAnterior=c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'';
     const aceiteCaptacao=rel.consultaInicial&&aceiteConsultaAna(m.texto,respostaAnterior);
     const raw=rel.consultaInicial?priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada,respostaAnterior):{...gerada};
@@ -226,7 +233,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     }
     // Cadastro do e-mail só usa texto validado do cliente, nunca suposição do modelo.
     raw.dados_coletados.email=email;
-    if(enc==='sim'){raw.intencao='agendamento';raw.encaminhar_humano=false;}
+    if(retornoSim){raw.intencao='agendamento';raw.encaminhar_humano=false;}
     const consentCancel=c.agenteAna?.confirmacaoCancelamento;
     const pendenteCancel=!!consentCancel&&consentCancel.eventoId===c.agenteAna?.reservaCalendar?.id&&consentCancel.inicio===c.consultaAgendada&&consentCancel.contato===telefone&&Date.parse(consentCancel.expira)>Date.now();
     // Confirmação de 40 min (última mensagem do escritório): "ok" registra presença; "não" nunca cancela a partir desta mensagem.
@@ -279,7 +286,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const consultaEspecifica=!!especifico&&(/\?|\b(?:tem|livre|disponivel|disponível)\b/i.test(m.texto)||!oferecidos.includes(especifico));
     const selecionado=pendenteNome?pendenteSalvo:!bloqueada&&!consultaEspecifica?(aceitouPendente?c.agenteAna?.horarioPendente:escolherHorarioAna(oferecidos,m.texto)??chosenSlot([...(c.agenteAna?.horariosTeste??[]),...(c.horariosOfertados??[])],m.texto)):undefined;
     if(!bloqueada&&(especifico||selecionado||aceitouPendente))raw.intencao='agendamento';
-    if(!aceiteCaptacao&&!primeiroContato&&!pendenteNome&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&enc!=='sim'&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
+    if(!aceiteCaptacao&&!primeiroContato&&!pendenteNome&&!selecionado&&!especifico&&!aceitouPendente&&!outras&&!alteracao&&!pedidoAgendaRetornoAna(m.texto)&&!retornoSim&&raw.intencao==='agendamento')raw.intencao='duvida_geral';
     const gerenciarExistente=!!c.consultaAgendada&&alteracao!=='remarcar'&&c.agenteAna?.alteracaoConsulta!=='remarcar';
     let horarioPendente:string|undefined;
     // Escolheu um dos horários oferecidos sem nome: guardar a escolha e pedir só o nome completo.
@@ -287,8 +294,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     let semPeriodo=false;
     let indisponivel=false;
     // Telefone com mais de um cadastro na base: a Ana não classifica por conta própria; a equipe confirma o vínculo.
-    if(classificacao.fonte==='duvida'&&raw.intencao==='agendamento'){raw.encaminhar_humano=true;raw.motivo_aprovacao='Telefone vinculado a mais de um cadastro; a equipe confirma o vínculo antes de agendar.';bloqueada=true;}
-    if(teste&&tipoCliente&&telefone&&raw.intencao==='agendamento'&&!bloqueada&&!selecionado&&!gerenciarExistente&&!semConsulta&&!recebeuNome&&(aceiteCaptacao||primeiroContato||nome||consultaEspecifica||enc==='sim'||/horarios|horários/.test(m.texto))){
+    if(classificacao.fonte==='duvida'&&!tipoCliente&&raw.intencao==='agendamento'){raw.encaminhar_humano=true;raw.motivo_aprovacao='Telefone vinculado a mais de um cadastro; a equipe confirma o vínculo antes de agendar.';bloqueada=true;}
+    if(teste&&tipoCliente&&telefone&&raw.intencao==='agendamento'&&!bloqueada&&!selecionado&&!gerenciarExistente&&!semConsulta&&!recebeuNome&&(aceiteCaptacao||primeiroContato||nome||consultaEspecifica||retornoSim||/horarios|horários/.test(m.texto))){
       const {ocupadosAgenda}=await import('./projuris-agenda.server');
       // A Anne atende mesmo com o ProJuris fora: usa as regras locais da agenda; a reserva revalida depois.
       const busy=(await ocupadosAgenda(db,row.data.owner_id,new Date(),horizonteAgendaAna()))??[];

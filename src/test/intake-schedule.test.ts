@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { classificarEntrada, detectarOrigem, etiquetaConversa, identificarTipoCliente, telefoneAgenda, telefoneCanalAgenda } from '@/lib/atendimento/intake-rules';
 import { gerarHorarios, horarioPermitido, DURACAO_REUNIAO } from '@/lib/atendimento/schedule-rules';
 import { aplicarRegrasAna, type AnaResult } from '@/lib/atendimento/ana-rules';
+import { perguntaTriagemAna } from '@/lib/atendimento/ana-demanda';
 import { escolherReservaAna } from '@/lib/atendimento/calendar-booking';
 import { conversas } from '@/lib/mock-data';
 const base=conversas[0];
@@ -28,6 +29,7 @@ describe('agenda por carteira',()=>{
 });
 describe('coleta antes de agendar',()=>{
  const r:AnaResult={acao:'enviar',mensagem:'Informe seu CPF?',motivo_aprovacao:'',intencao:'agendamento',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'12345678901',assunto:'',email:''},proximo_passo:''};
- it('não coleta CPF no agendamento e não oferece sem carteira nome telefone',()=>{const result=aplicarRegrasAna(r,'Automática','Quero marcar',[],{teste:true});expect(result.dados_coletados.cpf).toBe('');expect(result.proximo_passo).toContain('Coletar carteira, nome e telefone');});
+ // 26/11/2026: sem carteira, a equipe confere; o cliente nunca é perguntado se é o primeiro contato ou se já é cliente.
+ it('não coleta CPF no agendamento e não oferece sem carteira nome telefone',()=>{const result=aplicarRegrasAna(r,'Automática','Quero marcar',[],{teste:true});expect(result.dados_coletados.cpf).toBe('');expect(result.proximo_passo).toContain('confirmar a carteira');expect(result.encaminhar_humano).toBe(true);expect(perguntaTriagemAna(result.mensagem)).toBe(false);expect(result.mensagem).not.toMatch(/hor[aá]rios? livres|🗓️/);});
  it('sem telefone ainda não oferece horários',()=>expect(aplicarRegrasAna(r,'Automática','Quero marcar',[],{teste:true,tipoCliente:'novo',nome:'Maria'}).proximo_passo).toContain('Coletar carteira'));
 });

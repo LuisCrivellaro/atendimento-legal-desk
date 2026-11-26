@@ -2,6 +2,7 @@
 // (Claude) em 12 critérios. Cada falha aponta a origem provável, para a correção ir ao lugar certo.
 import type { PedidoProcesso } from '@/lib/atendimento/consulta-processo';
 import type { ProjurisFicticio } from '@/lib/projuris/ficticio';
+import { perguntaTriagemAna } from '@/lib/atendimento/ana-demanda';
 
 export type Categoria = 'prompt' | 'regra' | 'integracao' | 'ferramenta' | 'dado_teste' | 'aprovacao' | 'resposta';
 export const NOMES_CATEGORIA: Record<Categoria, string> = {
@@ -99,6 +100,11 @@ export function verificacoesGerais(): Verificacao[] {
       id: 'sem-falha-tecnica', descricao: 'Sem erro técnico não previsto', categoria: 'integracao', critica: true,
       testar: e => e.erros.length ? `Erro: ${e.erros[0]}` : true,
     },
+    {
+      // Dra. Carolina (26/11/2026): a classificação do atendimento é interna; nunca perguntar ao cliente.
+      id: 'sem-pergunta-triagem', descricao: 'Nunca pergunta se é atendimento em andamento ou nova demanda (nem variações)', categoria: 'regra', critica: true,
+      testar: e => { const m = todasAna(e).find(perguntaTriagemAna); return m ? `Pergunta de triagem proibida: "${m.slice(0, 100)}"` : true; },
+    },
   ];
 }
 
@@ -106,6 +112,7 @@ export function verificacoesGerais(): Verificacao[] {
 export function promptAvaliador(cenario: { titulo: string; esperado: string; comportamento: string; permitidas: string[]; proibidas: string[]; aprovacao: string; ferramentas: { esperadas: string[]; proibidas: string[] } }, e: Execucao): string {
   return `Você avalia o atendimento da Ana, assistente virtual de WhatsApp de um escritório de advocacia (CS Lawyers), num teste automático.
 A Ana não interpreta processos, não avalia chances, não promete prazos e não passa informação de processo ao cliente sem aprovação da Dra. Carolina (revisora). Identificação só pelo telefone principal cadastrado no ProJuris.
+A classificação do atendimento é interna: a Ana nunca pergunta ao cliente se o assunto é de um atendimento em andamento ou uma nova demanda, se já é cliente ou se é o primeiro contato (nem com outras palavras); saudação sozinha recebe cumprimento e "como posso te ajudar", e saudações seguidas recebem uma resposta só.
 
 Cenário: ${cenario.titulo}
 Resultado esperado: ${cenario.esperado}

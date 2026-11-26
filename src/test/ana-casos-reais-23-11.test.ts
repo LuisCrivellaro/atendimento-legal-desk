@@ -4,6 +4,7 @@ import { normalizarEscolhaHorario } from '@/lib/atendimento/ana-scheduling';
 import { SAUDACAO_CLIENTE_NOVO } from '@/lib/atendimento/ana-rules';
 import type { Conversa, Mensagem } from '@/lib/mock-data';
 
+// Pergunta antiga, removida em 26/11/2026 (a Anne não a envia mais): só simula histórico já gravado, cuja resposta continua valendo.
 const PERG = 'Esse assunto é de um atendimento que já está em andamento conosco ou é uma nova demanda?';
 const msg = (de: 'cliente' | 'escritorio', texto: string, autor?: string) => ({ id: texto, de, texto, hora: '', ...(autor ? { autor } : {}) }) as unknown as Mensagem;
 const conv = (mensagens: Mensagem[]) => ({ id: 'x', telefone: '5515991787788', canal: 'ultramsg', etapa: 'inicial', mensagens, timeline: [] }) as unknown as Conversa;

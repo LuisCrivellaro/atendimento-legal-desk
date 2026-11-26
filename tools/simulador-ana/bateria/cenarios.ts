@@ -5,6 +5,7 @@ import type { AnaResult } from '@/lib/atendimento/ana-rules';
 import { TEXTOS_CONSULTA, mensagemNaoCliente, type PedidoProcesso } from '@/lib/atendimento/consulta-processo';
 import { SAUDACAO_CLIENTE_NOVO } from '@/lib/atendimento/ana-rules';
 import { SAUDACAO_RETORNO_ANA } from '@/lib/atendimento/ana-retomada';
+import { CONVITE_ATENDIMENTO_ANA, PEDIDO_ASSUNTO_ANA, SAUDACAO_CONTATO_ANA } from '@/lib/atendimento/ana-demanda';
 import { TELEFONES_FICTICIOS as T, type FalhaFicticia, type ProjurisFicticio } from '@/lib/projuris/ficticio';
 import type { OrigemRevisora } from '../engine';
 import type { Categoria, Execucao, Verificacao } from './avaliacao';
@@ -401,6 +402,78 @@ export const CENARIOS: Cenario[] = [
     esperado: 'Modelo 02 exatamente como recebido, com o horário real da consulta', permitidas: ['enviar a confirmação oficial'], proibidas: ['reescrever', 'trocar "Bom dia"'],
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Confirmação oficial do dia.',
     verificacoes: [anaIgual(['Olá! Bom dia 😊\nPassando para confirmar o seu atendimento hoje às 11h ✅, ok?\nEquipe CS Advocacia ⚖️'])],
+  },
+  // Classificação interna do atendimento (26/11/2026): nunca perguntar "atendimento em andamento ou nova demanda?".
+  // A verificação geral "sem-pergunta-triagem" (avaliacao.ts) vale para todos os cenários da bateria.
+  ...([
+    ['D60a', 'Cliente com processo ativo só cumprimenta', marina, 'Olá.'],
+    ['D60b', 'Ex-cliente (só processos arquivados) só cumprimenta', { telefone: T.soArquivados, nome: 'Carlos Exemplo Rocha', perfil: 'novo' as const }, 'Olá.'],
+    ['D60c', 'Telefone em dois cadastros só cumprimenta', { telefone: T.duplicado, nome: 'Pedro', perfil: 'cliente' as const }, 'Bom dia'],
+  ] as const).map(([id, titulo, conversa, texto]): Cenario => ({
+    id, bloco: 'D', titulo, conversas: { A: conversa }, projuris: 'Cadastro conforme o telefone', relogio: QUI_10H,
+    passos: [{ cliente: texto, intencao: 'duvida_geral' }],
+    esperado: 'Cumprimento e "como posso te ajudar", sem triagem, sem captação e sem perguntar se é cliente', permitidas: ['cumprimentar', 'perguntar como pode ajudar'], proibidas: ['perguntar se é atendimento em andamento ou nova demanda', 'oferecer consulta gratuita'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', 'projuris.processos', 'projuris.andamentos', 'revisora.pedido'] }, comportamento: 'Saudação não é nova demanda: cumprimentar e perguntar como ajudar.',
+    verificacoes: [anaIgual([SAUDACAO_CONTATO_ANA]), pausada(false)],
+  })),
+  {
+    id: 'D60d', bloco: 'D', titulo: 'Cliente da casa manda duas saudações seguidas: uma resposta só', conversas: { A: marina }, projuris: 'Marina: 1 processo ativo', relogio: QUI_10H,
+    passos: [{ cliente: 'Olá', intencao: 'duvida_geral' }, { cliente: 'Oi, tudo bem?', intencao: 'duvida_geral' }],
+    esperado: 'Uma única resposta às duas saudações', permitidas: ['responder uma vez'], proibidas: ['responder duas vezes', 'triagem'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Consolidar saudações seguidas.',
+    verificacoes: [anaIgual([SAUDACAO_CONTATO_ANA])],
+  },
+  {
+    id: 'D60e', bloco: 'D', titulo: 'Cliente novo manda duas saudações seguidas: saudação oficial uma vez', conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
+    passos: [{ cliente: 'oi', intencao: 'duvida_geral' }, { cliente: 'boa tarde', intencao: 'duvida_geral' }],
+    esperado: 'Saudação oficial com horários uma única vez; a segunda saudação não gera outra resposta', permitidas: ['saudação oficial'], proibidas: ['repetir saudação', 'triagem'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: SEM_PROJURIS }, comportamento: 'Consolidar saudações seguidas também no primeiro contato.',
+    verificacoes: [v('uma-saudacao', 'Uma só resposta, a saudação oficial', 'regra', true, e => anaDe(e).length === 1 && anaDe(e)[0]!.startsWith(SAUDACAO_CLIENTE_NOVO) ? true : `Respostas: ${anaDe(e).map(m => `"${m.slice(0, 40)}"`).join(' | ')}`)],
+  },
+  {
+    id: 'D60f', bloco: 'D', titulo: 'Cliente da casa: "outro assunto" → relato → convite → horários de sexta', conversas: { A: marina }, projuris: 'Marina: 1 processo ativo', relogio: QUI_10H,
+    passos: [{ cliente: 'Gostaria de falar sobre outro assunto.', intencao: 'duvida_geral' }, { cliente: 'Quero entrar com um pedido de divórcio', intencao: 'novo_caso' }, { cliente: 'sim', intencao: 'agendamento' }],
+    esperado: 'Pede para contar o assunto, reconhece a nova demanda pelo conteúdo, convida para atendimento e, com o "sim", oferece horários de cliente cadastrado', permitidas: ['pedir o relato', 'convidar', 'oferecer horários reais de sexta'], proibidas: ['perguntar se é atendimento em andamento ou nova demanda', 'consulta gratuita de cliente novo', 'reservar sem escolha'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: ['agenda.consultar'], proibidas: ['agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Classificar internamente e conduzir à agenda de cadastrado.',
+    verificacoes: [
+      v('d60f-assunto', 'Pede o relato do outro assunto', 'regra', true, e => anaDe(e)[0] === PEDIDO_ASSUNTO_ANA ? true : `"${(anaDe(e)[0] ?? '').slice(0, 80)}"`),
+      v('d60f-convite', 'Convite para atendimento com a Dra.', 'regra', true, e => anaDe(e)[1] === CONVITE_ATENDIMENTO_ANA ? true : `"${(anaDe(e)[1] ?? '').slice(0, 80)}"`),
+      v('d60f-sexta', 'Horários reais só de sexta (cadastrado)', 'regra', true, e => { const h = e.conversas['A']?.agenteAna?.horariosTeste ?? []; return /^Tenho estes horários livres/.test(anaDe(e)[2] ?? '') && h.length > 0 && h.every(s => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(new Date(s)) === 'Fri') ? true : `Horários: ${h.join(', ') || 'nenhum'} · "${(anaDe(e)[2] ?? '').slice(0, 60)}"`; }),
+      pausada(false),
+    ],
+  },
+  {
+    id: 'D60g', bloco: 'D', titulo: 'Ex-cliente sem processo ativo relata nova demanda: atendimento novo sem pergunta', conversas: { A: { telefone: T.soArquivados, nome: 'Carlos Exemplo Rocha', perfil: 'novo' } }, projuris: 'Carlos: só processos arquivados', relogio: QUI_10H,
+    passos: [{ cliente: 'Fui demitido e não recebi a rescisão', intencao: 'novo_caso' }],
+    esperado: 'Nova demanda reconhecida pelo conteúdo; segue o atendimento de cliente novo (consulta), sem perguntar se é atendimento anterior', permitidas: ['conduzir à consulta'], proibidas: ['triagem', 'passar para a equipe sem necessidade'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.reservar', ...SEM_DETALHE] }, comportamento: 'Classificar como nova demanda e conduzir ao agendamento.',
+    verificacoes: [v('d60g-novo', 'Conduzido como cliente novo', 'regra', true, e => e.conversas['A']?.agenteAna?.tipoCliente === 'novo' && anaDe(e)[0]?.startsWith(SAUDACAO_CLIENTE_NOVO) ? true : `tipo=${e.conversas['A']?.agenteAna?.tipoCliente} · "${(anaDe(e)[0] ?? '').slice(0, 60)}"`), pausada(false)],
+  },
+  pedidoSimples('D60h', 'Cliente da casa: "Gostaria de saber como está meu processo." vai direto à consulta revisada', T.umProcesso, 'Gostaria de saber como está meu processo.', 'D'),
+  {
+    id: 'D60i', bloco: 'D', titulo: 'Ex-cliente: "outro assunto" e depois o relato vira nova demanda', conversas: { A: { telefone: T.soArquivados, nome: 'Carlos Exemplo Rocha', perfil: 'novo' } }, projuris: 'Carlos: só processos arquivados', relogio: QUI_10H,
+    passos: [{ cliente: 'Gostaria de falar sobre outro assunto.', intencao: 'duvida_geral' }, { cliente: 'Minha vizinha construiu um muro no meu terreno e não quer tirar.', intencao: 'novo_caso' }],
+    esperado: 'Pede o relato; com o relato, conduz como nova demanda (cliente novo), sem triagem', permitidas: ['pedir o relato', 'conduzir à consulta'], proibidas: ['triagem', 'passar para a equipe sem necessidade'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.reservar', ...SEM_DETALHE] }, comportamento: 'Pedir o assunto e classificar pelo conteúdo.',
+    verificacoes: [
+      v('d60i-assunto', 'Pede o relato do outro assunto', 'regra', true, e => anaDe(e)[0] === PEDIDO_ASSUNTO_ANA ? true : `"${(anaDe(e)[0] ?? '').slice(0, 80)}"`),
+      v('d60i-novo', 'Relato conduzido como cliente novo', 'regra', true, e => e.conversas['A']?.agenteAna?.tipoCliente === 'novo' && anaDe(e).length === 2 ? true : `tipo=${e.conversas['A']?.agenteAna?.tipoCliente} · respostas=${anaDe(e).length}`),
+      pausada(false),
+    ],
+  },
+  {
+    id: 'D60j', bloco: 'D', titulo: 'Telefone em dois cadastros pede consulta: equipe confirma o vínculo, sem perguntar ao cliente', conversas: { A: { telefone: T.duplicado, nome: 'Pedro', perfil: 'cliente' } }, projuris: 'Dois cadastros com o mesmo telefone principal', relogio: QUI_10H,
+    passos: [{ cliente: 'quero marcar uma consulta', intencao: 'agendamento' }],
+    esperado: 'Passagem para a equipe (vínculo em conferência), sem oferecer horários nem perguntar se é cliente', permitidas: ['passar para a equipe'], proibidas: ['triagem', 'oferecer horários', 'mencionar duplicidade'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'A equipe resolve o vínculo internamente.',
+    verificacoes: [anaIgual(['Sua solicitação fica com a equipe responsável pelo atendimento, que responde por aqui.']), pausada(true), anaNaoDiz(/duplic|dois cadastros|mais de um cadastro/i, 'Não menciona duplicidade', 'regra')],
+  },
+  {
+    id: 'D60k', bloco: 'D', titulo: 'Ex-cliente volta meses depois e cumprimenta de novo: responde em cada sessão', conversas: { A: { telefone: T.soArquivados, nome: 'Carlos Exemplo Rocha', perfil: 'novo' } }, projuris: 'Carlos: só processos arquivados', relogio: QUI_10H,
+    passos: [{ cliente: 'oi', intencao: 'duvida_geral' }, { avancarMin: 60 * 24 * 90, cliente: 'Olá, boa tarde', intencao: 'duvida_geral' }],
+    esperado: 'Cada retorno recebe cumprimento natural, sem reiniciar triagem nem captação', permitidas: ['cumprimentar'], proibidas: ['triagem', 'oferecer consulta gratuita'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Conversa antiga retomada sem pergunta de triagem.',
+    verificacoes: [anaIgual([SAUDACAO_CONTATO_ANA, SAUDACAO_CONTATO_ANA])],
   },
   // ---------- E. Falhas técnicas ----------
   {
