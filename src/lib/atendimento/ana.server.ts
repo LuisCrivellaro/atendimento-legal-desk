@@ -25,6 +25,13 @@ import { podeExecutarAna } from './ana-execution';
 import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from './ana-contexto';
 import { permiteAgendaRelacionamento, protegerRelacionamentoAna } from './ana-relacionamento';
 import { reconhecerRelacionamentoAna } from './ana-relacionamento.server';
+// Secretaria digital: só age com a flag da área de trabalho ligada (padrão desligado = fluxo idêntico ao anterior).
+import { configDoEstado, contextoSecretaria, portasSupabase, secretariaLigada } from './secretaria/secretaria.server';
+import { aplicarModo, modoEfetivo, retornoAutomaticoDevido } from './secretaria/modos';
+import { ultimaIntervencaoHumana } from './secretaria/origem';
+import { encaminharInjecao, encerrarAutomacaoRespondida, reterRespostaNaoVerificada, tratarMensagemOperacional } from './secretaria/operacional';
+import { dadosNaoVerificados, fontesDaConversa, possivelInjecao } from './secretaria/seguranca';
+import { memoriaEstruturada, REGRAS_MEMORIA } from './secretaria/memoria';
 type Db=SupabaseClient<Database>;
 
 async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
@@ -66,6 +73,21 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   const m=c.mensagens.find(m=>m.id===messageId);
   // Regra obrigatória: áudios/mensagens de voz (audio, ptt) ficam sem resposta da Anne.
   if(m?.tipo==='audio')return;
+  // Secretaria digital ligada: fora do Automático só a camada operacional age (respostas dentro de automações
+  // ativas no Híbrido); Humano e Bloqueado não enviam nada. A regra de volta ao Automático é opcional e desligada.
+  const secretaria=canal==='ultramsg'&&secretariaLigada(state);
+  const modoPadrao=state.automations?.modoIA??defaultAutomations.modoIA;
+  if(secretaria&&m&&podeExecutarAna(m)){
+    if(retornoAutomaticoDevido(c,configDoEstado(state),modoPadrao,ultimaIntervencaoHumana(c))){
+      await atualizarConversa(db,id,x=>retornoAutomaticoDevido(x,configDoEstado(state),modoPadrao,ultimaIntervencaoHumana(x))?aplicarModo(x,'automatico',{tipo:'sistema',autor:'regra'},new Date(),'regra configurada de volta ao Automático'):x);
+      return processarAna(db,id,messageId,request);
+    }
+    if(modoEfetivo(c,modoPadrao).modo!=='automatico'){
+      const ctx=await contextoSecretaria(db,id,canal);
+      await tratarMensagemOperacional(portasSupabase(db,row.data.owner_id,id),ctx,id,messageId);
+      return;
+    }
+  }
   if(!m||!podeExecutarAna(m)||c.agenteAna?.humano||c.agenteAna?.pausa||state.anaPausa?.ativa)return;
   let claimed=false;
   await atualizarConversa(db,id,current=>{
@@ -100,6 +122,12 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
   }
   // "ok" em resposta à confirmação de 40 min registra presença; fora disso, continua sem resposta.
   if(mensagemSemResposta(m.texto,!!m.arquivo)&&!(confirmacao40Respondivel(c,canal)&&respostaConfirmacao40(m.texto)))return;
+  // Instruções dirigidas à IA no texto do cliente: sem chamada ao modelo; a equipe assume (Híbrido) e é avisada.
+  if(secretaria&&possivelInjecao(m.texto)){
+    await atualizarConversa(db,id,x=>encaminharInjecao(x,messageId,modoPadrao));
+    await db.rpc('registrar_audit_log',{p_ator:'Anne',p_perfil:'sistema',p_acao:'secretariaInjecao',p_resumo:'Mensagem com instruções para a IA passada à equipe sem resposta automática',p_status:'bloqueado'});
+    return;
+  }
     const {gerarRespostaAna}=await import('./ana.functions');
     // Histórico exclusivamente deste contato/canal; nunca material jurídico do caso demonstrativo.
     const memoria=contextoPersistente(c,canal);
@@ -122,7 +150,7 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const clienteLocal=reconhecimento.nome?{nome:reconhecimento.nome,telefone,email}:undefined;
     const identidade=nomeConhecido(c,canal,clienteLocal?.nome??'');
     const introducao=apresentacaoNome(m.texto);
-    const gerada=cobranca?resultadoRetorno(c,canal):await gerarRespostaAna(request,{relacionamento:rel,continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:!rel.consultaInicial?{tipo:"acompanhamento",reserva_confirmada:c.consultaAgendada??null}:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:permiteAgenda?c.agenteAna?.horariosTeste??[]:[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos},state.training.instrucoes);
+    const gerada=cobranca?resultadoRetorno(c,canal):await gerarRespostaAna(request,{relacionamento:rel,continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'desconhecido; perguntar',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:!rel.consultaInicial?{tipo:"acompanhamento",reserva_confirmada:c.consultaAgendada??null}:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:permiteAgenda?c.agenteAna?.horariosTeste??[]:[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos,...(secretaria?{memoria_estruturada:memoriaEstruturada(c,{checklist:lista.data}).resumo,regras_memoria:REGRAS_MEMORIA}:{})},state.training.instrucoes);
     const respostaAnterior=c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'';
     const aceiteCaptacao=rel.consultaInicial&&aceiteConsultaAna(m.texto,respostaAnterior);
     const raw=rel.consultaInicial?priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada,respostaAnterior):{...gerada};
@@ -270,6 +298,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     if(!accepted)return;
     if(respostaLembrete==='sim')await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,...(x.agenteAna?.lembreteConsulta?{lembreteConsulta:{...x.agenteAna.lembreteConsulta,confirmadoEm:new Date().toISOString()}}:{})},timeline:[...x.timeline,{data:new Date().toISOString(),evento:'Cliente confirmou presença pelo lembrete'}]}));
     if(resposta40)await atualizarConversa(db,id,x=>registrarRespostaConfirmacao40(x,resposta40));
+    // Secretaria ligada: a automação respondida pelo fluxo Automático é encerrada (não fica "aguardando").
+    if(secretaria&&(resposta40||respostaLembrete))await atualizarConversa(db,id,x=>resposta40?encerrarAutomacaoRespondida(x,'confirmacao_consulta',resposta40):encerrarAutomacaoRespondida(x,'lembrete_consulta',respostaLembrete==='sim'?'sim':'nao'));
     if(enc)await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,...(x.agenteAna?.encerramentoProcesso?{encerramentoProcesso:{...x.agenteAna.encerramentoProcesso,respondidoEm:new Date().toISOString(),resposta:enc}}:{})},timeline:[...x.timeline,{data:new Date().toISOString(),evento:enc==='sim'?'Cliente pediu horários de retorno depois da notícia do processo':'Cliente respondeu que a dúvida foi esclarecida'}]}));
     if(decisaoCancel==='manter'||decisaoCancel==='remarcar')await atualizarConversa(db,id,x=>({...x,agenteAna:{...x.agenteAna,confirmacaoCancelamento:undefined,...(decisaoCancel==='manter'?{alteracaoConsulta:undefined,autorizacaoRemarcacao:undefined,horarioPendente:undefined,horarioPendenteDesde:undefined}:{})}}));
     if(r.acao==='enviar'&&(r.mensagem.trim()||cancelar)) {
@@ -369,6 +399,15 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       const novosOferecidos=cancelar?novasLembrete:!escolhido&&!cancelar&&!perguntar&&!semConsulta&&agendaReal&&!agenda?.selected?(horarioPendente?[horarioPendente]:agenda?.slots??[]):[];
       if(retomada&&!r.urgente)r.mensagem=mensagemRetornoAna(m.texto,r.mensagem);
       r.mensagem=semReintroducao(r.mensagem,atendimentoIniciado(c,canal,messageId)||!!identidade);
+      // Secretaria ligada: horário, data, valor, processo ou CPF fora das fontes desta conversa retém a resposta.
+      if(secretaria){
+        const faltando=dadosNaoVerificados(r.mensagem,fontesDaConversa(current,{horarios:[...novosOferecidos,...(escolhido?[escolhido]:[]),...(horarioPendente?[horarioPendente]:[]),...historicoHorarios],textos:['30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30',REGRAS_REAGENDAMENTO]}));
+        if(faltando.length){
+          await atualizarConversa(db,id,x=>reterRespostaNaoVerificada(x,r.mensagem,faltando,messageId));
+          await db.rpc('registrar_audit_log',{p_ator:'Anne',p_perfil:'sistema',p_acao:'secretariaFatos',p_resumo:`Resposta retida: dado sem fonte verificada (${faltando.length})`,p_status:'bloqueado'});
+          return;
+        }
+      }
       efeitosIniciados=true;
       const sent=await enviarMensagemSistema({supabase:db,conversaId:id,texto:r.mensagem,motivo:'ana',contatoEsperado:contact.data.contato_externo,mensagemOrigem:messageId,controleHumanoEm:c.agenteAna?.controleHumanoEm,permitirEncaminhamento:r.encaminhar_humano,...(novosOferecidos.length&&!horarioPendente?{horarios:novosOferecidos}:{})});
       if(sent.simulado)throw new Error('Canal desligado; resposta não enviada.');
