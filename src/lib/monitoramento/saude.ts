@@ -5,7 +5,7 @@ export interface MedicoesAna {
   agora: number;
   backendOk: boolean;
   whatsapp: { configurado: boolean; status?: string; erro?: string };
-  webhook: { correto?: boolean; erro?: string };
+  webhook: { correto?: boolean; erro?: string; host?: string | null; alcancavel?: boolean; eventos?: { recebidas: boolean; criadas: boolean } };
   ia: { chaveOk?: boolean; erro?: string; chamadasHoje: number; limite: number; bloqueadasHoje: number };
   ultimaExecucaoOk?: string | null;
   ultimaRecebida?: string | null;
@@ -23,7 +23,7 @@ export function avaliarSaude(m: MedicoesAna): SaudeAna {
   const s: Servico[] = [];
   s.push({ nome: 'Backend', estado: m.backendOk ? 'ok' : 'falha', detalhe: m.backendOk ? 'Banco respondendo' : 'Banco indisponível' });
   s.push({ nome: 'WhatsApp', estado: !m.whatsapp.configurado ? 'falha' : m.whatsapp.status === 'authenticated' ? 'ok' : 'falha', detalhe: !m.whatsapp.configurado ? 'Credenciais ausentes' : m.whatsapp.erro ?? `Instância: ${m.whatsapp.status ?? 'desconhecido'}` });
-  s.push({ nome: 'Webhook', estado: m.webhook.correto ? 'ok' : 'falha', detalhe: m.webhook.erro ?? (m.webhook.correto ? 'Endereço de recebimento correto' : 'Endereço de recebimento diferente do publicado') });
+  s.push({ nome: 'Webhook', estado: m.webhook.correto ? 'ok' : 'falha', detalhe: m.webhook.erro ?? (m.webhook.correto ? `Recebimento em ${m.webhook.host ?? 'endereço publicado'}${m.webhook.eventos && !m.webhook.eventos.criadas ? ' · respostas do celular não pausam a Anne (evento de criação desligado)' : ''}` : 'Endereço de recebimento diferente do publicado') });
   const uso = m.ia.limite ? m.ia.chamadasHoje / m.ia.limite : 0;
   s.push({ nome: 'IA (Claude)', estado: !m.ia.chaveOk ? 'falha' : m.ia.bloqueadasHoje > 0 || uso >= 0.8 ? 'atencao' : 'ok', detalhe: m.ia.erro ?? `${m.ia.chamadasHoje}/${m.ia.limite} chamadas hoje${m.ia.bloqueadasHoje ? ` · ${m.ia.bloqueadasHoje} bloqueadas pelo limite` : ''}` });
   s.push({ nome: 'Fila da Ana', estado: m.incertas > 0 ? 'atencao' : m.pendentes > 0 ? 'atencao' : 'ok', detalhe: `${m.pendentes} pendentes · ${m.incertas} com envio incerto` });

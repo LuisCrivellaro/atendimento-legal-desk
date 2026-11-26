@@ -4,9 +4,22 @@ import type { Conversa } from '@/lib/mock-data';
 import { podeExecutarAna } from '@/lib/atendimento/ana-execution';
 import { limiteDiarioIA } from '@/lib/atendimento/ia-orcamento.server';
 import { avaliarSaude, alertasNovos, type SaudeAna } from './saude';
+import { conferirWebhookWhatsApp, eventoLigado, urlPublicaApp } from '@/lib/atendimento/url-publica';
 
 type Db = SupabaseClient<Database>;
 const env = (n: string) => process.env[n]?.trim() ?? '';
+
+/**
+ * Sonda de ponta a ponta, sem segredo: a rota viva responde 401; domínio inexistente responde 404 (página do Lovable).
+ * Nada é processado, pois a rota recusa antes de ler o corpo.
+ */
+async function rotaAlcancavel(registrada: string): Promise<{ alcancavel: boolean; http?: number }> {
+  try {
+    const u = new URL(registrada);
+    const r = await fetch(`${u.origin}${u.pathname}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', signal: AbortSignal.timeout(8000) });
+    return { alcancavel: r.status === 401, http: r.status };
+  } catch { return { alcancavel: false }; }
+}
 
 async function whatsapp() {
   const inst = env('ULTRAMSG_INSTANCE_ID'), token = env('ULTRAMSG_TOKEN');
@@ -17,11 +30,19 @@ async function whatsapp() {
     fetch(`${base}/settings?token=${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(8000) }).then(r => r.json()),
   ]);
   const status = st.status === 'fulfilled' ? (st.value as { status?: { accountStatus?: { status?: string } } })?.status?.accountStatus?.status : undefined;
-  const url = se.status === 'fulfilled' ? String((se.value as { webhook_url?: string })?.webhook_url ?? '') : '';
-  const publicado = env('PUBLIC_APP_URL') || 'https://atendimento-legal-desk.lovable.app';
+  if (se.status !== 'fulfilled') return { w: { configurado: true, ...(status ? { status } : { erro: 'UltraMsg não respondeu' }) }, wh: { erro: 'Configuração do webhook ilegível' } };
+  const cfg = (se.value ?? {}) as { webhook_url?: string; webhook_message_received?: unknown; webhook_message_create?: unknown };
+  const url = String(cfg.webhook_url ?? '');
+  const conf = conferirWebhookWhatsApp(url, urlPublicaApp(env('PUBLIC_APP_URL')), env('ULTRAMSG_WEBHOOK_SECRET'));
+  const sonda = conf.host ? await rotaAlcancavel(url) : { alcancavel: false };
+  const recebidas = eventoLigado(cfg.webhook_message_received), criadas = eventoLigado(cfg.webhook_message_create);
+  const erro = !conf.correto ? conf.motivo
+    : !sonda.alcancavel ? `Endereço de recebimento não respondeu como esperado${sonda.http ? ` (HTTP ${sonda.http})` : ''}`
+    : !recebidas ? 'Evento "mensagem recebida" desligado no UltraMsg'
+    : undefined;
   return {
     w: { configurado: true, ...(status ? { status } : { erro: 'UltraMsg não respondeu' }) },
-    wh: se.status === 'fulfilled' ? { correto: url.startsWith(`${publicado}/api/public/atendimento/whatsapp?s=`) && url.endsWith(env('ULTRAMSG_WEBHOOK_SECRET')) } : { erro: 'Configuração do webhook ilegível' },
+    wh: { correto: conf.correto && sonda.alcancavel && recebidas, host: conf.host, alcancavel: sonda.alcancavel, eventos: { recebidas, criadas }, ...(erro ? { erro } : {}) },
   };
 }
 

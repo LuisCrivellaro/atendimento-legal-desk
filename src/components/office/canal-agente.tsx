@@ -94,7 +94,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGeren
             onClick={() => void executar('Registrar recebimento do WhatsApp', async () => { const r = await registrarWa(); setWebhookInfo(r.descricao); })}>
             <Webhook />Registrar recebimento do WhatsApp</Button>
           <Button variant="outline" size="sm" disabled={!config.data?.segredos.ultramsg}
-            onClick={() => void executar('Verificar WhatsApp', async () => { const r = await verificarWa(); setWebhookInfo(`WhatsApp: ${r.status}${r.substatus ? ` · ${r.substatus}` : ''}`); })}>
+            onClick={() => void executar('Verificar WhatsApp', async () => { const r = await verificarWa(); setWebhookInfo(`WhatsApp: ${r.status}${r.substatus ? ` · ${r.substatus}` : ''}${r.webhook ? ` · ${r.webhook.correto ? `recebimento em ${r.webhook.host}` : r.webhook.motivo ?? 'recebimento não confere'}` : ' · recebimento ilegível'}`); })}>
             <RefreshCw />Verificar WhatsApp</Button>
         </div>
         {webhookInfo && <p className="mt-2 text-xs text-muted-foreground">{webhookInfo}</p>}

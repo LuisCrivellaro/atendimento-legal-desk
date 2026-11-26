@@ -18,6 +18,7 @@ import {
 } from './canal-envio';
 import { normalizarTelefone } from './telefone';
 import { numeroWhatsAppAtendido } from './production-channel';
+import { conferirWebhookWhatsApp, urlPublicaApp, urlWebhookWhatsApp } from './url-publica';
 import { ultramsgAdapter } from './canais/ultramsg';
 import { enviarTextoTelegram } from './canais/telegram';
 import { destinoTelegram, lerDestinoTelegram } from './telegram-bots';
@@ -420,18 +421,26 @@ export const registrarWebhookUltramsg = createServerFn({ method: 'POST' })
     const ator = await exigirGestor(context.supabase, context.userId);
     const inst = process.env['ULTRAMSG_INSTANCE_ID'], token = process.env['ULTRAMSG_TOKEN'], secret = process.env['ULTRAMSG_WEBHOOK_SECRET'];
     if (!inst || !token || !secret) throw new Error('Credenciais do UltraMsg ausentes.');
-    const base = process.env['PUBLIC_APP_URL'] ?? 'https://atendimento-legal-desk.lovable.app';
+    const base = urlPublicaApp(process.env['PUBLIC_APP_URL']);
     const r = await fetch(`https://api.ultramsg.com/${encodeURIComponent(inst)}/instance/settings`, {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ token, webhook_url: `${base}/api/public/atendimento/whatsapp?s=${secret}`, webhook_message_received: 'true', webhook_message_create: 'true', webhook_message_ack: 'false', webhook_message_download_media: 'true' }).toString(),
+      body: new URLSearchParams({ token, webhook_url: urlWebhookWhatsApp(base, secret), webhook_message_received: 'true', webhook_message_create: 'true', webhook_message_ack: 'false', webhook_message_download_media: 'true' }).toString(),
       signal: AbortSignal.timeout(15000),
     });
     if (!r.ok) {
       await auditar(context.supabase, ator, 'registrarWebhookUltramsg', 'Falha ao registrar webhook', 'erro', `HTTP ${r.status}`);
       throw new Error(`O UltraMsg não confirmou o registro (HTTP ${r.status}).`);
     }
-    await auditar(context.supabase, ator, 'registrarWebhookUltramsg', 'Webhook WhatsApp registrado', 'sucesso');
-    return { ok: true as const, descricao: 'Recebimento de mensagens do WhatsApp registrado.' };
+    // Leitura de volta: só declara registrado o que o UltraMsg devolve.
+    const lido = await fetch(`https://api.ultramsg.com/${encodeURIComponent(inst)}/instance/settings?token=${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(15000) })
+      .then(x => x.json() as Promise<{ webhook_url?: string }>).catch(() => undefined);
+    const conf = conferirWebhookWhatsApp(String(lido?.webhook_url ?? ''), base, secret);
+    if (!conf.correto) {
+      await auditar(context.supabase, ator, 'registrarWebhookUltramsg', 'Registro sem confirmação na leitura de volta', 'erro', conf.motivo);
+      throw new Error(`O UltraMsg aceitou o pedido, mas a leitura de volta não confirmou o endereço (${conf.motivo ?? 'sem detalhe'}).`);
+    }
+    await auditar(context.supabase, ator, 'registrarWebhookUltramsg', `Webhook WhatsApp registrado em ${conf.host}`, 'sucesso');
+    return { ok: true as const, descricao: `Recebimento de mensagens do WhatsApp registrado em ${conf.host}.` };
   });
 
 /** Estado da instância (conectada ao celular ou não). */
@@ -441,10 +450,19 @@ export const verificarUltramsg = createServerFn({ method: 'GET' })
     await exigirGestor(context.supabase, context.userId);
     const inst = process.env['ULTRAMSG_INSTANCE_ID'], token = process.env['ULTRAMSG_TOKEN'];
     if (!inst || !token) throw new Error('Credenciais do UltraMsg ausentes.');
-    const r = await fetch(`https://api.ultramsg.com/${encodeURIComponent(inst)}/instance/status?token=${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(15000) });
+    const [r, cfg] = await Promise.all([
+      fetch(`https://api.ultramsg.com/${encodeURIComponent(inst)}/instance/status?token=${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(15000) }),
+      fetch(`https://api.ultramsg.com/${encodeURIComponent(inst)}/instance/settings?token=${encodeURIComponent(token)}`, { signal: AbortSignal.timeout(15000) })
+        .then(x => x.json() as Promise<{ webhook_url?: string }>).catch(() => undefined),
+    ]);
     const corpo = (await r.json().catch(() => undefined)) as { status?: { accountStatus?: { status?: string; substatus?: string } }; error?: unknown } | undefined;
     if (!r.ok || !corpo?.status) throw new Error(`Não foi possível verificar o WhatsApp (HTTP ${r.status}).`);
-    return { status: corpo.status.accountStatus?.status ?? 'desconhecido', substatus: corpo.status.accountStatus?.substatus ?? '' };
+    // Nunca devolve o segredo: só o host e se confere com o app publicado.
+    const conf = cfg ? conferirWebhookWhatsApp(String(cfg.webhook_url ?? ''), urlPublicaApp(process.env['PUBLIC_APP_URL']), process.env['ULTRAMSG_WEBHOOK_SECRET'] ?? '') : undefined;
+    return {
+      status: corpo.status.accountStatus?.status ?? 'desconhecido', substatus: corpo.status.accountStatus?.substatus ?? '',
+      webhook: conf ? { correto: conf.correto, host: conf.host, motivo: conf.motivo ?? null } : null,
+    };
   });
 
 /** Legacy calls fail closed; Telegram cannot be reactivated. */
