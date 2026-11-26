@@ -152,3 +152,16 @@ describe('rotina de lembretes de eventos (monitor)', () => {
     expect(ler().avisosEquipe?.some(a => a.id.startsWith('evento-falha:T12.2'))).toBe(true);
   });
 });
+
+describe('resumo do painel do Atendimento', () => {
+  it('lista audiências/perícias futuras, aprovações e documentos pendentes e modelos aguardando a Dra.', async () => {
+    const { resumoPainel } = await import('@/lib/atendimento/painel-atendimento');
+    const c = { ...comunicada('11'), etapa: 'documentos' as const, documentos: [{ nome: 'CPF', recebido: false }, { nome: 'RG ou CNH', recebido: true }] };
+    const r = resumoPainel([{ id: 'c-ev', nome: 'Maria Teste', dados: c }], undefined, SP('05', '10:00'));
+    expect(r.eventos).toEqual([{ conversaId: 'c-ev', nome: 'Maria Teste', tipo: 'pericia', data: '11/12/2026', hora: '9h', estado: 'comunicado ao cliente' }]);
+    expect(r.documentosPendentes).toEqual({ conversas: 1, itens: 1 });
+    expect(r.modelosAguardando.map(m => m.id)).toEqual(['T04', 'T07.2', 'T07.3', 'T11.2', 'T12.2', 'T12.3']);
+    expect(resumoPainel([{ id: 'c-ev', nome: 'Maria Teste', dados: c }], { ativacao: { 'T12.2': 'ativo' } }, SP('05', '10:00')).modelosAguardando.map(m => m.id)).not.toContain('T12.2');
+    expect(resumoPainel([{ id: 'c-ev', nome: 'Maria Teste', dados: c }], undefined, SP('12', '10:00')).eventos).toEqual([]);
+  });
+});
