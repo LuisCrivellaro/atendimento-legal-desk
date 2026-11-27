@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { CHAVES_TEXTO_APROVADO, PERMISSOES_PADRAO, type Funcionalidade } from './config';
 import { CHAVES_TEMPLATE } from './templates';
+import { horarioNoExpediente } from './encaminhamento-config';
 
 /**
  * Validação da configuração enviada pela tela (sênior/admin) antes de gravar.
@@ -28,7 +29,7 @@ export const esquemaConfigSecretaria = z.object({
     responsavel: z.string().min(2).max(60),
     whatsapp: z.string().regex(/^55[1-9]\d9\d{8}$/, 'WhatsApp do responsável: use 55 + DDD + celular (só números).'),
     relatorioAtivo: z.boolean(),
-    horarios: z.array(HHMM).min(1).max(4),
+    horarios: z.array(HHMM.refine(horarioNoExpediente, 'Relatório só no expediente: de 09:00 até antes das 17:30.')).min(1).max(4),
   }).optional(),
 });
 

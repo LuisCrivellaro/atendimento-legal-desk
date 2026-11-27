@@ -10,7 +10,7 @@ import { dataHoraCurta } from '@/lib/atendimento';
 import { PERGUNTA_ENCERRAMENTO } from '@/lib/atendimento/acompanhamento';
 import { mergeReplies, textosColeta } from '@/lib/respostas-prontas';
 import { CHAVES_TEMPLATE } from '@/lib/atendimento/secretaria/templates';
-import { whatsappResponsavelValido } from '@/lib/atendimento/secretaria/encaminhamento-config';
+import { horarioNoExpediente, whatsappResponsavelValido } from '@/lib/atendimento/secretaria/encaminhamento-config';
 import { lerConfigSecretariaAnne, salvarConfigSecretariaAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
 import { executar } from '@/lib/executar';
 
@@ -53,7 +53,8 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
     if (c.testeAutomacoes.ativo && (c.testeAutomacoes.numero ?? '').length < 10) throw new Error('Informe o número autorizado (com DDD) para ligar o modo de teste.');
     const whatsappResponsavel = whatsappResponsavelValido(c.encaminhamento.whatsapp ?? '');
     if (!whatsappResponsavel) throw new Error('WhatsApp do advogado responsável: use 55 + DDD + celular, só números (ex.: 5511991737442).');
-    const horarios = [...new Set(c.encaminhamento.horarios.filter(h => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(h)))].sort();
+    if (c.encaminhamento.horarios.some(h => !horarioNoExpediente(h))) throw new Error('Relatório do advogado só no expediente: de 09:00 até antes das 17:30 (segunda a sexta).');
+    const horarios = [...new Set(c.encaminhamento.horarios)].sort();
     if (!horarios.length) throw new Error('Informe ao menos um horário para o relatório do advogado.');
     const aprovacoesTexto = Object.fromEntries(Object.entries(c.aprovacoesTexto).flatMap(([k, v]) => (v ? [[k, { texto: v.texto }]] : [])));
     const r = await salvar({ data: { encaminhamento: { ...c.encaminhamento, responsavel: c.encaminhamento.responsavel.trim() || 'Fernando', whatsapp: whatsappResponsavel, horarios }, aprovacoesTexto, eventos: { ...c.eventos, antecedenciaAudiencia: c.eventos.antecedenciaAudiencia?.trim() || null }, ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, confirmacaoAntecedenciaMin: c.confirmacaoAntecedenciaMin, testeAutomacoes: c.testeAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
@@ -178,11 +179,11 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
               <Switch checked={c.encaminhamento.relatorioAtivo} disabled={!editar} onCheckedChange={v => mudar(x => ({ ...x, encaminhamento: { ...x.encaminhamento, relatorioAtivo: v } }))} aria-label="Ligar relatório de pendências" />
             </label>
             <span className="flex gap-2">
-              {[0, 1].map(i => <Input key={i} type="time" value={c.encaminhamento.horarios[i] ?? ''} disabled={!editar} aria-label={`Horário ${i + 1} do relatório`} onChange={e => mudar(x => { const h = [...x.encaminhamento.horarios]; h[i] = e.target.value; return { ...x, encaminhamento: { ...x.encaminhamento, horarios: h.filter(Boolean) } }; })} />)}
+              {[0, 1].map(i => <Input key={i} type="time" min="09:00" max="17:29" value={c.encaminhamento.horarios[i] ?? ''} disabled={!editar} aria-label={`Horário ${i + 1} do relatório`} onChange={e => mudar(x => { const h = [...x.encaminhamento.horarios]; h[i] = e.target.value; return { ...x, encaminhamento: { ...x.encaminhamento, horarios: h.filter(Boolean) } }; })} />)}
             </span>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Uma mensagem consolidada por horário (horário de Brasília), só para este número; o envio não muda a situação das pendências.</p>
+        <p className="text-xs text-muted-foreground">Uma mensagem consolidada por horário (horário de Brasília), só para este número, só de segunda a sexta e dentro do expediente (09:00–17:30); o envio não muda a situação das pendências.</p>
       </div>
       <p className="text-xs text-muted-foreground">T04, T11.2, T12.2 e T12.3 só saem sozinhos depois que a Dra. ativar o modelo na biblioteca oficial; até lá, a equipe recebe o texto pronto. O T12.2 sai na véspera da perícia em dia útil (se a véspera não for dia útil, vira pendência antecipada).</p>
 

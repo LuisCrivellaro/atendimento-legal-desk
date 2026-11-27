@@ -4,6 +4,8 @@
  * secretaria (`office_workspace.dados.secretaria.encaminhamento`), só por sênior/admin, pelo servidor.
  * Módulo sem dependências para ser lido pela tela, pelo servidor e pelos testes.
  */
+const HHMM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
 export interface ConfigEncaminhamento {
   /** Anne envia a mensagem fixa e registra a pendência para clientes ativos. */
   ativo: boolean;
@@ -15,6 +17,16 @@ export interface ConfigEncaminhamento {
   relatorioAtivo: boolean;
   /** Horários do relatório (America/Sao_Paulo), "HH:MM". */
   horarios: string[];
+}
+
+/**
+ * Expediente do escritório para mensagens ao advogado (pedido de 26/11/2026): só de segunda a sexta, das 09:00 às
+ * 17:30 (America/Sao_Paulo). Horário de relatório fora disso nunca é aceito.
+ */
+export const EXPEDIENTE_RELATORIO = { inicio: '09:00', fim: '17:30' } as const;
+/** "HH:MM" válido e dentro do expediente (início incluso, fim excluso). */
+export function horarioNoExpediente(h: string): boolean {
+  return HHMM.test(h) && h >= EXPEDIENTE_RELATORIO.inicio && h < EXPEDIENTE_RELATORIO.fim;
 }
 
 export const RESPONSAVEL_ENCAMINHAMENTO_PADRAO = 'Fernando';
@@ -29,8 +41,6 @@ export const CONFIG_ENCAMINHAMENTO_PADRAO: ConfigEncaminhamento = {
   horarios: HORARIOS_RELATORIO_PADRAO,
 };
 
-const HHMM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-
 /** Celular brasileiro completo: 55 + DDD (2) + 9 + 8 dígitos. Fixo, grupo ou número curto nunca recebe o relatório. */
 export function whatsappResponsavelValido(valor: unknown): string | null {
   const d = typeof valor === 'string' ? valor.replace(/\D/g, '') : '';
@@ -42,7 +52,7 @@ export function lerConfigEncaminhamento(salvo: unknown): ConfigEncaminhamento {
   const s = (salvo && typeof salvo === 'object' ? salvo : {}) as Record<string, unknown>;
   const nome = typeof s['responsavel'] === 'string' ? s['responsavel'].trim().replace(/\s+/g, ' ').slice(0, 60) : '';
   const horarios = Array.isArray(s['horarios'])
-    ? [...new Set(s['horarios'].filter((h): h is string => typeof h === 'string' && HHMM.test(h)))].sort().slice(0, 4)
+    ? [...new Set(s['horarios'].filter((h): h is string => typeof h === 'string' && horarioNoExpediente(h)))].sort().slice(0, 4)
     : [];
   return {
     ativo: s['ativo'] !== false,

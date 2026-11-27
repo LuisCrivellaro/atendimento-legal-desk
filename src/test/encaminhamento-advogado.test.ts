@@ -217,6 +217,16 @@ describe('relatório ao advogado: texto, horários e fuso', () => {
     expect(horarioRelatorioDevido(h, new Date('2026-11-26T19:00:00Z'))).toEqual({ horario: '16:00', dia: '2026-11-26' });
     expect(horarioRelatorioDevido(h, new Date('2026-11-27T02:30:00Z'))).toBeUndefined(); // 23:30 SP do dia 26
   });
+  it('só de segunda a sexta, dentro do expediente (09:00–17:30): a janela das 16h fecha às 17:30', () => {
+    const h = ['09:00', '16:00'];
+    expect(horarioRelatorioDevido(h, new Date('2026-11-27T12:00:00Z'))).toEqual({ horario: '09:00', dia: '2026-11-27' }); // sexta 09:00
+    expect(horarioRelatorioDevido(h, new Date('2026-11-28T12:00:00Z'))).toBeUndefined(); // sábado 09:00
+    expect(horarioRelatorioDevido(h, new Date('2026-11-29T19:00:00Z'))).toBeUndefined(); // domingo 16:00
+    expect(horarioRelatorioDevido(h, new Date('2026-11-30T12:05:00Z'))).toEqual({ horario: '09:00', dia: '2026-11-30' }); // segunda
+    expect(horarioRelatorioDevido(h, new Date('2026-11-26T20:29:00Z'))).toEqual({ horario: '16:00', dia: '2026-11-26' }); // 17:29
+    expect(horarioRelatorioDevido(h, new Date('2026-11-26T20:30:00Z'))).toBeUndefined(); // 17:30: fim do expediente
+    expect(horarioRelatorioDevido(['08:00', '18:00'], new Date('2026-11-26T11:30:00Z'))).toBeUndefined(); // 08:30 fora do expediente
+  });
 });
 
 describe('configuração central e destinatário exclusivo', () => {
@@ -225,6 +235,10 @@ describe('configuração central e destinatário exclusivo', () => {
     expect(lerConfigSecretaria({}).encaminhamento).toEqual(CONFIG_ENCAMINHAMENTO_PADRAO);
     expect(lerConfigEncaminhamento({ whatsapp: '11991737442' }).whatsapp).toBeNull();
     expect(lerConfigEncaminhamento({ horarios: ['16:00', '09:00', '25:00'] }).horarios).toEqual(['09:00', '16:00']);
+    // Fora do expediente (antes das 09:00 ou a partir das 17:30) nunca é aceito.
+    expect(lerConfigEncaminhamento({ horarios: ['08:00', '17:30', '18:00', '16:00'] }).horarios).toEqual(['16:00']);
+    expect(lerConfigEncaminhamento({ horarios: ['07:00', '20:00'] }).horarios).toEqual(['09:00', '16:00']);
+    expect(esquemaConfigSecretaria.shape.encaminhamento.safeParse({ ativo: true, responsavel: 'Fernando', whatsapp: '5511991737442', relatorioAtivo: true, horarios: ['18:00'] }).success).toBe(false);
     expect(whatsappResponsavelValido('+55 (11) 99173-7442')).toBe('5511991737442');
     expect(whatsappResponsavelValido('551133334444')).toBeNull();
     expect(esquemaConfigSecretaria.shape.encaminhamento.safeParse({ ativo: true, responsavel: 'Fernando', whatsapp: '5511991737442', relatorioAtivo: true, horarios: ['09:00'] }).success).toBe(true);
@@ -293,6 +307,15 @@ describe('relatório pelo monitor: envio único, novas tentativas, falha ambígu
     await enviarRelatoriosAdvogado(b.db, new Date('2026-11-26T19:02:00Z'), { enviar });
     expect(enviar).toHaveBeenCalledTimes(1);
     expect(enviar.mock.calls[0]?.[1]).toBe('Olá, Fernando! No momento, não há clientes aguardando retorno. ✅');
+  });
+  it('sábado e domingo: nenhum relatório ao advogado, nem atrasado na segunda', async () => {
+    const b = bancoFalso([casoPendente('a')]);
+    const enviar = vi.fn(async (_numero: string, _texto: string) => ({ ok: true }));
+    for (const quando of ['2026-11-28T12:00:00Z', '2026-11-28T19:00:00Z', '2026-11-29T12:30:00Z', '2026-11-29T19:10:00Z']) expect(await enviarRelatoriosAdvogado(b.db, new Date(quando), { enviar })).toMatchObject({ devidos: 0 });
+    expect(enviar).not.toHaveBeenCalled();
+    await enviarRelatoriosAdvogado(b.db, new Date('2026-11-30T12:00:00Z'), { enviar }); // segunda 09:00: só o relatório do dia
+    expect(enviar).toHaveBeenCalledTimes(1);
+    expect([...b.monitor.keys()]).toEqual([idRelatorio('5511991737442', '2026-11-30', '09:00')]);
   });
   it('recusa do provedor: nova tentativa depois de 5 min, até 3; sucesso encerra; nunca duplica', async () => {
     const b = bancoFalso([casoPendente('a')]);

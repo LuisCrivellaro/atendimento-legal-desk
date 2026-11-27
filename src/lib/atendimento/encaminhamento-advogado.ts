@@ -9,6 +9,7 @@ import { pedidoNoticiaProcesso, respostaDuranteEspera } from './consulta-process
 import { lembreteAtivo, respostaLembreteAna } from './lembrete-consulta';
 import { automacoesAguardandoResposta } from './secretaria/automacoes';
 import { origemMensagem } from './secretaria/origem';
+import { EXPEDIENTE_RELATORIO } from './secretaria/encaminhamento-config';
 
 /**
  * Encaminhamento de clientes ativos ao advogado responsável (Fernando), pedido da Dra. Carolina em 26/11/2026.
@@ -372,11 +373,19 @@ export function textoRelatorioAdvogado(itens: ItemRelatorioAdvogado[], agora: Da
 
 /** Janela de envio de cada horário (o monitor roda a cada 5 min; um ciclo perdido ainda envia dentro dela). */
 export const JANELA_RELATORIO_MIN = 120;
-/** Horário do relatório devido agora (America/Sao_Paulo), o mais recente cuja janela está aberta. */
+const minutosDe = (hhmm: string) => { const [hh, mm] = hhmm.split(':').map(Number); return (hh ?? 0) * 60 + (mm ?? 0); };
+/**
+ * Horário do relatório devido agora (America/Sao_Paulo), o mais recente cuja janela está aberta. Só de segunda a
+ * sexta e dentro do expediente do escritório (09:00–17:30): fora dele nada é enviado ao advogado, nem atrasado.
+ */
 export function horarioRelatorioDevido(horarios: string[], agora = new Date(), janelaMin = JANELA_RELATORIO_MIN): { horario: string; dia: string } | undefined {
+  const dia = new Intl.DateTimeFormat('en-US', { timeZone: FUSO, weekday: 'short' }).format(agora);
+  if (dia === 'Sat' || dia === 'Sun') return undefined;
   const p = partesSP(agora);
   const minutos = Number(p['hour']) * 60 + Number(p['minute']);
-  const devidos = horarios.filter(h => { const [hh, mm] = h.split(':').map(Number); const ini = (hh ?? 0) * 60 + (mm ?? 0); return minutos >= ini && minutos < ini + janelaMin; }).sort();
+  const inicioExpediente = minutosDe(EXPEDIENTE_RELATORIO.inicio), fimExpediente = minutosDe(EXPEDIENTE_RELATORIO.fim);
+  if (minutos < inicioExpediente || minutos >= fimExpediente) return undefined;
+  const devidos = horarios.filter(h => { const ini = minutosDe(h); return minutos >= ini && minutos < Math.min(ini + janelaMin, fimExpediente); }).sort();
   const horario = devidos.at(-1);
   return horario ? { horario, dia: diaSP(agora) } : undefined;
 }
