@@ -26,6 +26,8 @@ import { estacionarMensagem, falhaPausaIA, iaPausada, motivoPausaIA, resultadoSe
 import { contextoPersistente, nomeConhecido, apresentacaoNome, atendimentoIniciado, cobraRetorno, registrarRetorno, resultadoRetorno, semReintroducao } from './ana-contexto';
 import { aceiteConviteAtendimentoAna, permiteAgendaRelacionamento, protegerRelacionamentoAna } from './ana-relacionamento';
 import { saudacaoRepetidaAna } from './ana-demanda';
+import { decidirEncaminhamento, encaminhamentoAberto, encaminhamentoSemModelo, intencaoDaAnne, primeiroNomeCliente, processoRelacionado, sinaisFluxoAnne } from './encaminhamento-advogado';
+import { encaminharAoAdvogado } from './encaminhamento.server';
 import { reconhecerRelacionamentoAna } from './ana-relacionamento.server';
 // Secretaria digital: só age com a flag da área de trabalho ligada (padrão desligado = fluxo idêntico ao anterior).
 import { configDoEstado, contextoSecretaria, portasSupabase, secretariaLigada } from './secretaria/secretaria.server';
@@ -37,7 +39,7 @@ import { TEMPLATES_OFICIAIS } from './biblioteca/mensagens-oficiais';
 import { memoriaEstruturada, REGRAS_MEMORIA } from './secretaria/memoria';
 import { classificarMensagemComercial, contextoFiltroComercial, registrarFiltroComercial } from './filtro-comercial';
 import { lerBiblioteca, renderizarOficial } from './biblioteca/renderizar';
-import { marcaModelo, pedidoRedeSocial, periodoForaExpediente, saudacaoPrimeiroAtendimento, textoAgendamentoConfirmado, textoForaDoHorario } from './biblioteca/selecao';
+import { marcaModelo, nomeVerificado, pedidoRedeSocial, periodoForaExpediente, saudacaoPrimeiroAtendimento, textoAgendamentoConfirmado, textoForaDoHorario } from './biblioteca/selecao';
 type Db=SupabaseClient<Database>;
 
 async function assumirAlteracao(db:Db,id:string,messageId:string,eventoId:string,tipo:'cancelar'|'remarcar') {
@@ -192,20 +194,32 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const reconhecimento=await reconhecerRelacionamentoAna(db,row.data.owner_id,c,telefone,canal);
     const localIdentidade=reconhecimento.rel.situacao==='ativo'&&reconhecimento.identidade.tipo==='unico'?reconhecimento.identidade:reconhecimento.identidade.tipo==='duplicado'?reconhecimento.identidade:undefined;
     const rel=reconhecimento.rel;
-    // Cliente ativo fora do expediente (modelo 03), só com a automação "Resposta fora do horário" ligada:
-    // uma vez por período fora do expediente; nesse período a equipe responde (sem resposta gerada pelo modelo).
-    if(mode==='Automática'&&canal==='ultramsg'&&state.automations?.foraHorario===true&&rel.situacao==='ativo'&&periodoForaExpediente()){
-      const fora=textoForaDoHorario(c.agenteAna?.foraHorarioAvisado,new Date(),biblioteca);
-      if(fora&&fora.id!=='anterior')await responderOficial({texto:fora.texto,modelo:{id:fora.id,versao:fora.versao??1}},x=>({...x,agenteAna:{...x.agenteAna,foraHorarioAvisado:fora.periodo}}));
-      else await atualizarConversa(db,id,x=>({...x,mensagens:x.mensagens.map(y=>y.id===messageId&&y.iaExecucao?{...y,iaExecucao:{...y.iaExecucao,estado:'concluida' as const}}:y)}));
-      return;
-    }
     // Pergunta de encerramento (S3): "sim" explícito pede horários de retorno (sexta, cliente da casa).
     const enc=encerramentoRespondivel(c,canal)?respostaEncerramento(m.texto):undefined;
     // "Sim" ao convite de atendimento feito a cliente da casa com nova demanda: horários de cadastrado, como o S3.
     const conviteAceito=!rel.consultaInicial&&aceiteConviteAtendimentoAna(m.texto,c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'');
     const retornoSim=enc==='sim'||conviteAceito;
     const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c)||retornoSim;
+    // Cliente ativo com dúvida, questão jurídica ou pedido para falar com a Dra.: mensagem fixa + pendência para o
+    // advogado responsável (Fernando), sem modelo (vale também com a IA pausada). Agenda, confirmações, notícias do
+    // processo, coleta e mídia seguem com a Anne; com pendência aberta, a mensagem só atualiza a pendência.
+    const cfgEncaminhamento=configDoEstado(state).encaminhamento;
+    const decisaoEncaminhamento=canal==='ultramsg'?decidirEncaminhamento({ligado:cfgEncaminhamento.ativo,modo:mode,situacao:rel.situacao,texto:m.texto,material:!!m.arquivo||['video','imagem','documento'].includes(m.tipo??''),sinais:sinaisFluxoAnne(c,m.texto,canal,{retornoSim,encerramento:enc}),cobranca,aberto:!!encaminhamentoAberto(c,canal)}):undefined;
+    const encaminhar=(aviso:'enviando'|'fora_horario')=>encaminharAoAdvogado(db,{conversaId:id,messageId,canal,contato:remetente.data?.contato_externo??'',controleHumanoEm:c.agenteAna?.controleHumanoEm,aviso,cadastrado:reconhecimento.identidade.tipo==='unico',
+      nomeSaudacao:primeiroNomeCliente(reconhecimento.nome,nomeVerificado(c)),marcarEfeito:async()=>{efeitosIniciados=true;await marcarEfeito();},
+      dados:{texto:m.texto,responsavel:cfgEncaminhamento.responsavel,nomeCliente:reconhecimento.nome||nomeConhecido(c,canal),telefone,processo:processoRelacionado(reconhecimento.processos??[],c.mensagens.filter(x=>x.de==='cliente').slice(-5).map(x=>x.texto))}});
+    // Cliente ativo fora do expediente (modelo 03), só com a automação "Resposta fora do horário" ligada:
+    // uma vez por período fora do expediente; nesse período a equipe responde (sem resposta gerada pelo modelo).
+    if(mode==='Automática'&&canal==='ultramsg'&&state.automations?.foraHorario===true&&rel.situacao==='ativo'&&periodoForaExpediente()){
+      const fora=textoForaDoHorario(c.agenteAna?.foraHorarioAvisado,new Date(),biblioteca);
+      if(fora&&fora.id!=='anterior')await responderOficial({texto:fora.texto,modelo:{id:fora.id,versao:fora.versao??1}},x=>({...x,agenteAna:{...x.agenteAna,foraHorarioAvisado:fora.periodo}}));
+      else await atualizarConversa(db,id,x=>({...x,mensagens:x.mensagens.map(y=>y.id===messageId&&y.iaExecucao?{...y,iaExecucao:{...y.iaExecucao,estado:'concluida' as const}}:y)}));
+      // A pendência entra na fila do advogado mesmo fora do expediente (o modelo 03 já respondeu ao cliente).
+      if(decisaoEncaminhamento)await encaminhar('fora_horario');
+      return;
+    }
+    // Antes do modelo só o que é claramente do advogado; com a IA pausada, tudo o que não é agenda/processo (nada fica parado).
+    if(decisaoEncaminhamento&&(iaPausada(state)||encaminhamentoSemModelo(m.texto,cobranca))){await encaminhar('enviando');return;}
     // Vínculo ativo vem do cadastro (base local sincronizada), nunca do histórico da conversa.
     const classificacao=classificarAgenda({persistida:c.tipoClienteAgenda,local:localIdentidade,autodeclaracao:identificarTipoCliente(m.texto),contexto:c.agenteAna?.tipoCliente,padraoLead:c.etapa==='inicial'});
     // Funil internacional pago: os horários ofertados após o PIX valem como cliente novo (seg–qui).
@@ -221,6 +235,8 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
     const presencaFixa=pausada&&mode==='Automática'&&!!c.consultaAgendada&&!pedidoHumano(m.texto)&&(confirmacao40Respondivel(c,canal)?respostaConfirmacao40(m.texto)==='sim':lembreteAtivo(c.agenteAna?.lembreteConsulta,c.consultaAgendada)&&respostaLembreteAna(m.texto)==='sim');
     if(pausada&&!cobranca&&!presencaFixa){await atualizarConversa(db,id,x=>estacionarMensagem(x,messageId));return;}
     const gerada=cobranca?resultadoRetorno(c,canal):presencaFixa?resultadoSemModelo(c.agenteAna?.dados):await gerarRespostaAna(request,{relacionamento:rel,continuidade:memoria.continuidade,checklist:lista.data,email_cadastrado:email,solicitar_email:c.etapa==='documentos'&&solicitarEmailPendente(lista.data,email),data_hora_atual:new Date().toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}),dentro_expediente:expedienteAna(),tipo_cliente_agenda:tipoCliente??'em conferência pela equipe; não perguntar ao cliente',area_origem:etiqueta,telefone_informado:telefone??'',regras_agenda:'30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF',modo_ia:mode,vendedor_ativo:state.automations?.vendedor??false,cliente:{...(c.agenteAna?.dados??{}),nome:identidade,...(clienteLocal?{telefone:clienteLocal.telefone,email:clienteLocal.email}:{})},apresentado:atendimentoIniciado(c,canal,messageId),consulta_info:!rel.consultaInicial?{tipo:"acompanhamento",reserva_confirmada:c.consultaAgendada??null}:c.agenteAna?.reservaCalendar?{online:true,gratuita:true,duracao_minutos:30,reserva_confirmada:c.agenteAna.reservaCalendar.inicio}:{online:true,gratuita:true,duracao_minutos:30},horarios_oferecidos:permiteAgenda?c.agenteAna?.horariosTeste??[]:[],temas_proibidos_extra:state.training.proibidos,historico:history,ultima_mensagem:{texto:m.texto,arquivo:m.arquivo??''},exemplos:state.training.exemplos,...(secretaria?{memoria_estruturada:memoriaEstruturada(c,{checklist:lista.data}).resumo,regras_memoria:REGRAS_MEMORIA}:{})},state.training.instrucoes);
+    // Depois da classificação: notícia de processo e agendamento seguem com a Anne; o resto vai para o advogado.
+    if(decisaoEncaminhamento&&!intencaoDaAnne(gerada.intencao)){await encaminhar('enviando');return;}
     const respostaAnterior=c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'';
     const aceiteCaptacao=rel.consultaInicial&&aceiteConsultaAna(m.texto,respostaAnterior);
     const raw=rel.consultaInicial?priorizarAgendamentoAna(gerada,m.texto,!retomada&&c.agenteAna?.resultado?.intencao==='agendamento'&&!c.consultaAgendada,respostaAnterior):{...gerada};

@@ -245,6 +245,9 @@ describe('saudações consecutivas: uma resposta só', () => {
 });
 
 // ---------- Fluxo real do servidor (processarAna) com integrações substituídas ----------
+// Cliente ativo vai para o advogado (encaminhamento-advogado.test.ts); aqui o encaminhamento fica desligado para
+// cobrir as respostas internas de reserva (contato conhecido sem a pergunta de triagem).
+const ESTADO_SEM_ADVOGADO = { ...defaultState, secretaria: { encaminhamento: { ativo: false } } };
 function servidor(extra: Partial<Conversa> = {}, opcoes: { semCarteira?: boolean } = {}) {
   vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-09T12:50:00Z'));
   let saved: Conversa = { ...limpa, telefone, etapa: 'inicial', processos: [], consultaAgendada: undefined, tipoClienteAgenda: 'novo', modoIA: 'Automática', mensagens: [], timeline: [], agenteAna: {}, ...extra };
@@ -259,7 +262,7 @@ function servidor(extra: Partial<Conversa> = {}, opcoes: { semCarteira?: boolean
     let patch: { dados: Conversa } | undefined; let update = false;
     const result = () => {
       if (table === 'casos') { if (patch) saved = patch.dados; return { error: null, data: update ? [{ id: saved.id }] : { owner_id: 'owner', dados: saved, updated_at: 'rev' } }; }
-      return { error: null, data: table === 'office_workspace' ? { dados: defaultState } : table === 'checklist_itens' ? [] : table === 'atendimento_canal_config' ? { agente_ativo: true, canal_ativo: 'ultramsg', modo_teste: true } : { contato_externo: saved.telefone, status: 'liberado' } };
+      return { error: null, data: table === 'office_workspace' ? { dados: ESTADO_SEM_ADVOGADO } : table === 'checklist_itens' ? [] : table === 'atendimento_canal_config' ? { agente_ativo: true, canal_ativo: 'ultramsg', modo_teste: true } : { contato_externo: saved.telefone, status: 'liberado' } };
     };
     const query = { select: () => query, eq: () => query, update: (value: { dados: Conversa }) => { patch = value; update = true; return query; }, single: async () => result(), maybeSingle: async () => result(), then: (resolve: (v: ReturnType<typeof result>) => unknown) => Promise.resolve(result()).then(resolve) }; return query;
   }, rpc: async () => ({ error: null }) } as unknown as SupabaseClient<Database>;

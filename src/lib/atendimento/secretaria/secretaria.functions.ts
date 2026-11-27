@@ -227,14 +227,15 @@ export const salvarConfigSecretariaAnne = createServerFn({ method: 'POST' })
         return [[k, antes?.texto === v.texto ? antes : { texto: v.texto, por: autor, em: agoraIso }]];
       }));
       // Normaliza com as mesmas regras da leitura (ex.: andamento processual nunca automático).
-      const config = lerConfigSecretaria({ ...data, aprovacoesTexto, atualizadoEm: agoraIso, atualizadoPor: autor });
+      // Encaminhamento ao advogado: tela antiga (sem o campo) preserva o que já estava gravado.
+      const config = lerConfigSecretaria({ ...data, encaminhamento: data.encaminhamento ?? anterior.encaminhamento, aprovacoesTexto, atualizadoEm: agoraIso, atualizadoPor: autor });
       const dados = { ...((row.data?.dados as Record<string, unknown> | null) ?? {}), secretaria: config };
       const r = row.data
         ? await context.supabase.from('office_workspace').update({ dados: dados as unknown as Json, updated_at: new Date().toISOString() }).eq('owner_id', context.userId).eq('updated_at', row.data.updated_at).select('owner_id')
         : await context.supabase.from('office_workspace').insert({ owner_id: context.userId, dados: dados as unknown as Json }).select('owner_id');
       if (r.error) throw new Error('Não foi possível salvar a configuração.');
       if (r.data?.length) {
-        await auditar(context.supabase, autor, 'configSecretariaAnne', `Secretaria ${config.ativa ? 'ligada' : 'desligada'} · janela humana ${config.janelaPrioridadeHumanaMin} min`);
+        await auditar(context.supabase, autor, 'configSecretariaAnne', `Secretaria ${config.ativa ? 'ligada' : 'desligada'} · janela humana ${config.janelaPrioridadeHumanaMin} min · encaminhamento a ${config.encaminhamento.responsavel} ${config.encaminhamento.ativo ? 'ligado' : 'desligado'}, relatório ${config.encaminhamento.relatorioAtivo ? config.encaminhamento.horarios.join('/') : 'desligado'}`);
         return config;
       }
     }

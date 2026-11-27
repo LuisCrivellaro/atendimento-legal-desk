@@ -10,6 +10,7 @@ import { dataHoraCurta } from '@/lib/atendimento';
 import { PERGUNTA_ENCERRAMENTO } from '@/lib/atendimento/acompanhamento';
 import { mergeReplies, textosColeta } from '@/lib/respostas-prontas';
 import { CHAVES_TEMPLATE } from '@/lib/atendimento/secretaria/templates';
+import { whatsappResponsavelValido } from '@/lib/atendimento/secretaria/encaminhamento-config';
 import { lerConfigSecretariaAnne, salvarConfigSecretariaAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
 import { executar } from '@/lib/executar';
 
@@ -50,8 +51,12 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
   const mudar = (fn: (x: ConfigSecretaria) => ConfigSecretaria) => setC(x => (x ? fn(x) : x));
   const gravar = () => void executar('Salvar secretaria digital', async () => {
     if (c.testeAutomacoes.ativo && (c.testeAutomacoes.numero ?? '').length < 10) throw new Error('Informe o número autorizado (com DDD) para ligar o modo de teste.');
+    const whatsappResponsavel = whatsappResponsavelValido(c.encaminhamento.whatsapp ?? '');
+    if (!whatsappResponsavel) throw new Error('WhatsApp do advogado responsável: use 55 + DDD + celular, só números (ex.: 5511991737442).');
+    const horarios = [...new Set(c.encaminhamento.horarios.filter(h => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(h)))].sort();
+    if (!horarios.length) throw new Error('Informe ao menos um horário para o relatório do advogado.');
     const aprovacoesTexto = Object.fromEntries(Object.entries(c.aprovacoesTexto).flatMap(([k, v]) => (v ? [[k, { texto: v.texto }]] : [])));
-    const r = await salvar({ data: { aprovacoesTexto, eventos: { ...c.eventos, antecedenciaAudiencia: c.eventos.antecedenciaAudiencia?.trim() || null }, ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, confirmacaoAntecedenciaMin: c.confirmacaoAntecedenciaMin, testeAutomacoes: c.testeAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
+    const r = await salvar({ data: { encaminhamento: { ...c.encaminhamento, responsavel: c.encaminhamento.responsavel.trim() || 'Fernando', whatsapp: whatsappResponsavel, horarios }, aprovacoesTexto, eventos: { ...c.eventos, antecedenciaAudiencia: c.eventos.antecedenciaAudiencia?.trim() || null }, ativa: c.ativa, permissoes: c.permissoes, janelaPrioridadeHumanaMin: c.janelaPrioridadeHumanaMin, retornoAutomaticoHoras: c.retornoAutomaticoHoras, janelaAutomacoes: c.janelaAutomacoes, confirmacaoAntecedenciaMin: c.confirmacaoAntecedenciaMin, testeAutomacoes: c.testeAutomacoes, templates: Object.fromEntries(Object.entries(c.templates).filter(([k, v]) => (CHAVES_TEMPLATE as string[]).includes(k) && !!v?.trim())) as Record<string, string> } });
     await qc.invalidateQueries({ queryKey: ['secretaria-config'] });
     return r;
   });
@@ -149,6 +154,35 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
           <span className="block text-xs font-medium text-muted-foreground">Antecedência para o T11.2 ([antecedência])</span>
           <Input value={c.eventos.antecedenciaAudiencia ?? ''} maxLength={60} placeholder="ex.: uma hora de antecedência" disabled={!editar} onChange={e => mudar(x => ({ ...x, eventos: { ...x.eventos, antecedenciaAudiencia: e.target.value.trim() ? e.target.value : null } }))} />
         </label>
+      </div>
+      <div className="space-y-2 border-t pt-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">Encaminhamento de clientes ativos ao advogado</p>
+            <p className="text-xs text-muted-foreground">Cliente ativo com dúvida, questão jurídica ou pedido para falar com a Dra. recebe a mensagem fixa e entra na fila do advogado. Agenda, confirmações e notícias do processo continuam com a Anne.</p>
+          </div>
+          <Switch checked={c.encaminhamento.ativo} disabled={!editar} onCheckedChange={v => mudar(x => ({ ...x, encaminhamento: { ...x.encaminhamento, ativo: v } }))} aria-label="Ligar encaminhamento ao advogado" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <label className="space-y-1">
+            <span className="block text-xs font-medium text-muted-foreground">Advogado responsável</span>
+            <Input value={c.encaminhamento.responsavel} maxLength={60} disabled={!editar} onChange={e => mudar(x => ({ ...x, encaminhamento: { ...x.encaminhamento, responsavel: e.target.value } }))} />
+          </label>
+          <label className="space-y-1">
+            <span className="block text-xs font-medium text-muted-foreground">WhatsApp do relatório (55 + DDD + celular)</span>
+            <Input inputMode="tel" value={c.encaminhamento.whatsapp ?? ''} disabled={!editar} onChange={e => mudar(x => ({ ...x, encaminhamento: { ...x.encaminhamento, whatsapp: e.target.value.replace(/\D/g, '').slice(0, 13) || null } }))} aria-label="WhatsApp do advogado responsável" />
+          </label>
+          <div className="space-y-1">
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-xs font-medium text-muted-foreground">Relatório de pendências</span>
+              <Switch checked={c.encaminhamento.relatorioAtivo} disabled={!editar} onCheckedChange={v => mudar(x => ({ ...x, encaminhamento: { ...x.encaminhamento, relatorioAtivo: v } }))} aria-label="Ligar relatório de pendências" />
+            </label>
+            <span className="flex gap-2">
+              {[0, 1].map(i => <Input key={i} type="time" value={c.encaminhamento.horarios[i] ?? ''} disabled={!editar} aria-label={`Horário ${i + 1} do relatório`} onChange={e => mudar(x => { const h = [...x.encaminhamento.horarios]; h[i] = e.target.value; return { ...x, encaminhamento: { ...x.encaminhamento, horarios: h.filter(Boolean) } }; })} />)}
+            </span>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">Uma mensagem consolidada por horário (horário de Brasília), só para este número; o envio não muda a situação das pendências.</p>
       </div>
       <p className="text-xs text-muted-foreground">T04, T11.2, T12.2 e T12.3 só saem sozinhos depois que a Dra. ativar o modelo na biblioteca oficial; até lá, a equipe recebe o texto pronto. O T12.2 sai na véspera da perícia em dia útil (se a véspera não for dia útil, vira pendência antecipada).</p>
 

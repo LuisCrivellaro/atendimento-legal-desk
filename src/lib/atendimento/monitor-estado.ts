@@ -61,6 +61,7 @@ export const ROTULOS_ETAPA: Record<string, string> = {
   vendedor: 'Follow-up comercial',
   'reservas-pendentes': 'Reservas provisórias lançadas no ProJuris',
   'relatorio-diario': 'Relatório diário',
+  'relatorio-advogado': 'Relatório de pendências do advogado (09h/16h)',
 };
 
 /** Rotina parada: última execução há mais de 15 minutos (ou nunca executou). */

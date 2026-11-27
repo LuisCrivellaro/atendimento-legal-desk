@@ -189,6 +189,8 @@ async function executarCiclo(db: Db, request: Request, agora: Date, opcoes: { re
     { nome: 'vendedor', quando: () => aCada(30)('vendedor'), executar: async () => (await import('./vendedor.server')).enviarFollowupsVendedor(db) as unknown as Promise<Record<string, unknown>> },
     { nome: 'reservas-pendentes', executar: async () => ({ lancadas: await (await import('./projuris-agenda.server')).sincronizarReservasPendentes(db) }) },
     { nome: 'relatorio-diario', quando: () => (h >= 8 && h < 10 ? undefined : 'relatório só entre 8h e 10h'), executar: async () => (await import('./relatorio-diario.server')).enviarRelatorioDiario(db) as unknown as Promise<Record<string, unknown>> },
+    // Pendências do advogado responsável (Fernando) nos horários configurados (padrão 09:00 e 16:00); reserva por horário.
+    { nome: 'relatorio-advogado', quando: () => (whatsapp === 'ativo' ? undefined : 'WhatsApp desligado'), executar: async () => (await import('./relatorio-advogado.server')).enviarRelatoriosAdvogado(db, agora) as unknown as Promise<Record<string, unknown>> },
   ];
   const resultados: Record<string, ResultadoEtapa> = {};
   // Justiça: as etapas adiadas por falta de tempo no ciclo anterior vão para a frente (ordem relativa preservada).

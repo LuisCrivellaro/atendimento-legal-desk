@@ -2,6 +2,7 @@
 import type { AdaptadorCanal, ResultadoEnvio } from './tipos';
 import { numeroWhatsAppAtendido } from '../production-channel';
 import { chaveTelefone } from '../../projuris/telefone';
+import { whatsappResponsavelValido } from '../secretaria/encaminhamento-config';
 
 const TIMEOUT_MS = 15000;
 
@@ -71,10 +72,20 @@ async function enviarSemLista(numero: string, texto: string, cred: { instancia: 
     if (!r.ok || !(corpo?.sent === 'true' || corpo?.sent === true)) return { ok: false, erro: `UltraMsg recusou o envio (HTTP ${r.status}).` };
     return { ok: true, idExterno: String(corpo.id ?? '') };
   } catch {
-    return { ok: false, erro: 'Falha de comunicação com o UltraMsg.' };
+    return { ok: false, erro: 'Falha de comunicação com o UltraMsg.', ambiguo: true };
   } finally {
     clearTimeout(limite);
   }
+}
+
+/**
+ * Relatório ao advogado responsável (encaminhamentos): só o número da configuração central, celular brasileiro
+ * completo; nunca grupo nem lista. Mesmo envio da revisora, fora da lista de clientes liberados.
+ */
+export async function enviarTextoResponsavel(numero: string, texto: string, env: Record<string, string | undefined> = process.env): Promise<ResultadoEnvio> {
+  const destino = whatsappResponsavelValido(numero);
+  if (!destino) return { ok: false, erro: 'WhatsApp do responsável inválido.' };
+  return enviarSemLista(destino, texto, { instancia: env['ULTRAMSG_INSTANCE_ID']?.trim() ?? '', token: env['ULTRAMSG_TOKEN']?.trim() ?? '' });
 }
 
 /**

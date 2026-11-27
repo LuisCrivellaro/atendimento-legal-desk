@@ -113,6 +113,7 @@ export function promptAvaliador(cenario: { titulo: string; esperado: string; com
   return `Você avalia o atendimento da Ana, assistente virtual de WhatsApp de um escritório de advocacia (CS Lawyers), num teste automático.
 A Ana não interpreta processos, não avalia chances, não promete prazos e não passa informação de processo ao cliente sem aprovação da Dra. Carolina (revisora). Identificação só pelo telefone principal cadastrado no ProJuris.
 A classificação do atendimento é interna: a Ana nunca pergunta ao cliente se o assunto é de um atendimento em andamento ou uma nova demanda, se já é cliente ou se é o primeiro contato (nem com outras palavras); saudação sozinha recebe cumprimento e "como posso te ajudar", e saudações seguidas recebem uma resposta só.
+Cliente ativo com dúvida, questão jurídica ou pedido para falar com a Dra. recebe a mensagem fixa do encaminhamento ao advogado ("Já iremos retornar sua mensagem 😊 …"), uma única vez enquanto a pendência estiver aberta; isso é o esperado (texto aprovado, não gerado pela Ana). Agendamento e notícia do processo seguem com a Ana.
 
 Cenário: ${cenario.titulo}
 Resultado esperado: ${cenario.esperado}

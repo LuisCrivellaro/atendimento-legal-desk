@@ -3,6 +3,8 @@
 // Nada aqui é usado pelo sistema real.
 import { relacionamentoAna, permiteAgendaRelacionamento, protegerRelacionamentoAna, aceiteConviteAtendimentoAna } from '@/lib/atendimento/ana-relacionamento';
 import { saudacaoRepetidaAna } from '@/lib/atendimento/ana-demanda';
+import { decidirEncaminhamento, encaminhamentoAberto, encaminhamentoSemModelo, intencaoDaAnne, mensagemEncaminhamento, primeiroNomeCliente, processoRelacionado, registrarAvisoEncaminhamento, registrarEncaminhamento, sinaisFluxoAnne } from '@/lib/atendimento/encaminhamento-advogado';
+import { CONFIG_ENCAMINHAMENTO_PADRAO } from '@/lib/atendimento/secretaria/encaminhamento-config';
 import { identificarPorTelefone } from '@/lib/projuris/identificacao';
 import { processosAtivosDoCliente } from '@/lib/projuris/processos';
 import { SITUACAO_ATIVO_FICTICIA } from '@/lib/projuris/ficticio';
@@ -22,7 +24,7 @@ import { confirmacao40Respondivel, decidirConfirmacao40, registrarRespostaConfir
 import { registrarAviso } from '@/lib/atendimento/avisos-equipe';
 import { classificarMensagemComercial, contextoFiltroComercial, registrarFiltroComercial } from '@/lib/atendimento/filtro-comercial';
 import { renderizarOficial } from '@/lib/atendimento/biblioteca/renderizar';
-import { marcaModelo, pedidoRedeSocial, politicaConsultaDia, saudacaoPrimeiroAtendimento, textoAgendamentoConfirmado } from '@/lib/atendimento/biblioteca/selecao';
+import { marcaModelo, nomeVerificado, pedidoRedeSocial, politicaConsultaDia, saudacaoPrimeiroAtendimento, textoAgendamentoConfirmado } from '@/lib/atendimento/biblioteca/selecao';
 import { emColeta, perguntaAvaliacaoDocumento, respostaDocumentoColeta } from '@/lib/atendimento/coleta';
 import { hora as horaConsulta } from '@/lib/atendimento/ana-scheduling';
 import { iniciarConsultaProcesso, respostaDuranteEspera, apenasInsistencia, deveConsultarProcesso, mensagemNaoCliente, interpretarRespostaRevisora, aplicarDecisao, pendencias, respostaAutorizada, CONFIG_CONSULTA_PADRAO, TEXTOS_CONSULTA, type ConfigConsultaProcesso, type PedidoProcesso, type PortasConsulta, type EntradaRedacao } from '@/lib/atendimento/consulta-processo';
@@ -280,6 +282,13 @@ export class SimuladorAna {
       const conviteAceito=!rel.consultaInicial&&aceiteConviteAtendimentoAna(m.texto,c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'');
       const permiteAgenda=permiteAgendaRelacionamento(rel,m.texto,c)||conviteAceito;
       const tipoCliente = conviteAceito||rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificarAgenda({ persistida: c.tipoClienteAgenda, autodeclaracao: identificarTipoCliente(m.texto), contexto: c.agenteAna?.tipoCliente, padraoLead: c.etapa === 'inicial' }).tipo??(rel.consultaInicial?'novo':undefined);
+      // Mesma regra da produção: cliente ativo com dúvida/pedido vai para o advogado (mensagem fixa + pendência).
+      const cfgEnc = CONFIG_ENCAMINHAMENTO_PADRAO;
+      const decisaoEnc = decidirEncaminhamento({ ligado: cfgEnc.ativo, modo: mode, situacao: rel.situacao, texto: m.texto, material: !!m.arquivo || ['video','imagem','documento'].includes(m.tipo ?? ''), sinais: sinaisFluxoAnne(c, m.texto, canal, { retornoSim: conviteAceito, processoPendente: !!this.central.pendenteDe(this.conversaId) }), cobranca, aberto: !!encaminhamentoAberto(c, canal) });
+      const nomeCadastro = identificacao.tipo === 'unico' ? identificacao.pessoa.nome : undefined;
+      const encaminhar = () => this.encaminharAoAdvogado(messageId, m.texto, turno, { cadastrado: !!nomeCadastro, responsavel: cfgEnc.responsavel, nomeCliente: nomeCadastro || nomeConhecido(c, canal), nomeSaudacao: primeiroNomeCliente(nomeCadastro, nomeVerificado(c)),
+        processo: processoRelacionado(identificacao.tipo === 'unico' ? processosAtivosDoCliente(this.projuris.processos, identificacao.pessoa.codigo, SITUACAO_ATIVO_FICTICIA) : [], c.mensagens.filter(x => x.de === 'cliente').slice(-5).map(x => x.texto)) });
+      if (decisaoEnc && encaminhamentoSemModelo(m.texto, cobranca)) { encaminhar(); return; }
       const etiqueta = etiquetaConversa(c);
       const lista: { nome: string; recebido: boolean }[] = this.checklist;
       const email = c.email || c.agenteAna?.dados?.email || '';
@@ -288,6 +297,7 @@ export class SimuladorAna {
       const g = cobranca ? {resultado:resultadoRetorno(c,canal),bruto:''} : await this.gerar(contexto, state.training.instrucoes, signal);
       turno.claude = JSON.parse(JSON.stringify(g.resultado)); turno.bruto = g.bruto; turno.modelo = g.modelo; turno.tier = g.tier;
       const gerada = g.resultado;
+      if (decisaoEnc && !intencaoDaAnne(gerada.intencao)) { encaminhar(); return; }
       const respostaAnterior=c.mensagens.filter(x=>x.canal===canal&&x.de==='escritorio').at(-1)?.texto??'';
       const aceiteCaptacao=rel.consultaInicial&&aceiteConsultaAna(m.texto,respostaAnterior);
       const raw = rel.consultaInicial?priorizarAgendamentoAna(gerada, m.texto, !retomada&&c.agenteAna?.resultado?.intencao === 'agendamento' && !c.consultaAgendada,respostaAnterior):{...gerada};
@@ -480,6 +490,20 @@ export class SimuladorAna {
   }
 
   // ---------- Consulta de processo e revisora (mesma lógica do servidor) ----------
+  /** Mesmo registro da produção (encaminhamento.server.ts), com envio imediato no canal simulado. */
+  private encaminharAoAdvogado(messageId: string, texto: string, turno: Turno, d: { responsavel: string; nomeCliente: string; nomeSaudacao: string | undefined; processo: string; cadastrado?: boolean }) {
+    let reg: ReturnType<typeof registrarEncaminhamento> | undefined;
+    this.atualizar(c => { reg = registrarEncaminhamento(c, { conversaId: this.conversaId, mensagemId: messageId, texto, responsavel: d.responsavel, nomeCliente: d.nomeCliente, telefone: this.telefone, processo: d.processo, aviso: 'enviando' }, 'telegram'); return d.cadastrado ? { ...reg.conversa, tipoClienteAgenda: 'cadastrado' as const } : reg.conversa; });
+    const r = reg;
+    if (!r) return;
+    turno.eventos.push(r.novo ? `Encaminhado a ${d.responsavel}: aguardando atendimento.` : `Pendência de ${d.responsavel} atualizada (sem repetir a mensagem fixa).`);
+    if (!r.enviar) { turno.semResposta = `Pendência aberta com ${d.responsavel}: a Anne só registra a mensagem.`; return; }
+    const msg = mensagemEncaminhamento(d.nomeSaudacao);
+    const idExterno = `sim-${++this.seq}`;
+    this.atualizar(c => ({ ...registrarAvisoEncaminhamento(c, r.encaminhamento.id, messageId, 'enviado', { idExterno }), mensagens: [...c.mensagens, newMessage(msg, { autor: 'Ana · assistente virtual', canal: 'telegram', idExterno, respostaAnaDe: messageId, status: 'enviada' })] }));
+    turno.enviada = msg;
+  }
+
   enviarAna(texto: string) {
     this.atualizar(cur => ({ ...cur, mensagens: [...cur.mensagens, newMessage(texto, { autor: 'Ana · assistente virtual', canal: 'telegram', idExterno: `sim-${++this.seq}`, status: 'enviada' })] }));
   }

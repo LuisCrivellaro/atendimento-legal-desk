@@ -37,6 +37,8 @@ export interface Conversa {
   tarefasRetorno?: import('./atendimento/ana-contexto').TarefaRetorno[] | undefined;
   /** Avisos operacionais para a equipe (Atendimento e Assessor); nunca vão ao cliente. */
   avisosEquipe?: import('./atendimento/avisos-equipe').AvisoEquipe[] | undefined;
+  /** Fila do advogado responsável (Fernando): só o servidor grava; a tela nunca apaga nem reabre uma pendência. */
+  encaminhamentos?: import('./atendimento/encaminhamento-advogado').EncaminhamentoAdvogado[] | undefined;
   lastMessageAt?: string | null;
   email?: string | undefined;
   etiquetaAcao?: import('./atendimento/intake-rules').EtiquetaAcao | undefined;

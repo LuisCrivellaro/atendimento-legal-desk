@@ -7,6 +7,7 @@
  */
 import { CHAVES_TEMPLATE } from './templates';
 import { CONFIG_EVENTOS_PADRAO, type ConfigEventos } from '../eventos-processuais';
+import { CONFIG_ENCAMINHAMENTO_PADRAO, lerConfigEncaminhamento, type ConfigEncaminhamento } from './encaminhamento-config';
 
 /** Funcionalidades controladas pela matriz de permissões. */
 export type Funcionalidade =
@@ -113,6 +114,8 @@ export interface ConfigSecretaria {
   janelaAutomacoes: JanelaAutomacoes;
   /** Textos dos modelos fixos (ver templates.ts); campos desconhecidos fazem voltar ao texto padrão. */
   templates: Partial<Record<string, string>>;
+  /** Encaminhamento de clientes ativos ao advogado responsável e relatório no WhatsApp dele. */
+  encaminhamento: ConfigEncaminhamento;
   atualizadoEm?: string | undefined;
   atualizadoPor?: string | undefined;
 }
@@ -130,6 +133,7 @@ export const CONFIG_SECRETARIA_PADRAO: ConfigSecretaria = {
   retornoAutomaticoHoras: null,
   janelaAutomacoes: { inicio: '09:00', fim: '18:00', diasUteis: true },
   templates: {},
+  encaminhamento: CONFIG_ENCAMINHAMENTO_PADRAO,
 };
 
 const NIVEIS: NivelPermissao[] = ['automatico', 'aprovacao', 'desligado'];
@@ -190,6 +194,7 @@ export function lerConfigSecretaria(salvo: unknown): ConfigSecretaria {
     retornoAutomaticoHoras: retorno === null || retorno === undefined ? null : inteiro(retorno, 1, 24 * 30, 24),
     janelaAutomacoes: { inicio, fim, diasUteis: j['diasUteis'] !== false },
     templates,
+    encaminhamento: lerConfigEncaminhamento(s['encaminhamento']),
     ...(typeof s['atualizadoEm'] === 'string' ? { atualizadoEm: s['atualizadoEm'] } : {}),
     ...(typeof s['atualizadoPor'] === 'string' ? { atualizadoPor: s['atualizadoPor'].slice(0, 80) } : {}),
   };

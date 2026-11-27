@@ -20,6 +20,8 @@ export interface ResultadoEnvio {
   ok: boolean;
   idExterno?: string;
   erro?: string;
+  /** Falha sem resposta do provedor (rede/tempo): a mensagem pode ter saído; nunca reenviar sozinho. */
+  ambiguo?: boolean;
 }
 
 export interface ReferenciaCanal {

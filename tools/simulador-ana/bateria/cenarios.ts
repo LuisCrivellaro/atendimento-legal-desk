@@ -5,7 +5,8 @@ import type { AnaResult } from '@/lib/atendimento/ana-rules';
 import { TEXTOS_CONSULTA, mensagemNaoCliente, type PedidoProcesso } from '@/lib/atendimento/consulta-processo';
 import { SAUDACAO_CLIENTE_NOVO } from '@/lib/atendimento/ana-rules';
 import { SAUDACAO_RETORNO_ANA } from '@/lib/atendimento/ana-retomada';
-import { CONVITE_ATENDIMENTO_ANA, PEDIDO_ASSUNTO_ANA, SAUDACAO_CONTATO_ANA } from '@/lib/atendimento/ana-demanda';
+import { PEDIDO_ASSUNTO_ANA, SAUDACAO_CONTATO_ANA } from '@/lib/atendimento/ana-demanda';
+import { mensagemEncaminhamento, resumoSolicitacao } from '@/lib/atendimento/encaminhamento-advogado';
 import { TELEFONES_FICTICIOS as T, type FalhaFicticia, type ProjurisFicticio } from '@/lib/projuris/ficticio';
 import type { OrigemRevisora } from '../engine';
 import type { Categoria, Execucao, Verificacao } from './avaliacao';
@@ -405,8 +406,15 @@ export const CENARIOS: Cenario[] = [
   },
   // Classificação interna do atendimento (26/11/2026): nunca perguntar "atendimento em andamento ou nova demanda?".
   // A verificação geral "sem-pergunta-triagem" (avaliacao.ts) vale para todos os cenários da bateria.
+  {
+    // 26/11/2026 (noite): cliente ativo que só cumprimenta recebe a mensagem fixa do encaminhamento ao advogado.
+    id: 'D60a', bloco: 'D', titulo: 'Cliente com processo ativo só cumprimenta: mensagem fixa e pendência do advogado', conversas: { A: marina }, projuris: 'Marina: 1 processo ativo', relogio: QUI_10H,
+    passos: [{ cliente: 'Olá.', intencao: 'duvida_geral' }],
+    esperado: 'Mensagem fixa exata com o primeiro nome e pendência aberta para o Fernando', permitidas: ['mensagem fixa'], proibidas: ['triagem', 'consulta gratuita', 'passar a conversa para humano (pausar a Anne)'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', 'projuris.processos', 'projuris.andamentos', 'revisora.pedido'] }, comportamento: 'Encaminhar ao advogado sem perguntar se é nova demanda.',
+    verificacoes: [anaIgual([mensagemEncaminhamento('Marina')]), pausada(false), v('d60a-pendencia', 'Pendência aguardando atendimento para o Fernando', 'regra', true, e => { const p = e.conversas['A']?.encaminhamentos?.at(-1); return p?.responsavel === 'Fernando' && p.status === 'aguardando' && p.processo.includes('1000001') ? true : `Pendência: ${JSON.stringify(p ?? null).slice(0, 120)}`; })],
+  },
   ...([
-    ['D60a', 'Cliente com processo ativo só cumprimenta', marina, 'Olá.'],
     ['D60b', 'Ex-cliente (só processos arquivados) só cumprimenta', { telefone: T.soArquivados, nome: 'Carlos Exemplo Rocha', perfil: 'novo' as const }, 'Olá.'],
     ['D60c', 'Telefone em dois cadastros só cumprimenta', { telefone: T.duplicado, nome: 'Pedro', perfil: 'cliente' as const }, 'Bom dia'],
   ] as const).map(([id, titulo, conversa, texto]): Cenario => ({
@@ -419,9 +427,9 @@ export const CENARIOS: Cenario[] = [
   {
     id: 'D60d', bloco: 'D', titulo: 'Cliente da casa manda duas saudações seguidas: uma resposta só', conversas: { A: marina }, projuris: 'Marina: 1 processo ativo', relogio: QUI_10H,
     passos: [{ cliente: 'Olá', intencao: 'duvida_geral' }, { cliente: 'Oi, tudo bem?', intencao: 'duvida_geral' }],
-    esperado: 'Uma única resposta às duas saudações', permitidas: ['responder uma vez'], proibidas: ['responder duas vezes', 'triagem'],
+    esperado: 'Uma única resposta às duas saudações (a mensagem fixa do encaminhamento)', permitidas: ['responder uma vez'], proibidas: ['responder duas vezes', 'triagem'],
     aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Consolidar saudações seguidas.',
-    verificacoes: [anaIgual([SAUDACAO_CONTATO_ANA])],
+    verificacoes: [anaIgual([mensagemEncaminhamento('Marina')]), v('d60d-uma-pendencia', 'Uma só pendência', 'regra', true, e => (e.conversas['A']?.encaminhamentos?.length ?? 0) === 1 ? true : `Pendências: ${e.conversas['A']?.encaminhamentos?.length ?? 0}`)],
   },
   {
     id: 'D60e', bloco: 'D', titulo: 'Cliente novo manda duas saudações seguidas: saudação oficial uma vez', conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
@@ -431,14 +439,24 @@ export const CENARIOS: Cenario[] = [
     verificacoes: [v('uma-saudacao', 'Uma só resposta, a saudação oficial', 'regra', true, e => anaDe(e).length === 1 && anaDe(e)[0]!.startsWith(SAUDACAO_CLIENTE_NOVO) ? true : `Respostas: ${anaDe(e).map(m => `"${m.slice(0, 40)}"`).join(' | ')}`)],
   },
   {
-    id: 'D60f', bloco: 'D', titulo: 'Cliente da casa: "outro assunto" → relato → convite → horários de sexta', conversas: { A: marina }, projuris: 'Marina: 1 processo ativo', relogio: QUI_10H,
-    passos: [{ cliente: 'Gostaria de falar sobre outro assunto.', intencao: 'duvida_geral' }, { cliente: 'Quero entrar com um pedido de divórcio', intencao: 'novo_caso' }, { cliente: 'sim', intencao: 'agendamento' }],
-    esperado: 'Pede para contar o assunto, reconhece a nova demanda pelo conteúdo, convida para atendimento e, com o "sim", oferece horários de cliente cadastrado', permitidas: ['pedir o relato', 'convidar', 'oferecer horários reais de sexta'], proibidas: ['perguntar se é atendimento em andamento ou nova demanda', 'consulta gratuita de cliente novo', 'reservar sem escolha'],
-    aprovacao: 'não se aplica', ferramentas: { esperadas: ['agenda.consultar'], proibidas: ['agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Classificar internamente e conduzir à agenda de cadastrado.',
+    id: 'D60f', bloco: 'D', titulo: 'Cliente da casa: "outro assunto" e o relato depois atualizam a mesma pendência do advogado', conversas: { A: marina }, projuris: 'Marina: 1 processo ativo', relogio: QUI_10H,
+    passos: [{ cliente: 'Gostaria de falar sobre outro assunto.', intencao: 'duvida_geral' }, { cliente: 'Quero entrar com um pedido de divórcio', intencao: 'novo_caso' }, { cliente: 'É urgente?', intencao: 'outro' }],
+    esperado: 'Mensagem fixa uma vez; as mensagens seguintes só atualizam a pendência (sem repetir, sem responder questão jurídica)', permitidas: ['mensagem fixa', 'registrar'], proibidas: ['triagem', 'repetir a mensagem fixa', 'responder a questão jurídica', 'consulta gratuita de cliente novo'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: [], proibidas: ['agenda.consultar', 'agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Encaminhar ao advogado e só registrar enquanto a pendência estiver aberta.',
     verificacoes: [
-      v('d60f-assunto', 'Pede o relato do outro assunto', 'regra', true, e => anaDe(e)[0] === PEDIDO_ASSUNTO_ANA ? true : `"${(anaDe(e)[0] ?? '').slice(0, 80)}"`),
-      v('d60f-convite', 'Convite para atendimento com a Dra.', 'regra', true, e => anaDe(e)[1] === CONVITE_ATENDIMENTO_ANA ? true : `"${(anaDe(e)[1] ?? '').slice(0, 80)}"`),
-      v('d60f-sexta', 'Horários reais só de sexta (cadastrado)', 'regra', true, e => { const h = e.conversas['A']?.agenteAna?.horariosTeste ?? []; return /^Tenho estes horários livres/.test(anaDe(e)[2] ?? '') && h.length > 0 && h.every(s => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(new Date(s)) === 'Fri') ? true : `Horários: ${h.join(', ') || 'nenhum'} · "${(anaDe(e)[2] ?? '').slice(0, 60)}"`; }),
+      anaIgual([mensagemEncaminhamento('Marina')]),
+      v('d60f-resumo', 'Pendência única com o relato do cliente', 'regra', true, e => { const c = e.conversas['A']; const p = c?.encaminhamentos?.at(-1); return c && p && c.encaminhamentos?.length === 1 && p.mensagensCliente.length === 3 && /divórcio/.test(resumoSolicitacao(p, c, 'telegram')) ? true : `Pendência: ${JSON.stringify(p ?? null).slice(0, 120)}`; }),
+      pausada(false),
+    ],
+  },
+  {
+    id: 'D60l', bloco: 'D', titulo: 'Cliente da casa pede para falar com a Dra. Carolina; depois agenda pela Anne', conversas: { A: marina }, projuris: 'Marina: 1 processo ativo', relogio: QUI_10H,
+    passos: [{ cliente: 'Quero falar com a Dra. Carolina, por favor', intencao: 'outro', humano: true }, { cliente: 'quero marcar uma consulta com a doutora', intencao: 'agendamento' }],
+    esperado: 'Pedido para falar com a Dra. vai ao advogado (mensagem fixa, sem pausar a Anne); pedido de agenda continua com a Anne (sexta, cadastrado)', permitidas: ['mensagem fixa', 'oferecer horários reais'], proibidas: ['pausar a Anne', 'repetir a mensagem fixa', 'triagem'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: ['agenda.consultar'], proibidas: ['agenda.reservar', ...SEM_PROJURIS] }, comportamento: 'Priorizar o advogado para o pedido humano sem desligar a agenda.',
+    verificacoes: [
+      v('d60l-fixa', 'Mensagem fixa no pedido para falar com a Dra.', 'regra', true, e => anaDe(e)[0] === mensagemEncaminhamento('Marina') ? true : `"${(anaDe(e)[0] ?? '').slice(0, 80)}"`),
+      v('d60l-agenda', 'Agenda de cadastrado segue com a Anne', 'regra', true, e => { const h = e.conversas['A']?.agenteAna?.horariosTeste ?? []; return /^Tenho estes horários livres/.test(anaDe(e)[1] ?? '') && h.length > 0 && h.every(s => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Sao_Paulo', weekday: 'short' }).format(new Date(s)) === 'Fri') ? true : `Horários: ${h.join(', ') || 'nenhum'} · "${(anaDe(e)[1] ?? '').slice(0, 60)}"`; }),
       pausada(false),
     ],
   },
