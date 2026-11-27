@@ -4,7 +4,7 @@
     {
       "name": "demo-navegador",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--config", "node_modules/.demo-vite.config.ts"],
+      "runtimeArgs": ["node_modules/vite/bin/vite.js", "--config", "tools/demo-navegador/vite.spa.config.ts"],
       "port": 8090
     }
   ]

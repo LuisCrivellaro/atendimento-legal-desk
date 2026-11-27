@@ -94,8 +94,8 @@ function AuthPage() {
           />
           <p className="brand-lockup text-xl !text-white lg:hidden">MANAGER ADV</p>
         </div>
-        <div className="mt-10 hidden max-w-md lg:block">
-          <div className="mb-6 h-0.5 w-14 bg-brand" />
+        <div className="entrada-suave mt-10 hidden max-w-md lg:block">
+          <div className="mb-6 h-0.5 w-14 origin-left bg-brand animate-in zoom-in-0 duration-500" />
           <p className="brand-lockup text-[2.5rem] !text-white">MANAGER ADV</p>
           <p className="mt-5 text-[15px] leading-relaxed text-sidebar-foreground">
             Do primeiro contato do cliente ao andamento do processo, com revisão da advogada em cada
@@ -107,7 +107,7 @@ function AuthPage() {
         </p>
       </aside>
       <main className="flex items-start justify-center px-5 py-10 sm:items-center sm:py-16">
-        <div className="w-full max-w-sm">
+        <div className="entrada-suave w-full max-w-sm">
           <h1 className="mb-1 text-[1.75rem] font-semibold leading-tight">
             {modo === "entrar" ? "Entrar no Manager ADV" : "Criar conta da equipe"}
           </h1>

@@ -86,6 +86,9 @@ class Query implements PromiseLike<any> {
   is(c: string, v: any) { this.filters.push((r) => (r[c] ?? null) === v); return this; }
   match(o: Row) { Object.entries(o).forEach(([c, v]) => this.eq(c, v)); return this; }
   filter(c: string, _op: string, v: any) { return this.eq(c, v); }
+  not(c: string, op: string, v: any) { if (op === 'is') this.filters.push((r) => (r[c] ?? null) !== v); return this; }
+  lt(c: string, v: any) { this.filters.push((r) => r[c] != null && r[c] < v); return this; }
+  gt(c: string, v: any) { this.filters.push((r) => r[c] != null && r[c] > v); return this; }
   gte() { return this; } lte() { return this; } limit() { return this; } range() { return this; }
   order(c: string, o?: { ascending?: boolean }) { this.sort = [c, o?.ascending !== false]; return this; }
   single() { this.one = 'single'; return this; }
@@ -155,9 +158,25 @@ function rpc(name: string, args: any = {}) {
 
 const toB64 = async (b: Blob) => { const bytes = new Uint8Array(await b.arrayBuffer()); let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
 
+// Qualquer outro método do construtor de consultas (or, ilike, contains, returns…) que o app passe a usar
+// continua encadeando sem filtrar, para a demonstração não quebrar a cada versão nova do sistema.
+function encadear(q: Query): Query {
+  const proxy: any = new Proxy(q, {
+    get(t: any, p) {
+      if (typeof p === 'symbol' || p in t) {
+        const v = Reflect.get(t, p, t);
+        return typeof v === 'function' ? (...a: any[]) => { const out = v.apply(t, a); return out === t ? proxy : out; } : v;
+      }
+      return () => proxy;
+    },
+  });
+  return proxy;
+}
+const canalFalso = () => { const ch: any = { on: () => ch, subscribe: () => ch, unsubscribe: async () => 'ok', send: async () => 'ok', track: async () => 'ok' }; return ch; };
+
 export function createClient(..._a: any[]) {
   return {
-    from: (t: string) => new Query(t),
+    from: (t: string) => encadear(new Query(t)),
     rpc,
     auth: {
       getUser: async () => ok({ user: loggedIn() ? user : null }),
@@ -183,8 +202,9 @@ export function createClient(..._a: any[]) {
       }),
     },
     functions: { invoke: async () => ok(null) },
-    channel: () => ({ on() { return this; }, subscribe() { return this; } }),
+    channel: canalFalso,
     removeChannel: () => {},
+    removeAllChannels: () => {},
   };
 }
 export default { createClient };

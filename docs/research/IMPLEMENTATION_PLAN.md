@@ -27,6 +27,20 @@ Antes de cada fase, ler: `AGENTS.md`, `README.md` ("Regras que não podem ser qu
 | Interface | `/web-design-guidelines` nos arquivos alterados; `/impeccable critique` e `/impeccable polish` por tela; `/humanizer` nos textos novos |
 | Regressão funcional | Matriz da seção "Comparação funcional" de `FUNCTIONAL_REQUIREMENTS.md`, item por item |
 
+## Andamento
+
+| Data | O que foi feito |
+|---|---|
+| 27/11/2026 | Identidade visual do MANAGER ADV (logo, turquesa, tokens centralizados): ver `../IDENTIDADE_VISUAL.md` |
+| 27/11/2026 | Fase 0, item 1 (demo com adaptadores em `tools/`). Fase 1, itens 3 a 8: confirmações próprias (`src/components/confirmar.tsx`) no lugar dos 9 `window.confirm`; 404, tela de erro e rótulos de acessibilidade em português; "Anne" e "Painel" na interface; datas de evento sem deslocamento de fuso e só eventos futuros no Painel (`diaEvento`/`rotuloEvento` em `src/lib/assessor.ts`, com testes); diálogo de automações sem rolagem horizontal; filtros do Atendimento sem cobrir o menu; `noindex` e `robots.txt`; ícones próprios e Contencioso só para sênior/admin no menu |
+| 27/11/2026 | Fase 2 (base): transição entre telas só quando o caminho muda (View Transitions do TanStack Router, sem dependência nova), barra fina de carregamento, tooltips em grupo (300/400 ms), botões com resposta ao clique, check animado, skeletons (`src/components/skeletons.tsx`), tokens de movimento e caminho de movimento reduzido em `src/styles.css`. Decisão: **sem a biblioteca `motion`**, só CSS + Radix |
+| 27/11/2026 | Fase 3 (Atendimento): centro de avisos "Precisa de atenção · N" (`centro-avisos.tsx`), botão "Trato feito", Esc que não fecha a conversa com menu/janela aberta ou campo preenchido, painel do cliente recolhível (≥1024px) e Sheet que respeita a escolha (<1024px), skeleton da lista, entrada suave só para mensagens novas |
+| 27/11/2026 | Fase 4 (fluxo jurídico): fio das 10 etapas (`fio-etapas.tsx`) na barra fixa do caso em Produção, Auditoria, Protocolo e Andamentos; Configurações sem seletor de caso; Auditoria com "x de 16 itens conferidos" e "Só pendentes"; aviso de saída sem salvar em Produção; avisos de quando a simulação roda no Protocolo; vazio do pacote final; "Prazos em aberto" neutro quando zero; seletor de caso volta a obedecer quando a URL traz `?caseId` |
+| 27/11/2026 | Fase 5: Painel com "O que fazer hoje" em primeiro, zeros neutros e barras horizontais legíveis; Contencioso com busca com atraso, indicador de atualização e correção das aspas em buscas só com números; Integrações com título no topo e "Verificar acesso"; Clientes com lista própria para perfis não sênior; skeletons em Painel e Aprovações |
+| Não feito (motivo) | Treinamento mantém o seletor de caso ("Testar resposta" usa o caso no servidor). Badge de Aprovações: o painel não traz a situação da minuta (exigiria mudar função de servidor). Protocolo: botões "Simular" continuam habilitados (a tela não sabe o canal sem nova consulta) — ganharam o aviso de quando funcionam. Aviso de "não salvo" não cobre troca de caso no seletor nem Caso→Quadro. Configurações com navegação lateral absorvendo os modais (Fase 5.4) e "Revisões" (decisão da Dra.) ficam para uma próxima rodada |
+| Adiado | Fase 1, item 1 (quebrar o JSX de linha única): reformatar `atendimento.tsx` e outras telas inteiras conflita com o trabalho das outras sessões que editam esses arquivos. Fazer tela por tela, junto da fase que redesenhar cada uma, avisando antes |
+| Mantido | Fase 1, item 2: o amarelo `#FFE600` de alerta foi preservado por decisão da Dra. na identidade visual |
+
 ## Fase 0 · Preparação (sem mudança visível)
 
 1. Incorporar à `tools/demo-navegador` os adaptadores que hoje vivem fora do versionamento

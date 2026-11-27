@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, useNavigate, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -38,6 +38,7 @@ function Layout() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const router = useRouter();
+  const navegando = useRouterState({ select: (s) => s.status === "pending" });
   const { data: perfil } = useQuery({
     queryKey: ["perfil", user.id],
     queryFn: async () => {
@@ -83,8 +84,9 @@ function Layout() {
         </div>
       </header>
       <div className="flex min-h-screen w-full office-content">
-        <AppSidebar badges={badges} />
-        <main className="min-w-0 flex-1"><Outlet /></main>
+        <AppSidebar badges={badges} podeContencioso={!!perfil?.roleIds.some((r) => r === "advogada_senior" || r === "admin")} />
+        {navegando && <div className="barra-navegacao" role="progressbar" aria-label="Carregando a tela" />}
+        <main className="conteudo-transicao min-w-0 flex-1"><Outlet /></main>
       </div>
     </SidebarProvider>
   );

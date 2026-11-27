@@ -75,9 +75,7 @@ O ponto de entrada para outras sessões é o `CLAUDE.md` da raiz.
 
 ## Como reproduzir a navegação da demonstração
 
-A demonstração (`tools/demo-navegador`) não abre com o código atual sem adaptações. Nesta etapa foi usada uma
-configuração temporária fora do versionamento: `node_modules/.demo-vite.config.ts` (igual à do `tools/`, sem
-`vite-plugin-singlefile`, com aliases para `node_modules/.demo-stubs/` — stub de `@lovable.dev/mcp-js`, de
-`node:crypto` e um invólucro do Supabase falso com `not/lt/gt` e métodos extras) e `.claude/launch.json`
-("demo-navegador", porta 8090, `node node_modules/vite/bin/vite.js --config node_modules/.demo-vite.config.ts`).
-Login da demo: qualquer e-mail e senha de 6+ caracteres.
+Atualizado em 27/11/2026: os adaptadores usados nesta etapa foram incorporados ao `tools/demo-navegador` (Fase 0 do
+plano). Basta a configuração `demo-navegador` de `.claude/launch.json` ou
+`node node_modules/vite/bin/vite.js --config tools/demo-navegador/vite.spa.config.ts` (porta 8090). Login da demo:
+qualquer e-mail e senha de 6+ caracteres. Detalhes em `tools/demo-navegador/LEIA-ME.md`.

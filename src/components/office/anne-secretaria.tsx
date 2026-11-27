@@ -1,6 +1,7 @@
 import { useServerFn } from '@tanstack/react-start';
 import { Ban, Bot, CalendarCheck, CalendarClock, CalendarX, ClipboardList, FileText, History, Pause, Play, UserRound, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { confirmar } from '@/components/confirmar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { AIMode } from '@/lib/atendimento';
 import { dataHoraCurta } from '@/lib/atendimento';
@@ -37,11 +38,11 @@ export function AnneModoSelector({ c, modoPadrao, disabled, onAlterado }: { c: C
   const definir = useServerFn(definirModoAnne);
   const calc = modoEfetivo(c, modoPadrao);
   const Icone = ICONE[calc.modo];
-  const escolher = (valor: string) => {
+  const escolher = async (valor: string) => {
     const modo = valor as ModoAnne;
     if (modo === calc.modo) return;
     const voltaAuto = modo === 'automatico' && (calc.modo === 'humano' || calc.modo === 'bloqueado');
-    if (voltaAuto && !window.confirm('A Anne voltará a conduzir esta conversa sozinha. Confirmar o modo Automático?')) return;
+    if (voltaAuto && !(await confirmar({ titulo: 'Voltar ao modo Automático?', descricao: 'A Anne voltará a conduzir esta conversa sozinha.', confirmar: 'Voltar ao Automático' }))) return;
     void executar('Modo da Anne', () => definir({ data: { conversaId: c.id, modo, ...(voltaAuto ? { confirmarAutomatico: true } : {}) } }), onAlterado);
   };
   return (
@@ -100,14 +101,14 @@ export function AnneSecretariaPainel({ c, modoPadrao, disabled, onAlterado }: { 
   const t09 = c.agenteAna?.checklistTrabalhista;
   const podeT09 = !t09 && (c.etapa === 'documentos' || c.contrato === 'assinado');
   if (!ativas.length && !acoes.length && !podeDelegar && !mostraSituacao && !podeT09 && !t09 && !producao && !arquivosConsulta.length) return null;
-  const enviarT09 = () => {
-    if (!window.confirm('Confirma que este caso é TRABALHISTA e autoriza enviar agora o checklist oficial (T09) ao cliente? Os itens entram no checklist.')) return;
+  const enviarT09 = async () => {
+    if (!(await confirmar({ titulo: 'Enviar o checklist trabalhista (T09)?', descricao: 'Confirme que este caso é TRABALHISTA. O checklist oficial (T09) será enviado agora ao cliente e os itens entram no checklist do caso.', confirmar: 'Enviar checklist T09' }))) return;
     void executar('Checklist trabalhista (T09)', () => checklistT09({ data: { conversaId: c.id, confirmarTrabalhista: true } }), onAlterado);
   };
   const acao = (automacaoId: string, controle: 'pausar' | 'retomar' | 'cancelar', rotulo: string) =>
     void executar(rotulo, () => controlar({ data: { conversaId: c.id, automacaoId, controle } }), onAlterado);
-  const registrar = (estado: 'realizada' | 'ausente') => {
-    if (estado === 'ausente' && !window.confirm('Registrar que o cliente faltou? A Anne vai oferecer novos horários pelo texto oficial quando o modo permitir.')) return;
+  const registrar = async (estado: 'realizada' | 'ausente') => {
+    if (estado === 'ausente' && !(await confirmar({ titulo: 'Registrar que o cliente faltou?', descricao: 'A Anne vai oferecer novos horários pelo texto oficial quando o modo permitir.', confirmar: 'Registrar ausência' }))) return;
     void executar(estado === 'realizada' ? 'Registrar consulta realizada' : 'Registrar ausência', () => registrarSit({ data: { conversaId: c.id, estado } }), onAlterado);
   };
   return (

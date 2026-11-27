@@ -10,6 +10,8 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
+    // Transição suave só quando a tela muda (não ao trocar de conversa, filtro ou aba na mesma tela).
+    defaultViewTransition: { types: ({ pathChanged }) => (pathChanged ? ["troca-de-tela"] : false) },
   });
 
   return router;

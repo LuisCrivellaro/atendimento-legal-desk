@@ -4,6 +4,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { Link } from '@tanstack/react-router';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { confirmar } from '@/components/confirmar';
 import { dataHoraCurta } from '@/lib/atendimento';
 import { enviarRelatorioAdvogadoAgora, lerAuditoriaFilaAdvogado, verificarFilaAdvogado } from '@/lib/atendimento/fila-advogado.functions';
 
@@ -28,7 +29,7 @@ export function FilaAdvogadoAuditoria() {
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível verificar a fila.'); } finally { setBusy(false); }
   };
   const mandar = async () => {
-    if (!data || !window.confirm(`Enviar agora ao ${data.destinatario?.responsavel ?? 'advogado'} o relatório da prévia (${data.pendentes} pendente(s))?`)) return;
+    if (!data || !(await confirmar({ titulo: 'Enviar o relatório agora?', descricao: `O relatório da prévia (${data.pendentes} pendente(s)) vai agora para ${data.destinatario?.responsavel ?? 'o advogado'}.`, confirmar: 'Enviar relatório' }))) return;
     setBusy(true);
     try { const r = await enviar(); toast.success(`Relatório enviado: ${r.pendentes} pendente(s).`); await recarregar(); }
     catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível enviar o relatório.'); } finally { setBusy(false); }

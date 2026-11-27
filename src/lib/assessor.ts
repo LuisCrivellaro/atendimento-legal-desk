@@ -1,11 +1,32 @@
-import { needsReply } from './atendimento';
+import { dataHoraCurta, needsReply } from './atendimento';
+
+const TEM_FUSO = /(?:[zZ]|[+-]\d{2}:?\d{2})$/;
+/**
+ * Dia (AAAA-MM-DD, horário de São Paulo) de uma data de evento. O valor pode ter sido gravado só com o dia
+ * ('2026-11-11'), com dia e hora locais do formulário ('2026-11-11T14:30') ou em ISO com fuso.
+ * Sem fuso, o texto já é o horário local: não converter (antes, '2026-11-11' virava 10/11 às 21:00).
+ */
+export function diaEvento(valor: string): string {
+  if (/^\d{4}-\d{2}-\d{2}/.test(valor) && !TEM_FUSO.test(valor)) return valor.slice(0, 10);
+  const d = new Date(valor);
+  if (!Number.isFinite(d.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+/** Data de evento para exibir: "11/11/2026" quando só o dia foi gravado; "11/11/2026 · 14:30" quando há hora. */
+export function rotuloEvento(valor: string | undefined): string {
+  if (!valor) return '';
+  const semFuso = TEM_FUSO.test(valor) ? null : /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(valor);
+  if (semFuso) { const [, a, m, d, h, min] = semFuso; return h ? `${d}/${m}/${a} · ${h}:${min}` : `${d}/${m}/${a}`; }
+  return dataHoraCurta(valor);
+}
 import type { Mensagem } from './mock-data';
 import type { Movement } from './office';
 export interface AssessorCase {tarefasRetorno?:import('./atendimento/ana-contexto').TarefaRetorno[];avisosEquipe?:import('./atendimento/avisos-equipe').AvisoEquipe[];id:string;nome:string;pipeline:number;mine:boolean;prazos:{data:string;texto:string;fatal?:boolean}[];mensagens?:Mensagem[];movements?:Movement[];consultaAgendada?:string|undefined;retornoAgendado?:string|undefined}
 export function daysUntil(date:string,today:string){return Math.round((Date.parse(date.slice(0,10)+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000);}
 export function buildAssessor(cases:AssessorCase[],today:string){
  const deadlines=cases.flatMap(c=>c.prazos.filter(p=>p.fatal).map(p=>({...p,caseId:c.id,client:c.nome,days:daysUntil(p.data,today)}))).sort((a,b)=>a.data.localeCompare(b.data));
- const events=cases.flatMap(c=>(c.movements??[]).filter(m=>m.tipo&&m.eventoData&&!m.concluido).map(m=>({...m,client:c.nome,caseId:c.id})));
+ // Audiências e perícias de hoje em diante, em ordem de data (eventos passados continuam em Andamentos).
+ const events=cases.flatMap(c=>(c.movements??[]).filter(m=>m.tipo&&m.eventoData&&!m.concluido&&diaEvento(m.eventoData)>=today).map(m=>({...m,client:c.nome,caseId:c.id}))).sort((a,b)=>diaEvento(a.eventoData??'').localeCompare(diaEvento(b.eventoData??''))||(a.eventoData??'').localeCompare(b.eventoData??''));
  const consultations=cases.filter(c=>c.consultaAgendada?.slice(0,10)===today);const returns=cases.filter(c=>c.retornoAgendado&&c.retornoAgendado.slice(0,10)>=today);
  // "Aguardando resposta" conta conversas (não mensagens). O menu lateral usa só as conversas do próprio usuário,
  // as mesmas da lista do Atendimento; a tarefa do Assessor pode ver o escritório inteiro (sênior/admin).

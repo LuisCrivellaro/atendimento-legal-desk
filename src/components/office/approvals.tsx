@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PageHeader } from './shared';
 import { ProcessReviews } from './process-reviews';
+import { SkeletonTabela } from '@/components/skeletons';
 
 export function ApprovalsPage() {
   const { user } = AuthRoute.useRouteContext();
@@ -48,7 +49,7 @@ export function ApprovalsPage() {
       <Button variant="outline" size="icon" aria-label="Atualizar aprovações" title="Atualizar aprovações" disabled={query.isFetching} onClick={() => query.refetch()}><RefreshCw className={query.isFetching ? 'animate-spin' : ''} /></Button>
     </PageHeader>
     <ProcessReviews />
-    {query.isPending ? <p className="flex items-center gap-2 text-muted-foreground"><Loader2 className="size-4 animate-spin" />Carregando aprovações…</p> : query.isError ? <p role="alert" className="text-destructive">Não foi possível carregar as aprovações. Tente atualizar.</p> : <>
+    {query.isPending ? <SkeletonTabela rotulo="Carregando aprovações…" /> : query.isError ? <p role="alert" className="text-destructive">Não foi possível carregar as aprovações. Tente atualizar.</p> : <>
       <div className="mb-6 grid gap-6 border-b pb-6 sm:grid-cols-3">
         {[{ icon: ClipboardCheck, label: 'Minutas pendentes', value: pending.length }, { icon: CalendarClock, label: 'Vencidas / hoje', value: pending.filter(r => r.dueDate && r.dueDate <= today).length }, { icon: CircleAlert, label: 'Sem advogado definido', value: pending.filter(r => !r.lawyerId).length }].map(item => <div key={item.label} className="flex items-center gap-4"><item.icon className="size-6 text-primary" /><div><p className="text-3xl font-semibold">{item.value}</p><p className="text-sm text-muted-foreground">{item.label}</p></div></div>)}
       </div>

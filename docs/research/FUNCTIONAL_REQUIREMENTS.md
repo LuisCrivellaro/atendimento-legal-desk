@@ -278,3 +278,28 @@ Antes de entregar cada fase (e no fim, a Fase 6 do `IMPLEMENTATION_PLAN.md`):
 4. Comparar as capturas novas com `capturas/` da Etapa 01, tela por tela.
 5. Qualquer "regressão" bloqueia a entrega até ser corrigida ou autorizada pela Dra. por escrito.
 6. Depois da publicação pela Dra., repetir os itens marcados **N** no sistema real.
+
+## Implementado (atualizar a cada fase)
+
+| Data | IDs | Resultado |
+|---|---|---|
+| 27/11/2026 | G-18 | Favicon e ícones do aplicativo com a logo oficial do MANAGER ADV |
+| 27/11/2026 | G-07 (parcial), G-08 (parcial) | Menu: "Painel", ícones próprios para Processos e Andamentos processuais; número do badge visível no item ativo |
+| 27/11/2026 | G-10 | Contencioso só aparece no menu para advogada sênior e administração (o servidor continua barrando os demais) |
+| 27/11/2026 | G-16, G-20 | 404, tela de erro e rótulos de leitor de tela em português |
+| 27/11/2026 | G-17 | `noindex, nofollow` e `robots.txt` com `Disallow: /` |
+| 27/11/2026 | PA-06, PA-07 | Datas de audiência/perícia sem deslocamento de fuso (Painel, Andamentos, aba ProJuris); Painel só com eventos de hoje em diante, em ordem |
+| 27/11/2026 | AT-03, AT-30 | Filtros do Atendimento abrem sem cobrir o menu; diálogo de automações sem rolagem horizontal |
+| 27/11/2026 | AT-31 | "Anne" nos rótulos da interface (o autor gravado das mensagens continua "ANA") |
+| 27/11/2026 | AT-07, AT-15, AT-29, CF-08 e demais confirmações | As 9 confirmações do navegador viraram o diálogo do sistema, com o mesmo efeito e a consequência escrita |
+
+| 27/11/2026 | NV-01, AT-14 | Centro de avisos "Precisa de atenção · N" no Atendimento (mesmas faixas e ações, recolhível) |
+| 27/11/2026 | AT-11, AT-22, AT-28 | "Trato feito"; Esc só fecha a conversa sem menu/janela aberta e com campo vazio; painel do cliente recolhível |
+| 27/11/2026 | NV-02 | Fio das 10 etapas na barra fixa do caso (Produção, Auditoria, Protocolo, Andamentos) |
+| 27/11/2026 | AU-02, PR-12, PT-05, AN-01, CF-06 | Progresso da Auditoria e "Só pendentes"; aviso de saída sem salvar em Produção; vazio do pacote final; zero neutro em Andamentos; Configurações sem seletor de caso |
+| 27/11/2026 | PA-03, PA-04, PA-10 | Painel: "O que fazer hoje" em primeiro, zeros neutros, barras horizontais |
+| 27/11/2026 | CO-04, CF-09, CF-10, CL-05 | Busca do Contencioso com atraso (e sem aspas em buscas numéricas); "Verificar acesso"; título de Integrações no topo; lista de clientes para perfis não sênior |
+| 27/11/2026 | NV-06 | Skeletons, barra de navegação, transição entre telas, check animado, tooltips em grupo |
+| Pendente | TR-05, AP-05, PT-04, AU-05, CF-11, CO-05, CO-06, PA-05/08/12, AT-34, AT-35, CL-08, NV-03, NV-04, NV-05 e os itens "Reavaliar" | Ver "Não feito (motivo)" em `IMPLEMENTATION_PLAN.md` |
+
+Verificação final desta rodada: checagem de tipos sem erro, suíte completa de testes e revisão das telas na demo local (detalhes no relatório da sessão).

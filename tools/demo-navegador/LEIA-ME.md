@@ -18,18 +18,26 @@ O que muda em relação ao sistema real (só nesta demonstração):
 
 Nada aqui é usado pelo sistema real; o código do app (`src/`) não muda.
 
-## Como gerar
+## Como abrir localmente
 
-Na raiz do projeto, com as dependências instaladas:
+Na raiz do projeto, com as dependências instaladas (Node instalado):
+
+```sh
+node node_modules/vite/bin/vite.js --config tools/demo-navegador/vite.spa.config.ts
+```
+
+Abre em <http://localhost:8090>. No Claude Code, a configuração `demo-navegador` de `.claude/launch.json` faz o
+mesmo. Não precisa de nenhum pacote extra.
+
+As rotas de MCP e os webhooks (`/api/public/*`) entram na árvore de rotas, mas não rodam no navegador: a demo usa
+substitutos em `stubs/` (`@lovable.dev/mcp-js` e `node:crypto`). O banco falso (`supabase-fake.ts`) aceita qualquer
+método de consulta novo que o app passe a usar sem quebrar (métodos desconhecidos encadeiam sem filtrar).
+
+## Como gerar o arquivo único
 
 ```sh
 npm i --no-save vite-plugin-singlefile
 npx vite build --config tools/demo-navegador/vite.spa.config.ts
 ```
 
-O resultado é um único arquivo: `tools/demo-navegador/dist/index.html`.
-Abra no navegador ou publique como página. Para testar localmente:
-
-```sh
-npx vite --config tools/demo-navegador/vite.spa.config.ts
-```
+O resultado é um único arquivo: `tools/demo-navegador/dist/index.html`. Abra no navegador ou publique como página.

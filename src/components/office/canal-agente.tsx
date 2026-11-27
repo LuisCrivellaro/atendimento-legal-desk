@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { Loader2, Plus, RefreshCw, Webhook } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { confirmar } from '@/components/confirmar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -107,8 +108,8 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGeren
         </div>
         <label className="flex items-center justify-between gap-4 text-sm">Atender todo mundo que escrever
           <Switch checked={entrada.data?.ativa ?? false} disabled={!podeGerenciar} aria-label="Atender todo mundo que escrever no WhatsApp do escritório"
-            onCheckedChange={ativa => {
-              if (ativa && !window.confirm('A Anne vai responder qualquer pessoa que escrever no WhatsApp do escritório. Confirmar?')) return;
+            onCheckedChange={async ativa => {
+              if (ativa && !(await confirmar({ titulo: 'Atender todo mundo que escrever?', descricao: 'A Anne vai responder qualquer pessoa que escrever no WhatsApp do escritório, não só os contatos liberados.', confirmar: 'Atender todo mundo' }))) return;
               void executar(ativa ? 'Abrir entrada do WhatsApp' : 'Fechar entrada do WhatsApp', async () => { await salvarEntrada({ data: { ativa } }); await qc.invalidateQueries({ queryKey: ['entrada-whatsapp'] }); });
             }} />
         </label>
@@ -149,7 +150,7 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGeren
 
       <Cartao title="Agente">
         <label className="flex items-center justify-between gap-4 border-b pb-3 text-sm">Agente de IA
-          <Switch checked={cfg?.agente_ativo??false} disabled={!cfg||cfg.canal_ativo==='desligado'} aria-label="Agente de IA" onCheckedChange={ativo=>void executar('Salvar agente Ana',async()=>{const salvo=await saveConfig({data:{canal_ativo:'ultramsg',fonte_sugestoes:'agente',agente_ativo:ativo}});onConfig?.(salvo);await refresh();})} />
+          <Switch checked={cfg?.agente_ativo??false} disabled={!cfg||cfg.canal_ativo==='desligado'} aria-label="Agente de IA" onCheckedChange={ativo=>void executar('Salvar agente Anne',async()=>{const salvo=await saveConfig({data:{canal_ativo:'ultramsg',fonte_sugestoes:'agente',agente_ativo:ativo}});onConfig?.(salvo);await refresh();})} />
         </label>
         <p className="mt-1 text-xs text-muted-foreground">Anne · assistente virtual CS Lawyers</p>
         <label className="mt-3 block text-sm">Fonte das sugestões

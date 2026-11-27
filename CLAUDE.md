@@ -51,6 +51,7 @@ O executável da Impeccable (captura de tela/movimento e detector) não está au
 
 ## Como pré-visualizar telas internas
 
-A demonstração local (`tools/demo-navegador`, dados fictícios) é a forma de ver as telas sem login. Hoje ela precisa
-dos adaptadores descritos em `docs/research/RESEARCH_SUMMARY.md` ("Como reproduzir a navegação da demonstração") até
-a Fase 0 do plano incorporá-los ao `tools/`.
+A demonstração local (`tools/demo-navegador`, dados fictícios, nada sai do computador) é a forma de ver as telas sem
+login: configuração `demo-navegador` de `.claude/launch.json` (porta 8090) ou
+`node node_modules/vite/bin/vite.js --config tools/demo-navegador/vite.spa.config.ts`. Login: qualquer e-mail e senha
+com 6+ caracteres. Detalhes em `tools/demo-navegador/LEIA-ME.md`.

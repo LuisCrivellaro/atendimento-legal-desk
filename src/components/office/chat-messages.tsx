@@ -119,10 +119,10 @@ function Documento({ m, arquivo }: { m: Mensagem; arquivo?: CaseFile | undefined
   </>;
 }
 
-/** Quem respondeu: mensagens da IA aparecem como ANA; as humanas, com o nome do atendente. */
+/** Quem respondeu: mensagens da IA aparecem como ANNE; as humanas, com o nome do atendente. O autor gravado continua "ANA". */
 export function nomeEmissor(autor?: string) {
   if (!autor) return undefined;
-  return /^(ana\b|ia\b)/i.test(autor.trim()) ? 'ANA' : autor;
+  return /^(ana|anne|ia)\b/i.test(autor.trim()) ? 'ANNE' : autor;
 }
 
 /** Relógio do WhatsApp enquanto o envio da equipe não tem recibo do canal. */
@@ -145,6 +145,11 @@ export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId
   const porId = useMemo(() => new Map(arquivos.map(a => [a.id, a])), [arquivos]);
   const raiz = useRef<HTMLDivElement>(null);
   const ancora = useRef<{ altura: number; topo: number } | null>(null);
+  // Mensagens que já estavam na conversa ao abrir (inclusive as anteriores ainda não desenhadas) entram paradas; só as
+  // que chegam ou são enviadas depois ganham a entrada suave (MOTION_GUIDELINES.md; movimento reduzido tratado no CSS).
+  const iniciais = useRef<{ conversa: string; ids: Set<string> } | null>(null);
+  if (!iniciais.current || iniciais.current.conversa !== c.id) iniciais.current = { conversa: c.id, ids: new Set(c.mensagens.map(m => m.id)) };
+  const jaEstavam = iniciais.current.ids;
   const anteriores = () => { const el = raiz.current?.parentElement; if (el) ancora.current = { altura: el.scrollHeight, topo: el.scrollTop }; setMostrar(n => n + JANELA_MENSAGENS); };
   // Mantém na tela a mesma mensagem depois de inserir as anteriores acima (sem pulo na rolagem).
   useLayoutEffect(() => { const el = raiz.current?.parentElement; const a = ancora.current; if (el && a) { el.scrollTop = a.topo + (el.scrollHeight - a.altura); ancora.current = null; } }, [mostrar]);
@@ -156,7 +161,8 @@ export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId
   }, [ocultas]);
   return <div ref={raiz} className="space-y-0.5">{ocultas > 0 && <div className="flex justify-center py-2"><button type="button" className="zap-pill text-primary underline-offset-2 hover:underline" onClick={anteriores}>Mostrar {Math.min(ocultas, JANELA_MENSAGENS)} mensagens anteriores</button></div>}{itens.map(({ m, separador, inicio }) => {
     const sep = separador && <div className="flex justify-center py-2"><span className="zap-pill">{separador}</span></div>;
-    if (m.de === 'sistema') return <div key={m.id}>{sep}<div data-message="true" className="flex justify-center py-1.5"><p className="zap-pill max-w-[85%] text-center">{m.texto}{(m.dataHora || m.hora) && <span className="ml-1.5 opacity-80">· {horaMensagem(m)}</span>}</p></div></div>;
+    const nova = !jaEstavam.has(m.id) && 'entrada-suave';
+    if (m.de === 'sistema') return <div key={m.id}>{sep}<div data-message="true" className={cn('flex justify-center py-1.5', nova)}><p className="zap-pill max-w-[85%] text-center">{m.texto}{(m.dataHora || m.hora) && <span className="ml-1.5 opacity-80">· {horaMensagem(m)}</span>}</p></div></div>;
     const out = m.de === 'escritorio';
     const audio = m.tipo === 'audio' || /^áudio/i.test(m.arquivo ?? '');
     const imagem = !audio && !!m.arquivo && (m.tipo === 'imagem' || /\.(jpe?g|png|webp|heic|gif)$/i.test(m.arquivo));
@@ -166,14 +172,14 @@ export const ChatMessages = memo(function ChatMessages({ c, arquivos = [],userId
     const meta = <span className="inline-flex items-center gap-1"><span>{horaMensagem(m)}</span>{status ? <StatusTique status={status} /> : envio?.estado === 'enviando' ? <Enviando /> : envio?.estado === 'falhou' ? <AlertCircle role="img" aria-label="Não enviada" className="size-3.5 text-destructive" /> : null}</span>;
     const temMeta = !!(m.dataHora || m.hora || status || envio);
     const emissor = out ? nomeEmissor(m.autor) : undefined;
-    if(m.apagadaParaTodos)return <div key={m.id}>{sep}<div data-message="true" className="flex justify-end py-2"><p className="zap-bubble zap-out px-3 py-2 text-sm italic text-muted-foreground">Mensagem apagada <span className="ml-2 text-2xs">{horaMensagem(m)}</span></p></div></div>;
+    if(m.apagadaParaTodos)return <div key={m.id}>{sep}<div data-message="true" className={cn('flex justify-end py-2', nova)}><p className="zap-bubble zap-out px-3 py-2 text-sm italic text-muted-foreground">Mensagem apagada <span className="ml-2 text-2xs">{horaMensagem(m)}</span></p></div></div>;
     // Imagem sem legenda: horário vai por cima da foto, como no WhatsApp.
     const metaNaFoto = imagem && !m.texto && !!(m.path ?? arquivo?.path);
-    return <div key={m.id}>{sep}<div data-message="true" className={cn('flex items-start gap-2', out ? 'justify-end' : 'justify-start', inicio ? 'pt-2' : 'pt-0.5')}>
+    return <div key={m.id}>{sep}<div data-message="true" className={cn('flex items-start gap-2', out ? 'justify-end' : 'justify-start', inicio ? 'pt-2' : 'pt-0.5', nova)}>
       {!out && (inicio ? <ClienteAvatar nome={c.nome} className="mt-0.5" /> : <span className="w-8 shrink-0" aria-hidden="true" />)}
       <div className={cn('zap-bubble relative max-w-[78%] break-words text-sm leading-[1.45] lg:max-w-[65%]', imagem ? 'p-1' : 'px-2.5 pb-1.5 pt-1.5', out ? 'zap-out' : 'zap-in', inicio && 'zap-tail')}>
-        {onDelete&&mensagemDoAgente(m)&&<DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="float-right ml-2 size-6" aria-label="Opções da mensagem da Ana"><MoreHorizontal className="size-3.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={()=>onDelete(m,false)}><Trash2/>Apagar para mim</DropdownMenuItem>{canDeleteForEveryone&&<DropdownMenuItem disabled={!podeApagarParaTodos(m)} onSelect={()=>onDelete(m,true)}><Trash2/>Apagar para todos</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>}
-        {emissor && <p className={cn('px-0.5 text-[13px] font-bold', emissor === 'ANA' ? 'text-primary' : 'text-foreground', imagem && 'px-1.5 pt-0.5')}>{emissor}{mostrarOrigem && <> <RotuloOrigem m={m} /></>}</p>}
+        {onDelete&&mensagemDoAgente(m)&&<DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="float-right ml-2 size-6" aria-label="Opções da mensagem da Anne"><MoreHorizontal className="size-3.5"/></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onSelect={()=>onDelete(m,false)}><Trash2/>Apagar para mim</DropdownMenuItem>{canDeleteForEveryone&&<DropdownMenuItem disabled={!podeApagarParaTodos(m)} onSelect={()=>onDelete(m,true)}><Trash2/>Apagar para todos</DropdownMenuItem>}</DropdownMenuContent></DropdownMenu>}
+        {emissor && <p className={cn('px-0.5 text-[13px] font-bold', emissor === 'ANNE' ? 'text-primary' : 'text-foreground', imagem && 'px-1.5 pt-0.5')}>{emissor}{mostrarOrigem && <> <RotuloOrigem m={m} /></>}</p>}
         {audio ? <Audio m={m} /> : imagem ? <Imagem m={m} arquivo={arquivo} meta={meta} /> : m.arquivo && <Documento m={m} arquivo={arquivo} />}
         {m.texto && <p className={cn('whitespace-pre-wrap px-0.5', m.arquivo && 'mt-1.5', imagem && 'px-1.5 pb-1')}>{m.texto}<span aria-hidden="true" className="invisible ml-3 inline-block text-2xs">{meta}</span></p>}
         {m.tipoIdentificado && <p className="mt-1 px-0.5 text-[13px] text-primary">{m.tipoIdentificado}</p>}

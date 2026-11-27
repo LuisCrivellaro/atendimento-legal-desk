@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
+import { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { Link, defaultParseSearch, useNavigate, useRouter, useRouterState } from '@tanstack/react-router';
 import type { ErrorComponentProps } from '@tanstack/react-router';
 import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
@@ -16,12 +16,18 @@ import { dataLegivel } from '@/lib/projuris/processos';
 import { dataHoraCurta } from '@/lib/atendimento';
 import type { FiltrosContencioso } from '@/lib/contencioso';
 import { filtrosContencioso } from '@/lib/contencioso';
+// Lê os filtros com o mesmo formato do roteador: uma busca só com números (CPF, CNJ) vem entre aspas na URL e,
+// lida como texto cru, chegava à tela e ao servidor com as aspas. Textos ficam texto; só a página é número.
+const paramsDaUrl = (str: string) => Object.fromEntries(Object.entries(defaultParseSearch(str) as Record<string, unknown>).map(([k, v]) => [k, k === 'pagina' || typeof v === 'string' ? v : v == null ? '' : String(v)]));
 import { toast } from 'sonner';
 
 export function ContenciosoPage({ filtros: filtrosIniciais, modo, codigo }: { filtros: FiltrosContencioso; modo: 'processos' | 'andamentos' | 'ficha'; codigo?: number }) {
   const searchStr = useRouterState({ select: s => s.location.searchStr });
-  const filtros = filtrosContencioso.parse({ ...filtrosIniciais, ...Object.fromEntries(new URLSearchParams(searchStr)) });
-  const { data: d } = useSuspenseQuery(contenciosoQuery(filtros, modo, codigo));
+  const filtros = filtrosContencioso.parse({ ...filtrosIniciais, ...paramsDaUrl(searchStr) });
+  // CO-04: a lista atual continua na tela (com indicador) enquanto a dos novos filtros carrega; os campos já mostram os filtros novos.
+  const searchStrDados = useDeferredValue(searchStr); const atualizando = searchStrDados !== searchStr;
+  const filtrosDados = atualizando ? filtrosContencioso.parse({ ...filtrosIniciais, ...paramsDaUrl(searchStrDados) }) : filtros;
+  const { data: d } = useSuspenseQuery(contenciosoQuery(filtrosDados, modo, codigo));
   const navigate = useNavigate(); const qc = useQueryClient(); const sincronizar = useServerFn(sincronizarProjurisManual);
   const [busy, setBusy] = useState(false); const [progresso, setProgresso] = useState('');
   const alterar = (mudanca: Partial<FiltrosContencioso>) => {
@@ -30,6 +36,16 @@ export function ContenciosoPage({ filtros: filtrosIniciais, modo, codigo }: { fi
     else if (modo === 'andamentos') void navigate({ to: '/contencioso/andamentos', search });
     else void navigate({ to: '/contencioso/processos', search });
   };
+  // CO-04: a busca fica no campo enquanto se digita e só vai para a URL (recarregando a lista) após 300 ms sem teclar.
+  const [busca, setBusca] = useState(filtros.busca); const buscaEnviada = useRef(filtros.busca);
+  const alterarRef = useRef(alterar); useEffect(() => { alterarRef.current = alterar; });
+  useEffect(() => { if (filtros.busca !== buscaEnviada.current) { buscaEnviada.current = filtros.busca; setBusca(filtros.busca); } }, [filtros.busca]);
+  useEffect(() => {
+    if (busca === buscaEnviada.current) return;
+    const t = window.setTimeout(() => { buscaEnviada.current = busca; alterarRef.current({ busca }); }, 300);
+    return () => window.clearTimeout(t);
+  }, [busca]);
+  const limparFiltros = () => { buscaEnviada.current = ''; setBusca(''); alterar({ busca: '', cliente: '', tribunal: '', situacao: '', processo: '', inicio: '', fim: '' }); };
   const atualizar = async (escopo: 'cadastros' | 'geral' | 'individual') => {
     if (busy) return; setBusy(true);
     let novas = 0, falhas = 0, completos = 0;
@@ -82,22 +98,23 @@ export function ContenciosoPage({ filtros: filtrosIniciais, modo, codigo }: { fi
       {!d.ficha.sincronizadoEm && <p className="mb-4 text-sm text-muted-foreground">Histórico ainda não importado.</p>}
     </>}
     <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {modo !== 'ficha' && <><div className="relative"><Search className="absolute left-3 top-3 size-4 text-muted-foreground"/><Input aria-label="Pesquisar Contencioso" placeholder={modo === 'andamentos' ? 'Cliente, processo ou descrição' : 'Cliente, CPF/CNPJ ou CNJ'} className="pl-9" value={filtros.busca} onChange={e => alterar({ busca: e.target.value })}/></div>
+      {modo !== 'ficha' && <><div className="relative"><Search className="absolute left-3 top-3 size-4 text-muted-foreground"/><Input aria-label="Pesquisar Contencioso" placeholder={modo === 'andamentos' ? 'Cliente, processo ou descrição' : 'Cliente, CPF/CNPJ ou CNJ'} className="pl-9 pr-9" maxLength={120} value={busca} onChange={e => setBusca(e.target.value)}/>{(busca !== filtros.busca || atualizando) && <Loader2 aria-hidden="true" className="absolute right-3 top-3 size-4 animate-spin text-muted-foreground"/>}</div>
       <Filtro label="Cliente" valor={filtros.cliente} alterar={v => alterar({ cliente: v })} opcoes={d.opcoes.clientes.map(c => ({ valor: String(c.codigo), nome: c.nome }))}/>
       <Filtro label="Tribunal" valor={filtros.tribunal} alterar={v => alterar({ tribunal: v })} opcoes={d.opcoes.tribunais.map(t => ({ valor: t, nome: t }))}/>
       {modo === 'processos' ? <Filtro label="Situação" valor={filtros.situacao} alterar={v => alterar({ situacao: v })} opcoes={d.opcoes.situacoes.map(t => ({ valor: t, nome: t }))}/> : <Filtro label="Processo" valor={filtros.processo} alterar={v => alterar({ processo: v })} opcoes={d.referencias.map(p => ({ valor: String(p.codigo), nome: p.numero ?? 'Número não informado' }))}/>}</>}
       <div><Label htmlFor="contencioso-inicio" className="text-xs">{modo === 'processos' ? 'Última movimentação — de' : 'Movimentação — de'}</Label><Input id="contencioso-inicio" type="date" value={filtros.inicio} onChange={e => alterar({ inicio: e.target.value })}/></div>
       <div><Label htmlFor="contencioso-fim" className="text-xs">Até</Label><Input id="contencioso-fim" type="date" value={filtros.fim} onChange={e => alterar({ fim: e.target.value })}/></div>
       <div><Label className="text-xs">Ordenação</Label><Select value={filtros.ordem} onValueChange={v => alterar({ ordem: v as FiltrosContencioso['ordem'] })}><SelectTrigger aria-label="Ordenação"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="recente">Mais recentes</SelectItem><SelectItem value="antigo">Mais antigos</SelectItem>{modo === 'processos' && <><SelectItem value="cliente">Cliente A–Z</SelectItem><SelectItem value="numero">Número CNJ</SelectItem></>}</SelectContent></Select></div>
-      <Button variant="ghost" className="self-end" onClick={() => alterar({ busca: '', cliente: '', tribunal: '', situacao: '', processo: '', inicio: '', fim: '' })}>Limpar filtros</Button>
+      <Button variant="ghost" className="self-end" onClick={limparFiltros}>Limpar filtros</Button>
     </div>
-    {modo === 'processos' ? <div className="overflow-x-auto"><table className="w-full min-w-[800px] text-left text-sm"><thead className="bg-muted text-xs text-muted-foreground"><tr>{['Cliente / CPF ou CNPJ', 'Processo / Tribunal e vara', 'Classe / Assunto / Polo', 'Situação', 'Última movimentação', 'Andamentos', ''].map((t, i) => <th key={i} className="p-3 font-medium">{t}</th>)}</tr></thead><tbody>{d.processos.itens.map(p => <tr key={p.codigo} className="border-b hover:bg-muted/50"><td className="max-w-64 p-3">{p.clientes.map(c => <div key={c.codigo} className="mb-2"><Link to="/clientes" search={{ clientId: String(c.codigo) }} className="font-medium text-primary">{c.nome}</Link><p className="text-xs text-muted-foreground">{c.cpfCnpj ?? 'CPF/CNPJ não informado'}</p></div>)}</td><td className="max-w-64 p-3"><Link to="/contencioso/processos/$codigo" params={{ codigo: String(p.codigo) }} className="font-medium text-primary">{p.numero ?? 'CNJ não informado'}</Link><p className="mt-1 text-xs text-muted-foreground">{[p.tribunal, p.vara].filter(Boolean).join(' · ') || 'Tribunal/vara não informados'}</p></td><td className="max-w-52 p-3"><p>{p.classe ?? 'Classe não informada'}</p><p className="mt-1 text-xs text-muted-foreground">{p.assunto ?? 'Assunto não informado'}</p><p className="mt-1 text-xs">{p.clientes.map(c => c.polo).filter(Boolean).join(' / ') || 'Polo não informado'}</p></td><td className="p-3"><Badge variant="outline">{p.situacao ?? 'Não informada'}</Badge>{p.erro && <p className="mt-2 text-xs text-destructive">Falha na sincronização</p>}</td><td className="whitespace-nowrap p-3">{dataLegivel(p.ultimaMovimentacao ?? undefined) ?? 'Não informada'}</td><td className="p-3">{p.sincronizadoEm ? p.quantidade : 'Pendente'}</td><td className="p-3"><Button asChild size="icon" variant="ghost"><Link aria-label={`Abrir processo ${p.numero ?? p.identificador ?? ''}`} to="/contencioso/processos/$codigo" params={{ codigo: String(p.codigo) }}><ArrowRight/></Link></Button></td></tr>)}</tbody></table>{!d.processos.itens.length && <Empty text="Nenhum processo encontrado."/>}</div> : <div>{d.movimentos.itens.map(a => <article key={`${a.codigoProcesso}:${a.codigo}`} className="mb-5 border-l-2 border-primary pl-4">
+    <div role="status" aria-live="polite" className="mb-2 h-1 overflow-hidden rounded-full">{atualizando && <><span className="sr-only">Atualizando resultados…</span><div aria-hidden="true" className="h-full w-full animate-pulse bg-primary"/></>}</div>
+    {modo === 'processos' ? <div aria-busy={atualizando} className={`overflow-x-auto transition-opacity ${atualizando ? 'opacity-60' : ''}`}><table className="w-full min-w-[800px] text-left text-sm"><thead className="bg-muted text-xs text-muted-foreground"><tr>{['Cliente / CPF ou CNPJ', 'Processo / Tribunal e vara', 'Classe / Assunto / Polo', 'Situação', 'Última movimentação', 'Andamentos', ''].map((t, i) => <th key={i} className="p-3 font-medium">{t}</th>)}</tr></thead><tbody>{d.processos.itens.map(p => <tr key={p.codigo} className="border-b hover:bg-muted/50"><td className="max-w-64 p-3">{p.clientes.map(c => <div key={c.codigo} className="mb-2"><Link to="/clientes" search={{ clientId: String(c.codigo) }} className="font-medium text-primary">{c.nome}</Link><p className="text-xs text-muted-foreground">{c.cpfCnpj ?? 'CPF/CNPJ não informado'}</p></div>)}</td><td className="max-w-64 p-3"><Link to="/contencioso/processos/$codigo" params={{ codigo: String(p.codigo) }} className="font-medium text-primary">{p.numero ?? 'CNJ não informado'}</Link><p className="mt-1 text-xs text-muted-foreground">{[p.tribunal, p.vara].filter(Boolean).join(' · ') || 'Tribunal/vara não informados'}</p></td><td className="max-w-52 p-3"><p>{p.classe ?? 'Classe não informada'}</p><p className="mt-1 text-xs text-muted-foreground">{p.assunto ?? 'Assunto não informado'}</p><p className="mt-1 text-xs">{p.clientes.map(c => c.polo).filter(Boolean).join(' / ') || 'Polo não informado'}</p></td><td className="p-3"><Badge variant="outline">{p.situacao ?? 'Não informada'}</Badge>{p.erro && <p className="mt-2 text-xs text-destructive">Falha na sincronização</p>}</td><td className="whitespace-nowrap p-3">{dataLegivel(p.ultimaMovimentacao ?? undefined) ?? 'Não informada'}</td><td className="p-3">{p.sincronizadoEm ? p.quantidade : 'Pendente'}</td><td className="p-3"><Button asChild size="icon" variant="ghost"><Link aria-label={`Abrir processo ${p.numero ?? p.identificador ?? ''}`} to="/contencioso/processos/$codigo" params={{ codigo: String(p.codigo) }}><ArrowRight/></Link></Button></td></tr>)}</tbody></table>{!d.processos.itens.length && <Empty text="Nenhum processo encontrado."/>}</div> : <div aria-busy={atualizando} className={`transition-opacity ${atualizando ? 'opacity-60' : ''}`}>{d.movimentos.itens.map(a => <article key={`${a.codigoProcesso}:${a.codigo}`} className="mb-5 border-l-2 border-primary pl-4">
       <div className="mb-2 flex flex-wrap items-center gap-2 text-sm"><span className="font-medium">{dataLegivel(a.data) ?? 'Data não informada'}{a.hora ? ` · ${a.hora.slice(0, 5)}` : ''}</span><Badge variant="outline">{a.tipo ?? 'Tipo não informado'}</Badge>{a.privado && <span className="text-xs text-muted-foreground">Privado · uso interno</span>}</div>
       {modo === 'andamentos' && <Link to="/contencioso/processos/$codigo" params={{ codigo: String(a.codigoProcesso) }} className="mb-2 block text-sm text-primary">{d.referencias.find(p => p.codigo === a.codigoProcesso)?.clientes.map(c => c.nome).join(' / ')} · {d.referencias.find(p => p.codigo === a.codigoProcesso)?.numero ?? 'Número não informado'}</Link>}
       <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{a.descricao}</p>
       <p className="mt-2 text-xs text-muted-foreground">ProJuris API oficial</p>
     </article>)}{!d.movimentos.itens.length && <Empty text="Nenhum andamento disponível para estes filtros."/>}</div>}
-    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"><p className="text-sm text-muted-foreground">{pagina.total} {modo === 'processos' ? 'processos' : 'andamentos'} · Página {pagina.pagina + 1} de {pagina.paginas}</p><div className="flex gap-2"><Button aria-label="Página anterior" variant="outline" size="icon" disabled={!pagina.pagina} onClick={() => alterar({ pagina: pagina.pagina - 1 })}><ChevronLeft/></Button><Button aria-label="Próxima página" variant="outline" size="icon" disabled={pagina.pagina + 1 >= pagina.paginas} onClick={() => alterar({ pagina: pagina.pagina + 1 })}><ChevronRight/></Button></div></div>
+    <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t pt-4"><p className="text-sm text-muted-foreground">{pagina.total} {modo === 'processos' ? 'processos' : 'andamentos'} · Página {pagina.pagina + 1} de {pagina.paginas}</p><div className="flex gap-2"><Button aria-label="Página anterior" variant="outline" size="icon" disabled={atualizando || !pagina.pagina} onClick={() => alterar({ pagina: pagina.pagina - 1 })}><ChevronLeft/></Button><Button aria-label="Próxima página" variant="outline" size="icon" disabled={atualizando || pagina.pagina + 1 >= pagina.paginas} onClick={() => alterar({ pagina: pagina.pagina + 1 })}><ChevronRight/></Button></div></div>
     <p className="mt-6 border-t pt-4 text-xs text-muted-foreground">Histórico acessível pela API oficial de andamentos. A consulta classificada apresentou erro 500; equivalência com “Visualizar todos” não comprovada. Documentos vinculados não estão disponíveis nesta consulta; nenhum arquivo é baixado por este módulo.</p>
   </div>;
 }

@@ -1,14 +1,3 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Manager ADV é um sistema interno do escritório: nenhuma página deve ser indexada.
 User-agent: *
-Allow: /
+Disallow: /

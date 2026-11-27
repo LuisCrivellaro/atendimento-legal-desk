@@ -4,6 +4,7 @@ import { useServerFn } from '@tanstack/react-start';
 import { toast } from 'sonner';
 import { AlertTriangle, CheckCircle2, Clock, Loader2, Pencil, Plus, Power } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { confirmar } from '@/components/confirmar';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -103,7 +104,7 @@ export function InstrucoesOperacionais() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const desligar = async (i: InstrucaoOperacional) => {
-    if (!window.confirm(`Desativar agora a instrução "${i.titulo}"? A Anne deixa de segui-la imediatamente; o registro fica no histórico.`)) return;
+    if (!(await confirmar({ titulo: `Desativar a instrução "${i.titulo}"?`, descricao: 'A Anne deixa de segui-la imediatamente; o registro fica no histórico.', confirmar: 'Desativar agora', perigo: true }))) return;
     setBusy(true);
     try { await desativar({ data: { id: i.id } }); toast.success('Instrução desativada.'); await recarregar(); }
     catch (e) { toast.error(e instanceof Error ? e.message : 'Não foi possível desativar.'); } finally { setBusy(false); }

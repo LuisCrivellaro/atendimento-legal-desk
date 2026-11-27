@@ -11,6 +11,8 @@ import {
   ClipboardCheck,
   Users,
   Plug,
+  Scale,
+  ScrollText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,8 +30,8 @@ import {
 type Item = { title: string; url: string; icon: typeof Compass };
 
 // Grupos do menu. "Fluxo do caso" segue a ordem real de trabalho do escritório e ganha a linha que liga as etapas.
-const groups: { label?: string; flow?: boolean; items: Item[] }[] = [
-  { items: [{ title: "Assessor", url: "/", icon: Compass }] },
+const groups: { label?: string; flow?: boolean; restrito?: boolean; items: Item[] }[] = [
+  { items: [{ title: "Painel", url: "/", icon: Compass }] },
   {
     label: "Fluxo do caso",
     flow: true,
@@ -43,7 +45,8 @@ const groups: { label?: string; flow?: boolean; items: Item[] }[] = [
     ],
   },
   { label: "Cadastros", items: [{ title: "Clientes", url: "/clientes", icon: Users }] },
-  { label: "Contencioso", items: [{ title: "Processos", url: "/contencioso/processos", icon: Landmark }, { title: "Andamentos processuais", url: "/contencioso/andamentos", icon: Activity }] },
+  // Só advogada sênior e administração acessam o Contencioso (o servidor também barra os demais perfis).
+  { label: "Contencioso", restrito: true, items: [{ title: "Processos", url: "/contencioso/processos", icon: Scale }, { title: "Andamentos processuais", url: "/contencioso/andamentos", icon: ScrollText }] },
   {
     label: "Escritório",
     items: [
@@ -54,14 +57,14 @@ const groups: { label?: string; flow?: boolean; items: Item[] }[] = [
   },
 ];
 
-export function AppSidebar({ badges = {} }: { badges?: Record<string, number> }) {
+export function AppSidebar({ badges = {}, podeContencioso = false }: { badges?: Record<string, number>; podeContencioso?: boolean }) {
   const path = useRouterState({ select: (r) => r.location.pathname });
   // No celular o menu abre por cima da tela; fecha ao escolher um destino.
   const { isMobile, setOpenMobile } = useSidebar();
   return (
     <Sidebar collapsible="icon" className="top-16 h-[calc(100svh-4rem)] border-r-0">
       <SidebarContent className="office-nav gap-1 py-2">
-        {groups.map((g, gi) => (
+        {groups.filter((g) => !g.restrito || podeContencioso).map((g, gi) => (
           <SidebarGroup key={g.label ?? gi} className="py-1">
             {g.label && (
               <SidebarGroupLabel className="office-nav-label h-7">{g.label}</SidebarGroupLabel>
