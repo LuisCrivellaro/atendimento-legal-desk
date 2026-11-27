@@ -34,7 +34,7 @@ import { configDoEstado, contextoSecretaria, portasSupabase, secretariaLigada } 
 import { aplicarModo, modoEfetivo, retornoAutomaticoDevido } from './secretaria/modos';
 import { ultimaIntervencaoHumana } from './secretaria/origem';
 import { encaminharInjecao, encerrarAutomacaoRespondida, iniciarReagendamentoAutomatico, registrarNaoComparecimento, reterRespostaNaoVerificada, tratarMensagemOperacional } from './secretaria/operacional';
-import { dadosNaoVerificados, fontesDaConversa, linksOficiais, possivelInjecao } from './secretaria/seguranca';
+import { conferirRespostaAtual, linksOficiais, possivelInjecao } from './secretaria/seguranca';
 import { TEMPLATES_OFICIAIS } from './biblioteca/mensagens-oficiais';
 import { memoriaEstruturada, REGRAS_MEMORIA } from './secretaria/memoria';
 import { classificarMensagemComercial, contextoFiltroComercial, registrarFiltroComercial } from './filtro-comercial';
@@ -492,7 +492,11 @@ export async function processarAna(db:Db,id:string,messageId:string,request:Requ
       r.mensagem=semReintroducao(r.mensagem,atendimentoIniciado(c,canal,messageId)||!!identidade);
       // Secretaria ligada: horário, data, valor, processo ou CPF fora das fontes desta conversa retém a resposta.
       if(secretaria){
-        const faltando=dadosNaoVerificados(r.mensagem,fontesDaConversa(current,{horarios:[...novosOferecidos,...(escolhido?[escolhido]:[]),...(horarioPendente?[horarioPendente]:[]),...historicoHorarios],textos:['30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30',REGRAS_REAGENDAMENTO,'Alguém responsável te responde no próximo dia útil, a partir das 8h.',...linksOficiais(Object.values(TEMPLATES_OFICIAIS).map(t=>t.texto))]}));
+        const faltando=await conferirRespostaAtual(r.mensagem,async()=>{
+          const fonte=await db.from('casos').select('dados').eq('id',id).eq('owner_id',row.data.owner_id).single();
+          if(fonte.error||!fonte.data)throw new Error('Não foi possível conferir o recibo atualizado da consulta.');
+          return fonte.data.dados as unknown as Conversa;
+        },{horarios:[...novosOferecidos,...(escolhido?[escolhido]:[]),...(horarioPendente?[horarioPendente]:[]),...historicoHorarios],textos:['30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30',REGRAS_REAGENDAMENTO,'Alguém responsável te responde no próximo dia útil, a partir das 8h.',...linksOficiais(Object.values(TEMPLATES_OFICIAIS).map(t=>t.texto))]});
         if(faltando.length){
           await atualizarConversa(db,id,x=>reterRespostaNaoVerificada(x,r.mensagem,faltando,messageId));
           await db.rpc('registrar_audit_log',{p_ator:'Anne',p_perfil:'sistema',p_acao:'secretariaFatos',p_resumo:`Resposta retida: dado sem fonte verificada (${faltando.length})`,p_status:'bloqueado'});
