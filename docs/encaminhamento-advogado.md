@@ -29,8 +29,10 @@ para falar com a Dra. Carolina recebe a mensagem fixa e entra na fila do advogad
 ## Relatório no WhatsApp do Fernando
 - Etapa `relatorio-advogado` do monitor de 5 min (servidor, sem navegador). Horários padrão 09:00 e 16:00
   (America/Sao_Paulo), janela de 2 h.
-- Só de segunda a sexta e dentro do expediente (09:00–17:30): fim de semana não envia (nem atrasado na segunda) e
-  a janela das 16h fecha às 17:30. A configuração recusa horário fora do expediente.
+- Só de segunda a sexta, fora de feriado nacional, dentro do expediente (09:00–17:30): fim de semana e feriado
+  nacional (mesma regra da agenda, `feriadoNacional`) não enviam, nem atrasado no dia útil seguinte; a janela das
+  16h fecha às 17:30. A configuração recusa horário fora do expediente. Feriados municipais/locais não são
+  conhecidos pelo sistema (mesma limitação da agenda).
 - Uma mensagem consolidada por horário, da pendência mais antiga para a mais recente, inclusive de dias anteriores;
   respondidas e concluídas ficam fora; sem pendências: "Olá, Fernando! No momento, não há clientes aguardando
   retorno. ✅". O envio não muda a situação das pendências.

@@ -19,6 +19,7 @@ import { lerConfigSecretaria } from '@/lib/atendimento/secretaria/config';
 import { esquemaConfigSecretaria } from '@/lib/atendimento/secretaria/config-schema';
 import { enviarRelatoriosAdvogado, planoRelatorio, idRelatorio, type EstadoRelatorioAdvogado } from '@/lib/atendimento/relatorio-advogado.server';
 import { enviarTextoResponsavel } from '@/lib/atendimento/canais/ultramsg';
+import { feriadoNacional } from '@/lib/atendimento/schedule-rules';
 import { processarAna } from '@/lib/atendimento/ana.server';
 
 const mocks = vi.hoisted(() => ({ indice: vi.fn(), ativos: vi.fn(), gerar: vi.fn(), enviar: vi.fn(), agenda: vi.fn(), fluxo: vi.fn(), base: vi.fn() }));
@@ -226,6 +227,13 @@ describe('relatório ao advogado: texto, horários e fuso', () => {
     expect(horarioRelatorioDevido(h, new Date('2026-11-26T20:29:00Z'))).toEqual({ horario: '16:00', dia: '2026-11-26' }); // 17:29
     expect(horarioRelatorioDevido(h, new Date('2026-11-26T20:30:00Z'))).toBeUndefined(); // 17:30: fim do expediente
     expect(horarioRelatorioDevido(['08:00', '18:00'], new Date('2026-11-26T11:30:00Z'))).toBeUndefined(); // 08:30 fora do expediente
+  });
+  it('feriado nacional em dia de semana: nenhum relatório (Finados na segunda, Natal na sexta)', () => {
+    const h = ['09:00', '16:00'];
+    expect(feriadoNacional('2026-11-02')).toBe(true); expect(feriadoNacional('2026-12-25')).toBe(true);
+    expect(horarioRelatorioDevido(h, new Date('2026-11-02T12:00:00Z'))).toBeUndefined(); // segunda, Finados, 09:00
+    expect(horarioRelatorioDevido(h, new Date('2026-12-25T19:00:00Z'))).toBeUndefined(); // sexta, Natal, 16:00
+    expect(horarioRelatorioDevido(h, new Date('2026-11-03T12:00:00Z'))).toEqual({ horario: '09:00', dia: '2026-11-03' }); // dia útil seguinte
   });
 });
 

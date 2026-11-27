@@ -183,7 +183,7 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
             </span>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Uma mensagem consolidada por horário (horário de Brasília), só para este número, só de segunda a sexta e dentro do expediente (09:00–17:30); o envio não muda a situação das pendências.</p>
+        <p className="text-xs text-muted-foreground">Uma mensagem consolidada por horário (horário de Brasília), só para este número, só de segunda a sexta (nunca em feriado nacional) e dentro do expediente (09:00–17:30); o envio não muda a situação das pendências.</p>
       </div>
       <p className="text-xs text-muted-foreground">T04, T11.2, T12.2 e T12.3 só saem sozinhos depois que a Dra. ativar o modelo na biblioteca oficial; até lá, a equipe recebe o texto pronto. O T12.2 sai na véspera da perícia em dia útil (se a véspera não for dia útil, vira pendência antecipada).</p>
 

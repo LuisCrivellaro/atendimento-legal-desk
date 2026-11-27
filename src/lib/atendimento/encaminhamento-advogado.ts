@@ -10,6 +10,7 @@ import { lembreteAtivo, respostaLembreteAna } from './lembrete-consulta';
 import { automacoesAguardandoResposta } from './secretaria/automacoes';
 import { origemMensagem } from './secretaria/origem';
 import { EXPEDIENTE_RELATORIO } from './secretaria/encaminhamento-config';
+import { feriadoNacional } from './schedule-rules';
 
 /**
  * Encaminhamento de clientes ativos ao advogado responsável (Fernando), pedido da Dra. Carolina em 26/11/2026.
@@ -380,7 +381,8 @@ const minutosDe = (hhmm: string) => { const [hh, mm] = hhmm.split(':').map(Numbe
  */
 export function horarioRelatorioDevido(horarios: string[], agora = new Date(), janelaMin = JANELA_RELATORIO_MIN): { horario: string; dia: string } | undefined {
   const dia = new Intl.DateTimeFormat('en-US', { timeZone: FUSO, weekday: 'short' }).format(agora);
-  if (dia === 'Sat' || dia === 'Sun') return undefined;
+  // Fim de semana e feriado nacional (mesma regra da agenda, date-holidays): nada vai ao advogado.
+  if (dia === 'Sat' || dia === 'Sun' || feriadoNacional(diaSP(agora))) return undefined;
   const p = partesSP(agora);
   const minutos = Number(p['hour']) * 60 + Number(p['minute']);
   const inicioExpediente = minutosDe(EXPEDIENTE_RELATORIO.inicio), fimExpediente = minutosDe(EXPEDIENTE_RELATORIO.fim);
