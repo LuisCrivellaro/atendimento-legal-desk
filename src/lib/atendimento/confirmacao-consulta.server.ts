@@ -8,6 +8,7 @@ import { hora } from './ana-scheduling';
 import { registrarAviso } from './avisos-equipe';
 import { consultaNoDia, decidirConfirmacao40, faseConfirmacao, textoAvisoConfirmacao, type MotivoAvisoConfirmacao } from './confirmacao-consulta';
 import { secretariaLigada } from './secretaria/secretaria.server';
+import { automacaoSuspensa } from './instrucoes-operacionais';
 import { lerBiblioteca } from './biblioteca/renderizar';
 import { bloqueadoPorTeste, lerConfigSecretaria } from './secretaria/config';
 import { consultaSuspensa, situacaoConsulta } from './situacao-consulta';
@@ -63,6 +64,8 @@ export async function enviarConfirmacoesConsulta(db: Db, agora = new Date(), rel
     if (resultado.enviados >= LIMITE_ENVIOS_POR_CICLO || relogio() - comeco > ORCAMENTO_CICLO_MS) { resultado.adiados++; continue; }
     const c = row.dados as unknown as Conversa;
     const state = estados.get(row.owner_id);
+    // Instrução operacional vigente suspendendo confirmações: nada é enviado nem reservado.
+    if (automacaoSuspensa(state, 'confirmacoes', agora)) { contar('suspensa por instrução operacional'); continue; }
     const contato = porConversa.get(row.id);
     const configSec = lerConfigSecretaria((state as { secretaria?: unknown } | undefined)?.secretaria);
     // Modo de teste controlado: só o número autorizado recebe; os demais nem geram aviso.

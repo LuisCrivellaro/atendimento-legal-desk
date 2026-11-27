@@ -12,6 +12,7 @@ import { bloqueadoPorTeste, lerConfigSecretaria } from './secretaria/config';
 import { decisaoRotina } from './secretaria/operacional';
 import { contextoRotina, reservarEnvioRotina } from './secretaria/rotinas';
 import { secretariaLigada } from './secretaria/secretaria.server';
+import { automacaoSuspensa } from './instrucoes-operacionais';
 
 type Db = SupabaseClient<Database>;
 
@@ -55,6 +56,8 @@ export async function enviarLembretesEventos(db: Db, agora = new Date()) {
   for (const row of rows.data) {
     const c = row.dados as unknown as Conversa;
     const state = estados.get(row.owner_id);
+    // Instrução operacional vigente suspendendo lembretes de audiência/perícia: nada é enviado nem marcado.
+    if (automacaoSuspensa(state, 'eventos_processuais', agora)) continue;
     const config = lerConfigSecretaria((state as { secretaria?: unknown } | undefined)?.secretaria);
     const contato = porConversa.get(row.id);
     const acoes = decidirLembretesEventos(c, agora, config.eventos as ConfigEventos, diaUtil, nomeVerificado(c));

@@ -24,6 +24,11 @@ export interface Passo {
   pendencias?: boolean;
   /** Rotina do servidor executada neste passo (ex.: confirmação 40 min antes da consulta). */
   sistema?: 'confirmacao40';
+  /**
+   * Instrução operacional ativada pela equipe neste passo (Treinamento de IA), com o mesmo preparo do servidor;
+   * `bloqueio` em minutos a partir do primeiro horário oferecido esclarece "bloquear a agenda" sem depender da data.
+   */
+  instrucao?: { texto: string; bloqueioDoOferecido?: { antesMin: number; depoisMin: number } };
 }
 export interface Cenario {
   id: string;
@@ -509,6 +514,21 @@ export const CENARIOS: Cenario[] = [
     id:'D29c',bloco:'D',titulo:'Nome identificado retorna outro dia sem nova oferta',conversas:{A:{telefone:T.desconhecido,nome:'Contato novo',perfil:'novo'}},projuris:'Não usado',relogio:QUI_10H,
     passos:[{cliente:'oi',intencao:'duvida_geral'},{cliente:'Mariana Souza Lima',intencao:'agendamento'},{avancarMin:1440,cliente:'bom dia',intencao:'duvida_geral'}],esperado:'Saudação de retorno sem nome ou horários',permitidas:['retomar contexto'],proibidas:['nova lista automática','pedir nome conhecido'],aprovacao:'não se aplica',ferramentas:{esperadas:[],proibidas:SEM_PROJURIS},comportamento:'Preservar nome e oferta anterior.',
     verificacoes:[v('retorno-sem-oferta','Não renova oferta no retorno','regra',true,e=>anaDe(e).at(-1)==='Olá! Como posso ajudar com seu atendimento?'?true:'Retorno não corresponde ao fluxo.')],
+  },
+  {
+    id: 'D61', bloco: 'D', titulo: 'Instrução operacional bloqueia o horário já escolhido: revalida antes de reservar e oferece outros', conversas: { A: { telefone: T.desconhecido, nome: 'Contato novo', perfil: 'novo' } }, projuris: 'Não usado', relogio: QUI_10H,
+    passos: [
+      { cliente: 'Oi, boa tarde', intencao: 'agendamento' },
+      { cliente: 'a primeira', intencao: 'agendamento' },
+      { instrucao: { texto: 'Bloquear a agenda', bloqueioDoOferecido: { antesMin: 1, depoisMin: 30 } }, cliente: 'Gisele Fictícia Souza', intencao: 'agendamento' },
+    ],
+    esperado: 'A equipe bloqueia o período no meio da conversa; a reserva relê as instruções, não confirma o horário bloqueado e oferece horários fora do período', permitidas: ['oferecer novos horários reais'], proibidas: ['reservar no período bloqueado', 'confirmar consulta', 'citar a instrução interna'],
+    aprovacao: 'não se aplica', ferramentas: { esperadas: ['agenda.consultar', 'agenda.reservar'], proibidas: SEM_PROJURIS }, comportamento: 'Instrução da equipe vale na hora, inclusive para horário oferecido antes dela.',
+    verificacoes: [
+      v('d61-sem-reserva', 'Nenhuma consulta reservada no período bloqueado', 'regra', true, e => e.conversas['A']?.consultaAgendada ? `Reservou ${e.conversas['A']?.consultaAgendada}` : true),
+      v('d61-novas', 'Avisa que o horário não está mais disponível', 'regra', true, e => /não está mais disponível|não consigo marcar consultas/.test(anaDe(e).at(-1) ?? '') ? true : `"${(anaDe(e).at(-1) ?? '').slice(0, 80)}"`),
+      anaNaoDiz(/instru[cç][aã]o|bloqueio|bloquead/i, 'Não cita regra interna ao cliente', 'regra'),
+    ],
   },
   ...([['E31a', 'ProJuris responde 403 (sem permissão)', { tipo: 'sem_permissao', status: 403 }], ['E31b', 'ProJuris responde 429 (limite)', { tipo: 'limite', status: 429 }],
     ['E31c', 'ProJuris não responde a tempo', { tipo: 'tempo' }], ['E31d', 'ProJuris fora do ar', { tipo: 'indisponivel', status: 503 }]] as const).map(([id, titulo, falha]): Cenario => ({

@@ -5,6 +5,7 @@ import { mesmoTelefone } from '../projuris/telefone';
 import { horarioRelatorioDevido, itensRelatorioAdvogado, minutosRestantesJanela, textoRelatorioAdvogado, type ItemRelatorioAdvogado, type VerificacaoRelatorio } from './encaminhamento-advogado';
 import { lerConfigEncaminhamento, CONFIG_ENCAMINHAMENTO_PADRAO, type ConfigEncaminhamento } from './secretaria/encaminhamento-config';
 import { urlPublicaApp } from './url-publica';
+import { automacaoSuspensa } from './instrucoes-operacionais';
 import type { ResultadoEnvio } from './canais/tipos';
 
 type Db = SupabaseClient<Database>;
@@ -55,11 +56,14 @@ export function idRelatorio(numero: string, dia: string, horario: string) {
 export interface Destinatario { numero: string; responsavel: string; horarios: string[]; owners: Set<string>; padrao: boolean }
 
 /** Destinatários pela configuração de cada área de trabalho (sem configuração = padrão); mesmo número = um envio. */
-export function destinatariosRelatorio(workspaces: { owner_id: string; dados: unknown }[]): { lista: Destinatario[]; configPorOwner: Map<string, ConfigEncaminhamento> } {
+export function destinatariosRelatorio(workspaces: { owner_id: string; dados: unknown }[], agora = new Date()): { lista: Destinatario[]; configPorOwner: Map<string, ConfigEncaminhamento> } {
   const configPorOwner = new Map(workspaces.map(w => [w.owner_id, lerConfigEncaminhamento((w.dados as { secretaria?: { encaminhamento?: unknown } } | null)?.secretaria?.encaminhamento)]));
+  // Instrução operacional vigente suspendendo o relatório: esse número não recebe relatório (nem o padrão, para
+  // nunca sair um "não há clientes aguardando" só com as conversas sem área de trabalho).
+  const suspensos = new Set(workspaces.filter(w => automacaoSuspensa(w.dados, 'relatorio_advogado', agora)).map(w => configPorOwner.get(w.owner_id)?.whatsapp ?? ''));
   const porNumero = new Map<string, Destinatario>();
   const registrar = (cfg: ConfigEncaminhamento, owner: string | undefined) => {
-    if (!cfg.relatorioAtivo || !cfg.whatsapp) return;
+    if (!cfg.relatorioAtivo || !cfg.whatsapp || suspensos.has(cfg.whatsapp)) return;
     const d = porNumero.get(cfg.whatsapp) ?? { numero: cfg.whatsapp, responsavel: cfg.responsavel, horarios: [], owners: new Set<string>(), padrao: false };
     d.horarios = [...new Set([...d.horarios, ...cfg.horarios])].sort();
     if (owner) d.owners.add(owner); else d.padrao = true;
@@ -87,7 +91,7 @@ type Reconciliar = (inicioMinimo: string) => Promise<{ completa: boolean; ok: bo
 export async function enviarRelatoriosAdvogado(db: Db, agora = new Date(), deps: { enviar?: (numero: string, texto: string) => Promise<ResultadoEnvio>; base?: string; reconciliar?: Reconciliar } = {}) {
   const ws = await db.from('office_workspace').select('owner_id,dados');
   if (ws.error) throw new Error('Configuração indisponível.');
-  const { lista, configPorOwner } = destinatariosRelatorio((ws.data ?? []) as { owner_id: string; dados: unknown }[]);
+  const { lista, configPorOwner } = destinatariosRelatorio((ws.data ?? []) as { owner_id: string; dados: unknown }[], agora);
   const devidos = lista.flatMap(d => { const h = horarioRelatorioDevido(d.horarios, agora); return h ? [{ d, ...h, id: idRelatorio(d.numero, h.dia, h.horario) }] : []; });
   const resultado = { devidos: devidos.length, enviados: 0, falhas: 0, incertos: 0, pendentes: 0, aguardandoVerificacao: 0 };
   if (!devidos.length) return resultado;

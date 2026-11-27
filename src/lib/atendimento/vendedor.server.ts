@@ -6,6 +6,7 @@ import { defaultAutomations, newMessage } from '../atendimento';
 import { atualizarConversa } from './ana.server';
 import { decidirFollowupVendedor, textoFollowupVendedor } from './vendedor';
 import { listaHorariosAna, selecionarOpcoesAna, horizonteAgendaAna } from './ana-scheduling';
+import { aplicarInstrucoesAgenda, automacaoSuspensa, lerInstrucoes } from './instrucoes-operacionais';
 
 type Db = SupabaseClient<Database>;
 
@@ -36,9 +37,13 @@ export async function enviarFollowupsVendedor(db: Db, agora = new Date(), limite
     const contato = porConversa.get(row.id);
     // Texto fixo com horários reais: a pausa da IA (chave recusada) não impede.
     if (!contato) continue;
+    // Instrução operacional vigente suspendendo o vendedor: nada é enviado.
+    const instrucoes = lerInstrucoes(state);
+    if (automacaoSuspensa(instrucoes, 'vendedor', agora)) continue;
     const decisao = decidirFollowupVendedor({ ligado: true, conversa: c, modo: c.modoIA ?? state?.automations?.modoIA ?? defaultAutomations.modoIA }, agora);
     if (!decisao) continue;
-    const busy = await ocupadosAgenda(db, row.owner_id, agora, horizonteAgendaAna());
+    // Bloqueios/suspensões de agenda (ou de captação) das instruções vigentes: horário bloqueado nunca é oferecido.
+    const busy = aplicarInstrucoesAgenda(await ocupadosAgenda(db, row.owner_id, agora, horizonteAgendaAna()), instrucoes, agora, 30, 'novo');
     if (!busy) continue;
     const slots = selecionarOpcoesAna(busy, agora, 'novo', '', c.agenteAna?.horariosApresentados ?? [], true).slots;
     if (!slots.length) continue;

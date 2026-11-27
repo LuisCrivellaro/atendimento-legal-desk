@@ -7,6 +7,7 @@ import { horarioEspecificoLivre, horizonteAgendaAna, selecionarOpcoesAna } from 
 import { lerConfigSecretaria, secretariaAtiva, type ConfigSecretaria } from './config';
 import { lerBiblioteca } from '../biblioteca/renderizar';
 import type { ContextoOperacional, PortasOperacionais } from './operacional';
+import { lerInstrucoes } from '../instrucoes-operacionais';
 
 type Db = SupabaseClient<Database>;
 
@@ -39,6 +40,7 @@ export async function contextoSecretaria(db: Db, conversaId: string, canal = 'ul
   return {
     ownerId, state, config, ativa, canal,
     biblioteca: lerBiblioteca((state as { bibliotecaMensagens?: unknown } | undefined)?.bibliotecaMensagens),
+    instrucoes: lerInstrucoes(state),
     ambiente: { agenteAtivo: cfg.data?.agente_ativo === true, canalAtivo: cfg.data?.canal_ativo === canal, iaPausada: !!state?.anaPausa?.ativa },
     contato: contato.data?.contato_externo ?? undefined,
     modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA,
@@ -71,30 +73,31 @@ export function portasSupabase(db: Db, ownerId: string, conversaId: string): Por
       return { idExterno: sent.idExterno };
     },
     agenda: {
+      // Instruções operacionais vigentes (bloqueios/suspensões) entram como ocupados e são relidas antes de remarcar.
       opcoes: async evitar => {
         const c = await ler(conversaId);
         if (!c) return null;
-        const { ocupadosAgenda } = await import('../projuris-agenda.server');
+        const { ocupadosAgendaAnne } = await import('../instrucoes-operacionais.server');
         const agora = new Date();
-        const busy = await ocupadosAgenda(db, ownerId, agora, horizonteAgendaAna(agora));
+        const busy = await ocupadosAgendaAnne(db, ownerId, agora, horizonteAgendaAna(agora), clienteAgenda(c).tipo);
         if (!busy) return null;
         return selecionarOpcoesAna(busy, agora, clienteAgenda(c).tipo, '', evitar, true).slots;
       },
       horarioLivre: async iso => {
         const c = await ler(conversaId);
         if (!c) return null;
-        const { ocupadosAgenda } = await import('../projuris-agenda.server');
+        const { ocupadosAgendaAnne } = await import('../instrucoes-operacionais.server');
         const agora = new Date();
-        const busy = await ocupadosAgenda(db, ownerId, agora, horizonteAgendaAna(agora));
+        const busy = await ocupadosAgendaAnne(db, ownerId, agora, horizonteAgendaAna(agora), clienteAgenda(c).tipo);
         if (!busy) return null;
         return horarioEspecificoLivre(iso, busy, clienteAgenda(c).tipo, agora);
       },
       remarcar: async (atual, novo) => {
         const c = await ler(conversaId);
         if (!c) throw new Error('Conversa indisponível.');
-        const { remarcarAgenda } = await import('../projuris-agenda.server');
+        const [{ remarcarAgenda }, { revalidarInstrucoes }] = await Promise.all([import('../projuris-agenda.server'), import('../instrucoes-operacionais.server')]);
         // Reserva o novo antes de concluir o anterior, confirma por leitura e desfaz se a conclusão falhar.
-        return remarcarAgenda(db, ownerId, conversaId, atual, novo, true, new Date(), clienteAgenda(c));
+        return remarcarAgenda(db, ownerId, conversaId, atual, novo, true, new Date(), clienteAgenda(c), { revalidar: revalidarInstrucoes(db, ownerId, clienteAgenda(c).tipo) });
       },
     },
     auditar: async (acao, resumo, status) => {

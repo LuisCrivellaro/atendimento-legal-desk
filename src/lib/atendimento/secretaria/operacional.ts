@@ -18,6 +18,7 @@ import { pedidoForaDoEscopo, possivelInjecao } from './seguranca';
 import { nomeVerificado } from '../biblioteca/selecao';
 import type { BibliotecaSalva } from '../biblioteca/renderizar';
 import { textoTemplate } from './templates';
+import { automacaoSuspensa, type InstrucaoOperacional } from '../instrucoes-operacionais';
 
 /**
  * Camada operacional da Anne: respostas dentro de automações ativas no modo Híbrido e reagendamento delegado
@@ -56,6 +57,8 @@ export interface ContextoOperacional {
   canal?: string | undefined;
   /** Versões e ativação da biblioteca oficial salvas pela equipe (06, 08.1 no reagendamento). */
   biblioteca?: BibliotecaSalva | undefined;
+  /** Instruções operacionais da equipe (Treinamento de IA), lidas da área de trabalho no servidor. */
+  instrucoes?: InstrucaoOperacional[] | undefined;
 }
 
 /** `tratada: false` = a camada operacional não agiu e o fluxo conversacional existente segue. */
@@ -453,6 +456,9 @@ async function tratarReivindicada(x: Execucao, c: Conversa): Promise<ResultadoOp
 export async function iniciarReagendamentoAutomatico(p: PortasOperacionais, ctx: ContextoOperacional, conversaId: string, origemPedido: 'cliente' | 'ausencia' | 'equipe', quem: string, opcoes: { mensagemOrigem?: Mensagem; controle?: string | undefined } = {}): Promise<{ ok: boolean; motivo: string }> {
   const agora = p.agora();
   if (!ctx.ativa) return { ok: false, motivo: MOTIVOS.recurso_desligado };
+  // Instrução operacional vigente suspendendo o reagendamento automático: segue o fluxo anterior (equipe/pergunta).
+  const suspensa = automacaoSuspensa(ctx.instrucoes ?? [], 'reagendamento_automatico', agora);
+  if (suspensa) return { ok: false, motivo: `Reagendamento automático suspenso pela instrução "${suspensa.titulo}".` };
   const c = await p.ler(conversaId);
   if (!c) return { ok: false, motivo: 'Conversa indisponível.' };
   const modo = modoEfetivo(c, ctx.modoPadrao).modo;

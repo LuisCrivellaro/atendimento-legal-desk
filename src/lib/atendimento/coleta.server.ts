@@ -11,6 +11,7 @@ import { bloqueadoPorTeste, lerConfigSecretaria, textoAprovado } from './secreta
 import { decisaoRotina, type ContextoOperacional } from './secretaria/operacional';
 import { contextoRotina, reservarEnvioRotina } from './secretaria/rotinas';
 import { secretariaLigada } from './secretaria/secretaria.server';
+import { automacaoSuspensa } from './instrucoes-operacionais';
 
 type Db = SupabaseClient<Database>;
 
@@ -57,6 +58,8 @@ export async function enviarLembretesColeta(db: Db, agora = new Date(), relogio:
     if (res.enviados >= LIMITE_LEMBRETES_POR_CICLO || relogio() - comeco > ORCAMENTO_COLETA_MS) { res.adiados++; continue; }
     const c = row.dados as unknown as Conversa;
     const state = estados.get(row.owner_id);
+    // Instrução operacional vigente suspendendo a cobrança de documentos: nada é enviado.
+    if (automacaoSuspensa(state, 'coleta', agora)) continue;
     const modo = c.modoIA ?? state?.automations?.modoIA ?? defaultAutomations.modoIA;
     const contato = porConversa.get(row.id);
     const configSec = lerConfigSecretaria((state as { secretaria?: unknown } | undefined)?.secretaria);

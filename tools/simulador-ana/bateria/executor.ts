@@ -5,6 +5,7 @@ import { SimuladorAna, CentralRevisao, REVISORA_FICTICIA, type Gerador, type Tre
 import { projurisFicticioPadrao } from '@/lib/projuris/ficticio';
 import type { EntradaRedacao } from '@/lib/atendimento/consulta-processo';
 import { comRelogio } from './relogio';
+import { novaInstrucao, prepararInstrucao } from '@/lib/atendimento/instrucoes-operacionais';
 import { verificacoesGerais, veredito, promptAvaliador, lerAvaliacao, type Avaliacao, type Categoria, type Execucao, type Linha, type ResultadoVerificacao, type Status, type Verificacao } from './avaliacao';
 import type { Cenario, Passo } from './cenarios';
 
@@ -102,6 +103,20 @@ export async function executarCenario(c: Cenario, modo: ModoExecucao): Promise<R
       atual = p;
       if (p.avancarMin) { relogio.avancarMin(p.avancarMin); transcricao.push({ conversa: '-', de: 'sistema', texto: `(relógio: ${relogio.agora().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })})` }); }
       if (p.sistema === 'confirmacao40') sims[p.conversa ?? 'A']!.rotinaConfirmacao40(new Date());
+      if (p.instrucao) {
+        // A equipe ativa uma instrução operacional no meio da conversa: vale para todas as conversas do cenário.
+        const sim = sims[p.conversa ?? 'A']!;
+        const ofertado = sim.conv.agenteAna?.horarioPendente ?? sim.conv.agenteAna?.horariosTeste?.[0];
+        const b = p.instrucao.bloqueioDoOferecido;
+        const ajustes = b && ofertado ? { periodoBloqueio: { inicio: new Date(Date.parse(ofertado) - b.antesMin * 60000).toISOString(), fim: new Date(Date.parse(ofertado) + b.depoisMin * 60000).toISOString() } } : {};
+        const preparo = prepararInstrucao(p.instrucao.texto, ajustes, sim.instrucoes, new Date());
+        if (!preparo.ok) erros.push(`Instrução recusada: ${preparo.erros.join(' ')}`);
+        else {
+          const inst = novaInstrucao({ id: `bateria:${c.id}:${sim.instrucoes.length + 1}`, ...preparo.dados }, 'Equipe (bateria)', new Date());
+          for (const s of Object.values(sims)) s.instrucoes = [...s.instrucoes, inst];
+          transcricao.push({ conversa: '-', de: 'sistema', texto: `(instrução ativada: ${inst.interpretacao})` });
+        }
+      }
       if (p.cliente !== undefined || p.arquivo) {
         const turno = await sims[p.conversa ?? 'A']!.receber(p.cliente ?? '', modo.signal, p.arquivo);
         if (turno.erro) erros.push(turno.erro);

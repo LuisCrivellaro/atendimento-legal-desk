@@ -10,14 +10,16 @@ export async function saveOffice(owner: string, state: OfficeState) {
   const pause=salvo?.anaPausa;
   // A entrada do WhatsApp é salva só pelo servidor (Canal e Agente); a tela nunca a sobrescreve.
   // A pausa da IA também: a tela aberta desde antes da retomada nunca a religa nem a desliga.
-  const {entradaWhatsApp:_ignorada,secretaria:_servidor,bibliotecaMensagens:_biblioteca,anaPausa:_pausa,...estado}=state as OfficeState&{secretaria?:unknown;bibliotecaMensagens?:unknown};
+  // Instruções operacionais da Anne também: só as funções autorizadas do servidor gravam (com histórico).
+  const {entradaWhatsApp:_ignorada,secretaria:_servidor,bibliotecaMensagens:_biblioteca,anaPausa:_pausa,instrucoesOperacionais:_instrucoes,...estado}=state as OfficeState&{secretaria?:unknown;bibliotecaMensagens?:unknown;instrucoesOperacionais?:unknown};
+  const instrucoes=(row.data?.dados as Record<string,Json>|null)?.['instrucoesOperacionais'];
   // Configuração da secretaria digital e biblioteca oficial de mensagens são gravadas só pelo servidor (sênior/admin).
   const secretaria=(row.data?.dados as Record<string,Json>|null)?.['secretaria'];
   const biblioteca=(row.data?.dados as Record<string,Json>|null)?.['bibliotecaMensagens'];
   const codigos=(row.data?.dados as Record<string,Json>|null)?.['codigosProcessoReservados'];
   const migracao=(row.data?.dados as Record<string,Json>|null)?.['migracaoAgenda'];
   const agenda=(row.data?.dados as Record<string,Json>|null)?.['agendaWhatsApp'];
-  const next={...estado,...(secretaria?{secretaria}:{}),...(biblioteca?{bibliotecaMensagens:biblioteca}:{}),...(agenda?{agendaWhatsApp:agenda}:{}),...(pause?.ativa?{anaPausa:pause}:{}),...(salvo?.entradaWhatsApp?{entradaWhatsApp:salvo.entradaWhatsApp}:{}),...(codigos?{codigosProcessoReservados:codigos}:{}),...(migracao?{migracaoAgenda:migracao}:{})};
+  const next={...estado,...(secretaria?{secretaria}:{}),...(biblioteca?{bibliotecaMensagens:biblioteca}:{}),...(agenda?{agendaWhatsApp:agenda}:{}),...(pause?.ativa?{anaPausa:pause}:{}),...(salvo?.entradaWhatsApp?{entradaWhatsApp:salvo.entradaWhatsApp}:{}),...(codigos?{codigosProcessoReservados:codigos}:{}),...(migracao?{migracaoAgenda:migracao}:{}),...(instrucoes?{instrucoesOperacionais:instrucoes}:{})};
   const r=row.data?await supabase.from('office_workspace').update({dados:next as unknown as Json,updated_at:new Date().toISOString()}).eq('owner_id',owner).eq('updated_at',row.data.updated_at).select('owner_id'):await supabase.from('office_workspace').insert({owner_id:owner,dados:next as unknown as Json}).select('owner_id');
   if(r.error)throw r.error;
   if(r.data?.length)return;

@@ -12,6 +12,7 @@ import { atualizarConversa } from './ana.server';
 import { hora } from './ana-scheduling';
 import { registrarAviso } from './avisos-equipe';
 import { secretariaLigada } from './secretaria/secretaria.server';
+import { automacaoSuspensa } from './instrucoes-operacionais';
 import { concluirEnvioRotina, contextoRotina, decidirLembreteSecretaria, motorPermiteRotina, reservarEnvioRotina } from './secretaria/rotinas';
 
 /**
@@ -44,6 +45,8 @@ export async function enviarLembretesConsulta(db: SupabaseClient<Database>, agor
     if (Date.parse(reserva.inicio) - agora.getTime() < 30 * 60000) continue;
     const contato = porConversa.get(row.id);
     const state = estados.get(row.owner_id);
+    // Instrução operacional vigente suspendendo lembretes: nada é enviado nem reservado (volta sozinho ao expirar).
+    if (automacaoSuspensa(state, 'lembretes', agora)) continue;
     const ctxSecretaria = secretariaLigada(state) ? contextoRotina({ state, agenteAtivo: cfg.data.agente_ativo === true, canalAtivo: cfg.data.canal_ativo === 'ultramsg', contato, modoPadrao: state?.automations?.modoIA ?? defaultAutomations.modoIA }) : undefined;
     if (!ctxSecretaria && (c.agenteAna?.humano || c.agenteAna?.pausa)) continue;
     if (!contato) continue;

@@ -3,6 +3,7 @@
 // Nada aqui é usado pelo sistema real.
 import { relacionamentoAna, permiteAgendaRelacionamento, protegerRelacionamentoAna, aceiteConviteAtendimentoAna } from '@/lib/atendimento/ana-relacionamento';
 import { saudacaoRepetidaAna } from '@/lib/atendimento/ana-demanda';
+import { aplicarInstrucoesAgenda, automacaoSuspensa, ERRO_HORARIO_BLOQUEADO, horarioBloqueado, instrucoesParaContexto, TEXTO_AGENDA_SUSPENSA, type InstrucaoOperacional } from '@/lib/atendimento/instrucoes-operacionais';
 import { decidirEncaminhamento, encaminhamentoAberto, encaminhamentoSemModelo, intencaoDaAnne, mensagemEncaminhamento, primeiroNomeCliente, processoRelacionado, registrarAvisoEncaminhamento, registrarEncaminhamento, sinaisFluxoAnne } from '@/lib/atendimento/encaminhamento-advogado';
 import { CONFIG_ENCAMINHAMENTO_PADRAO } from '@/lib/atendimento/secretaria/encaminhamento-config';
 import { identificarPorTelefone } from '@/lib/projuris/identificacao';
@@ -140,17 +141,21 @@ export class SimuladorAna {
   // Cancelamento = concluir (exclusão não existe); recibos "pj:{código}"; o link do Meet continua existindo
   // porque um evento mínimo do Google é criado só para gerá-lo (decisão da Dra. em 04/11/2026).
   private seqCompromisso = 63200000;
-  private ocupados(now: Date, dias: number) {
+  /** Instruções operacionais da equipe (mesmas regras puras do servidor: bloqueios entram como ocupados). */
+  instrucoes: InstrucaoOperacional[] = [];
+  private ocupados(now: Date, dias: number, tipo?: string) {
     this.turnoAtual?.ferramentas.push('agenda.consultar');
     if (this.agendaFalhando) return null;
     const fim = now.getTime() + dias * 86400000;
-    return this.agenda.filter(e => !e.concluido && Date.parse(e.fim) > now.getTime() && Date.parse(e.inicio) < fim).map(e => ({ start: e.inicio, end: e.fim }));
+    return aplicarInstrucoesAgenda(this.agenda.filter(e => !e.concluido && Date.parse(e.fim) > now.getTime() && Date.parse(e.inicio) < fim).map(e => ({ start: e.inicio, end: e.fim })), this.instrucoes, now, dias, tipo);
   }
   private async reservar(conversaId: string, inicio: string, now: Date, cliente?: { nome: string; telefone: string; tipo: TipoCliente }): Promise<ReservaCalendar> {
     this.turnoAtual?.ferramentas.push('agenda.reservar');
     if (!conversaId || !Number.isFinite(Date.parse(inicio)) || Date.parse(inicio) <= now.getTime()) throw new Error('Escolha um horário futuro disponível.');
     if (!cliente?.nome.trim() || !telefoneAgenda(cliente.telefone)) throw new Error('Informe nome e telefone do cliente antes de reservar.');
     if (!horarioPermitido(inicio, cliente.tipo)) throw new Error('Horário fora da carteira de atendimento permitida.');
+    // Revalidação das instruções operacionais antes de reservar (como a porta `revalidar` do servidor).
+    if (horarioBloqueado(this.instrucoes, inicio, now, cliente.tipo)) throw new Error(ERRO_HORARIO_BLOQUEADO);
     if (this.agendaFalhando) throw new Error('ProJuris indisponível (falha simulada).');
     inicio = new Date(inicio).toISOString();
     const fim = new Date(Date.parse(inicio) + DURACAO_REUNIAO * 60000).toISOString();
@@ -284,7 +289,7 @@ export class SimuladorAna {
       const tipoCliente = conviteAceito||rel.situacao==='ativo'||rel.situacao==='em_atendimento'?'cadastrado':classificarAgenda({ persistida: c.tipoClienteAgenda, autodeclaracao: identificarTipoCliente(m.texto), contexto: c.agenteAna?.tipoCliente, padraoLead: c.etapa === 'inicial' }).tipo??(rel.consultaInicial?'novo':undefined);
       // Mesma regra da produção: cliente ativo com dúvida/pedido vai para o advogado (mensagem fixa + pendência).
       const cfgEnc = CONFIG_ENCAMINHAMENTO_PADRAO;
-      const decisaoEnc = decidirEncaminhamento({ ligado: cfgEnc.ativo, modo: mode, situacao: rel.situacao, texto: m.texto, material: !!m.arquivo || ['video','imagem','documento'].includes(m.tipo ?? ''), sinais: sinaisFluxoAnne(c, m.texto, canal, { retornoSim: conviteAceito, processoPendente: !!this.central.pendenteDe(this.conversaId) }), cobranca, aberto: !!encaminhamentoAberto(c, canal) });
+      const decisaoEnc = decidirEncaminhamento({ ligado: cfgEnc.ativo && !automacaoSuspensa(this.instrucoes, 'encaminhamento_advogado'), modo: mode, situacao: rel.situacao, texto: m.texto, material: !!m.arquivo || ['video','imagem','documento'].includes(m.tipo ?? ''), sinais: sinaisFluxoAnne(c, m.texto, canal, { retornoSim: conviteAceito, processoPendente: !!this.central.pendenteDe(this.conversaId) }), cobranca, aberto: !!encaminhamentoAberto(c, canal) });
       const nomeCadastro = identificacao.tipo === 'unico' ? identificacao.pessoa.nome : undefined;
       const encaminhar = () => this.encaminharAoAdvogado(messageId, m.texto, turno, { cadastrado: !!nomeCadastro, responsavel: cfgEnc.responsavel, nomeCliente: nomeCadastro || nomeConhecido(c, canal), nomeSaudacao: primeiroNomeCliente(nomeCadastro, nomeVerificado(c)),
         processo: processoRelacionado(identificacao.tipo === 'unico' ? processosAtivosDoCliente(this.projuris.processos, identificacao.pessoa.codigo, SITUACAO_ATIVO_FICTICIA) : [], c.mensagens.filter(x => x.de === 'cliente').slice(-5).map(x => x.texto)) });
@@ -292,7 +297,7 @@ export class SimuladorAna {
       const etiqueta = etiquetaConversa(c);
       const lista: { nome: string; recebido: boolean }[] = this.checklist;
       const email = c.email || c.agenteAna?.dados?.email || '';
-      const contexto = { relacionamento:rel, continuidade:memoria.continuidade, checklist: lista, email_cadastrado: email, solicitar_email: c.etapa === 'documentos' && solicitarEmailPendente(lista as never, email), data_hora_atual: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), dentro_expediente: expedienteAna(), tipo_cliente_agenda: tipoCliente ?? 'em conferência pela equipe; não perguntar ao cliente', area_origem: etiqueta, telefone_informado: telefone ?? '', regras_agenda: '30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF', modo_ia: mode, vendedor_ativo: false, cliente: {...(c.agenteAna?.dados??{}),nome:identidade}, apresentado: atendimentoIniciado(c,canal,messageId), consulta_info: !rel.consultaInicial ? {tipo:"acompanhamento"} : c.agenteAna?.reservaCalendar ? { online: true, gratuita: true, duracao_minutos: 30, reserva_confirmada: c.agenteAna.reservaCalendar.inicio } : { online: true, gratuita: true, duracao_minutos: 30 }, horarios_oferecidos: c.agenteAna?.horariosTeste ?? [], temas_proibidos_extra: state.training.proibidos, historico: history, ultima_mensagem: { texto: m.texto, arquivo: m.arquivo ?? '' }, exemplos: state.training.exemplos };
+      const contexto = { relacionamento:rel, continuidade:memoria.continuidade, checklist: lista, email_cadastrado: email, solicitar_email: c.etapa === 'documentos' && solicitarEmailPendente(lista as never, email), data_hora_atual: new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }), dentro_expediente: expedienteAna(), tipo_cliente_agenda: tipoCliente ?? 'em conferência pela equipe; não perguntar ao cliente', area_origem: etiqueta, telefone_informado: telefone ?? '', regras_agenda: '30 minutos; novo segunda a quinta 09:00–17:30; cadastrado sexta 13:30–17:30; sem feriados; sem CPF', modo_ia: mode, vendedor_ativo: false, cliente: {...(c.agenteAna?.dados??{}),nome:identidade}, apresentado: atendimentoIniciado(c,canal,messageId), consulta_info: !rel.consultaInicial ? {tipo:"acompanhamento"} : c.agenteAna?.reservaCalendar ? { online: true, gratuita: true, duracao_minutos: 30, reserva_confirmada: c.agenteAna.reservaCalendar.inicio } : { online: true, gratuita: true, duracao_minutos: 30 }, horarios_oferecidos: c.agenteAna?.horariosTeste ?? [], temas_proibidos_extra: state.training.proibidos, historico: history, ultima_mensagem: { texto: m.texto, arquivo: m.arquivo ?? '' }, exemplos: state.training.exemplos, ...(instrucoesParaContexto(this.instrucoes).length ? { instrucoes_operacionais: instrucoesParaContexto(this.instrucoes) } : {}) };
       turno.contexto = contexto;
       const g = cobranca ? {resultado:resultadoRetorno(c,canal),bruto:''} : await this.gerar(contexto, state.training.instrucoes, signal);
       turno.claude = JSON.parse(JSON.stringify(g.resultado)); turno.bruto = g.bruto; turno.modelo = g.modelo; turno.tier = g.tier;
@@ -354,7 +359,7 @@ export class SimuladorAna {
       let semPeriodo = false;
       let indisponivel = false;
       if (teste && tipoCliente && telefone && raw.intencao === 'agendamento' && !bloqueada && !selecionado && !gerenciarExistente && !semConsulta && !recebeuNome && (aceiteCaptacao || primeiroContato || nome || consultaEspecifica || conviteAceito || /horarios|horários/.test(m.texto))) {
-        const busy = this.ocupados(new Date(), horizonteAgendaAna());
+        const busy = this.ocupados(new Date(), horizonteAgendaAna(), tipoCliente);
         if (!busy) throw new Error('Agenda indisponível; nenhum horário oferecido.');
         log('Servidor consultou a agenda (disponibilidade atual).');
         agendaReal = true;
@@ -456,9 +461,18 @@ export class SimuladorAna {
               this.atualizar(x => ({ ...x, consultaAgendada: reserva.inicio, horariosOfertados: [], agenteAna: { ...x.agenteAna, operacaoConsulta: undefined, reservaCalendar: reserva, alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, horariosTeste: [], horarioPendente: undefined, horarioPendenteDesde: undefined, consultaTeste: undefined, resultado: r, proximoPasso: r.proximo_passo } }));
             } catch (error) {
               log(`Falha na reserva: ${(error as Error).message}`);
+              // Horário bloqueado por instrução operacional depois de oferecido: novas opções conferidas (igual à produção).
+              if ((error as Error).message === ERRO_HORARIO_BLOQUEADO) {
+                const busy = this.ocupados(new Date(), horizonteAgendaAna(), tipoCliente ?? 'novo');
+                const novas = busy ? selecionarOpcoesAna(busy, new Date(), tipoCliente ?? 'novo', '', historicoHorarios, true).slots : [];
+                r.mensagem = novas.length ? `Esse horário não está mais disponível.\n\n${listaHorariosAna(novas)}` : TEXTO_AGENDA_SUSPENSA;
+                r.proximo_passo = 'Aguardar escolha das novas opções verificadas.';
+                this.atualizar(x => ({ ...x, agenteAna: { ...x.agenteAna, operacaoConsulta: undefined, horariosTeste: novas, agendaReal: true, resultado: r, horariosApresentados: [...new Set([...(x.agenteAna?.horariosApresentados ?? []), ...novas])] } }));
+              } else {
               r.mensagem = 'Não consegui concluir a reserva na agenda. Deixei a situação registrada para a equipe verificar; não considere o horário confirmado por esta mensagem.';
               r.proximo_passo = 'Equipe: conferir a agenda e a falha de reserva antes de retomar.';
               this.atualizar(x => ({ ...x, agenteAna: { ...x.agenteAna, humano: true, erro: 'Falha ao concluir a reserva; conferir Google Calendar.', resultado: { ...r, encaminhar_humano: true }, proximoPasso: r.proximo_passo } }));
+              }
             }
           }
         } else if (!cancelar && !perguntar && agendaReal && agenda?.selected) {

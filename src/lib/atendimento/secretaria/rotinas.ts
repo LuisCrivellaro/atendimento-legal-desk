@@ -5,6 +5,7 @@ import { lerConfigSecretaria, type ConfigSecretaria, type Funcionalidade } from 
 import { decisaoRotina, registrarAutomacaoEnviada, type ContextoOperacional } from './operacional';
 import type { AmbienteMotor } from './motor';
 import { lerBiblioteca } from '../biblioteca/renderizar';
+import { lerInstrucoes } from '../instrucoes-operacionais';
 
 /**
  * Rotinas do servidor (confirmação 40 min, lembrete 08:00) com a secretaria ligada.
@@ -16,7 +17,7 @@ import { lerBiblioteca } from '../biblioteca/renderizar';
 export function contextoRotina(dados: { state: unknown; agenteAtivo: boolean; canalAtivo: boolean; contato: string | undefined; modoPadrao: AIMode; config?: ConfigSecretaria }): ContextoOperacional {
   const state = dados.state as { secretaria?: unknown; anaPausa?: { ativa?: boolean }; bibliotecaMensagens?: unknown } | undefined;
   const ambiente: AmbienteMotor = { agenteAtivo: dados.agenteAtivo, canalAtivo: dados.canalAtivo, iaPausada: !!state?.anaPausa?.ativa };
-  return { config: dados.config ?? lerConfigSecretaria(state?.secretaria), ativa: true, ambiente, contato: dados.contato, modoPadrao: dados.modoPadrao, canal: 'ultramsg', biblioteca: lerBiblioteca(state?.bibliotecaMensagens) };
+  return { config: dados.config ?? lerConfigSecretaria(state?.secretaria), ativa: true, ambiente, contato: dados.contato, modoPadrao: dados.modoPadrao, canal: 'ultramsg', biblioteca: lerBiblioteca(state?.bibliotecaMensagens), instrucoes: lerInstrucoes(dados.state) };
 }
 
 /** Confirmação de 40 min decidida pelo motor. Mantém o formato de decisão da rotina existente. */

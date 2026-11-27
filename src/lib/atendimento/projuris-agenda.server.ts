@@ -30,9 +30,11 @@ export interface PortasAgenda {
     cancelar: (conversaId: string, reserva: ReservaCalendar, autorizado: boolean) => Promise<'cancelado' | 'ausente'>;
     remarcar: (conversaId: string, anterior: ReservaCalendar, inicio: string, autorizado: boolean, now: Date, cliente?: { nome: string; telefone: string; tipo: TipoCliente }) => Promise<ReservaCalendar>;
   };
+  /** Conferência final antes de qualquer escrita (ex.: instruções operacionais vigentes); lança para recusar. */
+  revalidar?: (inicio: string) => Promise<void>;
 }
 
-async function resolverPortas(p: PortasAgenda): Promise<Required<Omit<PortasAgenda, 'cliente'>> & { cliente: ClienteAgenda | undefined }> {
+async function resolverPortas(p: PortasAgenda): Promise<Required<Omit<PortasAgenda, 'cliente' | 'revalidar'>> & { cliente: ClienteAgenda | undefined }> {
   const google = await import('./google-calendar.server');
   return {
     cliente: p.cliente,
@@ -93,6 +95,8 @@ export async function reservarAgenda(
   if (!conversaId || !Number.isFinite(Date.parse(inicio)) || Date.parse(inicio) <= now.getTime()) throw new Error('Escolha um horário futuro disponível.');
   if (!cliente?.nome.trim() || !telefoneAgenda(cliente.telefone)) throw new Error('Informe nome e telefone do cliente antes de reservar.');
   if (!horarioPermitido(inicio, cliente.tipo)) throw new Error('Horário fora da carteira de atendimento permitida.');
+  // Instruções operacionais (e outras conferências) relidas agora, antes do Meet e da reserva oficial.
+  if (portas.revalidar) await portas.revalidar(inicio);
   inicio = new Date(inicio).toISOString();
   const fim = new Date(Date.parse(inicio) + DURACAO_REUNIAO * 60000).toISOString();
   const p = await resolverPortas(portas);
@@ -183,7 +187,10 @@ export async function remarcarAgenda(
   if (!autorizado) throw new Error('Remarcação exige autorização explícita.');
   const codigo = codigoDoRecibo(anterior.id);
   const p = await resolverPortas(portas);
-  if (codigo === undefined) return p.legado.remarcar(conversaId, anterior, inicio, autorizado, now, cliente);
+  if (codigo === undefined) {
+    if (portas.revalidar) await portas.revalidar(inicio);
+    return p.legado.remarcar(conversaId, anterior, inicio, autorizado, now, cliente);
+  }
   const dto = await obterCompromisso(codigo, p.cliente);
   if (!dto || eventoDeDto(dto)!['concluido'] === true || !compromissoDoAtendimento(dto, anterior)) throw new Error('Consulta original indisponível para remarcação.');
   if (Date.parse(anterior.inicio) === Date.parse(inicio)) return anterior;
