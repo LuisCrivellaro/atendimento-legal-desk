@@ -21,6 +21,13 @@
 | [REDESIGN_OPPORTUNITIES.md](REDESIGN_OPPORTUNITIES.md) | Princípios, pré-requisitos, ganhos rápidos, sistema visual, plano de animação, melhorias por tela, fases, decisões pendentes |
 | [capturas/](capturas/) | 38 capturas "antes" (login e 404 publicados; telas internas da demonstração com dados fictícios) |
 
+Etapa 02 (27/11/2026): [../SKILLS_SETUP.md](../SKILLS_SETUP.md), [../DESIGN_PRINCIPLES.md](../DESIGN_PRINCIPLES.md),
+[CREATIVE_DIRECTION.md](CREATIVE_DIRECTION.md), [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md),
+[MOTION_GUIDELINES.md](MOTION_GUIDELINES.md), [FRONTEND_COMPONENTS.md](FRONTEND_COMPONENTS.md),
+[UX_STRATEGY.md](UX_STRATEGY.md), [CONVERSION_STRATEGY.md](CONVERSION_STRATEGY.md),
+[FUNCTIONAL_REQUIREMENTS.md](FUNCTIONAL_REQUIREMENTS.md) e [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md).
+O ponto de entrada para outras sessões é o `CLAUDE.md` da raiz.
+
 ## O que aprendemos sobre a empresa
 
 - **CS Lawyers | Advocacia**, escritório da **Dra. Carolina Santos (OAB/SP 251.781)**, presença **Brasil • Dubai •
