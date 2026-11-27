@@ -56,6 +56,29 @@
   --color-success-foreground: var(--success-foreground);
   --color-pending: var(--pending);
   --color-pending-foreground: var(--pending-foreground);
+  --color-pending-border: var(--pending-border);
+  --color-pending-strong: var(--pending-strong);
+  --color-warning-50: var(--warning-50);
+  --color-warning-100: var(--warning-100);
+  --color-warning-200: var(--warning-200);
+  --color-warning-300: var(--warning-300);
+  --color-warning-500: var(--warning-500);
+  --color-warning-600: var(--warning-600);
+  --color-warning-700: var(--warning-700);
+  --color-warning-800: var(--warning-800);
+  --color-warning-900: var(--warning-900);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
+  --color-destructive-border: var(--destructive-border);
+  --color-success-soft: var(--success-soft);
+  --color-success-soft-foreground: var(--success-soft-foreground);
+  --color-success-border: var(--success-border);
+  --color-info-soft: var(--info-soft);
+  --color-info-soft-foreground: var(--info-soft-foreground);
+  --color-info-border: var(--info-border);
+  --color-border-strong: var(--border-strong);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-overlay: var(--overlay);
   --color-bubble-out: var(--bubble-out);
   --color-bubble-in: var(--bubble-in);
   --color-chat-bg: var(--chat-bg);
@@ -88,11 +111,27 @@
   --color-sidebar-muted: var(--sidebar-muted);
   --color-sidebar-line: var(--sidebar-line);
   --color-sidebar-active: var(--sidebar-active);
+  --color-avatar-ink: var(--avatar-ink);
+  --color-sidebar-badge: var(--sidebar-badge);
+  --color-sidebar-badge-foreground: var(--sidebar-badge-foreground);
+  --color-sidebar-badge-critical: var(--sidebar-badge-critical);
+  --color-sidebar-badge-critical-foreground: var(--sidebar-badge-critical-foreground);
   /* Escala de texto: 12px é o mínimo (horários e metadados); 13px secundário; 14px leitura. */
   --text-2xs: 0.75rem;
   --text-2xs--line-height: 1rem;
   --text-xs: 0.8125rem;
   --text-xs--line-height: 1.125rem;
+  /* 15px: títulos de seção e blocos (docs/DESIGN_SYSTEM.md, "Tipografia"). */
+  --text-md: 0.9375rem;
+  --text-md--line-height: 1.375rem;
+  /* Sombras com o matiz grafite da marca, curtas e com deslocamento (sem halo colorido). */
+  --shadow-xs: 0 1px 2px rgb(8 43 43 / 6%);
+  --shadow-sm: 0 1px 3px rgb(8 43 43 / 8%), 0 1px 2px -1px rgb(8 43 43 / 6%);
+  --shadow-md: 0 4px 12px -2px rgb(8 43 43 / 10%), 0 2px 4px -2px rgb(8 43 43 / 6%);
+  --shadow-lg: 0 12px 32px -8px rgb(8 43 43 / 18%), 0 4px 8px -4px rgb(8 43 43 / 8%);
+  --shadow-xl: 0 24px 48px -12px rgb(8 43 43 / 24%);
+  /* Monitores ultralargos. */
+  --breakpoint-3xl: 120rem;
   --font-serif: "EB Garamond", Georgia, serif;
   --font-sans: "Inter", system-ui, sans-serif;
   --font-doc: "Times New Roman", Times, serif;
@@ -108,7 +147,15 @@
 }
 
 :root {
-  --header-h: calc(4rem + env(safe-area-inset-top, 0px));
+  /* Estrutura (redesenho de 27/11/2026, docs/DESIGN_SYSTEM.md): cabeçalho 56px; menu 232px aberto e 56px recolhido. */
+  --header-h: calc(3.5rem + env(safe-area-inset-top, 0px));
+  --page-max: 1560px;
+  /* Camadas: conteúdo fixo < cabeçalho < barra de navegação < sobreposições (diálogos, menus) < avisos. */
+  --z-sticky: 20;
+  --z-header: 30;
+  --z-progress: 35;
+  --z-overlay: 50;
+  --z-toast: 60;
   --document-aqua: #00ACA7;
   --document-pale: #E9F7F6;
   --document-rule: #CFE9E7;
@@ -151,7 +198,8 @@
   --brand-strong: var(--turquoise-700);
   /* Tinta turquesa profunda: painel do login (nome histórico do token mantido). */
   --petrol: var(--turquoise-950);
-  --radius: 0.375rem;
+  /* 8px: painéis e diálogos (rounded-lg); botões e campos ficam com 6px (rounded-md). */
+  --radius: 0.5rem;
   --background: var(--graphite-50);
   --foreground: var(--graphite-900);
   --card: #FFFFFF;
@@ -168,24 +216,55 @@
   --muted-foreground: var(--graphite-600);
   --accent: var(--turquoise-50);
   --accent-foreground: var(--turquoise-900);
-  /* Cores semânticas preservadas (sucesso, alerta/pendência, erro). */
+  /* Cores semânticas: sucesso e erro mantêm o tom sólido; cada uma ganha uma versão suave para avisos e etiquetas. */
   --destructive: oklch(0.52 0.19 27);
   --destructive-foreground: oklch(1 0 0);
+  --destructive-soft: #FDECEB;
+  --destructive-soft-foreground: #A3261E;
+  --destructive-border: #F2C3BF;
   --success: oklch(0.53 0.13 145);
   --success-foreground: oklch(1 0 0);
-  --pending: #FFE600;
-  --pending-foreground: #0D0D0D;
+  --success-soft: #E8F5EC;
+  --success-soft-foreground: #1E6B37;
+  --success-border: #BFE0C8;
+  --info-soft: var(--turquoise-50);
+  --info-soft-foreground: var(--turquoise-800);
+  --info-border: var(--turquoise-200);
+  /*
+   * Alerta/pendência em âmbar (pedido da Dra., 27/11/2026: sem amarelo saturado). Substitui o #FFE600.
+   * Fundo suave + borda discreta + texto escuro (7,4:1). --pending-strong só para indicadores pequenos
+   * ao lado de texto (pontos, barras, gráficos); --warning-600 quando o indicador precisa de 3:1 sozinho.
+   */
+  --warning-50: #FFF8E8;
+  --warning-100: #FDEFC9;
+  --warning-200: #FAE2A6;
+  --warning-300: #F0C873;
+  --warning-500: #E9A23B;
+  --warning-600: #B7791F;
+  --warning-700: #8A5A00;
+  --warning-800: #6B4500;
+  --warning-900: #3A2600;
+  --pending: var(--warning-100);
+  --pending-foreground: var(--warning-800);
+  --pending-border: var(--warning-300);
+  --pending-strong: var(--warning-500);
   --bubble-out: var(--turquoise-100);
   --bubble-in: #FFFFFF;
   --chat-bg: var(--graphite-50);
   --border: var(--graphite-200);
+  /* Borda de botão contornado e divisórias que precisam aparecer um pouco mais. */
+  --border-strong: var(--graphite-300);
+  /* Fundo de cabeçalho de tabela, linha em foco e faixas leves. */
+  --surface-subtle: var(--graphite-25);
+  /* Fundo atrás de diálogos: grafite translúcido, sem escurecer a tela inteira. */
+  --overlay: rgb(25 32 32 / 45%);
   /* Borda de campo com 3,6:1 sobre branco, para o campo ser identificável. */
   --input: #7D8989;
   --ring: var(--turquoise-700);
   --shadow-soft: 0 1px 2px rgb(8 43 43 / 5%), 0 8px 24px -12px rgb(8 43 43 / 18%);
   --chart-1: var(--turquoise-600);
   --chart-2: oklch(0.53 0.13 145);
-  --chart-3: oklch(0.92 0.19 105);
+  --chart-3: var(--warning-500);
   --chart-4: oklch(0.52 0.19 27);
   --chart-5: var(--turquoise-900);
   --sidebar: var(--turquoise-950);
@@ -200,6 +279,11 @@
   --sidebar-muted: #92B2B2;
   --sidebar-line: #325454;
   --sidebar-active: #134343;
+  /* Contadores do menu: translúcidos sobre o petróleo, texto claro (6,7:1 e 6,9:1). Discretos, sem bloco amarelo. */
+  --sidebar-badge: rgb(233 162 59 / 20%);
+  --sidebar-badge-foreground: var(--warning-300);
+  --sidebar-badge-critical: rgb(229 83 75 / 24%);
+  --sidebar-badge-critical-foreground: #FFB4AC;
   /* Avatares de iniciais (contatos sem foto): tons sóbrios, texto branco legível. */
   --avatar-1: #2A7F62;
   --avatar-2: #6B5CA5;
@@ -209,14 +293,19 @@
   --avatar-6: #7A4E7E;
   --avatar-7: var(--turquoise-800);
   --avatar-8: #8C4B5A;
+  /* Conversa do Atendimento: fundo creme sob o papel de parede e o azul dos tiques de "lida" (convenção do WhatsApp). */
+  --chat-wallpaper: #FEFCF6;
+  --chat-read: #53BDEB;
+  /* Texto sobre os avatares de iniciais e ícones de arquivo coloridos. */
+  --avatar-ink: #FFFFFF;
   /* Tipos de arquivo nas conversas. */
   --file-pdf: #E5534B;
   --file-generic: var(--graphite-500);
 }
 
 .dark {
-  --pending: #FFE600;
-  --pending-foreground: #0D0D0D;
+  --pending: #4A3608;
+  --pending-foreground: #FDEFC9;
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
   --card: oklch(0.208 0.042 265.755);
@@ -264,20 +353,30 @@
 
 @layer base {
   body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
-  h1, h2, h3 { font-family: var(--font-serif); letter-spacing: -0.005em; }
+  /* EB Garamond fica para o título da página e dos diálogos (voz da marca); seções e blocos em Inter, que lê melhor em 15px. */
+  h1 { font-family: var(--font-serif); letter-spacing: -0.005em; }
+  h2, h3 { font-family: var(--font-sans); letter-spacing: -0.006em; }
   :focus-visible { outline-color: var(--ring); }
   ::selection { background: var(--turquoise-200); color: var(--graphite-900); }
+  /* O cabeçalho fixo não cobre o elemento focado nem o destino de uma âncora. */
+  html { scroll-padding-top: calc(var(--header-h) + 0.75rem); }
+  /* Superfícies do navegador no tom do sistema: cursor de texto, barras de rolagem e números alinhados em tabelas. */
+  input, textarea, [contenteditable="true"] { caret-color: var(--primary); }
+  * { scrollbar-width: thin; scrollbar-color: var(--graphite-300) transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--graphite-300); border: 3px solid transparent; border-radius: 999px; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--graphite-400); }
+  ::-webkit-scrollbar-track { background: transparent; }
+  table { font-variant-numeric: tabular-nums; }
 }
 
-/* Faixa de título das seções: turquesa claro com régua lateral turquesa da marca. */
+/* Título de seção: Inter 15px seminegrito, sem faixa nem régua (as faixas repetidas viravam "caixas dentro de caixas"). */
 @utility section-title {
-  border-left: 3px solid var(--brand);
-  background: var(--brand-pale);
-  padding: 0.45rem 0.85rem 0.4rem;
-  border-radius: 0 2px 2px 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
   font-weight: 600;
-  line-height: 1.25;
+  line-height: var(--text-md--line-height);
+  letter-spacing: -0.006em;
   color: var(--foreground);
 }
 
@@ -289,9 +388,9 @@
 /* Menu lateral: grupos e a linha do fluxo do caso, ligando as etapas na ordem do escritório. */
 .office-nav-label { color: var(--sidebar-muted); font-size: 12px; font-weight: 500; letter-spacing: 0.02em; }
 .office-flow > li { position: relative; }
-.office-flow > li:not(:last-child)::after { content: ""; position: absolute; left: 15.5px; top: 27px; height: 14px; width: 1px; background: var(--sidebar-line); pointer-events: none; }
+.office-flow > li:not(:last-child)::after { content: ""; position: absolute; left: 15.5px; top: 27px; height: 12px; width: 1px; background: var(--sidebar-line); pointer-events: none; }
 .office-nav a { transition-property: background-color, color, box-shadow; transition-duration: 150ms; }
-.office-nav a[data-active="true"] { background: var(--sidebar-active); color: #FFFFFF; font-weight: 500; box-shadow: inset 2px 0 0 var(--brand); }
+.office-nav a[data-active="true"] { background: var(--sidebar-active); color: #FFFFFF; font-weight: 500; }
 .office-nav a[data-active="true"] > svg { color: var(--brand); }
 .office-nav a:not([data-active="true"]) > svg { color: var(--sidebar-muted); }
 .office-nav a:hover > svg { color: #FFFFFF; }
@@ -315,54 +414,78 @@
 
 .office-header { height:var(--header-h); padding-top:env(safe-area-inset-top, 0px); }
 .office-content { padding-top:var(--header-h); }
-.attendance-workspace { display:grid; grid-template-columns:288px minmax(0,1fr); height:calc(100svh - var(--header-h)); overflow:hidden; }
+/*
+ * Atendimento: lista | conversa | painel do cliente. Lista e painel têm largura ajustável pela alça (AlcaLargura,
+ * guardada no navegador e aplicada em --lista-w / --painel-w); sem escolha guardada valem os padrões abaixo. O clamp
+ * garante a conversa com pelo menos --conversa-min: quando falta espaço, a lista e o painel encolhem primeiro.
+ */
+.attendance-workspace {
+  --lista-w: 280px; --lista-min: 248px; --painel-w: 320px; --painel-min: 300px; --conversa-min: 420px;
+  display:grid; grid-template-columns:clamp(var(--lista-min), var(--lista-w), calc(100% - var(--conversa-min))) minmax(0,1fr);
+  height:calc(100svh - var(--header-h)); overflow:hidden;
+}
+.attendance-workspace:has(.attendance-with-panel) { grid-template-columns:clamp(var(--lista-min), var(--lista-w), calc(100% - var(--conversa-min) - var(--painel-min))) minmax(0,1fr); }
 .attendance-conversation { display:grid; grid-template-columns:minmax(0,1fr); }
-.attendance-with-panel { grid-template-columns:minmax(0,1fr) 340px; }
-@media (min-width:1440px) { .attendance-with-panel { grid-template-columns:minmax(0,1fr) 360px; } }
+.attendance-with-panel { grid-template-columns:minmax(0,1fr) clamp(var(--painel-min), var(--painel-w), calc(100% - var(--conversa-min))); }
+@media (min-width:1440px) { .attendance-workspace { --lista-w: 296px; --painel-w: 340px; } }
+@media (min-width:1920px) { .attendance-workspace { --lista-w: 320px; --painel-w: 360px; } }
 @media (max-width:1199px) {
-  .attendance-workspace { grid-template-columns:232px minmax(0,1fr); }
-  .attendance-with-panel { grid-template-columns:minmax(0,1fr) 284px; }
+  .attendance-workspace { --lista-w: 248px; --lista-min: 232px; --painel-w: 284px; --painel-min: 284px; --conversa-min: 400px; }
   aside[aria-label="Detalhes do atendimento"] [role="tab"] { font-size:12px; padding-inline:4px; }
 }
-@media (min-width:768px) and (max-width:1050px) {
-  .attendance-workspace { grid-template-columns:240px minmax(0,1fr); }
-  .attendance-chat-header { height:auto; min-height:56px; display:grid; grid-template-columns:32px minmax(0,1fr); padding-top:6px; padding-bottom:6px; }
-  .attendance-chat-tools { grid-column:1 / -1; justify-content:flex-end; }
-}
 @media (max-width:767px) {
-  .attendance-workspace { grid-template-columns:minmax(0,1fr); grid-template-rows:210px minmax(0,1fr); }
+  .attendance-workspace, .attendance-workspace:has(.attendance-with-panel) { grid-template-columns:minmax(0,1fr); grid-template-rows:210px minmax(0,1fr); }
   .attendance-list { border-bottom:1px solid var(--border); }
-  .attendance-list > div:first-child { padding:6px 12px; }
+  .attendance-list-topo { display:flex; flex-direction:column; align-items:stretch; gap:6px; padding:6px 12px; }
   .attendance-list h1 { display:none; }
-  .attendance-list > div:first-child { display:flex; flex-direction:column; align-items:stretch; gap:6px; }
-  .attendance-list > div:first-child > div { width:100%; }
-  .attendance-list > div:first-child > div { flex:1; min-width:0; }
+  .attendance-list-topo > div { width:100%; flex:1; min-width:0; }
   /* Sem conversa aberta no celular: a lista ocupa a tela toda (a tela neutra só aparece no computador). */
-  .attendance-sem-conversa { grid-template-rows:minmax(0,1fr); }
+  .attendance-sem-conversa, .attendance-sem-conversa:has(.attendance-with-panel) { grid-template-rows:minmax(0,1fr); }
   .attendance-sem-conversa .attendance-vazio { display:none; }
 }
 
-/* Conversa estreita (painéis abertos em telas médias): nome do cliente ganha a linha inteira e as ferramentas descem. */
+/*
+ * Cabeçalho da conversa sempre em uma linha (56px). Conversa estreita: "Trato feito" e "Próxima" viram ícones (o nome
+ * continua no leitor de tela e na dica) e, mais estreita ainda, o modo da Anne mostra só o ícone.
+ */
 .attendance-chat { container-type: inline-size; container-name: chat; }
-@container chat (max-width: 620px) {
-  .attendance-chat-header { height: auto; min-height: 64px; display: grid; grid-template-columns: 36px minmax(0,1fr); row-gap: 4px; padding-top: 8px; padding-bottom: 6px; }
-  .attendance-chat-tools { grid-column: 1 / -1; justify-content: flex-end; }
+@container chat (max-width: 640px) {
+  .attendance-chat-header .attendance-rotulo { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  .attendance-chat-header .attendance-acao-rotulada { padding-inline:0.5rem; }
 }
-@container chat (max-width: 460px) {
+@container chat (max-width: 480px) {
+  .attendance-chat-header .attendance-modo-texto { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+}
+@container chat (max-width: 400px) {
+  .attendance-chat-header { height:auto; min-height:56px; flex-wrap:wrap; row-gap:4px; padding-block:6px; }
+  .attendance-chat-tools { width:100%; justify-content:flex-end; }
+}
+
+/*
+ * Centro de avisos recolhido: só os avisos críticos (data-critico) continuam à vista, em uma linha; os demais ficam
+ * montados e só ocultos. Detalhes longos (data-aviso-detalhe) aparecem ao expandir.
+ */
+.centro-avisos-lista[data-recolhido] > :not([data-critico]):not(:has([data-critico])) { display:none; }
+.centro-avisos-lista[data-recolhido] [data-aviso-item]:not([data-critico]) { display:none; }
+.centro-avisos-lista[data-recolhido] [data-aviso-detalhe] { display:none; }
+.centro-avisos-lista[data-recolhido] .aviso-texto { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.centro-avisos-lista:not([data-recolhido]) > * { animation:entrada-conteudo var(--motion-base) var(--ease-out) both; }
+/* Conversa estreita: as ferramentas do compositor ficam numa linha e o campo de texto ganha a largura toda embaixo. */
+@container chat (max-width: 520px) {
   .attendance-composer { flex-wrap: wrap; row-gap: 4px; }
   .attendance-composer > textarea { order: 9; flex: 1 1 calc(100% - 48px); }
   .attendance-composer > button[aria-label="Enviar mensagem"] { order: 10; }
 }
 
 /* Papel de parede só na área das mensagens da conversa (imagem já clareada em 42%); fica parado enquanto as mensagens rolam. */
-.attendance-messages { background-color: #FEFCF6; background-image: url("./assets/atendimento-wallpaper.webp"); background-repeat: repeat; background-size: 470px auto; background-position: top center; }
+.attendance-messages { background-color: var(--chat-wallpaper); background-image: url("./assets/atendimento-wallpaper.webp"); background-repeat: repeat; background-size: 470px auto; background-position: top center; }
 
 /* Conversa no formato do WhatsApp, nas cores do MANAGER ADV (só dentro da conversa do Atendimento).
    Os tiques azuis de "lida" seguem a convenção do WhatsApp. */
 .attendance-chat {
   --zap-out: var(--turquoise-100); --zap-in: #FFFFFF; --zap-meta: var(--graphite-600); --zap-bar: var(--graphite-50);
   --zap-send: var(--primary); --zap-send-hover: var(--primary-hover); --zap-send-disabled: var(--graphite-400);
-  --zap-pill: var(--graphite-600); --zap-icon: var(--graphite-500); --zap-read: #53BDEB; --zap-placeholder: var(--graphite-100);
+  --zap-pill: var(--graphite-600); --zap-icon: var(--graphite-500); --zap-read: var(--chat-read); --zap-placeholder: var(--graphite-100);
 }
 .zap-bubble { border-radius: 8px; box-shadow: 0 1px 0.5px rgb(8 43 43 / 13%); color: var(--graphite-900); }
 .zap-in { background: var(--zap-in); }
@@ -398,7 +521,7 @@
 .conteudo-transicao { view-transition-name: conteudo; }
 
 /* Barra fina de carregamento durante a navegação (aparece só se a espera passar de 150 ms). */
-.barra-navegacao { position: fixed; left: 0; right: 0; top: var(--header-h); z-index: 35; height: 2px; overflow: hidden; pointer-events: none; opacity: 0; animation: aparecer-barra var(--motion-quick) linear 150ms forwards; }
+.barra-navegacao { position: fixed; left: 0; right: 0; top: var(--header-h); z-index: var(--z-progress); height: 2px; overflow: hidden; pointer-events: none; opacity: 0; animation: aparecer-barra var(--motion-quick) linear 150ms forwards; }
 .barra-navegacao::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 40%; background: var(--brand); animation: correr-barra 1.1s var(--ease-in-out) infinite; }
 @keyframes aparecer-barra { to { opacity: 1; } }
 @keyframes correr-barra { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
@@ -417,4 +540,26 @@
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
   .barra-navegacao { opacity: 1; }
   .barra-navegacao::before { width: 100%; transform: none; opacity: 0.6; }
+}
+
+/* ── Componentes de página (docs/DESIGN_SYSTEM.md) ──────────────────────────────────────────────
+   Classes compartilhadas pelas telas que montam tabelas e indicadores com HTML próprio. */
+@layer components {
+  /* Superfície de bloco: branco, borda leve, raio de 8px, sem sombra. Um nível só: nada de superfície dentro de superfície. */
+  .superficie { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+
+  /* Tabela de dados: cabeçalho de 36px fixo na rolagem, linhas de ~36px, texto de 13px, números alinhados. */
+  .tabela-dados { width: 100%; border-collapse: separate; border-spacing: 0; font-size: var(--text-xs); line-height: var(--text-xs--line-height); }
+  .tabela-dados th { position: sticky; top: 0; z-index: 1; height: 2.25rem; padding: 0 0.75rem; text-align: left; vertical-align: middle; font-size: var(--text-2xs); font-weight: 500; color: var(--muted-foreground); background: var(--surface-subtle); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .tabela-dados td { padding: 0.5rem 0.75rem; vertical-align: middle; border-bottom: 1px solid var(--graphite-100); }
+  .tabela-dados tbody tr { transition: background-color var(--motion-quick) var(--ease-out); }
+  .tabela-dados tbody tr:hover { background: var(--surface-subtle); }
+  .tabela-dados tbody tr:last-child td { border-bottom: 0; }
+  .tabela-dados .num { text-align: right; }
+
+  /* Faixa de indicadores: números lado a lado com divisórias finas, sem um cartão para cada número. */
+  .faixa-indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); overflow: hidden; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+  .indicador { display: flex; min-width: 0; flex-direction: column; gap: 0.125rem; padding: 0.625rem 1rem; box-shadow: -1px 0 0 var(--graphite-100), 0 -1px 0 var(--graphite-100); }
+  .indicador-valor { font-size: 1.375rem; line-height: 1.75rem; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--foreground); }
+  .indicador-rotulo { font-size: var(--text-2xs); line-height: var(--text-2xs--line-height); color: var(--muted-foreground); }
 }

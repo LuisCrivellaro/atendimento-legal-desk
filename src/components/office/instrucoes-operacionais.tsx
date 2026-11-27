@@ -23,6 +23,9 @@ interface Ajustes { titulo: string; categoria: string; prioridade: PrioridadeIns
 type Previa = Awaited<ReturnType<typeof interpretarInstrucaoAnne>>;
 
 const corPrioridade: Record<PrioridadeInstrucao, 'destructive' | 'default' | 'secondary' | 'outline'> = { critica: 'destructive', alta: 'default', normal: 'secondary', baixa: 'outline' };
+// Aparência dos campos nativos (select e checkbox) igual à dos componentes Input/Select (só visual).
+const campoSelect = 'mt-1 h-9 w-full cursor-pointer rounded-md border border-input bg-card px-2 text-sm font-normal shadow-xs transition-[border-color,box-shadow] duration-150 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/25';
+const caixaMarcar = 'size-4 shrink-0 cursor-pointer accent-primary disabled:cursor-not-allowed';
 
 /**
  * Avisos e instruções operacionais da Anne (Treinamento de IA → Orientações). A equipe escreve em linguagem natural;
@@ -116,17 +119,17 @@ export function InstrucoesOperacionais() {
   const cartao = (i: InstrucaoOperacional) => {
     const s = situacaoInstrucao(i, agora);
     return (
-      <article key={i.id} className="rounded-md border bg-card p-3 text-sm">
-        <div className="flex flex-wrap items-center gap-2">
+      <article key={i.id} className="rounded-lg border bg-card p-3 text-sm">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Badge variant={corPrioridade[i.prioridade]}>{ROTULO_PRIORIDADE[i.prioridade]}</Badge>
           <Badge variant="outline">{ROTULO_SITUACAO[s]}</Badge>
           <span className="text-xs text-muted-foreground">{CATEGORIAS_INSTRUCAO[i.categoria] ?? i.categoria} · {i.tipo === 'permanente' ? 'Permanente' : 'Temporária'}</span>
         </div>
         <p className="mt-2 font-medium">{i.titulo}</p>
         {i.titulo !== i.texto && <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{i.texto}</p>}
-        <p className="mt-1 text-xs">{i.interpretacao}</p>
-        <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-          <Clock className="size-3" />
+        <p className="mt-1.5 text-xs">{i.interpretacao}</p>
+        <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          <Clock className="size-3.5" />
           {s === 'ativa' && (i.fim ? `Termina em ${dataHoraSP(i.fim)} · restam ${tempoAte(i.fim, agora)}` : 'Sem término: vale até ser desativada')}
           {s === 'programada' && `Começa em ${dataHoraSP(i.inicio)} (em ${tempoAte(i.inicio, agora)})`}
           {s === 'expirada' && `Expirou em ${dataHoraSP(i.fim)}`}
@@ -134,7 +137,7 @@ export function InstrucoesOperacionais() {
         </p>
         <p className="mt-1 text-xs text-muted-foreground">Criada por {i.criadoPor} em {dataHoraSP(i.criadoEm)}{i.atualizadoPor ? ` · editada por ${i.atualizadoPor} em ${dataHoraSP(i.atualizadoEm ?? null)} (versão ${i.versao})` : ''}</p>
         {podeEditar && (s === 'ativa' || s === 'programada') && (
-          <div className="mt-2 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
             <Button size="sm" variant="outline" disabled={busy} onClick={() => editar(i)}><Pencil />Editar</Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => void desligar(i)}><Power />Desativar agora</Button>
           </div>
@@ -143,31 +146,31 @@ export function InstrucoesOperacionais() {
     );
   };
   const lista = (titulo: string, itens: InstrucaoOperacional[], vazio: string) => (
-    <div className="space-y-2">
-      <h3 className="text-sm font-medium">{titulo} ({itens.length})</h3>
-      {itens.length ? itens.map(cartao) : <p className="text-xs text-muted-foreground">{vazio}</p>}
+    <div className="min-w-0 space-y-2">
+      <h3 className="text-sm font-semibold">{titulo} <span className="font-normal tabular-nums text-muted-foreground">({itens.length})</span></h3>
+      {itens.length ? itens.map(cartao) : <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">{vazio}</p>}
     </div>
   );
 
   return (
     <Section title="Avisos e instruções operacionais">
-      <p className="mb-3 text-sm text-muted-foreground">
+      <p className="mb-3 max-w-4xl text-sm text-muted-foreground">
         Avisos com prazo para a Anne e as automações (ex.: “Não agendar consultas para as próximas 2 horas”). Valem na hora, sem republicar,
         e expiram sozinhos. Nunca liberam o que as regras de segurança, de agenda ou da OAB proíbem; consultas já marcadas nunca são canceladas ou
         alteradas por uma instrução. Horários em horário de Brasília.
       </p>
-      {isLoading ? <p className="text-xs text-muted-foreground">Carregando instruções…</p> : error ? <p className="text-xs text-destructive">Instruções indisponíveis.</p> : (
+      {isLoading ? <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="size-4 animate-spin" />Carregando instruções…</p> : error ? <p className="flex items-center gap-2 rounded-lg border border-destructive-border bg-destructive-soft px-3 py-2 text-xs text-destructive-soft-foreground"><AlertTriangle className="size-4 shrink-0" />Instruções indisponíveis.</p> : (
         <div className="space-y-6">
           {podeEditar ? (
-            <div className="space-y-3 rounded-md border p-3">
+            <div className="superficie space-y-3 p-4">
               <Textarea aria-label="Nova instrução operacional" value={texto} onChange={e => { setTexto(e.target.value); setPrevia(undefined); setConfirmado(false); }} placeholder="Escreva a instrução como falaria com a Anne. Ex.: Não agendar consultas amanhã das 14h às 17h." className="min-h-24" />
               <div className="flex flex-wrap gap-2">
                 <Button disabled={busy || !texto.trim()} onClick={() => void verPrevia(false)}>{busy ? <Loader2 className="animate-spin" /> : <Plus />}{editandoId ? 'Reinterpretar' : 'Adicionar instrução'}</Button>
                 {editandoId && <Button variant="ghost" disabled={busy} onClick={() => { setEditandoId(undefined); setTexto(''); setPrevia(undefined); setAjustes(undefined); }}>Cancelar edição</Button>}
               </div>
               {previa && ajustes && (
-                <div className="space-y-3 rounded-md bg-muted p-3 text-sm" aria-label="Interpretação da Anne">
-                  <p className="font-medium">Como a Anne entendeu</p>
+                <div className="space-y-3 border-t pt-4 text-sm" aria-label="Interpretação da Anne">
+                  <p className="font-semibold">Como a Anne entendeu</p>
                   {previa.final ? <p>{previa.final.interpretacao}</p> : previa.interpretacao && <p>{previa.interpretacao.resumo}</p>}
                   {previa.interpretacao?.afeta.length ? <ul className="list-disc pl-5 text-xs">{previa.interpretacao.afeta.map(a => <li key={a}>{a}</li>)}</ul> : null}
                   {previa.avisos.map(a => <p key={a} className="text-xs text-muted-foreground">• {a}</p>)}
@@ -178,44 +181,44 @@ export function InstrucoesOperacionais() {
                       <ul className="list-disc pl-5">{previa.consultas.map(c => <li key={`${c.conversaId}${c.inicio}`}>{c.nome} · {c.quando}</li>)}</ul>
                     </div>
                   )}
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <label className="text-xs">Título<Input value={ajustes.titulo} onChange={e => set({ titulo: e.target.value })} /></label>
-                    <label className="text-xs">Categoria
-                      <select className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm" value={ajustes.categoria} onChange={e => set({ categoria: e.target.value })}>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-xs font-medium">Título<Input className="mt-1" value={ajustes.titulo} onChange={e => set({ titulo: e.target.value })} /></label>
+                    <label className="text-xs font-medium">Categoria
+                      <select className={campoSelect} value={ajustes.categoria} onChange={e => set({ categoria: e.target.value })}>
                         {Object.entries(CATEGORIAS_INSTRUCAO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </select>
                     </label>
-                    <label className="text-xs">Prioridade
-                      <select className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm" value={ajustes.prioridade} onChange={e => set({ prioridade: e.target.value as PrioridadeInstrucao })}>
+                    <label className="text-xs font-medium">Prioridade
+                      <select className={campoSelect} value={ajustes.prioridade} onChange={e => set({ prioridade: e.target.value as PrioridadeInstrucao })}>
                         {Object.entries(ROTULO_PRIORIDADE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                       </select>
                     </label>
-                    <label className="text-xs">Tipo
-                      <select className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm" value={ajustes.tipo} onChange={e => set({ tipo: e.target.value as Ajustes['tipo'] })}>
+                    <label className="text-xs font-medium">Tipo
+                      <select className={campoSelect} value={ajustes.tipo} onChange={e => set({ tipo: e.target.value as Ajustes['tipo'] })}>
                         <option value="temporaria">Temporária</option><option value="permanente">Permanente</option>
                       </select>
                     </label>
-                    <label className="text-xs">Início da validade<Input type="datetime-local" value={ajustes.inicio} onChange={e => set({ inicio: e.target.value })} /></label>
-                    <label className="text-xs">Término da validade
-                      <Input type="datetime-local" value={ajustes.fim} disabled={ajustes.semFim || ajustes.tipo === 'permanente'} onChange={e => set({ fim: e.target.value })} />
-                      <span className="mt-1 flex items-center gap-1"><input type="checkbox" checked={ajustes.semFim || ajustes.tipo === 'permanente'} disabled={ajustes.tipo === 'permanente'} onChange={e => set({ semFim: e.target.checked })} /> Sem término (até ser desativada)</span>
+                    <label className="text-xs font-medium">Início da validade<Input className="mt-1" type="datetime-local" value={ajustes.inicio} onChange={e => set({ inicio: e.target.value })} /></label>
+                    <label className="text-xs font-medium">Término da validade
+                      <Input className="mt-1" type="datetime-local" value={ajustes.fim} disabled={ajustes.semFim || ajustes.tipo === 'permanente'} onChange={e => set({ fim: e.target.value })} />
+                      <span className="mt-1.5 flex items-center gap-2 font-normal"><input type="checkbox" className={caixaMarcar} checked={ajustes.semFim || ajustes.tipo === 'permanente'} disabled={ajustes.tipo === 'permanente'} onChange={e => set({ semFim: e.target.checked })} /> Sem término (até ser desativada)</span>
                     </label>
-                    <label className="flex items-center gap-2 text-xs sm:col-span-2"><input type="checkbox" checked={ajustes.somenteOrientacao} onChange={e => set({ somenteOrientacao: e.target.checked })} /> Tratar só como orientação para a Anne (sem bloqueio automático) — use quando a leitura automática não corresponder à intenção</label>
+                    <label className="flex cursor-pointer items-start gap-2 text-xs sm:col-span-2"><input type="checkbox" className={`mt-px ${caixaMarcar}`} checked={ajustes.somenteOrientacao} onChange={e => set({ somenteOrientacao: e.target.checked })} /> Tratar só como orientação para a Anne (sem bloqueio automático) — use quando a leitura automática não corresponder à intenção</label>
                     {ajustes.temBloqueio && !ajustes.somenteOrientacao && <>
-                      <label className="text-xs">Bloquear horários a partir de<Input type="datetime-local" value={ajustes.bloqueioInicio} onChange={e => set({ bloqueioInicio: e.target.value })} /></label>
-                      <label className="text-xs">Bloquear horários até<Input type="datetime-local" value={ajustes.bloqueioFim} onChange={e => set({ bloqueioFim: e.target.value })} /></label>
+                      <label className="text-xs font-medium">Bloquear horários a partir de<Input className="mt-1" type="datetime-local" value={ajustes.bloqueioInicio} onChange={e => set({ bloqueioInicio: e.target.value })} /></label>
+                      <label className="text-xs font-medium">Bloquear horários até<Input className="mt-1" type="datetime-local" value={ajustes.bloqueioFim} onChange={e => set({ bloqueioFim: e.target.value })} /></label>
                     </>}
                   </div>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3 border-t pt-3">
                     <Button size="sm" variant="outline" disabled={busy} onClick={() => void verPrevia(true)}>Atualizar prévia com os ajustes</Button>
-                    <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={confirmado} disabled={!previa.ok} onChange={e => setConfirmado(e.target.checked)} /> Confirmo a interpretação, a validade e as funções afetadas</label>
+                    <label className="flex cursor-pointer items-center gap-2 text-xs"><input type="checkbox" className={caixaMarcar} checked={confirmado} disabled={!previa.ok} onChange={e => setConfirmado(e.target.checked)} /> Confirmo a interpretação, a validade e as funções afetadas</label>
                     <Button size="sm" disabled={busy || !previa.ok || !confirmado} onClick={() => void ativar()}><CheckCircle2 />{editandoId ? 'Salvar alteração' : 'Ativar instrução'}</Button>
                   </div>
                   {!previa.ok && <p className="text-xs text-muted-foreground">Ajuste o texto ou os campos e clique em “Atualizar prévia”: a instrução só é ativada sem pendências.</p>}
                 </div>
               )}
             </div>
-          ) : <p className="text-xs text-muted-foreground">Somente advogada sênior ou admin cria, edita ou desativa instruções. Você pode acompanhar as vigentes abaixo.</p>}
+          ) : <p className="rounded-lg border bg-surface-subtle px-3 py-2 text-xs text-muted-foreground">Somente advogada sênior ou admin cria, edita ou desativa instruções. Você pode acompanhar as vigentes abaixo.</p>}
           <div className="grid gap-6 lg:grid-cols-2">
             {lista('Ativas', grupos.ativa, 'Nenhuma instrução ativa.')}
             {lista('Programadas', grupos.programada, 'Nenhuma instrução programada.')}

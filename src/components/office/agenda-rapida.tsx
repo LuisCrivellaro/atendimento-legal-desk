@@ -25,10 +25,10 @@ export function AgendaRapida({ c, onInsert, onOffer, disabled }: { c: Conversa; 
   const inserir = () => { onInsert(sel.map(s => `• ${formatarHorarioCliente(s)}`).join('\n')); setSel([]); setOpen(false); };
   const label = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: '2-digit' }).format(new Date(`${dia}T12:00:00Z`));
   return <Popover open={open} onOpenChange={setOpen}>
-    <PopoverTrigger asChild><Button size="icon" variant="ghost" className="size-9 shrink-0 text-muted-foreground hover:text-foreground" aria-label="Consultar horários da agenda" title="Consultar horários da agenda" disabled={disabled}><CalendarClock /></Button></PopoverTrigger>
+    <PopoverTrigger asChild><Button size="icon" variant="ghost" className="mb-0.5 size-9 shrink-0 text-muted-foreground hover:text-foreground" aria-label="Consultar horários da agenda" title="Consultar horários da agenda" disabled={disabled}><CalendarClock /></Button></PopoverTrigger>
     <PopoverContent align="start" side="top" className="w-80 max-w-[92vw] p-0">
       <div className="space-y-2 border-b px-3 py-2">
-        <p className="text-sm font-semibold">Escolher horários</p>
+        <p className="section-title">Escolher horários</p>
         <div className="flex items-center gap-1">
           <Button size="icon" variant="ghost" className="size-8" aria-label="Dia anterior" onClick={() => setDia(d => somarDias(d, -1))}><ChevronLeft className="size-4" /></Button>
           <Input type="date" aria-label="Dia" value={dia} min={hojeSP()} onChange={e => e.target.value && setDia(e.target.value)} className="h-8 flex-1 text-sm" />
@@ -38,7 +38,7 @@ export function AgendaRapida({ c, onInsert, onOffer, disabled }: { c: Conversa; 
       </div>
       <div className="max-h-64 overflow-y-auto p-2">
         {slots.map(iso => { const passado = Date.parse(iso) <= agora; const fora = !horarioPermitido(iso, tipo); const hora = new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
-          return <label key={iso} className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm ${passado ? 'cursor-not-allowed text-muted-foreground line-through' : 'cursor-pointer hover:bg-secondary'}`}>
+          return <label key={iso} className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150 ${passado ? 'cursor-not-allowed text-muted-foreground line-through' : 'cursor-pointer hover:bg-secondary'}`}>
             <Checkbox checked={sel.includes(iso)} disabled={passado} onCheckedChange={() => toggle(iso)} aria-label={`Selecionar ${hora}`} />
             <span className="flex-1">{hora}</span>
             {fora && !passado && <span className="text-2xs text-muted-foreground">fora da regra {tipo === 'cadastrado' ? 'de cadastrados' : 'de novos'}</span>}

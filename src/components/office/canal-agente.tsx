@@ -22,7 +22,8 @@ import { atualizarNomesWhatsApp, lerNomesWhatsApp } from '@/lib/atendimento/nome
 type ContatoLista = Awaited<ReturnType<typeof listarContatosTeste>>[number];
 
 function Cartao({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-md border bg-card p-4"><h3 className="mb-3 text-sm font-semibold">{title}</h3>{children}</section>;
+  // Seções do diálogo separadas por divisória, sem cartão dentro do diálogo.
+  return <section className="border-t pt-4 first:border-t-0 first:pt-0"><h3 className="section-title mb-3">{title}</h3>{children}</section>;
 }
 
 export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGerenciar = false }: {
@@ -133,14 +134,14 @@ export function CanalAgente({ open, onOpenChange, conversas, onConfig, podeGeren
             {c.status === 'liberado' ? 'Liberado' : c.status === 'bloqueado' ? 'Bloqueado' : 'Aguardando liberação'}</span>
           <span className="ml-auto flex flex-wrap items-center gap-1">
             <Select value={c.conversa_id ?? 'nenhuma'} onValueChange={v => atualizar(c, { conversaId: v === 'nenhuma' ? null : v })}>
-              <SelectTrigger aria-label={`Conversa vinculada de ${c.nome || 'contato'}`} className="h-7 w-40 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label={`Conversa vinculada de ${c.nome || 'contato'}`} className="h-8 w-40 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="nenhuma">Sem conversa</SelectItem>
                 {conversas.map(cv => <SelectItem key={cv.id} value={cv.id}>{cv.nome}</SelectItem>)}
               </SelectContent>
             </Select>
-            {c.status !== 'liberado' && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => atualizar(c, { status: 'liberado' })}>Liberar</Button>}
-            {c.status !== 'bloqueado' && <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => atualizar(c, { status: 'bloqueado' })}>Bloquear</Button>}
+            {c.status !== 'liberado' && <Button size="sm" variant="outline" onClick={() => atualizar(c, { status: 'liberado' })}>Liberar</Button>}
+            {c.status !== 'bloqueado' && <Button size="sm" variant="ghost" className="text-destructive hover:bg-destructive-soft hover:text-destructive" onClick={() => atualizar(c, { status: 'bloqueado' })}>Bloquear</Button>}
           </span>
         </div>)}
         {contatos.data && !contatos.data.length && <p className="py-3 text-xs text-muted-foreground">Nenhum contato de teste cadastrado.</p>}

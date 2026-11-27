@@ -66,7 +66,7 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
     <section aria-label="Secretaria digital" className="space-y-3 border-t pt-4 text-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="font-medium">Secretaria digital (Anne em duas camadas)</h3>
+          <h3 className="section-title">Secretaria digital (Anne em duas camadas)</h3>
           <p className="text-xs text-muted-foreground">Com a equipe na conversa, a Anne continua só com as automações autorizadas (modo Híbrido). Desligada, tudo segue como antes.</p>
           {data.chaveMestraDesligada && <p className="text-xs font-medium text-destructive">Desligada pelo servidor (ANNE_SECRETARIA_DESLIGADA).</p>}
         </div>

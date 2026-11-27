@@ -65,19 +65,19 @@ export function AnaliseDocumento({ c, update }: { c: Conversa; update: (fn: (c: 
       <p className="text-xs text-muted-foreground">PDF ou imagem. A IA identifica o tipo, extrai dados do caso e marca o item do checklist.</p>
       {c.mensagens.filter(m => m.path && (m.tipo === 'imagem' || m.tipo === 'documento') && (!m.analiseDocumento || m.pendenciaChecklist || m.pendenciaPdf)).map(m => <div key={m.id} className="space-y-1 border-b py-2 text-xs"><p className="truncate">{m.arquivo}</p>{(m.erroAnalise || m.pendenciaChecklist || m.pendenciaPdf) && <p className="text-pending-foreground">{m.erroAnalise || m.pendenciaChecklist || m.pendenciaPdf}</p>}<Button size="sm" variant="outline" disabled={!!carregando} onClick={() => m.pendenciaChecklist ? setPendingMessage(m.id) : void reanalisar(m.id)}><Sparkles/>{m.pendenciaChecklist ? 'Confirmar atualização do checklist' : m.pendenciaPdf ? 'Preparar PDF em Start' : 'Analisar original recebido'}</Button></div>)}
       {analises.map((a, i) => (
-        <div key={i} className="rounded-lg border-l-4 border-primary bg-secondary p-2.5 text-sm">
-          <p className="flex items-center gap-1 font-semibold"><Sparkles className="size-3.5 text-primary" />{a.resultado.tipoDocumento}</p>
+        <div key={i} className="rounded-lg border bg-surface-subtle p-2.5 text-sm">
+          <p className="flex items-center gap-1.5 font-semibold"><Sparkles className="size-3.5 shrink-0 text-primary" />{a.resultado.tipoDocumento}</p>
           <p className="truncate text-xs text-muted-foreground">{a.arquivo}</p>
-          <div className="mt-1 flex flex-wrap gap-1 text-2xs">
-            <span className={cn("rounded px-1.5 py-0.5", a.resultado.itemChecklist ? "bg-success text-success-foreground" : "bg-pending text-pending-foreground")}>
+          <div className="mt-1.5 flex flex-wrap gap-1 text-2xs">
+            <span className={cn("rounded-sm border px-1.5 py-0.5 font-medium", a.resultado.itemChecklist ? "border-success-border bg-success-soft text-success-soft-foreground" : "border-pending-border bg-pending text-pending-foreground")}>
               {a.resultado.itemChecklist ? <><CheckCircle2 className="mr-0.5 inline size-3" />Correspondência: {a.resultado.itemChecklist}</> : "Fora do checklist"}
             </span>
-            <span className={cn("rounded px-1.5 py-0.5", a.resultado.confianca === "baixa" ? "bg-pending text-pending-foreground" : "bg-card")}>confiança {a.resultado.confianca}</span>
+            <span className={cn("rounded-sm border px-1.5 py-0.5", a.resultado.confianca === "baixa" ? "border-pending-border bg-pending text-pending-foreground" : "bg-card")}>confiança {a.resultado.confianca}</span>
           </div>
           {(a.resultado.nomeTitular || a.resultado.cpf) && <p className="mt-1 text-xs">{a.resultado.nomeTitular}{a.resultado.cpf && ` · CPF ${a.resultado.cpf}`}</p>}
           {a.resultado.datas.length > 0 && <ul className="mt-1 text-xs">{a.resultado.datas.map((d, j) => <li key={j}><b>{d.descricao}:</b> {d.data}</li>)}</ul>}
           {a.resultado.detalhesCaso.length > 0 && <ul className="mt-1 list-disc pl-4 text-xs">{a.resultado.detalhesCaso.map((d, j) => <li key={j}>{d}</li>)}</ul>}
-          {a.resultado.observacoes && <p className="mt-1 rounded bg-pending px-1.5 py-0.5 text-xs text-pending-foreground">{a.resultado.observacoes}</p>}
+          {a.resultado.observacoes && <p className="mt-1.5 rounded-md border border-pending-border bg-pending px-2 py-1 text-xs text-pending-foreground">{a.resultado.observacoes}</p>}
         </div>
       ))}
       <Dialog open={!!pendingFile || !!pendingMessage} onOpenChange={v=>{if(!v){setPendingFile(undefined);setPendingMessage(undefined);}}}><DialogContent><DialogHeader><DialogTitle>Confirmar alteração do checklist</DialogTitle></DialogHeader><p>A alteração pode invalidar a aprovação jurídica. Será necessária nova aprovação para avançar.</p><DialogFooter><Button variant="outline" onClick={()=>{setPendingFile(undefined);setPendingMessage(undefined);}}>Cancelar</Button><Button onClick={()=>{const f=pendingFile;const id=pendingMessage;setPendingFile(undefined);setPendingMessage(undefined);if(f)void processar(f,true);else if(id)void reanalisar(id,true);}}>Confirmar análise</Button></DialogFooter></DialogContent></Dialog>

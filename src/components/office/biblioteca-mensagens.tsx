@@ -30,7 +30,7 @@ export function BibliotecaMensagens() {
   return (
     <section aria-label="Mensagens oficiais" className="space-y-2 border-t pt-4 text-sm">
       <div>
-        <h3 className="font-medium">Mensagens oficiais (CS Lawyers)</h3>
+        <h3 className="section-title">Mensagens oficiais (CS Lawyers)</h3>
         <p className="text-xs text-muted-foreground">Textos fixos: a Anne só troca os campos entre colchetes por dados verificados e nunca reescreve. Faltou dado ou o texto não combina com a situação (ex.: "Bom dia" à tarde), a mensagem não sai.</p>
       </div>
       <label className="flex items-center justify-between gap-3 py-1">
@@ -45,8 +45,8 @@ export function BibliotecaMensagens() {
         </Select>
       </label>
       {data.modelos.map(m => (
-        <details key={m.id} className="rounded-md border px-2 py-1.5">
-          <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-xs">
+        <details key={m.id} className="border-t py-2">
+          <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-md text-xs hover:text-primary [&::-webkit-details-marker]:hidden">
             <span className="font-medium text-foreground">{m.id.replace('T', '')} · {m.titulo}</span>
             <span className="text-muted-foreground">v{m.versao} · {ROTULO_ATIVACAO[m.ativacao]}{m.uso.total ? ` · usada ${m.uso.total}×` : ''}</span>
           </summary>
@@ -54,12 +54,12 @@ export function BibliotecaMensagens() {
             <p><span className="font-medium">Gatilho:</span> {m.gatilho}</p>
             <p><span className="font-medium">No sistema:</span> {m.integracao}</p>
             {!!m.variaveis.length && <p><span className="font-medium">Campos:</span> {m.variaveis.map(v => `${v} — ${m.fontes[v] ?? 'dado verificado'}`).join(' · ')}</p>}
-            <pre className="whitespace-pre-wrap rounded bg-muted p-2 font-sans text-xs">{m.texto}</pre>
+            <pre className="whitespace-pre-wrap rounded-md border bg-surface-subtle p-2.5 font-sans text-xs">{m.texto}</pre>
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void navigator.clipboard.writeText(m.texto).then(() => toast.success('Texto copiado'))}><Copy className="size-3.5" />Copiar</Button>
+              <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(m.texto).then(() => toast.success('Texto copiado'))}><Copy />Copiar</Button>
               {data.podeEditar && (
                 <Select value={m.ativacao} onValueChange={v => void executar('Ativação da mensagem', () => ativar({ data: { id: m.id, ativacao: v as 'ativo' | 'manual' | 'aguardando_aprovacao' } }), () => void recarregar())}>
-                  <SelectTrigger className="h-7 w-48 text-xs" aria-label={`Ativação do modelo ${m.id}`}><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-8 w-48 text-xs" aria-label={`Ativação do modelo ${m.id}`}><SelectValue /></SelectTrigger>
                   <SelectContent>{(Object.keys(ROTULO_ATIVACAO) as (keyof typeof ROTULO_ATIVACAO)[]).map(a => <SelectItem key={a} value={a}>{ROTULO_ATIVACAO[a]}</SelectItem>)}</SelectContent>
                 </Select>
               )}
@@ -67,7 +67,7 @@ export function BibliotecaMensagens() {
             {data.podeEditar && (
               <div className="space-y-1">
                 <Textarea rows={4} className="text-xs" placeholder="Nova versão oficial (mesmos campos entre colchetes)" value={edicao[m.id] ?? ''} onChange={e => setEdicao(x => ({ ...x, [m.id]: e.target.value }))} />
-                <Button size="sm" className="h-7 px-2 text-xs" disabled={!edicao[m.id]?.trim()} onClick={() => void executar('Aprovar nova versão', () => salvar({ data: { id: m.id, texto: edicao[m.id] ?? '' } }), () => { setEdicao(x => ({ ...x, [m.id]: '' })); void recarregar(); })}>Aprovar nova versão</Button>
+                <Button size="sm" disabled={!edicao[m.id]?.trim()} onClick={() => void executar('Aprovar nova versão', () => salvar({ data: { id: m.id, texto: edicao[m.id] ?? '' } }), () => { setEdicao(x => ({ ...x, [m.id]: '' })); void recarregar(); })}>Aprovar nova versão</Button>
               </div>
             )}
             {!!m.historico.length && (

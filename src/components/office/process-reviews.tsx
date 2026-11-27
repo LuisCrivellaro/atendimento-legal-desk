@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
-import { Check, Pencil, X, Loader2 } from 'lucide-react';
+import { Check, Pencil, X, Loader2, Newspaper, Link2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,15 +36,17 @@ export function ProcessReviews({ conversaId }: { conversaId?: string }) {
     finally { setBusy(false); await Promise.all([qc.invalidateQueries({ queryKey: ['process-reviews'] }), qc.invalidateQueries({ queryKey: ['casos'] })]); }
   }
   if (!autorizado) return null;
-  return <section aria-label="Revisão de notícias processuais" className="max-h-56 shrink-0 overflow-y-auto border-b bg-card px-4 py-3">
-    <h2 className="mb-2 text-base font-semibold">Notícias processuais pendentes {query.data ? `(${query.data.length})` : ''}</h2>
-    {query.isPending ? <p className="text-sm text-muted-foreground">Carregando revisões…</p> : query.isError ? <p role="alert" className="text-sm text-destructive">Não foi possível carregar as revisões.</p> : !query.data?.length ? <p className="text-sm text-muted-foreground">Nenhum pedido pendente.</p> : query.data.map(p => <div key={p.conversaId + p.codigo} className="flex items-center justify-between gap-3 border-t py-2">
-      <div className="min-w-0 text-sm"><p className="truncate font-medium">{p.codigo} · {p.contato.nome}</p><p className="text-xs text-muted-foreground">{new Date(p.criadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p></div>
-      <Button variant="outline" size="sm" onClick={() => { setSelected(p); setTexto(p.textoProposto); setCorrigir(false); }}><Pencil className="size-4" />Revisar</Button>
+  // No Atendimento (com conversaId) é uma faixa compacta do centro de avisos; erro de leitura é aviso crítico.
+  const naConversa = conversaId !== undefined;
+  return <section aria-label="Revisão de notícias processuais" data-tom={query.isError ? 'erro' : 'alerta'} data-critico={naConversa && query.isError ? '' : undefined} data-resumo={`Notícias processuais pendentes${query.data ? ` (${query.data.length})` : ''}`} className={naConversa ? cn('max-h-56 shrink-0 overflow-y-auto border-t px-3 py-1.5 text-xs', query.isError ? 'border-destructive-border bg-destructive-soft' : 'bg-card') : 'max-h-56 shrink-0 overflow-y-auto border-b bg-card px-4 py-3'}>
+    <h2 className={naConversa ? 'flex min-h-6 items-center gap-2 text-xs font-semibold' : 'mb-2 text-base font-semibold'}>{naConversa && <Newspaper aria-hidden="true" className={cn('size-4 shrink-0', query.isError ? 'text-destructive' : 'text-warning-600')} />}Notícias processuais pendentes {query.data ? `(${query.data.length})` : ''}</h2>
+    {query.isPending ? <p className={naConversa ? 'pl-6 text-muted-foreground' : 'text-sm text-muted-foreground'}>Carregando revisões…</p> : query.isError ? <p role="alert" className={naConversa ? 'pl-6 font-medium text-destructive-soft-foreground' : 'text-sm text-destructive'}>Não foi possível carregar as revisões.</p> : !query.data?.length ? <p className={naConversa ? 'pl-6 text-muted-foreground' : 'text-sm text-muted-foreground'}>Nenhum pedido pendente.</p> : query.data.map(p => <div key={p.conversaId + p.codigo} className={naConversa ? 'ml-6 flex items-center justify-between gap-3 border-t py-1.5' : 'flex items-center justify-between gap-3 border-t py-2'}>
+      <div className={naConversa ? 'min-w-0' : 'min-w-0 text-sm'}><p className="truncate font-medium">{p.codigo} · {p.contato.nome}</p><p className={naConversa ? 'text-2xs text-muted-foreground' : 'text-xs text-muted-foreground'}>{new Date(p.criadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p></div>
+      <Button variant="outline" size="sm" className="shrink-0" onClick={() => { setSelected(p); setTexto(p.textoProposto); setCorrigir(false); }}><Pencil className="size-4" />Revisar</Button>
     </div>)}
     <Dialog open={!!selected} onOpenChange={v => { if (!v && !busy) setSelected(null); }}><DialogContent className="max-h-[90svh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{selected?.codigo} · {selected?.contato.nome}</DialogTitle><DialogDescription>Notícia processual aguardando decisão</DialogDescription></DialogHeader>
       {selected?.processos.map(p => <div key={p.codigo} className="border-b pb-3 text-sm"><p className="font-semibold break-words">{p.identificacao}</p>{p.segredo ? <p>Segredo de justiça · sem detalhes ao cliente</p> : p.andamentos.map((a, i) => <p key={i} className="mt-2 whitespace-pre-wrap break-words">{a.data} {a.hora} · {a.tipo}<br />{a.descricao}</p>)}</div>)}
-      <h3 className="font-semibold">Texto proposto</h3><p className="whitespace-pre-wrap break-words text-sm">{selected?.textoProposto}</p>
+      <h3 className="section-title">Texto proposto</h3><p className="whitespace-pre-wrap break-words rounded-lg border bg-surface-subtle p-3 text-sm">{selected?.textoProposto}</p>
       {corrigir && <label className="text-sm">Texto corrigido<Textarea aria-label="Texto corrigido da notícia processual" className="mt-2 min-h-36" value={texto} onChange={e => setTexto(e.target.value)} /></label>}
       <div className="flex flex-wrap justify-end gap-2"><Button variant="destructive" disabled={busy} onClick={() => revisar('recusar')}><X />Recusar</Button><Button variant="outline" disabled={busy} onClick={() => setCorrigir(v => !v)}><Pencil />Corrigir</Button><Button disabled={busy || corrigir && !texto.trim()} onClick={() => revisar(corrigir ? 'corrigir' : 'aprovar')}>{busy ? <Loader2 className="animate-spin" /> : <Check />}{corrigir ? 'Enviar correção' : 'Aprovar e enviar'}</Button></div>
     </DialogContent></Dialog>
@@ -71,9 +74,10 @@ export function VinculoPendente({ conversaId, vinculo }: { conversaId: string; v
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); await qc.invalidateQueries({ queryKey: ['casos'] }); }
   }
-  return <section aria-label="Vínculo pendente com o ProJuris" className="flex shrink-0 items-center justify-between gap-3 border-b bg-pending px-4 py-2 text-[13px] text-pending-foreground">
-    <p><b>Vínculo pendente:</b> cliente informou CPF {vinculo.cpfMascarado}. Confira antes de liberar a consulta.</p>
-    <Button size="sm" variant="outline" onClick={() => setAberto(true)}>Confirmar vínculo</Button>
+  return <section aria-label="Vínculo pendente com o ProJuris" data-tom="alerta" data-resumo={`Vínculo pendente: cliente informou CPF ${vinculo.cpfMascarado}`} className="flex min-h-10 shrink-0 items-center gap-2 border-t bg-card px-3 py-1 text-xs text-foreground">
+    <Link2 aria-hidden="true" className="size-4 shrink-0 text-warning-600" />
+    <p className="aviso-texto min-w-0 flex-1"><b>Vínculo pendente:</b> cliente informou CPF {vinculo.cpfMascarado}. Confira antes de liberar a consulta.</p>
+    <Button size="sm" variant="outline" className="shrink-0" onClick={() => setAberto(true)}>Confirmar vínculo</Button>
     <Dialog open={aberto} onOpenChange={v => { if (!busy) setAberto(v); }}><DialogContent><DialogHeader><DialogTitle>Confirmar vínculo</DialogTitle><DialogDescription>Pessoa encontrada no ProJuris pelo CPF informado na conversa.</DialogDescription></DialogHeader>
       <p className="text-sm"><b>{vinculo.nome}</b><br />Código no ProJuris: {vinculo.codigoPessoa}<br />CPF: {vinculo.cpfMascarado}</p>
       <label className="flex items-start gap-2 text-sm text-muted-foreground"><input type="checkbox" disabled className="mt-1" />Atualizar telefone no ProJuris — ainda não disponível: a alteração de cadastro no ProJuris aguarda liberação. Atualize o telefone principal direto no ProJuris, se necessário.</label>

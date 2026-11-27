@@ -76,7 +76,22 @@ Critério de desempate pedido pela Dra.: acessibilidade, funcionamento, desempen
 | 3 | Impeccable recusa "barra num lado de uma caixa"; a faixa `section-title` (régua aqua + fundo claro) é motivo da marca | A régua continua nas peças (Visual Law, papel timbrado). Na interface, sai das caixas e vira o "fio" (ver `CREATIVE_DIRECTION.md`) |
 | 4 | Vercel pede Title Case em títulos e botões | Não se aplica ao português. Usamos caixa de frase ("Enviar horários"), como a Humanizer também pede |
 | 5 | Vercel pede aspas curvas e `…` na interface; Humanizer trata aspas curvas como marca fraca de IA em prosa | Interface: “ ” e `…` (tipografia correta em pt-BR). Documentos Markdown do repositório: aspas retas |
-| 6 | UI/UX Pro Max sugere azul-marinho + dourado para escritórios de advocacia | Vale a marca: aqua `#00ACA7` e petróleo `#0F3533` (a Impeccable manda honrar a paleta definida) |
-| 7 | UI/UX Pro Max e Taste pedem alvos de toque de 44px e mobile-first | O sistema é só desktop (decisão da Dra.). Alvos mínimos de 24×24px (WCAG 2.5.8) e botões de 32–36px de altura |
+| 6 | UI/UX Pro Max sugere azul-marinho + dourado para escritórios de advocacia | Vale a marca: turquesa da logo `#00C9CB`, `#017F80` para ação e petróleo `#082B2B` no menu (identidade de 27/11/2026; a Impeccable manda honrar a paleta definida). O aqua `#00ACA7` ficou só nas peças (Visual Law/DOCX) |
+| 7 | UI/UX Pro Max e Taste pedem alvos de toque de 44px e mobile-first | Desktop é a prioridade (decisão da Dra.), mas no redesenho completo nada pode quebrar em tablet e celular. Alvos mínimos de 24×24px (WCAG 2.5.8) e botões de 32–36px de altura |
 | 8 | Vercel exige confirmação ou desfazer em ações destrutivas; Impeccable diz que modal costuma ser preguiça | Ações jurídicas, envios ao cliente e exclusões mantêm confirmação (AlertDialog). Ações internas reversíveis ganham "Desfazer" em vez de modal |
 | 9 | Princípios 31–37 do projeto (scroll storytelling, parallax, sticky, 3D); Impeccable e Taste vetam isso em ferramenta | Usamos sticky onde ajuda (cabeçalho do caso, barra de ações). Nada de parallax, 3D ou narrativa por rolagem dentro do sistema; o login pode ter uma única entrada animada |
+
+## Uso no redesenho completo do front-end (27/11/2026)
+
+| Skill | Como foi usada | Resultado |
+|---|---|---|
+| Impeccable | `reference/craft-floor.md` lido antes de editar; modo Operate | Saíram faixas laterais coloridas, cartões dentro de cartões e o bloco amarelo; barras de rolagem, seleção e cursor no tom do sistema |
+| Web Design Guidelines | Revisão dos arquivos globais (cabeçalho, menu, `shared.tsx`, busca rápida, login, componentes base) | Correções de acessibilidade e formulário listadas em `REDESIGN_QA.md` |
+| UI/UX Pro Max | Consulta a `data/ux-guidelines.csv` (sem rodar o script) | Diretrizes 19, 100, 103, 115 e 138 conferidas |
+| Humanizer | Redação dos documentos da rodada | Frases diretas, sem enfeite |
+| Taste Skill | Só como referência das regras contra "cara de IA" | Nada de gradiente em texto, eyebrow ou métrica gigante como enfeite |
+
+O executável da Impeccable (captura e detector) continua sem autorização e não foi rodado. Os componentes de Uiverse e
+React Bits não foram usados: os padrões de que o sistema precisava (painéis redimensionáveis, avisos, tabelas, faixas
+de indicadores) foram feitos com o que já existe no projeto (Radix e Tailwind; a alça de largura do Atendimento é própria, em
+`src/components/ui/resizable.tsx`), sem dependência nova.

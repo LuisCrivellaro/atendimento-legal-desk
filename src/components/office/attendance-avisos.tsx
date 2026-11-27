@@ -1,4 +1,4 @@
-import { Check, MessageSquareText } from 'lucide-react';
+import { BellRing, Check, MessageSquareText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Conversa } from '@/lib/mock-data';
 import { avisosPendentes } from '@/lib/atendimento/avisos-equipe';
@@ -8,18 +8,22 @@ export function AttendanceAvisos({ c, busy, onUseText, onResolve }: { c: Convers
   const avisos = avisosPendentes(c);
   if (!avisos.length) return null;
   return (
-    <section aria-label="Avisos para a equipe" className="shrink-0 space-y-1 border-b bg-pending px-3 py-2 text-[13px] text-pending-foreground">
+    <section aria-label="Avisos para a equipe" className="shrink-0 text-xs">
+      {/* Cada aviso é uma linha; os de prioridade são críticos e ficam à vista com o centro de avisos recolhido. */}
       {avisos.map(a => (
-        <div key={a.id} className="flex flex-wrap items-center gap-2">
-          <p className="min-w-0 flex-1 break-words font-medium">{a.prioridade ? 'Prioridade · ' : ''}{a.texto}</p>
-          {a.textoPronto && (
-            <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" disabled={busy} onClick={() => onUseText(a.textoPronto ?? '')} title="Coloca o texto na caixa de mensagem para revisar e enviar">
-              <MessageSquareText className="size-3.5" />Usar texto pronto
+        <div key={a.id} data-aviso-item="" data-tom="alerta" data-critico={a.prioridade ? '' : undefined} data-resumo={`${a.prioridade ? 'Prioridade · ' : ''}${a.texto}`} className={`flex flex-wrap items-center gap-x-2 gap-y-1 border-t px-3 py-1.5 ${a.prioridade ? 'border-pending-border bg-pending text-pending-foreground' : 'bg-card text-foreground'}`}>
+          <BellRing aria-hidden="true" className={`size-4 shrink-0 ${a.prioridade ? 'text-warning-700' : 'text-warning-600'}`} />
+          <p className="aviso-texto min-w-0 flex-1 break-words font-medium" title={a.texto}>{a.prioridade ? 'Prioridade · ' : ''}{a.texto}</p>
+          <div className="flex shrink-0 flex-wrap gap-1.5">
+            {a.textoPronto && (
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => onUseText(a.textoPronto ?? '')} title="Coloca o texto na caixa de mensagem para revisar e enviar">
+                <MessageSquareText />Usar texto pronto
+              </Button>
+            )}
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => onResolve(a.id)} title="Marca o aviso como resolvido pela equipe">
+              <Check />Resolvido
             </Button>
-          )}
-          <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" disabled={busy} onClick={() => onResolve(a.id)} title="Marca o aviso como resolvido pela equipe">
-            <Check className="size-3.5" />Resolvido
-          </Button>
+          </div>
         </div>
       ))}
     </section>

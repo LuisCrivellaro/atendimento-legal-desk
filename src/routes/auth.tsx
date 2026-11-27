@@ -108,7 +108,7 @@ function AuthPage() {
       </aside>
       <main className="flex items-start justify-center px-5 py-10 sm:items-center sm:py-16">
         <div className="entrada-suave w-full max-w-sm">
-          <h1 className="mb-1 text-[1.75rem] font-semibold leading-tight">
+          <h1 className="mb-1 text-2xl font-semibold leading-tight">
             {modo === "entrar" ? "Entrar no Manager ADV" : "Criar conta da equipe"}
           </h1>
           <p className="mb-6 text-sm text-muted-foreground">
@@ -117,46 +117,53 @@ function AuthPage() {
               : "Contas novas entram como atendente; o escritório ajusta o perfil de acesso."}
           </p>
           {confirmar ? (
-            <p className="rounded bg-secondary p-3 text-sm">
+            <p role="status" className="rounded-lg border border-info-border bg-info-soft px-3 py-2.5 text-sm text-info-soft-foreground">
               Enviamos um link de confirmação para <b>{email}</b>. Abra o e-mail para ativar sua
               conta.
             </p>
           ) : (
             <>
-              <form onSubmit={enviar} className="space-y-3">
+              <form onSubmit={enviar} className="space-y-3.5">
                 {modo === "cadastrar" && (
-                  <div>
+                  <div className="space-y-1.5">
                     <Label htmlFor="nome">Nome</Label>
                     <Input
                       id="nome"
+                      name="nome"
+                      autoComplete="name"
                       required
                       value={nome}
                       onChange={(e) => setNome(e.target.value)}
                     />
                   </div>
                 )}
-                <div>
+                <div className="space-y-1.5">
                   <Label htmlFor="email">E-mail</Label>
                   <Input
                     id="email"
+                    name="email"
                     type="email"
+                    autoComplete="email"
+                    spellCheck={false}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-                <div>
+                <div className="space-y-1.5">
                   <Label htmlFor="senha">Senha</Label>
                   <Input
                     id="senha"
+                    name="senha"
                     type="password"
+                    autoComplete={modo === "entrar" ? "current-password" : "new-password"}
                     required
                     minLength={6}
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={carregando}>
+                <Button type="submit" className="mt-1 w-full" disabled={carregando}>
                   {carregando && <Loader2 className="animate-spin" />}
                   {modo === "entrar" ? "Entrar" : "Criar conta"}
                 </Button>
@@ -179,7 +186,8 @@ function AuthPage() {
                 </button>
               </div>
               <button
-                className="mt-4 w-full text-center text-sm text-primary hover:underline"
+                type="button"
+                className="mt-4 w-full rounded-md text-center text-sm text-primary hover:underline"
                 onClick={() => setModo(modo === "entrar" ? "cadastrar" : "entrar")}
               >
                 {modo === "entrar" ? "Não tem conta? Cadastre-se" : "Já tem conta? Entrar"}

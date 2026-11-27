@@ -29,14 +29,15 @@ export function SkeletonLista({ itens = 6, rotulo = "Carregando…", className }
 /** Página de trabalho: título, faixa de indicadores e dois blocos de conteúdo. */
 export function SkeletonPagina({ rotulo = "Carregando…", indicadores = 4, className }: { rotulo?: string; indicadores?: number; className?: string }) {
   return (
-    <div role="status" aria-busy="true" className={cn("space-y-6", className)}>
+    <div role="status" aria-busy="true" className={cn("space-y-5", className)}>
       <span className="sr-only">{rotulo}</span>
       <Bloco className="h-9 w-56" />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Mesmo formato da faixa de indicadores das telas, para nada pular quando os dados chegam. */}
+      <div className="faixa-indicadores">
         {Array.from({ length: indicadores }, (_, i) => (
-          <div key={i} className="space-y-2 rounded-lg border bg-card p-4">
-            <Bloco className="h-7 w-14" />
-            <Bloco className="h-3 w-28" />
+          <div key={i} className="indicador gap-2">
+            <Bloco className="h-6 w-12" />
+            <Bloco className="h-3 w-24" />
           </div>
         ))}
       </div>
@@ -55,7 +56,7 @@ export function SkeletonTabela({ linhas = 5, rotulo = "Carregando…", className
       <span className="sr-only">{rotulo}</span>
       <Bloco className="h-9" />
       {Array.from({ length: linhas }, (_, i) => (
-        <Bloco key={i} className="h-11" />
+        <Bloco key={i} className="h-9" />
       ))}
     </div>
   );

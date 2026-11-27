@@ -62,37 +62,52 @@ export function AppSidebar({ badges = {}, podeContencioso = false }: { badges?: 
   // No celular o menu abre por cima da tela; fecha ao escolher um destino.
   const { isMobile, setOpenMobile } = useSidebar();
   return (
-    <Sidebar collapsible="icon" className="top-16 h-[calc(100svh-4rem)] border-r-0">
-      <SidebarContent className="office-nav gap-1 py-2">
+    <Sidebar collapsible="icon" className="top-[var(--header-h)] h-[calc(100svh-var(--header-h))] border-r-0">
+      <SidebarContent className="office-nav gap-0.5 py-2">
         {groups.filter((g) => !g.restrito || podeContencioso).map((g, gi) => (
-          <SidebarGroup key={g.label ?? gi} className="py-1">
+          // Recolhido (56px): 12px de cada lado centralizam o ícone de 32px.
+          <SidebarGroup key={g.label ?? gi} className="py-1 group-data-[collapsible=icon]:px-3">
             {g.label && (
               <SidebarGroupLabel className="office-nav-label h-7">{g.label}</SidebarGroupLabel>
             )}
             <SidebarGroupContent>
-              <SidebarMenu className={g.flow ? "office-flow" : undefined}>
-                {g.items.map((i) => (
-                  <SidebarMenuItem key={i.url}>
-                    <SidebarMenuButton asChild isActive={path === i.url} tooltip={i.title}>
-                      <Link to={i.url} onClick={() => isMobile && setOpenMobile(false)}>
-                        <i.icon />
-                        <span>{i.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    {(badges[i.url] ?? 0) > 0 && (
-                      <SidebarMenuBadge
-                        className={
-                          // O item ativo/hover do menu deixa o texto branco; o número do badge mantém a cor própria.
-                          i.url === "/"
-                            ? "bg-destructive text-destructive-foreground peer-hover/menu-button:text-destructive-foreground peer-data-[active=true]/menu-button:text-destructive-foreground"
-                            : "bg-pending text-pending-foreground peer-hover/menu-button:text-pending-foreground peer-data-[active=true]/menu-button:text-pending-foreground"
-                        }
-                      >
-                        {badges[i.url]}
-                      </SidebarMenuBadge>
-                    )}
-                  </SidebarMenuItem>
-                ))}
+              <SidebarMenu className={g.flow ? "office-flow gap-0.5" : "gap-0.5"}>
+                {g.items.map((i) => {
+                  const n = badges[i.url] ?? 0;
+                  // O Painel conta prazos fatais (crítico); os demais, itens aguardando a etapa.
+                  const critico = i.url === "/";
+                  return (
+                    <SidebarMenuItem key={i.url}>
+                      <SidebarMenuButton asChild isActive={path === i.url} tooltip={n > 0 ? `${i.title} · ${n}` : i.title}>
+                        <Link to={i.url} onClick={() => isMobile && setOpenMobile(false)}>
+                          <i.icon />
+                          <span>{i.title}</span>
+                          {n > 0 && <span className="sr-only"> ({n})</span>}
+                        </Link>
+                      </SidebarMenuButton>
+                      {n > 0 && (
+                        <>
+                          <SidebarMenuBadge
+                            aria-hidden
+                            className={
+                              // O item ativo/hover deixa o texto branco; o número mantém a cor própria.
+                              critico
+                                ? "bg-sidebar-badge-critical text-sidebar-badge-critical-foreground peer-hover/menu-button:text-sidebar-badge-critical-foreground peer-data-[active=true]/menu-button:text-sidebar-badge-critical-foreground"
+                                : "bg-sidebar-badge text-sidebar-badge-foreground peer-hover/menu-button:text-sidebar-badge-foreground peer-data-[active=true]/menu-button:text-sidebar-badge-foreground"
+                            }
+                          >
+                            {n}
+                          </SidebarMenuBadge>
+                          {/* Menu recolhido: ponto no canto do ícone; o número aparece no tooltip. */}
+                          <span
+                            aria-hidden
+                            className={`pointer-events-none absolute right-0.5 top-0.5 hidden size-2 rounded-full ring-2 ring-sidebar group-data-[collapsible=icon]:block ${critico ? "bg-destructive" : "bg-warning-500"}`}
+                          />
+                        </>
+                      )}
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

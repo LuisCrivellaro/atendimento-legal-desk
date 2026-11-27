@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, CheckCheck, UserRoundCheck } from 'lucide-react';
+import { Check, CheckCheck, UserRound, UserRoundCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Conversa } from '@/lib/mock-data';
 import { encaminhamentoAberto, resumoSolicitacao, ROTULO_STATUS_ENCAMINHAMENTO, statusEncaminhamento, dataSP, horaSP } from '@/lib/atendimento/encaminhamento-advogado';
@@ -32,18 +32,27 @@ export function EncaminhamentoAdvogado({ c }: { c: Conversa }) {
     } finally { setBusy(false); }
   };
   const desde = new Date(e.criadoEm);
+  const titulo = `${e.responsavel} · ${ROTULO_STATUS_ENCAMINHAMENTO[status]} · desde ${dataSP(desde)} ${horaSP(desde)}`;
+  // Mensagem fixa ao cliente sem confirmação do canal = falha de envio: aviso crítico, fica à vista com o centro recolhido.
+  const naoConfirmada = e.aviso.estado === 'incerto' || e.aviso.estado === 'nao_enviado';
   return (
-    <section aria-label={`Pendência de ${e.responsavel}`} className="shrink-0 space-y-1 border-b bg-pending px-3 py-2 text-[13px] text-pending-foreground">
-      <p className="font-medium">{e.responsavel} · {ROTULO_STATUS_ENCAMINHAMENTO[status]} · desde {dataSP(desde)} {horaSP(desde)}</p>
-      <p className="break-words">Solicitação: {resumoSolicitacao(e, c, canal)}</p>
-      <p className="text-xs">Processo: {e.processo || 'Não identificado'}{e.aviso.estado === 'incerto' || e.aviso.estado === 'nao_enviado' ? ' · Mensagem fixa ao cliente não confirmada: conferir a conversa.' : ''}</p>
-      {status !== 'concluido' && (
-        <div className="flex flex-wrap gap-2 pt-1">
-          {status === 'aguardando' && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={busy} onClick={() => void mudar('em_atendimento')}><UserRoundCheck className="size-3.5" />Em atendimento</Button>}
-          {status !== 'respondido' && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={busy} onClick={() => void mudar('respondido')} title="Use quando a resposta foi dada fora desta conversa"><Check className="size-3.5" />Respondido</Button>}
-          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={busy} onClick={() => void mudar('concluido')}><CheckCheck className="size-3.5" />Concluir</Button>
-        </div>
-      )}
+    <section aria-label={`Pendência de ${e.responsavel}`} data-tom={naoConfirmada ? 'erro' : 'alerta'} data-critico={naoConfirmada ? '' : undefined} data-resumo={titulo} className={`shrink-0 border-t px-3 py-1.5 text-xs ${naoConfirmada ? 'border-destructive-border bg-destructive-soft text-destructive-soft-foreground' : 'bg-card text-foreground'}`}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <UserRound aria-hidden="true" className={`size-4 shrink-0 ${naoConfirmada ? 'text-destructive' : 'text-warning-600'}`} />
+        <p className="aviso-texto min-w-0 flex-1 font-medium" title={titulo}>{titulo}</p>
+        {status !== 'concluido' && (
+          <div className="flex shrink-0 flex-wrap gap-1.5">
+            {status === 'aguardando' && <Button size="sm" variant="outline" disabled={busy} onClick={() => void mudar('em_atendimento')}><UserRoundCheck />Em atendimento</Button>}
+            {status !== 'respondido' && <Button size="sm" variant="outline" disabled={busy} onClick={() => void mudar('respondido')} title="Use quando a resposta foi dada fora desta conversa"><Check />Respondido</Button>}
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => void mudar('concluido')}><CheckCheck />Concluir</Button>
+          </div>
+        )}
+      </div>
+      {naoConfirmada && <p className="aviso-texto pl-6 font-medium">Mensagem fixa ao cliente não confirmada: conferir a conversa.</p>}
+      <div data-aviso-detalhe="" className={`space-y-0.5 pl-6 ${naoConfirmada ? '' : 'text-muted-foreground'}`}>
+        <p className="break-words">Solicitação: {resumoSolicitacao(e, c, canal)}</p>
+        <p>Processo: {e.processo || 'Não identificado'}</p>
+      </div>
     </section>
   );
 }

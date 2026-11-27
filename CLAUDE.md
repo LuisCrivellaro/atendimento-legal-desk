@@ -8,7 +8,8 @@ do `README.md`.
 
 Decisões da Dra. Carolina:
 - Melhorar o visual, a intuitividade e as animações do sistema que já existe. Não é um site novo nem uma reconstrução.
-- Só desktop. Não há versão mobile e ela não é necessária.
+- Só desktop. Não há versão mobile e ela não é necessária. (Atualização de 27/11/2026: o desktop continua sendo a
+  prioridade, mas nada pode quebrar em tablet e celular.)
 - Nenhuma funcionalidade sai sem autorização dela; nenhuma regra de negócio, permissão, gate jurídico, rotina de
   servidor ou texto oficial muda por causa do redesenho.
 
@@ -27,6 +28,21 @@ Documentos, nesta ordem:
 Etapa 01 completa: `COMPANY_PROFILE.md`, `BRAND_IDENTITY.md`, `CONTENT_INVENTORY.md`, `ASSETS_INVENTORY.md`,
 `WEBSITE_AUDIT.md`, `REDESIGN_OPPORTUNITIES.md` e `capturas/` em `docs/research/`.
 
+## Redesenho completo do front-end (27/11/2026)
+
+Segunda rodada, pedida pela Dra.: proporção, hierarquia, densidade e acabamento de todas as telas, sem perder nenhuma
+página, funcionalidade, informação ou ação. O que vale a partir dela (prevalece sobre `docs/research/DESIGN_SYSTEM.md`
+quando houver diferença):
+- `docs/DESIGN_SYSTEM.md`: o sistema implementado (tokens, tamanhos, componentes base, classes `.superficie`,
+  `.tabela-dados`, `.faixa-indicadores`, `section-title` de 15px, estrutura de 56px de cabeçalho e menu de 232/56px).
+- `docs/FUNCTIONAL_INVENTORY.md`: matriz de preservação; toda mudança visual precisa manter a matriz sem ❌.
+- `docs/REDESIGN_QA.md`: medidas de antes e depois, testes, limitações e decisões pendentes da Dra.
+- `docs/REDESIGN_PLAN.md`, `docs/FRONTEND_AUDIT.md` e `docs/AI_HANDOFF.md` (passagem de contexto para outra IA).
+
+Regras de tamanho: texto 13–14px, secundário 12–13px (nunca abaixo de 12px), títulos de seção 15px, título de página
+24px (EB Garamond), botões 32–36px, campos 36px, raio 6–8px, espaçamento em múltiplos de 4px. Nada de zoom ou escala
+global. No Atendimento a conversa é o elemento central; os avisos críticos nunca ficam escondidos.
+
 ## Identidade visual (obrigatória)
 
 `docs/IDENTIDADE_VISUAL.md` é a referência. Em resumo:
@@ -34,7 +50,8 @@ Etapa 01 completa: `COMPANY_PROFILE.md`, `BRAND_IDENTITY.md`, `CONTENT_INVENTORY
   redesenhada, recolorida nem distorcida.
 - Turquesa da logo `#00C9CB` como identidade; `#017F80` para ação, texto de destaque e foco; neutros grafite.
 - Todas as cores vêm dos tokens de `src/styles.css`. Nada de HEX solto em componente: crie o token e documente.
-- Sucesso, alerta (`#FFE600`) e erro continuam com as cores atuais.
+- Sucesso e erro continuam com as cores atuais. O alerta passou do amarelo `#FFE600` para âmbar suave (pedido da
+  Dra. em 27/11/2026); tokens `pending`, `pending-foreground`, `pending-border`, `pending-strong` e `warning-*`.
 - Petições (Visual Law/DOCX) mantêm o timbre e o aqua do escritório, salvo pedido da Dra.
 
 ## Skills de design

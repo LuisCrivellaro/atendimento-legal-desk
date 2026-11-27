@@ -18,15 +18,15 @@ type C = Pick<Conversa, 'nome' | 'atendimento' | 'documentos'>;
 export function QuickReplyBar({ replies, c, onPick, onOpenAll }: { replies: QuickReply[]; c: C; onPick: (r: QuickReply) => void; onOpenAll: () => void }) {
   if (!replies.length) return null;
   return (
-    <div aria-label="Respostas sugeridas" className="flex items-center gap-1.5 overflow-x-auto px-2 pt-2 [scrollbar-width:none]">
+    <div aria-label="Respostas sugeridas" className="flex items-center gap-1.5 overflow-x-auto px-3 pt-1.5 [scrollbar-width:none]">
       {replies.map((r) => (
         <Hint key={r.id} label={fillReply(r.texto, c)}>
-          <button type="button" onClick={() => onPick(r)} className="shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground transition-colors hover:border-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+          <button type="button" onClick={() => onPick(r)} className="h-7 shrink-0 rounded-full border border-border-strong bg-card px-3 text-xs text-foreground transition-colors duration-150 hover:border-turquoise-200 hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             {r.titulo}
           </button>
         </Hint>
       ))}
-      <button type="button" onClick={onOpenAll} className="flex shrink-0 items-center gap-1 px-1.5 py-1 text-xs text-primary hover:underline">
+      <button type="button" onClick={onOpenAll} className="flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <MessageSquareText className="size-3.5" />Todas as mensagens<ChevronRight className="size-3" />
       </button>
     </div>
@@ -78,7 +78,7 @@ export function QuickReplyPanel({ open, onOpenChange, replies, c, onPick, onEdit
     <Popover open={open} onOpenChange={onOpenChange}>
       <Hint label="Mensagens prontas (ou digite /)">
         <PopoverTrigger asChild>
-          <Button size="icon" variant="ghost" className="size-8 shrink-0" aria-label="Mensagens prontas">
+          <Button size="icon" variant="ghost" className="mb-0.5 size-9 shrink-0 text-muted-foreground hover:text-foreground" aria-label="Mensagens prontas">
             <MessageSquareText />
           </Button>
         </PopoverTrigger>
@@ -169,7 +169,7 @@ export function QuickReplyEditor({ reply, all, c, open, onOpenChange, onSave, on
           </label>
         </div>
         <label className="text-xs font-medium">Atalho
-          <div className="mt-1 flex items-center rounded-md border border-input pl-3 focus-within:ring-1 focus-within:ring-ring">
+          <div className="mt-1 flex items-center rounded-md border border-input bg-card pl-3 shadow-xs transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25">
             <span className="font-mono text-sm text-muted-foreground">/</span>
             <input aria-label="Atalho" value={atalho} onChange={(e) => setAtalho(cleanShortcut(e.target.value))} placeholder="pericia" className="h-9 w-full bg-transparent px-1 font-mono text-sm outline-none" />
           </div>
@@ -186,7 +186,7 @@ export function QuickReplyEditor({ reply, all, c, open, onOpenChange, onSave, on
             </Hint>
           </div>
         </div>
-        <section className="border-l-2 border-primary bg-secondary p-3">
+        <section className="rounded-lg border bg-surface-subtle p-3">
           <h3 className="mb-1 font-sans text-2xs font-semibold text-muted-foreground">Prévia com {c.nome.split(' ')[0]}</h3>
           <p className="whitespace-pre-wrap text-sm">{fillReply(texto, c) || <span className="text-muted-foreground">O texto aparece aqui.</span>}</p>
           {free.length > 0 && <p className="mt-2 text-2xs text-muted-foreground">A atendente vai preencher: {free.map((f) => `{${f}}`).join(', ')}</p>}

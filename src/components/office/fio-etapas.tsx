@@ -41,23 +41,21 @@ export function FioEtapas({ etapa, className }: { etapa: number; className?: str
                   i > atual && 'size-2.5 border-2 border-input bg-card',
                 )}
               />
-              {i === atual ? (
-                <span
-                  className={cn(
-                    'absolute top-full mt-1.5 whitespace-nowrap text-xs font-semibold text-foreground',
-                    i === 0 ? 'left-0' : i === total - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2',
-                  )}
-                >
-                  {rotulo}
-                  <span className="font-normal text-muted-foreground"> · etapa {i + 1} de {total}</span>
-                </span>
-              ) : (
-                <span className="sr-only">{`${i + 1}. ${rotulo} (${estado})`}</span>
-              )}
+              <span className="sr-only">{i === atual ? `${rotulo} · etapa ${i + 1} de ${total}` : `${i + 1}. ${rotulo} (${estado})`}</span>
             </li>
           );
         })}
       </ol>
+      {/* Rótulo da etapa atual: ancorado no nó e deslocado na proporção da posição (0% no primeiro, 100% no último),
+          para nunca sair da largura do fio em telas estreitas. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-[22px] whitespace-nowrap text-xs font-semibold text-foreground transition-[left,transform] duration-[var(--motion-focal)] ease-[var(--ease-out)]"
+        style={{ left: `${((atual + 0.5) / total) * 100}%`, transform: `translateX(-${(atual / (total - 1)) * 100}%)` }}
+      >
+        {PIPELINE[atual]}
+        <span className="font-normal text-muted-foreground"> · etapa {atual + 1} de {total}</span>
+      </span>
     </div>
   );
 }

@@ -36,9 +36,9 @@ export function MonitorAutomacoes() {
   const falhas = Object.entries(e?.etapas ?? {}).filter(([, r]) => !r.ok && !r.pulada);
   return (
     <section aria-label="Monitor das automações" className="space-y-2 border-b pb-4 text-sm">
-      <div className={`flex items-start gap-2 rounded-md border px-2 py-1.5 text-xs ${atrasado ? 'border-destructive/40 bg-destructive/10 text-destructive' : falhas.length ? 'border-pending-foreground/30 bg-pending text-pending-foreground' : 'border-primary/20 bg-primary/5'}`}>
-        {atrasado ? <AlertTriangle className="size-4 shrink-0" /> : falhas.length ? <AlertTriangle className="size-4 shrink-0" /> : <CheckCircle2 className="size-4 shrink-0 text-primary" />}
-        <div className="min-w-0">
+      <div className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-xs ${atrasado ? 'border-destructive-border bg-destructive-soft text-destructive-soft-foreground' : falhas.length ? 'border-pending-border bg-pending text-pending-foreground' : 'border-info-border bg-info-soft text-info-soft-foreground'}`}>
+        {atrasado ? <AlertTriangle className="size-4 shrink-0 text-destructive" /> : falhas.length ? <AlertTriangle className="size-4 shrink-0 text-warning-700" /> : <CheckCircle2 className="size-4 shrink-0 text-primary" />}
+        <div className="min-w-0 space-y-0.5">
           <p className="font-medium">{atrasado ? (e ? `Automações paradas: última execução ${dataHoraCurta(e.ultimaExecucao)}` : 'Automações nunca executaram no servidor') : falhas.length ? 'Automações rodando, com falhas em algumas etapas' : 'Automações funcionando'}</p>
           {e && <p>Última execução {dataHoraCurta(e.ultimaExecucao)} · próxima prevista {dataHoraCurta(e.proximaPrevista)} · ProJuris {e.integracoes.projuris === 'ok' ? 'ok' : e.integracoes.projuris === 'falha' ? 'indisponível' : 'não verificado'} · WhatsApp {e.integracoes.whatsapp}</p>}
           {atrasado && <p>A rotina do servidor não está rodando: confira o agendamento "monitorar-ana" a cada 5 minutos (docs/automacoes-operacionais.md). Nada é enviado enquanto ela estiver parada.</p>}
@@ -80,7 +80,7 @@ export function MonitorAutomacoes() {
           <p className="pt-1 text-xs text-muted-foreground">Para a Anne reconhecer consultas marcadas direto no ProJuris, coloque o telefone do cliente no título ou na descrição do compromisso.</p>
         </details>
       )}
-      {!!e?.historico.length && <p className="text-xs text-muted-foreground">Últimas execuções: {e.historico.slice(0, 6).map(h => `${dataHoraCurta(h.em).split(' · ')[1] ?? ''}${h.ok ? '' : '⚠'}`).join(' · ')}</p>}
+      {!!e?.historico.length && <p className="text-xs text-muted-foreground">Últimas execuções: {e.historico.slice(0, 6).map(h => `${dataHoraCurta(h.em).split(' · ')[1] ?? ''}${h.ok ? '' : ' (falha)'}`).join(' · ')}</p>}
     </section>
   );
 }
@@ -91,9 +91,9 @@ export function AlertaMonitorParado() {
   const { data } = useQuery({ queryKey: ['monitor-saude'], queryFn: () => ler(), staleTime: 120000, refetchInterval: 300000, retry: false });
   if (!data || !monitorAtrasado(data.ultimaExecucao ? { ultimaExecucao: data.ultimaExecucao } : null)) return null;
   return (
-    <div role="alert" className="flex shrink-0 items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs text-destructive">
-      <AlertTriangle className="size-3.5 shrink-0" />
-      <span>{data.ultimaExecucao ? `Automações da Anne paradas desde ${dataHoraCurta(data.ultimaExecucao)}` : 'Automações da Anne ainda não rodaram no servidor'}: lembretes e confirmações não estão saindo. Veja Automações do atendimento.</span>
+    <div role="alert" className="mx-2 mt-2 flex shrink-0 items-start gap-2 rounded-lg border border-destructive-border bg-destructive-soft px-2.5 py-2 text-xs text-destructive-soft-foreground">
+      <AlertTriangle className="size-4 shrink-0 text-destructive" />
+      <span><span className="font-semibold">{data.ultimaExecucao ? `Automações da Anne paradas desde ${dataHoraCurta(data.ultimaExecucao)}` : 'Automações da Anne ainda não rodaram no servidor'}</span>: lembretes e confirmações não estão saindo. Veja Automações do atendimento.</span>
     </div>
   );
 }
@@ -119,12 +119,12 @@ export function AlertaPausaIA() {
   const p = data?.pausaIA;
   if (!p) return null;
   return (
-    <div role="status" className="flex shrink-0 items-start gap-2 border-b border-pending-foreground/30 bg-pending px-3 py-1.5 text-xs text-pending-foreground">
-      <PauseCircle className="mt-0.5 size-3.5 shrink-0" />
-      <div className="min-w-0 space-y-1">
-        <p><span className="font-medium">IA da Anne pausada{p.desde ? ` desde ${dataHoraCurta(p.desde)}` : ''}.</span> {p.motivo}</p>
+    <div role="status" className="mx-2 mt-2 flex shrink-0 items-start gap-2 rounded-lg border border-pending-border bg-pending px-2.5 py-2 text-xs text-pending-foreground">
+      <PauseCircle className="size-4 shrink-0 text-warning-700" />
+      <div className="min-w-0 space-y-1.5">
+        <p><span className="font-semibold">IA da Anne pausada{p.desde ? ` desde ${dataHoraCurta(p.desde)}` : ''}.</span> {p.motivo}</p>
         <p>Confirmações, lembretes, cobrança de documentos e reagendamentos continuam. Mensagens novas esperam e são respondidas quando a chave voltar a funcionar (teste automático a cada 5 minutos).</p>
-        {data.podeRetomar && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={acao.isPending} onClick={() => acao.mutate()}>{acao.isPending ? 'Testando a chave…' : 'Testar a chave e retomar'}</Button>}
+        {data.podeRetomar && <Button size="sm" variant="outline" disabled={acao.isPending} onClick={() => acao.mutate()}>{acao.isPending ? 'Testando a chave…' : 'Testar a chave e retomar'}</Button>}
       </div>
     </div>
   );

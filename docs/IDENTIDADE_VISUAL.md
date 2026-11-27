@@ -56,8 +56,10 @@ trabalho em branco `#FFFFFF`. Borda de campo `--input #7D8989` (3,6:1, para o ca
 
 ## Cores semânticas (preservadas)
 
-Sucesso `oklch(0.53 0.13 145)` · alerta/pendência `#FFE600` com texto `#0D0D0D` · erro `oklch(0.52 0.19 27)`. Não
-substituir por turquesa. Os badges do menu mantêm a cor própria também no item ativo.
+Sucesso `oklch(0.53 0.13 145)` · erro `oklch(0.52 0.19 27)` · alerta/pendência em **âmbar suave**: fundo `#FDEFC9`,
+texto `#6B4500` (7,4:1), borda `#F0C873`, indicador `#E9A23B`. O amarelo `#FFE600` foi aposentado a pedido da Dra.
+(27/11/2026: "evite amarelos extremamente saturados"). Cada semântica tem versão sólida e suave; detalhes em
+`DESIGN_SYSTEM.md`. Não substituir por turquesa. Os badges do menu mantêm a cor própria também no item ativo.
 
 ## Onde cada coisa vive
 

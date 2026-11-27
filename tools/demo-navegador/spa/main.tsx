@@ -10,8 +10,8 @@ import { resetDemo } from '../supabase-fake';
 (routeTree as any).options.shellComponent = undefined;
 
 const queryClient = new QueryClient();
-// Mesmas opções do src/router.tsx que afetam o visual (transição só quando a tela muda).
-const router = createRouter({ routeTree, context: { queryClient }, history: createMemoryHistory({ initialEntries: ['/'] }), scrollRestoration: true, defaultPreloadStaleTime: 0, defaultViewTransition: { types: ({ pathChanged }) => (pathChanged ? ['troca-de-tela'] : false) } });
+// Mesmas opções do src/router.tsx que afetam o visual (transição só ao trocar de tela com o app aberto e visível).
+const router = createRouter({ routeTree, context: { queryClient }, history: createMemoryHistory({ initialEntries: ['/'] }), scrollRestoration: true, defaultPreloadStaleTime: 0, defaultViewTransition: { types: ({ fromLocation, pathChanged }) => (fromLocation && pathChanged && document.visibilityState === 'visible' ? ['troca-de-tela'] : false) } });
 
 createRoot(document.getElementById('app')!).render(<StrictMode><RouterProvider router={router} /></StrictMode>);
 
