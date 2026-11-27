@@ -45,8 +45,11 @@ export type StatusEncaminhamento = 'aguardando' | 'em_atendimento' | 'respondido
 export const ROTULO_STATUS_ENCAMINHAMENTO: Record<StatusEncaminhamento, string> = {
   aguardando: 'Aguardando atendimento', em_atendimento: 'Em atendimento', respondido: 'Respondido', concluido: 'Concluído',
 };
-/** Aviso fixo ao cliente: uma única reserva de envio por vez; "incerto" nunca é reenviado sozinho. */
-export type EstadoAvisoEncaminhamento = 'enviando' | 'enviado' | 'nao_enviado' | 'incerto' | 'fora_horario';
+/**
+ * Aviso fixo ao cliente: uma única reserva de envio por vez; "incerto" nunca é reenviado sozinho; "sem_aviso" =
+ * pendência recuperada pela reconciliação (nenhuma mensagem é enviada ao cliente por ela).
+ */
+export type EstadoAvisoEncaminhamento = 'enviando' | 'enviado' | 'nao_enviado' | 'incerto' | 'fora_horario' | 'sem_aviso';
 export type MotivoEncaminhamento = 'saudacao' | 'falar_dra' | 'solicitacao';
 
 export interface EncaminhamentoAdvogado {
@@ -67,6 +70,10 @@ export interface EncaminhamentoAdvogado {
   motivo: MotivoEncaminhamento;
   aviso: { estado: EstadoAvisoEncaminhamento; mensagemId: string; em: string; idExterno?: string | undefined };
   historico: { em: string; status: StatusEncaminhamento; por: string }[];
+  /** Quem abriu: a Anne (mensagem nova) ou a reconciliação (varredura das conversas, sem mensagem ao cliente). */
+  origem?: 'anne' | 'reconciliacao' | undefined;
+  /** Motivo para conferência humana (caso ambíguo); vazio = pendência confirmada. */
+  conferir?: string | undefined;
 }
 
 const fold = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -89,56 +96,49 @@ export function respostaEfetivaEquipe(texto: string): boolean {
   return resto.split(' ').filter(Boolean).length > 3 && resto.replace(/\s/g, '').length >= 12;
 }
 
-/** Mensagens da conversa a partir da que abriu a solicitação (ordem cronológica real). */
-function desdeOrigem(e: Pick<EncaminhamentoAdvogado, 'mensagemOrigemId' | 'criadoEm'>, c: Conversa, canal: string): Mensagem[] {
+/**
+ * Mensagens desta solicitação: da que a abriu até a que abriu a solicitação seguinte (ordem cronológica real).
+ * Cada pendência cobre só o próprio trecho; nova dúvida depois de uma resposta é outra pendência.
+ */
+function desdeOrigem(e: Pick<EncaminhamentoAdvogado, 'id' | 'mensagemOrigemId' | 'criadoEm'>, c: Conversa, canal: string): Mensagem[] {
   const hist = historicoContato(c, canal).filter(m => !m.apagadaParaTodos);
-  const pos = hist.findIndex(m => m.id === e.mensagemOrigemId);
-  if (pos >= 0) return hist.slice(pos);
+  const lista = c.encaminhamentos ?? [];
+  const seguinte = lista[lista.findIndex(x => x.id === e.id) + 1];
+  const fim = seguinte ? hist.findIndex(m => m.id === seguinte.mensagemOrigemId) : -1;
+  const ate = fim >= 0 ? hist.slice(0, fim) : hist;
+  const pos = ate.findIndex(m => m.id === e.mensagemOrigemId);
+  if (pos >= 0) return ate.slice(pos);
   const inicio = Date.parse(e.criadoEm);
-  return hist.filter(m => Number.isFinite(tempo(m)) && tempo(m) >= inicio);
+  return ate.filter(m => Number.isFinite(tempo(m)) && tempo(m) >= inicio);
 }
 
 /**
- * Situação efetiva, sempre pelas mensagens reais: resposta efetiva da equipe depois da última mensagem do cliente =
- * respondido; saudação/espera da equipe = em atendimento; nova mensagem do cliente depois da resposta = aguardando de
- * novo (mesma solicitação). Concluído só pela equipe.
+ * Situação efetiva, sempre pelas mensagens reais da solicitação. Respondido = resposta humana efetiva da equipe depois
+ * do pedido, ou confirmação explícita da equipe (botão Respondido). Nunca resolve: mensagem automática da Anne,
+ * visualização, saudação ou "vou verificar" da equipe, agradecimento do cliente, atendimento humano, arquivamento ou
+ * envio do relatório. Saudação/espera da equipe = em atendimento. Concluído só pela equipe.
  */
 export function statusEncaminhamento(e: EncaminhamentoAdvogado, c: Conversa, canal = 'ultramsg'): StatusEncaminhamento {
   if (e.status === 'concluido') return 'concluido';
   const msgs = desdeOrigem(e, c, canal);
-  let ultimaCliente = -1;
-  msgs.forEach((m, i) => { if (m.de === 'cliente' && (i === 0 || !mensagemSemConteudo(m.texto) || !!m.arquivo)) ultimaCliente = i; });
-  const depois = msgs.slice(ultimaCliente + 1).filter(m => origemMensagem(m) === 'equipe');
-  if (depois.some(m => respostaEfetivaEquipe(m.texto))) return 'respondido';
-  // Marcação manual vale até o cliente escrever de novo depois dela.
-  const marcacao = e.historico.at(-1);
-  const clienteDepoisDaMarcacao = !!marcacao && msgs.slice(1).some(m => m.de === 'cliente' && !mensagemSemConteudo(m.texto) && tempo(m) > Date.parse(marcacao.em));
-  if (e.status === 'respondido' && !clienteDepoisDaMarcacao) return 'respondido';
+  const equipe = msgs.slice(1).filter(m => origemMensagem(m) === 'equipe');
+  if (equipe.some(m => respostaEfetivaEquipe(m.texto)) || e.status === 'respondido') return 'respondido';
   // "Em atendimento" marcado pela equipe vale até ela responder ou concluir.
-  if (depois.length || e.status === 'em_atendimento') return 'em_atendimento';
+  if (equipe.length || e.status === 'em_atendimento') return 'em_atendimento';
   return 'aguardando';
 }
 
-/** Solicitação respondida sem novidade há 7 dias deixa de valer: o próximo contato abre outra (com a mensagem fixa). */
-const VALIDADE_RESPONDIDO_MS = 7 * 86400000;
-export function encaminhamentoAberto(c: Conversa, canal = 'ultramsg', agora = new Date()): EncaminhamentoAdvogado | undefined {
+/** A pendência mais recente da conversa, se ainda aguardando ou em atendimento (respondida/concluída = fechada). */
+export function encaminhamentoAberto(c: Conversa, canal = 'ultramsg', _agora = new Date()): EncaminhamentoAdvogado | undefined {
   const e = (c.encaminhamentos ?? []).at(-1);
   if (!e) return undefined;
   const s = statusEncaminhamento(e, c, canal);
-  if (s === 'concluido') return undefined;
-  if (s === 'respondido') {
-    const ultima = Math.max(...desdeOrigem(e, c, canal).map(tempo).filter(Number.isFinite), Date.parse(e.atualizadoEm));
-    if (agora.getTime() - ultima > VALIDADE_RESPONDIDO_MS) return undefined;
-  }
-  return e;
+  return s === 'aguardando' || s === 'em_atendimento' ? e : undefined;
 }
 
 /** Pendente para o advogado (lista e relatório): aguardando ou em atendimento. */
 export function encaminhamentoPendente(c: Conversa, canal = 'ultramsg', agora = new Date()): EncaminhamentoAdvogado | undefined {
-  const e = encaminhamentoAberto(c, canal, agora);
-  if (!e) return undefined;
-  const s = statusEncaminhamento(e, c, canal);
-  return s === 'aguardando' || s === 'em_atendimento' ? e : undefined;
+  return encaminhamentoAberto(c, canal, agora);
 }
 
 /** Resumo objetivo: só o que o cliente escreveu nesta solicitação (nada inventado, nada interpretado). */
@@ -175,6 +175,8 @@ export function processoRelacionado(processos: ProcessoPJ[], textos: string[]): 
 
 // ---------- Decisão: quando a mensagem do cliente ativo vai para o advogado ----------
 const PEDIDO_AGENDA = /\b(?:agendar|agendamento|marcar|remarcar|reagendar|desmarcar)\b|\bcancelar\b.{0,20}\b(?:consulta|reuniao|agendamento|horario|atendimento)\b|\bconsulta (?:marcada|agendada)\b|\b(?:outro|novo) horario\b|\bhorarios?\b.{0,20}\b(?:livres?|disponive)/;
+/** Pedido de agenda (marcar, remarcar, cancelar consulta, horários): competência da Anne. */
+export function pedidoAgendaTexto(texto: string): boolean { return PEDIDO_AGENDA.test(fold(texto)); }
 
 export interface SinaisFluxoAnne {
   /** Agendamento, confirmação, lembrete, cancelamento, remarcação, escolha de horário ou resposta a automação. */
@@ -310,7 +312,20 @@ export function marcarEncaminhamento(c: Conversa, encaminhamentoId: string, stat
 // ---------- Relatório no WhatsApp do advogado ----------
 export interface ItemRelatorioAdvogado {
   conversaId: string; nome: string; telefone: string; resumo: string; processo: string; desde: string; link: string; status: StatusEncaminhamento;
+  /** Caso ambíguo para conferência humana (vai na lista, sinalizado). */
+  conferir?: string | undefined;
 }
+/**
+ * Resultado da reconciliação feita antes do relatório. "Nenhum cliente" só com verificação completa, sem falhas e sem
+ * conversa não verificada; qualquer outra situação avisa que a lista pode estar incompleta.
+ */
+export interface VerificacaoRelatorio {
+  completa: boolean;
+  naoVerificadas: number;
+  /** Motivo curto quando a verificação não terminou (falha de consulta, paginação, dados indisponíveis). */
+  falha?: string | undefined;
+}
+export const VERIFICACAO_COMPLETA: VerificacaoRelatorio = { completa: true, naoVerificadas: 0 };
 const FUSO = 'America/Sao_Paulo';
 function partesSP(d: Date) {
   return Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: FUSO, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(d).map(p => [p.type, p.value]));
@@ -343,18 +358,27 @@ export function itensRelatorioAdvogado(conversas: { id: string; conversa: Conver
       desde: e.criadoEm,
       link: linkConversa(base, id),
       status: statusEncaminhamento(e, conversa, canal),
+      ...(e.conferir ? { conferir: e.conferir } : {}),
     }];
   }).sort((a, b) => Date.parse(a.desde) - Date.parse(b.desde));
 }
 
 const SEPARADOR = '━━━━━━━━━━━━━━━━';
+/** Mensagem de lista vazia: só permitida com verificação completa, sem falhas e sem conversa não verificada. */
+export function relatorioVazioPermitido(itens: ItemRelatorioAdvogado[], v: VerificacaoRelatorio): boolean {
+  return !itens.length && v.completa && !v.falha && v.naoVerificadas === 0;
+}
 /** Texto do relatório consolidado (uma mensagem por horário), na estrutura definida pela Dra. */
-export function textoRelatorioAdvogado(itens: ItemRelatorioAdvogado[], agora: Date, responsavel: string): string {
-  if (!itens.length) return `Olá, ${responsavel}! No momento, não há clientes aguardando retorno. ✅`;
+export function textoRelatorioAdvogado(itens: ItemRelatorioAdvogado[], agora: Date, responsavel: string, verificacao: VerificacaoRelatorio = VERIFICACAO_COMPLETA, linkFila = ''): string {
+  if (relatorioVazioPermitido(itens, verificacao)) return `Olá, ${responsavel}! No momento, não há clientes aguardando retorno. ✅`;
+  const aviso = !verificacao.completa || verificacao.falha
+    ? `⚠️ Não foi possível validar a lista completa neste horário${verificacao.falha ? ` (${verificacao.falha})` : ''}: pode haver outros clientes aguardando. Confira a fila no Manager ADV${linkFila ? `: ${linkFila}` : '.'}`
+    : verificacao.naoVerificadas > 0 ? `⚠️ ${verificacao.naoVerificadas} conversa(s) não puderam ser verificadas automaticamente; confira a fila no Manager ADV${linkFila ? `: ${linkFila}` : '.'}` : '';
+  if (!itens.length) return `Olá, ${responsavel}! ${aviso}`;
   const blocos = itens.map(i => [
     `👤 Cliente: ${i.nome}`,
     `📱 WhatsApp: ${i.telefone}`,
-    `💬 Solicitação: ${i.resumo}`,
+    `💬 Solicitação: ${i.conferir ? '(conferir) ' : ''}${i.resumo}`,
     `📂 Processo: ${i.processo}`,
     `🕐 Aguardando desde: ${dataSP(new Date(i.desde))} ${horaSP(new Date(i.desde))}`,
     `🔗 Conversa: ${i.link}`,
@@ -369,6 +393,7 @@ export function textoRelatorioAdvogado(itens: ItemRelatorioAdvogado[], agora: Da
     ...blocos.flatMap(b => [SEPARADOR, b]),
     SEPARADOR,
     'Por gentileza, realize o atendimento dos clientes listados acima.',
+    ...(aviso ? [aviso] : []),
   ].join('\n');
 }
 
@@ -390,4 +415,20 @@ export function horarioRelatorioDevido(horarios: string[], agora = new Date(), j
   const devidos = horarios.filter(h => { const ini = minutosDe(h); return minutos >= ini && minutos < Math.min(ini + janelaMin, fimExpediente); }).sort();
   const horario = devidos.at(-1);
   return horario ? { horario, dia: diaSP(agora) } : undefined;
+}
+
+/** Segunda a sexta, fora de feriado nacional, entre 09:00 e 17:30 (America/Sao_Paulo): quando algo pode ir ao advogado. */
+export function dentroDoExpedienteRelatorio(agora = new Date()): boolean {
+  const dia = new Intl.DateTimeFormat('en-US', { timeZone: FUSO, weekday: 'short' }).format(agora);
+  if (dia === 'Sat' || dia === 'Sun' || feriadoNacional(diaSP(agora))) return false;
+  const p = partesSP(agora);
+  const minutos = Number(p['hour']) * 60 + Number(p['minute']);
+  return minutos >= minutosDe(EXPEDIENTE_RELATORIO.inicio) && minutos < minutosDe(EXPEDIENTE_RELATORIO.fim);
+}
+
+/** Minutos até fechar a janela do horário (2 h ou o fim do expediente, o que vier antes). */
+export function minutosRestantesJanela(horario: string, agora = new Date(), janelaMin = JANELA_RELATORIO_MIN): number {
+  const p = partesSP(agora);
+  const minutos = Number(p['hour']) * 60 + Number(p['minute']);
+  return Math.min(minutosDe(horario) + janelaMin, minutosDe(EXPEDIENTE_RELATORIO.fim)) - minutos;
 }

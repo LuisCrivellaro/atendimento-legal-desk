@@ -189,8 +189,11 @@ async function executarCiclo(db: Db, request: Request, agora: Date, opcoes: { re
     { nome: 'vendedor', quando: () => aCada(30)('vendedor'), executar: async () => (await import('./vendedor.server')).enviarFollowupsVendedor(db) as unknown as Promise<Record<string, unknown>> },
     { nome: 'reservas-pendentes', executar: async () => ({ lancadas: await (await import('./projuris-agenda.server')).sincronizarReservasPendentes(db) }) },
     { nome: 'relatorio-diario', quando: () => (h >= 8 && h < 10 ? undefined : 'relatório só entre 8h e 10h'), executar: async () => (await import('./relatorio-diario.server')).enviarRelatorioDiario(db) as unknown as Promise<Record<string, unknown>> },
+    // Fila do advogado: varredura incremental de todas as conversas (passagem nova a cada 30 min, sem enviar nada).
+    { nome: 'reconciliar-advogado', limiteMs: 20000, executar: async () => { const r = await (await import('./reconciliacao-advogado.server')).reconciliarFilaAdvogado(db, agora, { inicioMinimo: new Date(agora.getTime() - 30 * 60000).toISOString(), limiteMs: 15000 }); return { completa: r.completa, ok: r.ok, analisadas: r.resumo.analisadas, pendentes: r.resumo.contagem.pendente, ambiguas: r.resumo.contagem.ambigua }; } },
     // Pendências do advogado responsável (Fernando) nos horários configurados (padrão 09:00 e 16:00); reserva por horário.
-    { nome: 'relatorio-advogado', quando: () => (whatsapp === 'ativo' ? undefined : 'WhatsApp desligado'), executar: async () => (await import('./relatorio-advogado.server')).enviarRelatoriosAdvogado(db, agora) as unknown as Promise<Record<string, unknown>> },
+    // Exige reconciliação iniciada no próprio horário; sem ela espera e, no fim da janela, avisa que a lista não foi validada.
+    { nome: 'relatorio-advogado', limiteMs: 25000, quando: () => (whatsapp === 'ativo' ? undefined : 'WhatsApp desligado'), executar: async () => (await import('./relatorio-advogado.server')).enviarRelatoriosAdvogado(db, agora) as unknown as Promise<Record<string, unknown>> },
   ];
   const resultados: Record<string, ResultadoEtapa> = {};
   // Justiça: as etapas adiadas por falta de tempo no ciclo anterior vão para a frente (ordem relativa preservada).

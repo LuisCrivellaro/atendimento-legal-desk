@@ -123,7 +123,14 @@ describe('fila: pendência única, situação derivada das mensagens reais', () 
     expect(statusEncaminhamento(e, respondida)).toBe('respondido');
     expect(encaminhamentoPendente(respondida, 'ultramsg', new Date(t(6)))).toBeUndefined();
     expect(statusEncaminhamento(e, { ...respondida, mensagens: [...respondida.mensagens, msg('c', 'cliente', 'obrigada!', t(7))] })).toBe('respondido');
-    expect(statusEncaminhamento(e, { ...respondida, mensagens: [...respondida.mensagens, msg('c', 'cliente', 'E posso levar testemunha?', t(8))] })).toBe('aguardando');
+    // Nova dúvida depois da resposta: a pendência respondida fica fechada e a nova dúvida abre outra (27/11/2026).
+    const novaDuvida = { ...respondida, mensagens: [...respondida.mensagens, msg('c', 'cliente', 'E posso levar testemunha?', t(8))] };
+    expect(statusEncaminhamento(e, novaDuvida)).toBe('respondido');
+    expect(encaminhamentoAberto(novaDuvida)).toBeUndefined();
+    const reaberta = registrarEncaminhamento(novaDuvida, dados('c', 'E posso levar testemunha?'), 'ultramsg', new Date(t(8)));
+    expect(reaberta.novo).toBe(true); expect(reaberta.conversa.encaminhamentos).toHaveLength(2);
+    expect(statusEncaminhamento(reaberta.conversa.encaminhamentos![0]!, reaberta.conversa)).toBe('respondido');
+    expect(statusEncaminhamento(reaberta.encaminhamento, reaberta.conversa)).toBe('aguardando');
     // Mensagem da própria Anne nunca conta como resposta da equipe.
     expect(statusEncaminhamento(e, com(msg('x', 'escritorio', 'Marina, a audiência continua marcada; leve documento com foto.', t(5), { ...ANNE, respostaAnaDe: 'a' })))).toBe('aguardando');
   });
@@ -267,10 +274,10 @@ function bancoFalso(casos: { id: string; owner_id: string; dados: Conversa }[], 
   const escritasCasos: unknown[] = [];
   const db = {
     from(tabela: string) {
-      let op: 'select' | 'insert' | 'update' = 'select'; let valor: { id?: string; estado?: EstadoRelatorioAdvogado } = {}; const filtros: [string, string][] = [];
+      let op: 'select' | 'insert' | 'update' = 'select'; let valor: { id?: string; estado?: EstadoRelatorioAdvogado } = {}; const filtros: [string, string][] = []; let campos = '';
       const exec = () => {
         if (tabela === 'office_workspace') return { data: workspaces, error: null };
-        if (tabela === 'casos') { if (op !== 'select') escritasCasos.push(valor); return { data: casos, error: null }; }
+        if (tabela === 'casos') { if (op !== 'select') escritasCasos.push(valor); return { data: campos.startsWith('telefone:') ? casos.map(c => ({ telefone: c.dados.telefone })) : casos, error: null }; }
         const id = filtros.find(f => f[0] === 'id')?.[1] ?? '';
         if (op === 'insert') { if (monitor.has(valor.id ?? '')) return { error: { message: 'duplicate key' } }; monitor.set(valor.id ?? '', valor.estado!); return { error: null }; }
         if (op === 'update') {
@@ -280,7 +287,7 @@ function bancoFalso(casos: { id: string; owner_id: string; dados: Conversa }[], 
         }
         return { data: monitor.has(id) ? { estado: monitor.get(id) } : null, error: null };
       };
-      const q = { select: () => q, eq: (k: string, v: unknown) => { filtros.push([k, String(v)]); return q; }, not: () => q, insert: (v: typeof valor) => { op = 'insert'; valor = v; return q; }, update: (v: typeof valor) => { op = 'update'; valor = v; return q; },
+      const q = { select: (s?: string) => { if (op === 'select') campos = s ?? ''; return q; }, eq: (k: string, v: unknown) => { filtros.push([k, String(v)]); return q; }, not: () => q, insert: (v: typeof valor) => { op = 'insert'; valor = v; return q; }, update: (v: typeof valor) => { op = 'update'; valor = v; return q; },
         maybeSingle: async () => exec(), single: async () => exec(), then: (ok: (v: unknown) => unknown, erro?: (e: unknown) => unknown) => Promise.resolve(exec()).then(ok, erro) };
       return q;
     },
@@ -292,15 +299,17 @@ const casoPendente = (id: string, telefone = TEL) => {
   const c = conversa({ id, telefone, mensagens: [msg(`${id}-1`, 'cliente', 'Preciso falar com a Dra.', '2026-11-26T10:00:00Z')] });
   return { id, owner_id: 'owner', dados: registrarEncaminhamento(c, dados(`${id}-1`, 'Preciso falar com a Dra.', { conversaId: id, telefone }), 'ultramsg', new Date('2026-11-26T10:00:00Z')).conversa };
 };
+// Verificação da fila já concluída (o cenário ponta a ponta com a reconciliação real está em reconciliacao-advogado.test.ts).
+const VERIFICADA = async () => ({ completa: true, ok: true, naoVerificadas: 0 });
 describe('relatório pelo monitor: envio único, novas tentativas, falha ambígua e logs', () => {
   const NOVE = new Date('2026-11-26T12:00:00Z');
   const depois = (min: number) => new Date(NOVE.getTime() + min * 60000);
   it('envia uma única mensagem consolidada ao Fernando às 09h; ciclos seguintes não repetem; não altera as pendências', async () => {
     const b = bancoFalso([casoPendente('a'), casoPendente('b')]);
     const enviar = vi.fn(async (_numero: string, _texto: string) => ({ ok: true, idExterno: 'w1' }));
-    expect(await enviarRelatoriosAdvogado(b.db, NOVE, { enviar, base: 'https://app' })).toMatchObject({ enviados: 1, pendentes: 2 });
-    await enviarRelatoriosAdvogado(b.db, depois(5), { enviar, base: 'https://app' });
-    await enviarRelatoriosAdvogado(b.db, depois(10), { enviar, base: 'https://app' });
+    expect(await enviarRelatoriosAdvogado(b.db, NOVE, { enviar, base: 'https://app', reconciliar: VERIFICADA })).toMatchObject({ enviados: 1, pendentes: 2 });
+    await enviarRelatoriosAdvogado(b.db, depois(5), { enviar, base: 'https://app', reconciliar: VERIFICADA });
+    await enviarRelatoriosAdvogado(b.db, depois(10), { enviar, base: 'https://app', reconciliar: VERIFICADA });
     expect(enviar).toHaveBeenCalledTimes(1);
     expect(enviar.mock.calls[0]?.[0]).toBe('5511991737442');
     expect(String(enviar.mock.calls[0]?.[1])).toMatch(/^📋 ATENDIMENTOS PENDENTES — CS LAWYERS\nOlá, Fernando!/);
@@ -311,29 +320,29 @@ describe('relatório pelo monitor: envio único, novas tentativas, falha ambígu
   it('fora do horário não envia; às 16h envia o segundo relatório do dia; sem pendências envia a mensagem de nenhum cliente', async () => {
     const b = bancoFalso([]);
     const enviar = vi.fn(async (_numero: string, _texto: string) => ({ ok: true }));
-    expect(await enviarRelatoriosAdvogado(b.db, new Date('2026-11-26T17:00:00Z'), { enviar })).toMatchObject({ devidos: 0 });
-    await enviarRelatoriosAdvogado(b.db, new Date('2026-11-26T19:02:00Z'), { enviar });
+    expect(await enviarRelatoriosAdvogado(b.db, new Date('2026-11-26T17:00:00Z'), { enviar, reconciliar: VERIFICADA })).toMatchObject({ devidos: 0 });
+    await enviarRelatoriosAdvogado(b.db, new Date('2026-11-26T19:02:00Z'), { enviar, reconciliar: VERIFICADA });
     expect(enviar).toHaveBeenCalledTimes(1);
     expect(enviar.mock.calls[0]?.[1]).toBe('Olá, Fernando! No momento, não há clientes aguardando retorno. ✅');
   });
   it('sábado e domingo: nenhum relatório ao advogado, nem atrasado na segunda', async () => {
     const b = bancoFalso([casoPendente('a')]);
     const enviar = vi.fn(async (_numero: string, _texto: string) => ({ ok: true }));
-    for (const quando of ['2026-11-28T12:00:00Z', '2026-11-28T19:00:00Z', '2026-11-29T12:30:00Z', '2026-11-29T19:10:00Z']) expect(await enviarRelatoriosAdvogado(b.db, new Date(quando), { enviar })).toMatchObject({ devidos: 0 });
+    for (const quando of ['2026-11-28T12:00:00Z', '2026-11-28T19:00:00Z', '2026-11-29T12:30:00Z', '2026-11-29T19:10:00Z']) expect(await enviarRelatoriosAdvogado(b.db, new Date(quando), { enviar, reconciliar: VERIFICADA })).toMatchObject({ devidos: 0 });
     expect(enviar).not.toHaveBeenCalled();
-    await enviarRelatoriosAdvogado(b.db, new Date('2026-11-30T12:00:00Z'), { enviar }); // segunda 09:00: só o relatório do dia
+    await enviarRelatoriosAdvogado(b.db, new Date('2026-11-30T12:00:00Z'), { enviar, reconciliar: VERIFICADA }); // segunda 09:00: só o relatório do dia
     expect(enviar).toHaveBeenCalledTimes(1);
     expect([...b.monitor.keys()]).toEqual([idRelatorio('5511991737442', '2026-11-30', '09:00')]);
   });
   it('recusa do provedor: nova tentativa depois de 5 min, até 3; sucesso encerra; nunca duplica', async () => {
     const b = bancoFalso([casoPendente('a')]);
     const enviar = vi.fn().mockResolvedValueOnce({ ok: false, erro: 'UltraMsg recusou o envio (HTTP 500).' }).mockResolvedValueOnce({ ok: true, idExterno: 'w2' });
-    await enviarRelatoriosAdvogado(b.db, NOVE, { enviar });
+    await enviarRelatoriosAdvogado(b.db, NOVE, { enviar, reconciliar: VERIFICADA });
     expect(b.monitor.get(idRelatorio('5511991737442', '2026-11-26', '09:00'))).toMatchObject({ estado: 'falhou', tentativas: 1 });
-    await enviarRelatoriosAdvogado(b.db, depois(2), { enviar }); // antes de 5 min: espera
+    await enviarRelatoriosAdvogado(b.db, depois(2), { enviar, reconciliar: VERIFICADA }); // antes de 5 min: espera
     expect(enviar).toHaveBeenCalledTimes(1);
-    await enviarRelatoriosAdvogado(b.db, depois(6), { enviar });
-    await enviarRelatoriosAdvogado(b.db, depois(12), { enviar });
+    await enviarRelatoriosAdvogado(b.db, depois(6), { enviar, reconciliar: VERIFICADA });
+    await enviarRelatoriosAdvogado(b.db, depois(12), { enviar, reconciliar: VERIFICADA });
     expect(enviar).toHaveBeenCalledTimes(2);
     expect(b.monitor.get(idRelatorio('5511991737442', '2026-11-26', '09:00'))).toMatchObject({ estado: 'enviado', tentativas: 2 });
     expect(b.auditoria.filter(a => a['p_acao'] === 'relatorioAdvogado').map(a => a['p_status'])).toEqual(['erro', 'sucesso']);
@@ -341,8 +350,8 @@ describe('relatório pelo monitor: envio único, novas tentativas, falha ambígu
   it('falha de comunicação (pode ter saído) vira "incerto" e não é reenviada', async () => {
     const b = bancoFalso([casoPendente('a')]);
     const enviar = vi.fn(async () => ({ ok: false, erro: 'Falha de comunicação com o UltraMsg.', ambiguo: true }));
-    await enviarRelatoriosAdvogado(b.db, NOVE, { enviar });
-    await enviarRelatoriosAdvogado(b.db, depois(30), { enviar });
+    await enviarRelatoriosAdvogado(b.db, NOVE, { enviar, reconciliar: VERIFICADA });
+    await enviarRelatoriosAdvogado(b.db, depois(30), { enviar, reconciliar: VERIFICADA });
     expect(enviar).toHaveBeenCalledTimes(1);
     expect(b.monitor.get(idRelatorio('5511991737442', '2026-11-26', '09:00'))?.estado).toBe('incerto');
   });
@@ -355,11 +364,11 @@ describe('relatório pelo monitor: envio único, novas tentativas, falha ambígu
   it('destinatário exclusivo: número de contato de cliente é bloqueado; configuração própria troca o destino', async () => {
     const bloqueio = bancoFalso([casoPendente('a', '5511991737442')]);
     const enviar = vi.fn(async (_numero: string, _texto: string) => ({ ok: true }));
-    await enviarRelatoriosAdvogado(bloqueio.db, NOVE, { enviar });
+    await enviarRelatoriosAdvogado(bloqueio.db, NOVE, { enviar, reconciliar: VERIFICADA });
     expect(enviar).not.toHaveBeenCalled();
     expect(bloqueio.monitor.get(idRelatorio('5511991737442', '2026-11-26', '09:00'))?.estado).toBe('bloqueado');
     const proprio = bancoFalso([casoPendente('a')], [{ owner_id: 'owner', dados: { secretaria: { encaminhamento: { responsavel: 'Fernando', whatsapp: '5511988887777', horarios: ['09:00'] } } } }]);
-    await enviarRelatoriosAdvogado(proprio.db, NOVE, { enviar });
+    await enviarRelatoriosAdvogado(proprio.db, NOVE, { enviar, reconciliar: VERIFICADA });
     expect(enviar.mock.calls.map(c => c[0])).toEqual(['5511988887777', '5511991737442']);
     expect(String(enviar.mock.calls[0]?.[1])).toMatch(/Total de clientes pendentes: 1/);
     expect(enviar.mock.calls[1]?.[1]).toBe('Olá, Fernando! No momento, não há clientes aguardando retorno. ✅');

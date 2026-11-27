@@ -11,6 +11,7 @@ import { PERGUNTA_ENCERRAMENTO } from '@/lib/atendimento/acompanhamento';
 import { mergeReplies, textosColeta } from '@/lib/respostas-prontas';
 import { CHAVES_TEMPLATE } from '@/lib/atendimento/secretaria/templates';
 import { horarioNoExpediente, whatsappResponsavelValido } from '@/lib/atendimento/secretaria/encaminhamento-config';
+import { FilaAdvogadoAuditoria } from '@/components/office/fila-advogado-auditoria';
 import { lerConfigSecretariaAnne, salvarConfigSecretariaAnne } from '@/lib/atendimento/secretaria/secretaria.functions';
 import { executar } from '@/lib/executar';
 
@@ -183,6 +184,7 @@ export function AnneSecretariaConfig({ respostasProntas }: { respostasProntas?: 
             </span>
           </div>
         </div>
+        {editar && <FilaAdvogadoAuditoria />}
         <p className="text-xs text-muted-foreground">Uma mensagem consolidada por horário (horário de Brasília), só para este número, só de segunda a sexta (nunca em feriado nacional) e dentro do expediente (09:00–17:30); o envio não muda a situação das pendências.</p>
       </div>
       <p className="text-xs text-muted-foreground">T04, T11.2, T12.2 e T12.3 só saem sozinhos depois que a Dra. ativar o modelo na biblioteca oficial; até lá, a equipe recebe o texto pronto. O T12.2 sai na véspera da perícia em dia útil (se a véspera não for dia útil, vira pendência antecipada).</p>
