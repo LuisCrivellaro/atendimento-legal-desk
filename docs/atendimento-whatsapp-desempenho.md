@@ -101,7 +101,7 @@ Commits locais na `main` (não enviados; o push é feito pelo GitHub Desktop):
 
 **Contadores** (cada um com a sua definição):
 
-- **Menu lateral → Atendimento** e **aba Aguardando**: conversas *do usuário* cuja última mensagem é do cliente (`replyQueue`). Quando o Atendimento já foi aberto, o menu usa a mesma lista em tempo real.
+- **Menu lateral → Atendimento**: conversas *do usuário* cuja última mensagem é do cliente (`replyQueue`). Quando o Atendimento já foi aberto, o menu usa a mesma lista em tempo real. (Desde 27/11/2026 o Atendimento não tem mais as abas "Aguardando", do advogado e "Todas": é uma lista única pela última mensagem, com etapa, etiqueta e responsável no botão de filtros.)
 - **Assessor**: conversas aguardando no *escritório inteiro* (sênior/admin), agora escrito "conversas aguardando resposta".
 - **Bolinha de não lidas**: mensagens do cliente depois de `lidoAte`. É um indicador diferente do "aguardando".
 

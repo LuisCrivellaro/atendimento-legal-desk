@@ -258,6 +258,9 @@
   .attendance-list > div:first-child { display:flex; flex-direction:column; align-items:stretch; gap:6px; }
   .attendance-list > div:first-child > div { width:100%; }
   .attendance-list > div:first-child > div { flex:1; min-width:0; }
+  /* Sem conversa aberta no celular: a lista ocupa a tela toda (a tela neutra só aparece no computador). */
+  .attendance-sem-conversa { grid-template-rows:minmax(0,1fr); }
+  .attendance-sem-conversa .attendance-vazio { display:none; }
 }
 
 /* Conversa estreita (painéis abertos em telas médias): nome do cliente ganha a linha inteira e as ferramentas descem. */

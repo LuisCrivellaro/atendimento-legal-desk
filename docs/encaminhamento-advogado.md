@@ -47,7 +47,9 @@ Automações do atendimento → Secretaria digital → "Encaminhamento de client
 ligar/desligar, nome do responsável, WhatsApp (padrão 5511991737442), relatório ligado e horários.
 
 ## Tela
-Atendimento: aba com o nome do advogado (fila, mais antiga primeiro) e painel na conversa com situação, solicitação,
+Atendimento: lista única de conversas (desde 27/11/2026, sem abas); a fila aparece no botão de filtros →
+Responsável → "{advogado} · aguardando retorno". A fila interna, a reconciliação e os relatórios das 09h/16h não
+mudaram. Painel na conversa com situação, solicitação,
 processo e botões Em atendimento / Respondido / Concluir (dono da conversa; CAS e auditoria). O link do relatório
 abre `/atendimento?conversa=<id>`.
 
