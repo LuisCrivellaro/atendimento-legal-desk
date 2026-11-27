@@ -16,7 +16,8 @@ import { TEXTO_FILTRO } from '@/lib/atendimento/filtro-comercial';
 // balão, separador de dia, foto (ou iniciais) do cliente ao lado das mensagens dele, imagens como foto e documentos
 // que abrem em prévia. O status só mostra o que o canal confirmou (ver statusDoEnvio/avancarStatus).
 
-const CORES = ['#2A7F62', '#6B5CA5', '#B5523B', '#2D6A9F', '#9A6B1F', '#7A4E7E', '#3F7F8C', '#8C4B5A'];
+// Tons definidos no design system (src/styles.css, --avatar-1 a --avatar-8).
+const CORES = [1, 2, 3, 4, 5, 6, 7, 8].map(n => `var(--avatar-${n})`);
 const corDoNome = (nome: string) => CORES[[...nome].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7) % CORES.length]!;
 const iniciais = (n: string) => n.split(' ').filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
 
@@ -29,9 +30,9 @@ export function ClienteAvatar({ nome, foto, className }: { nome: string; foto?: 
 /** Tiques do WhatsApp: relógio (simulada), um tique cinza (enviada), dois cinza (entregue), dois azuis (vista). */
 export function StatusTique({ status }: { status: StatusMensagem }) {
   const label = rotuloStatus[status];
-  if (status === 'simulada') return <svg role="img" aria-label={label} viewBox="0 0 16 16" className="inline size-3.5 shrink-0 text-[#8696A0]"><title>{label}</title><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M8 4.6V8l2.3 1.4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>;
+  if (status === 'simulada') return <svg role="img" aria-label={label} viewBox="0 0 16 16" className="inline size-3.5 shrink-0 text-[var(--zap-icon)]"><title>{label}</title><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M8 4.6V8l2.3 1.4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>;
   const duplo = status !== 'enviada';
-  return <svg role="img" aria-label={label} viewBox="0 0 18 11" className={cn('inline h-[11px] w-[18px] shrink-0', status === 'lida' ? 'text-[#53BDEB]' : 'text-[#8696A0]')}><title>{label}</title>
+  return <svg role="img" aria-label={label} viewBox="0 0 18 11" className={cn('inline h-[11px] w-[18px] shrink-0', status === 'lida' ? 'text-[var(--zap-read)]' : 'text-[var(--zap-icon)]')}><title>{label}</title>
     <path d="M1 6l3.2 3.2L11 2.2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     {duplo && <path d="M7.6 8.6l.6.6L15 2.2" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />}
   </svg>;
@@ -86,7 +87,7 @@ function Imagem({ m, arquivo, meta }: { m: Mensagem; arquivo?: CaseFile | undefi
   const { url, erro } = useArquivo(m.path ?? arquivo?.path);
   const [aberto, setAberto] = useState(false);
   const semTexto = !m.texto;
-  if (!url) return <div className="relative flex h-40 w-64 max-w-full flex-col items-center justify-center gap-1.5 rounded-md bg-[#E9EDEF] text-center text-[var(--zap-meta)]">
+  if (!url) return <div className="relative flex h-40 w-64 max-w-full flex-col items-center justify-center gap-1.5 rounded-md bg-[var(--zap-placeholder)] text-center text-[var(--zap-meta)]">
     <ImageIcon className="size-8 opacity-70" />
     <span className="px-3 text-2xs">{m.path || arquivo ? (erro ? 'Não foi possível abrir a imagem' : 'Carregando imagem…') : 'Pré-visualização indisponível'}</span>
     <span className="max-w-full truncate px-3 text-2xs font-medium" title={nome}>{nome}</span>
@@ -107,7 +108,7 @@ function Documento({ m, arquivo }: { m: Mensagem; arquivo?: CaseFile | undefined
   const [aberto, setAberto] = useState(false);
   const detalhe = [ext, tamanho(arquivo?.bytes), m.salvoStart ? 'Salvo na pasta Start' : ''].filter(Boolean).join(' · ');
   const corpo = <>
-    <span aria-hidden="true" className={cn('flex size-10 shrink-0 items-center justify-center rounded-md text-white', ext === 'PDF' ? 'bg-[#E5534B]' : 'bg-[#7A8C99]')}><FileText className="size-5" /></span>
+    <span aria-hidden="true" className={cn('flex size-10 shrink-0 items-center justify-center rounded-md text-white', ext === 'PDF' ? 'bg-[var(--file-pdf)]' : 'bg-[var(--file-generic)]')}><FileText className="size-5" /></span>
     <span className="min-w-0 flex-1 text-left"><span className="block truncate font-medium" title={nome}>{nome}</span><span className="block text-2xs text-[var(--zap-meta)]">{detalhe}</span></span>
   </>;
   if (!url) return <div className="flex min-w-56 items-center gap-3 rounded-md bg-black/[0.045] px-2.5 py-2" title={m.path || arquivo ? (erro ? 'Não foi possível abrir o arquivo' : 'Carregando arquivo…') : 'Arquivo sem conteúdo guardado para abrir'}>{corpo}</div>;
@@ -126,7 +127,7 @@ export function nomeEmissor(autor?: string) {
 
 /** Relógio do WhatsApp enquanto o envio da equipe não tem recibo do canal. */
 function Enviando() {
-  return <svg role="img" aria-label="Enviando" viewBox="0 0 16 16" className="inline size-3.5 shrink-0 text-[#8696A0]"><title>Enviando</title><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M8 4.6V8l2.3 1.4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>;
+  return <svg role="img" aria-label="Enviando" viewBox="0 0 16 16" className="inline size-3.5 shrink-0 text-[var(--zap-icon)]"><title>Enviando</title><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.4" /><path d="M8 4.6V8l2.3 1.4" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>;
 }
 
 /** Quantas mensagens desenhar de cada vez: conversas longas abrem rápido e carregam o histórico ao subir. */

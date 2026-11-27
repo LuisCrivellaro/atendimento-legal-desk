@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { oauthReturnPath } from "@/lib/oauth-return-path";
+import logoManagerAdv from "@/assets/brand/manager-adv-logo.png";
 
 const destinoSeguro = (r?: string) => oauthReturnPath(r);
 const urlRetorno = (r?: string) => new URL(destinoSeguro(r), window.location.origin).href;
@@ -82,24 +83,26 @@ function AuthPage() {
 
   return (
     <div className="grid min-h-screen grid-rows-[auto_1fr] bg-card lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-1">
-      <aside className="relative flex flex-col justify-between overflow-hidden bg-petrol px-6 py-8 text-[#D3E6E4] sm:px-10 lg:px-14 lg:py-14">
-        <div>
-          <p className="brand-lockup text-xl !text-white sm:text-2xl">
-            CS LAWYERS<span className="brand-bar">|</span>ADVOCACIA
-          </p>
-          <p className="brand-cities mt-2 !text-brand">Brasil • Dubai • Portugal</p>
+      <aside className="relative flex flex-col justify-between overflow-hidden bg-petrol px-6 py-8 text-sidebar-foreground sm:px-10 lg:px-14 lg:py-14">
+        <div className="flex items-center gap-3">
+          <img
+            src={logoManagerAdv}
+            alt=""
+            width={47}
+            height={56}
+            className="brand-logo h-11 lg:h-14"
+          />
+          <p className="brand-lockup text-xl !text-white lg:hidden">MANAGER ADV</p>
         </div>
         <div className="mt-10 hidden max-w-md lg:block">
           <div className="mb-6 h-0.5 w-14 bg-brand" />
-          <p className="font-serif text-[2.75rem] font-medium leading-[1.05] text-white">
-            Manager ADV
-          </p>
-          <p className="mt-4 text-[15px] leading-relaxed text-[#A9C9C6]">
+          <p className="brand-lockup text-[2.5rem] !text-white">MANAGER ADV</p>
+          <p className="mt-5 text-[15px] leading-relaxed text-sidebar-foreground">
             Do primeiro contato do cliente ao andamento do processo, com revisão da advogada em cada
             etapa.
           </p>
         </div>
-        <p className="mt-10 hidden text-xs text-[#7FA6A2] lg:block">
+        <p className="mt-10 hidden text-xs text-sidebar-muted lg:block">
           Uso interno da equipe do escritório.
         </p>
       </aside>

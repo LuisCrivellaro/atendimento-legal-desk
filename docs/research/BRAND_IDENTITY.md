@@ -1,5 +1,7 @@
 # Identidade da marca — CS Lawyers | Advocacia (no Manager ADV)
 
+> **Atualização de 27/11/2026:** a identidade oficial agora é a do MANAGER ADV, com a logo "CS" e o turquesa `#00C9CB`. Ver `../IDENTIDADE_VISUAL.md`, que prevalece sobre as cores e o lockup descritos abaixo (registro histórico da Etapa 01).
+
 > Base para o redesenho visual do sistema interno. Separa a **essência da marca** (manter) das **escolhas de interface**
 > (podem evoluir). **[C]** confirmado · **[I]** inferência · **[R]** recomendação.
 

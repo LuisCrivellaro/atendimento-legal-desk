@@ -27,6 +27,16 @@ Documentos, nesta ordem:
 Etapa 01 completa: `COMPANY_PROFILE.md`, `BRAND_IDENTITY.md`, `CONTENT_INVENTORY.md`, `ASSETS_INVENTORY.md`,
 `WEBSITE_AUDIT.md`, `REDESIGN_OPPORTUNITIES.md` e `capturas/` em `docs/research/`.
 
+## Identidade visual (obrigatória)
+
+`docs/IDENTIDADE_VISUAL.md` é a referência. Em resumo:
+- O nome da plataforma é sempre **MANAGER ADV**; a logo "CS" (`src/assets/brand/`) é só o símbolo e não pode ser
+  redesenhada, recolorida nem distorcida.
+- Turquesa da logo `#00C9CB` como identidade; `#017F80` para ação, texto de destaque e foco; neutros grafite.
+- Todas as cores vêm dos tokens de `src/styles.css`. Nada de HEX solto em componente: crie o token e documente.
+- Sucesso, alerta (`#FFE600`) e erro continuam com as cores atuais.
+- Petições (Visual Law/DOCX) mantêm o timbre e o aqua do escritório, salvo pedido da Dra.
+
 ## Skills de design
 
 Instaladas em `~/.claude/skills` (detalhes, limitações e conflitos em `docs/SKILLS_SETUP.md`):

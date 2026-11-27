@@ -77,15 +77,16 @@ principal.
 
 ## Paleta (resumo)
 
-Detalhes e valores de contraste em `DESIGN_SYSTEM.md`.
+Atualizado em 27/11/2026 com a logo oficial do MANAGER ADV. Valores e regras em `../IDENTIDADE_VISUAL.md`, que
+prevalece sobre o texto abaixo e sobre as menções a aqua `#00ACA7`/petróleo `#0F3533` no resto deste documento.
 
-- **Petróleo** `#0F3533`: estrutura (menu lateral, login, tooltips).
-- **Aqua da marca** `#00ACA7`: o fio sobre o petróleo (menu, login) e detalhes da marca. No branco tem só 2,8:1, por
-  isso sobre fundos claros o fio usa `#00938E` (3,8:1), um tom do mesmo aqua.
-- **Aqua de ação** `#007F7B`: botões primários, links e anel de foco (4,9:1 com branco).
-- **Papel e tinta**: `#FFFFFF`, `#F4F7F7`, `#141A1A`, cinzas esverdeados para texto secundário e linhas.
-- **Semânticas**: vermelho para crítico (prazo fatal, erro), âmbar para atenção (pendência), verde para concluído.
-  O amarelo `#FFE600` sai do sistema.
+- **Turquesa da logo** `#00C9CB`: o fio, a régua do cabeçalho, o indicador do menu e os destaques. No branco tem só
+  2,1:1; quando precisa ser o único indicador sobre fundo claro, usa `#017F80`.
+- **Turquesa de ação** `#017F80`: botões primários, links e anel de foco (4,8:1 com branco); hover `#066768`.
+- **Tinta turquesa** `#082B2B`: estrutura (menu lateral, painel do login).
+- **Papel e grafite**: `#FFFFFF`, fundo `#F1F7F7`, texto `#192020`, cinzas grafite para texto secundário e linhas.
+- **Semânticas preservadas** (decisão da Dra.): verde para concluído, amarelo `#FFE600` para alerta/pendência,
+  vermelho para erro.
 
 ## Tipografia (resumo)
 

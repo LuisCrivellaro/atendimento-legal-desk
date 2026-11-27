@@ -42,7 +42,7 @@ Pronto quando: a demo abre em todas as telas com o código atual, sem erros no c
 1. Quebrar em componentes legíveis as telas escritas em uma linha (`production.tsx:35`, `atendimento.tsx:111,171`,
    `audit.tsx:14`, `movements.tsx:14`, `protocol.tsx`, `settings.tsx`, `training.tsx`, `clients.tsx`,
    `connection-status.tsx`). Refatoração mecânica: mesmo comportamento, mesmos testes passando.
-2. Tokens novos em `src/styles.css` (`DESIGN_SYSTEM.md` §1–5): semânticas no lugar de `--pending #FFE600`, `--thread`,
+2. Tokens novos em `src/styles.css` (`DESIGN_SYSTEM.md` §1–5): semânticas no lugar de `--pending #FFE600`, `--brand-strong`,
    `--surface-2`, `--input` com 3:1, raios, sombras, tokens de movimento. Mover as cores fixas espalhadas para tokens.
 3. Trocar os ~10 `window.confirm` por AlertDialog com o texto da consequência.
 4. Traduzir 404, tela de erro e rótulos de acessibilidade em inglês ("Close", "Sidebar", "Toggle Sidebar").
@@ -117,9 +117,9 @@ envio, reserva ou cancelamento mudou de regra; testes do Atendimento passam.
 | # | Decisão | Onde afeta |
 |---|---|---|
 | 1 | "Aprovações": só renomear para "Revisões" ou passar a aprovar a minuta ali | Fase 4 |
-| 2 | Bolhas da conversa na cor da marca ou manter o verde do WhatsApp | Fase 3 |
+| 2 | ~~Bolhas da conversa na cor da marca ou manter o verde do WhatsApp~~ Resolvido em 27/11/2026: bolhas e botão de envio no turquesa do MANAGER ADV | — |
 | 3 | Adotar a biblioteca `motion` (lista animada, status) ou só CSS | Fase 2 |
-| 4 | Existe logotipo oficial? Aprovar monograma "CS" como favicon | Fases 1 e 5 |
+| 4 | ~~Existe logotipo oficial?~~ Resolvido em 27/11/2026: logo oficial recebida e aplicada (ver `../IDENTIDADE_VISUAL.md`) | — |
 | 5 | Substituir o papel de parede atual da conversa | Fase 3 |
 | 6 | Manter ou retirar o cadastro aberto no login e o botão "Continue with Lovable" | Fase 5 (Reavaliar) |
 | 7 | Autorizar o executável da Impeccable (captura de tela e de movimento, detector) | Verificação |

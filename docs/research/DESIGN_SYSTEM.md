@@ -9,66 +9,25 @@ de interface (bordas de campo, indicadores de estado, ícones que carregam signi
 
 ## 1. Cor
 
-### Marca e estrutura
+**Atualizado em 27/11/2026: a paleta oficial agora vem da logo do MANAGER ADV.** Valores, contrastes e regras de uso
+estão em `../IDENTIDADE_VISUAL.md` e implementados em `src/styles.css`. A proposta anterior desta seção (aqua
+`#00ACA7`, petróleo `#0F3533`, fio `#00938E`) foi substituída.
 
-| Token (atual → proposto) | Valor | Uso | Contraste |
-|---|---|---|---|
-| `--petrol` / `--sidebar` | `#0F3533` | Menu lateral, login, tooltips | branco 13,3:1 |
-| `--sidebar-accent` | `#164441` | Hover no menu | — |
-| `--sidebar-active` (novo, hoje fixo `#1B4B48`) | `#1B4B48` | Fundo do item ativo | — |
-| `--sidebar-foreground` | `#D3E6E4` | Texto do menu | 10,3:1 no petróleo |
-| `--sidebar-muted` (novo, hoje fixo `#8FB3B0`) | `#8FB3B0` | Rótulos de grupo, ícones inativos | 5,9:1 no petróleo |
-| `--brand` | `#00ACA7` | O fio sobre petróleo; detalhes da marca | 4,7:1 no petróleo; **2,8:1 no branco (não usar como indicador em fundo claro)** |
-| `--thread` (novo) | `#00938E` | O fio sobre fundos claros (seleção, etapas, linha do tempo) | 3,8:1 no branco; 3,5:1 no `#F4F7F7` |
-| `--primary` | `#007F7B` | Botão primário, links, anel de foco | 4,9:1 com branco |
-| `--primary-hover` | `#006A67` | Hover/pressionado | 6,5:1 com branco |
-| `--brand-pale` / `--accent` | `#E9F7F6` | Fundo de item selecionado em lista, realce leve | texto `#0F4744` 9,5:1 |
+Resumo do mapeamento:
 
-### Papel e tinta
-
-| Token | Valor | Uso |
+| Papel | Token | Valor |
 |---|---|---|
-| `--background` | `#F4F7F7` | Fundo do conteúdo |
-| `--card` / `--popover` | `#FFFFFF` | Superfícies de trabalho, menus |
-| `--surface-2` (novo) | `#EEF3F3` | Segunda camada (barra de filtros, painel lateral, cabeçalho de tabela) |
-| `--foreground` | `#141A1A` | Texto principal (16,4:1 no fundo) |
-| `--muted-foreground` | `#5B6B6B` | Texto secundário (5,2:1 no fundo, 5,6:1 no branco) |
-| `--border` | `#D9E6E5` | Linhas divisórias (decorativas) |
-| `--input` | `#7E9997` (hoje `#CFDEDD`) | Borda de campo de formulário: precisa de 3:1 para o campo ser identificável (3,05:1 no branco) |
+| Cor da logo (realces, régua do cabeçalho, indicador do menu, gráficos de destaque) | `--brand` | `#00C9CB` |
+| Ação (botão primário, link, foco) | `--primary`, `--ring`, `--brand-strong` | `#017F80` (4,8:1 com branco) |
+| Hover de ação | `--primary-hover` | `#066768` |
+| Seleção e fundos claros de destaque | `--accent`, `--secondary`, `--brand-pale` | `#EEFAFA` |
+| Estrutura escura (menu lateral, painel do login) | `--sidebar`, `--petrol` | `#082B2B` |
+| Fundo / superfície / texto | `--background` / `--card` / `--foreground` | `#F1F7F7` / `#FFFFFF` / `#192020` |
+| Texto secundário / bordas / borda de campo | `--muted-foreground` / `--border` / `--input` | `#5A6666` / `#D8E2E2` / `#7D8989` |
+| Sucesso / alerta / erro (preservadas) | `--success` / `--pending` / `--destructive` | inalteradas |
 
-### Semânticas (substituem o amarelo `#FFE600`)
-
-| Estado | Texto / ícone | Fundo | Borda | Contraste do texto | Uso |
-|---|---|---|---|---|---|
-| Crítico | `#B42318` | `#FEF3F2` | `#F4B8B2` | 6,1:1 | Prazo fatal, erro, falha de envio |
-| Atenção | `#7A4B00` | `#FDF3D8` | `#E8B44C` | 6,7:1 | Pendência, aguardando aprovação, vencendo |
-| Concluído | `#1E7A46` | `#EAF6EE` | `#9FD3B2` | 4,8:1 | Aprovado, recebido, enviado com recibo |
-| Informação | `#0F4744` | `#E9F7F6` | `#A8DCD8` | 9,5:1 | Dica, estado neutro, "simulado" |
-| Neutro | `#4A5A5A` | `#EEF3F3` | `#D9E6E5` | 6,7:1 | Rascunho, sem prazo, desligado |
-
-Regras:
-- Estado nunca só por cor: pílula com ícone + palavra ("Atenção · 3 pendências").
-- Vermelho só para o que pode causar perda (prazo fatal, falha, erro). Zero nunca aparece em vermelho.
-- Badges do menu: vermelho para prazo fatal; âmbar para fila; nenhum badge com número zero.
-
-### Conversa (Atendimento)
-
-| Token | Valor | Observação |
-|---|---|---|
-| `--bubble-out` | `#DDF2F0` (aqua claro da marca) | Proposta. Hoje a conversa usa `#D9FDD3` (verde WhatsApp). Decisão da Dra. |
-| `--bubble-in` | `#FFFFFF` | |
-| `--chat-bg` | `#F7F5EE` liso ou padrão próprio em 4% de opacidade | Substitui o papel de parede atual (provável arte do WhatsApp) |
-| Botão enviar | `--primary` | Hoje `#00A884` (verde WhatsApp) |
-
-### Gráficos
-
-Série principal `#00938E`; secundária `#0F3533`; terceira `#8FB3B0`; estados usam as semânticas acima. Rótulos de
-eixo em `#5B6B6B` 12px, sem rotação (barras horizontais quando os rótulos forem longos).
-
-### Modo escuro
-
-Não faz parte desta etapa. Os tokens `.dark` atuais (padrão shadcn azulado) ficam como estão até haver pedido.
-
+O "fio" da direção criativa usa `--brand` sobre fundos escuros e `--brand-strong` quando precisa ser o único indicador
+sobre fundo claro.
 ## 2. Tipografia
 
 | Papel | Fonte | Tamanho / altura | Peso | Onde |
@@ -132,7 +91,7 @@ Camadas (`z-index`): conteúdo 0 · barra fixa 10 · cabeçalho 30 · menu later
 ## 7. Vocabulário de estados (todo componente interativo)
 
 Padrão, hover, foco (anel 2px `--primary` com 2px de afastamento), pressionado, desabilitado (com motivo no tooltip),
-carregando (skeleton ou indicador no próprio botão), erro, vazio, selecionado (fundo `--brand-pale` + fio `--thread`).
+carregando (skeleton ou indicador no próprio botão), erro, vazio, selecionado (fundo `--brand-pale` + fio `--brand-strong`).
 
 ## 8. Componentes-base
 
@@ -143,8 +102,8 @@ carregando (skeleton ou indicador no próprio botão), erro, vazio, selecionado 
 | Segmentado | Para 2–4 opções exclusivas (Modo da Anne; Caso/Quadro; Todos/Com prazo/Concluídos). Rádios nativos ou Radix ToggleGroup, polegar que desliza 200ms |
 | Campo | Rótulo visível acima, ajuda abaixo, erro abaixo em vermelho com ícone; borda `--input`; máscara onde houver formato (CPF, CNJ, telefone) |
 | Cabeçalho do caso | Nome (Garamond 22px), código, área, responsável, pílula de aprovação, fio das 10 etapas; fixo ao rolar |
-| Fio das etapas | Nós de 10px ligados por linha de 2px: concluída = preenchida `--thread`; atual = anel + preenchimento; futura = contorno `--border`. Rótulo da etapa atual sempre visível; os outros em tooltip |
-| Linha do tempo | Fio vertical `--thread` 2px, marcadores por tipo (audiência, perícia, prazo, mensagem) |
+| Fio das etapas | Nós de 10px ligados por linha de 2px: concluída = preenchida `--brand-strong`; atual = anel + preenchimento; futura = contorno `--border`. Rótulo da etapa atual sempre visível; os outros em tooltip |
+| Linha do tempo | Fio vertical `--brand-strong` 2px, marcadores por tipo (audiência, perícia, prazo, mensagem) |
 | Centro de avisos | Um bloco recolhível "Precisa de atenção (N)" com itens ordenados crítico > atenção > informação, cada um com sua ação |
 | Toast | Sonner (já usado), com as cores semânticas; ações "Desfazer" ou "Tentar de novo" quando couber |
 | Confirmação | AlertDialog (já existe em `ui/`, hoje sem uso) no lugar de `window.confirm`; título com a consequência, botão com a ação ("Cancelar consulta de 03/12 às 14h") |

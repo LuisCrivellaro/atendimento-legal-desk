@@ -108,7 +108,7 @@ demonstração. Assim o projeto não ganha dependências (hugeicons, motion, gsa
 | Funcionalidade | Indicador de etapa que desliza entre os nós; layout horizontal ou vertical |
 | Benefício | A equipe vê onde o caso está e o que falta, sem ler texto miúdo (hoje a faixa de etapas da Produção é ilegível) |
 | Justificativa | É a assinatura da direção criativa e cumpre os princípios 6 e 30 |
-| Adaptação | Componente próprio inspirado no comportamento: trocar hugeicons por lucide, usar `--thread`, rótulo da etapa atual visível, avanço só após recibo do servidor (`MOTION_GUIDELINES.md`) |
+| Adaptação | Componente próprio inspirado no comportamento: trocar hugeicons por lucide, usar `--brand-strong`, rótulo da etapa atual visível, avanço só após recibo do servidor (`MOTION_GUIDELINES.md`) |
 | Desktop / mobile | Horizontal no desktop; vertical em painéis estreitos |
 | Dependências | Nenhuma se reescrito; hugeicons se copiado como está [V] |
 | Desempenho | Baixo [E] |
@@ -123,7 +123,7 @@ demonstração. Assim o projeto não ganha dependências (hugeicons, motion, gsa
 | Origem | React Bits "Spring Check" <https://reactbits.dev/micro/spring-check> [V] (preenche a caixa, desenha o tique e risca o rótulo; 17 props; depende de `motion` e `@hugeicons/core-free-icons`) |
 | Aplicação | Checklist de provas (Produção, aba Documentos do Atendimento), checklist da Auditoria |
 | Benefício | Confirma visualmente o recebimento de cada documento |
-| Adaptação | Sem riscar o rótulo (num checklist jurídico, riscado parece "removido"); tique em `--thread`; reescrever em CSS (`stroke-dashoffset`) sobre o Checkbox do Radix, sem `motion` |
+| Adaptação | Sem riscar o rótulo (num checklist jurídico, riscado parece "removido"); tique em `--brand-strong`; reescrever em CSS (`stroke-dashoffset`) sobre o Checkbox do Radix, sem `motion` |
 | Dependências | Nenhuma se reescrito |
 | Desempenho | Desprezível [E] |
 | Acessibilidade | Checkbox nativo/Radix com rótulo clicável |
@@ -184,7 +184,7 @@ demonstração. Assim o projeto não ganha dependências (hugeicons, motion, gsa
 |---|---|
 | Origem | Referência: Uiverse, "Radio by reglobby" <https://uiverse.io/reglobby/red-mayfly-78> [V] (lista vertical "Public profile, Account, Appearance, Accessibility, Notifications" com indicador) |
 | Aplicação | Nova página de Configurações com seções (Meu perfil, Atendimento, Canal e Agente, Integrações, Monitoramento, Log, Avançado) |
-| Adaptação | Implementar com links (o original usa rádios, o que é semântica errada para navegação), indicador = fio `--thread`, seção na URL |
+| Adaptação | Implementar com links (o original usa rádios, o que é semântica errada para navegação), indicador = fio `--brand-strong`, seção na URL |
 | Dependências | Nenhuma |
 | Licença | MIT |
 | Prioridade | Recomendado |

@@ -1,5 +1,7 @@
 # Inventário de materiais visuais — Manager ADV
 
+> **Atualização de 27/11/2026:** a identidade oficial agora é a do MANAGER ADV, com a logo "CS" e o turquesa `#00C9CB`. Ver `../IDENTIDADE_VISUAL.md`, que prevalece sobre as cores e o lockup descritos abaixo (registro histórico da Etapa 01).
+
 > Levantado em 27/11/2026. O sistema quase não usa imagens: a marca é tipográfica e a interface é feita de
 > componentes (shadcn/ui + Tailwind) e ícones. **[C]** confirmado · **[?]** origem/direitos a verificar · **[R]** recomendação.
 

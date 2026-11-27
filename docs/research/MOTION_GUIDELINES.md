@@ -46,10 +46,10 @@ Saída ≈ 75% da duração da entrada. Nada de `bounce`, `elastic` ou molas com
 | Situação | Movimento | Duração | Movimento reduzido |
 |---|---|---|---|
 | Trocar de tela | Conteúdo some com fade e o novo entra com fade + 6px de subida (View Transitions do TanStack Router, opção `defaultViewTransition`, presente na versão instalada 1.170) | 320ms | Só fade de 120ms |
-| Rota com carregamento | Barra de progresso fina (2px, `--thread`) no topo do conteúdo | contínua | Barra estática com "Carregando…" |
+| Rota com carregamento | Barra de progresso fina (2px, `--brand-strong`) no topo do conteúdo | contínua | Barra estática com "Carregando…" |
 | Lista/tabela carregando | Skeleton no formato das linhas, brilho suave | até chegar | Skeleton sem brilho |
 | Item ativo do menu | Fundo e fio aqua deslizam até o novo item | 200ms | Troca instantânea |
-| Aba | Sublinhado `--thread` desliza; conteúdo com fade | 200ms | Troca instantânea |
+| Aba | Sublinhado `--brand-strong` desliza; conteúdo com fade | 200ms | Troca instantânea |
 | Segmentado (Modo da Anne etc.) | Polegar desliza | 200ms | Troca instantânea |
 | Popover, menu, select | Fade + escala 0,97→1 a partir do gatilho (já vem do `tw-animate-css`) | 150ms | Só fade |
 | Sheet, painel do cliente | Desliza da borda | 280ms | Fade |

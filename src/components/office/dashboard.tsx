@@ -15,7 +15,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { PageHeader } from './shared';
 import { Route as AuthRoute } from '@/routes/_authenticated/route';
 
-const CHART_COLORS = { primary: 'var(--primary)', success: 'var(--success)', destructive: 'var(--destructive)', pending: 'var(--pending)', muted: 'var(--muted-foreground)' };
+const CHART_COLORS = { primary: 'var(--chart-1)', success: 'var(--success)', destructive: 'var(--destructive)', pending: 'var(--pending)', muted: 'var(--muted-foreground)' };
 const pipelineConfig = { casos: { label: 'Casos', color: CHART_COLORS.primary } } satisfies ChartConfig;
 const checklistConfig = { aprovadas: { label: 'Checklists aprovadas', color: CHART_COLORS.success }, pendentes: { label: 'Aguardando aprovação', color: CHART_COLORS.pending } } satisfies ChartConfig;
 const prazosConfig = { vencidos: { label: 'Vencidos / hoje', color: CHART_COLORS.destructive }, aVencer: { label: 'A vencer', color: CHART_COLORS.primary } } satisfies ChartConfig;

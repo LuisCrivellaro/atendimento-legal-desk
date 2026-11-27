@@ -79,9 +79,10 @@ export function AppSidebar({ badges = {} }: { badges?: Record<string, number> })
                     {(badges[i.url] ?? 0) > 0 && (
                       <SidebarMenuBadge
                         className={
+                          // O item ativo/hover do menu deixa o texto branco; o número do badge mantém a cor própria.
                           i.url === "/"
-                            ? "bg-destructive text-destructive-foreground"
-                            : "bg-pending text-pending-foreground"
+                            ? "bg-destructive text-destructive-foreground peer-hover/menu-button:text-destructive-foreground peer-data-[active=true]/menu-button:text-destructive-foreground"
+                            : "bg-pending text-pending-foreground peer-hover/menu-button:text-pending-foreground peer-data-[active=true]/menu-button:text-pending-foreground"
                         }
                       >
                         {badges[i.url]}
