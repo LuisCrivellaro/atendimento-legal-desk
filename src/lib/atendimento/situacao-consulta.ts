@@ -48,6 +48,25 @@ export function avisarRegistroPendente<T extends Conversa>(c: T, agora = new Dat
   return registrarAviso(c, { id: `registro-consulta:${inicio}`, tipo: 'confirmacao40', criadoEm: agora.toISOString(), texto: `A consulta de ${dataOficial(inicio)} às ${horarioOficial(inicio)} já passou: registre se foi realizada ou se o cliente faltou (a ausência inicia o reagendamento).` }, false);
 }
 
+/** Mesmo filtro da confirmação ao cliente (`mensagemConfirmacaoAna`, `textoAgendamentoConfirmado`): só esse link chega a ele. */
+const LINK_MEET_ENTREGAVEL = /^https:\/\/meet\.google\.com\/[a-z0-9-]+$/i;
+const PREFIXO_SEM_LINK = 'consulta-sem-link:';
+
+/**
+ * Consulta reservada sem link do Meet que o cliente possa receber (o Google não devolveu o link ou devolveu outro
+ * endereço): aviso prioritário para a equipe criar a reunião e enviar o link antes do horário, um por horário.
+ * Chamada sempre que um recibo novo é gravado; avisos de link de outros horários (consulta remarcada) deixam de valer.
+ */
+export function avisarConsultaSemLink<T extends Pick<Conversa, 'avisosEquipe' | 'timeline'>>(c: T, reserva: { inicio: string; meetUrl?: string | undefined }, agora = new Date()): T {
+  const stamp = agora.toISOString();
+  const id = `${PREFIXO_SEM_LINK}${reserva.inicio}`;
+  const base: T = c.avisosEquipe?.some(a => a.id.startsWith(PREFIXO_SEM_LINK) && a.id !== id && !a.resolvidoEm)
+    ? { ...c, avisosEquipe: c.avisosEquipe.map(a => a.id.startsWith(PREFIXO_SEM_LINK) && a.id !== id && !a.resolvidoEm ? { ...a, resolvidoEm: stamp, resolvidoPor: 'agenda (consulta mudou de horário)' } : a) }
+    : c;
+  if (LINK_MEET_ENTREGAVEL.test(reserva.meetUrl ?? '')) return base;
+  return registrarAviso(base, { id, tipo: 'confirmacao40', prioridade: true, criadoEm: stamp, texto: `Consulta de ${dataOficial(reserva.inicio)} às ${horarioOficial(reserva.inicio)} marcada sem link do Meet: o Google não devolveu o link. Criar a reunião e enviar o link ao cliente antes do horário.` });
+}
+
 export type ErroRegistro = 'sem_consulta' | 'ainda_nao_comecou' | 'ja_registrada';
 
 /** Registro da equipe. Realizada/ausência só depois do início da consulta. */

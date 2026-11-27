@@ -146,6 +146,19 @@ describe('cenários da secretaria digital (dados fictícios, canal em memória)'
     expect(db.remarcacoes).toEqual(['ev1->2026-12-01T18:00:00.000Z']);
     expect(db.get().consultaAgendada).toBe('2026-12-01T18:00:00.000Z');
     expect(db.enviados.at(-1)?.texto).toMatch(/🔗 Link: https:\/\/meet\.google\.com\/abc-defg-hij/);
+    expect(db.get().avisosEquipe?.some(a => a.id.startsWith('consulta-sem-link:'))).toBe(false);
+  });
+
+  it('remarcação sem link do Meet: confirma com o recibo e deixa aviso prioritário para a equipe enviar o link', async () => {
+    const db = fake(conversaComConfirmacao(), { agenda: { remarcar: async (_atual: ReservaCalendar, novo: string) => ({ id: 'ev2', inicio: novo, fim: new Date(Date.parse(novo) + 1800000).toISOString() }) } });
+    await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', receber(db, cliente('a1', 'não vou conseguir, posso remarcar?')));
+    await tratarMensagemOperacional(db.portas, ctx(), 'c-teste', receber(db, cliente('a2', '2', '2026-11-26T16:16:00.000Z')));
+    const c = db.get();
+    expect(c.consultaAgendada).toBe('2026-12-01T18:00:00.000Z');
+    expect(db.enviados.at(-1)?.texto).not.toMatch(/meet\.google\.com/);
+    const aviso = c.avisosEquipe?.find(a => a.id === 'consulta-sem-link:2026-12-01T18:00:00.000Z');
+    expect(aviso).toMatchObject({ prioridade: true, texto: expect.stringMatching(/01\/12\/2026 às 15h marcada sem link do Meet/) });
+    expect(aviso?.resolvidoEm).toBeUndefined();
   });
 
   it('cliente não poderá comparecer com agenda fora do ar: nada inventado, aviso prioritário continua aberto', async () => {

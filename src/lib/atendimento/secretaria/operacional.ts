@@ -19,6 +19,7 @@ import { nomeVerificado } from '../biblioteca/selecao';
 import type { BibliotecaSalva } from '../biblioteca/renderizar';
 import { textoTemplate } from './templates';
 import { automacaoSuspensa, type InstrucaoOperacional } from '../instrucoes-operacionais';
+import { avisarConsultaSemLink } from '../situacao-consulta';
 
 /**
  * Camada operacional da Anne: respostas dentro de automações ativas no modo Híbrido e reagendamento delegado
@@ -327,12 +328,16 @@ async function conduzirReagendamento(x: Execucao, a: AutomacaoAtiva, evento: Eve
           proximo = { tipo: 'execucao', ok: false, indisponivel };
         }
         const novo = recibo;
-        await x.p.atualizar(x.conversaId, c => ({
-          ...c,
-          ...(novo ? { consultaAgendada: novo.inicio, horariosOfertados: [] } : {}),
-          agenteAna: { ...c.agenteAna, operacaoConsulta: undefined, ...(novo ? { reservaCalendar: novo, alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, confirmacaoCancelamento: undefined } : {}) },
-          ...(novo ? { timeline: [...c.timeline, { data: x.agora.toISOString(), evento: `Consulta remarcada pela Anne (modo Híbrido) com recibo da agenda · ${novo.inicio}` }] } : {}),
-        }));
+        await x.p.atualizar(x.conversaId, c => {
+          const salvo: Conversa = {
+            ...c,
+            ...(novo ? { consultaAgendada: novo.inicio, horariosOfertados: [] } : {}),
+            agenteAna: { ...c.agenteAna, operacaoConsulta: undefined, ...(novo ? { reservaCalendar: novo, alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, confirmacaoCancelamento: undefined } : {}) },
+            ...(novo ? { timeline: [...c.timeline, { data: x.agora.toISOString(), evento: `Consulta remarcada pela Anne (modo Híbrido) com recibo da agenda · ${novo.inicio}` }] } : {}),
+          };
+          // Novo horário sem link do Meet entregável: aviso prioritário à equipe junto com o recibo.
+          return novo ? avisarConsultaSemLink(salvo, novo, x.agora) : salvo;
+        });
         if (novo) await x.p.auditar?.('secretariaReagendamento', `Consulta remarcada com recibo · ${novo.inicio}`, 'sucesso');
       } else if (ac.tipo === 'concluir') {
         if (ac.texto) textos.push(ac.texto);

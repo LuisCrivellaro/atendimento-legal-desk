@@ -64,14 +64,16 @@ export const reservarHorarioEquipe = createServerFn({ method: 'POST' })
       throw error instanceof Error ? error : new Error('Reserva não confirmada na agenda.');
     }
     const autor = profile.data?.nome ?? 'Atendente';
-    await atualizarConversa(context.supabase, data.casoId, x => ({
+    const { avisarConsultaSemLink } = await import('./situacao-consulta');
+    // Sem link do Meet entregável: aviso prioritário que fica na conversa até a equipe enviar o link.
+    await atualizarConversa(context.supabase, data.casoId, x => avisarConsultaSemLink({
       ...x,
       consultaAgendada: reserva.inicio,
       horariosOfertados: [],
       ...(data.finalidade === 'retorno' ? { retornoAgendado: reserva.inicio, retornoDuracao: DURACAO_RETORNO } : {}),
       agenteAna: { ...x.agenteAna, operacaoConsulta: undefined, reservaCalendar: reserva, alteracaoConsulta: undefined, autorizacaoRemarcacao: undefined, horarioPendente: undefined, horarioPendenteDesde: undefined, horariosTeste: [], agendaReal: false },
       timeline: [...x.timeline, { data: new Date().toISOString(), evento: `${data.finalidade === 'retorno' ? 'Retorno' : 'Consulta'} reservado(a) na agenda do ProJuris por ${autor} · ${formatarHorarioCliente(reserva.inicio)}` }],
-    }));
+    }, reserva));
     await context.supabase.rpc('registrar_audit_log', { p_ator: autor, p_perfil: 'equipe', p_acao: 'reservarHorarioEquipe', p_resumo: `${data.finalidade} · compromisso confirmado · ${reserva.inicio}`, p_status: 'sucesso' });
     // Link só quando o Google devolveu um endereço HTTPS; nunca inventado.
     const meet = reserva.meetUrl && /^https:\/\//.test(reserva.meetUrl) ? reserva.meetUrl : undefined;

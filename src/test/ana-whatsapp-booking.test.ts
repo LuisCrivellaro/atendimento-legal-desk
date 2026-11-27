@@ -15,7 +15,7 @@ vi.mock('@/lib/atendimento/envio.functions', () => ({ enviarMensagemSistema: moc
 
 describe('reserva WhatsApp com telefone do canal', () => {
   it.each(['ultramsg','telegram'] as const)('fluxos com canal %s e UltraMsg pausado no teste Telegram', async (canal) => {
-  for (const cenario of ['reservar','perguntar','cancelar','remarcar','ofertar','inicio','nome','recusa','humano','especifico','aceite','tarde','numero','nomePendente','nomePendenteTardio','informacoes','aceiteCaptacao','escolhaSemNome','falhaReserva'] as const) {
+  for (const cenario of ['reservar','perguntar','cancelar','remarcar','ofertar','inicio','nome','recusa','humano','especifico','aceite','tarde','numero','nomePendente','nomePendenteTardio','informacoes','aceiteCaptacao','escolhaSemNome','falhaReserva','reservarComLink'] as const) {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-10-23T04:06:00Z'));
@@ -79,6 +79,7 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='recusa')mocks.gerar.mockResolvedValue({acao:'enviar',mensagem:'Sem problema! Como posso ajudar?',motivo_aprovacao:'',intencao:'duvida_geral',urgente:false,encaminhar_humano:false,dados_coletados:{nome:'',cpf:'',assunto:'',email:''},proximo_passo:''});
       mocks.reservar.mockResolvedValue({ id: 'evento-teste', inicio });
       if(cenario==='falhaReserva')mocks.reservar.mockRejectedValue(new Error('Reserva não concluída'));
+      if(cenario==='reservarComLink')mocks.reservar.mockResolvedValue({id:'evento-teste',inicio,meetUrl:'https://meet.google.com/abc-defg-hij'});
       mocks.remarcar.mockResolvedValue({id:'evento-teste',inicio});
       mocks.cancelar.mockResolvedValue(undefined);
       mocks.ocupados.mockResolvedValue([{start:inicio,end:'2026-10-26T12:30:00.000Z'}]);
@@ -101,6 +102,12 @@ describe('reserva WhatsApp com telefone do canal', () => {
       if(cenario==='aceiteCaptacao'){expect(mocks.ocupados).toHaveBeenCalledOnce();expect(saved.agenteAna?.horariosTeste).toHaveLength(2);expect(saved.agenteAna?.dados?.nome).toBe('');expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='escolhaSemNome'){expect(saved.agenteAna?.horarioPendente).toBe(inicio);expect(mocks.reservar).not.toHaveBeenCalled();}
       if(cenario==='falhaReserva'){expect(mocks.reservar).toHaveBeenCalledOnce();expect(saved.consultaAgendada).toBeUndefined();expect(saved.agenteAna?.erro).toBeTruthy();expect(saved.mensagens.at(-1)?.texto).not.toMatch(/consulta est[aá] confirmada/i);}
+      // Recibo sem link do Meet (mock padrão): a confirmação sai sem link e a equipe recebe aviso prioritário.
+      const reservou=saved.consultaAgendada===inicio&&(mocks.reservar.mock.calls.length+mocks.remarcar.mock.calls.length)>0;
+      const semLink=saved.avisosEquipe?.find(a=>a.id===`consulta-sem-link:${inicio}`);
+      expect(!!semLink,cenario).toBe(reservou&&cenario!=='reservarComLink');
+      if(semLink)expect(semLink).toMatchObject({prioridade:true,tipo:'confirmacao40'});
+      if(cenario==='reservarComLink'){expect(saved.consultaAgendada).toBe(inicio);expect(saved.mensagens.at(-1)?.texto).toContain('https://meet.google.com/abc-defg-hij');}
       expect(saved.agenteAna).toMatchObject({ humano: cenario==='humano'||cenario==='falhaReserva' });
       expect(mocks.enviar, cenario).toHaveBeenCalledOnce();
       expect(saved.mensagens.at(-1)?.de).toBe('escritorio');
